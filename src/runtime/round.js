@@ -16,6 +16,7 @@ import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
+import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 
 /**
@@ -828,6 +829,16 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         window: config.checkpoint?.window ?? 3,
         rounds: (finished.rounds || []).slice(-(config.checkpoint?.window ?? 3)).map((r) => r.n),
       })
+      // A plateau is the loop's own stall signal, so do not let it stop at the
+      // human page: propose the mutations `rsi_chain auto` would have offered.
+      // Proposals are inert until an activation promotes one, so this cannot
+      // change behaviour on its own; it just makes the lever reachable.
+      const maxMutations = Number(config.chain?.maxMutations) || 3
+      const nextVersion =
+        state.chain.versions.reduce((max, v) => Math.max(max, Number(v.version) || 0), 0) + 1
+      for (const m of proposeMutations(chain, { fromVersion: nextVersion, max: maxMutations })) {
+        runtime.append(view, 'chain.proposed', { version: m.spec.version, spec: m.spec }, 'system')
+      }
     }
   } catch (err) {
     runtime.append(
