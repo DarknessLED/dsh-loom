@@ -421,6 +421,16 @@ export function registerTools(ctx, { runtime, config }) {
         lines.push(`- round ${r.n}: ${r.status} ${r.score == null ? '' : `score=${r.score}`} (${r.attempts.length} attempts)`)
       }
       if (!s.rounds.length) lines.push('- (none yet)')
+      const lessons = s.lessons || []
+      lines.push('', 'lessons:')
+      for (const l of lessons) {
+        const claim = String(l.claim || '').replace(/\s+/g, ' ').trim()
+        const short = claim.length > 120 ? `${claim.slice(0, 119)}…` : claim
+        lines.push(
+          `- ${l.id} [${l.status}] claim: ${short} · uses ${l.useCount ?? 0} · gain ${l.gainSum ?? 0} · harm ${l.harmCount ?? 0}`,
+        )
+      }
+      if (!lessons.length) lines.push('- (none)')
       return lines.join('\n')
     },
   })
