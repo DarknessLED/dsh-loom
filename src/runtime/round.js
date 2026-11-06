@@ -649,7 +649,10 @@ function patchTouchesTests(patchPath) {
   try {
     text = readFileSync(patchPath, 'utf8')
   } catch {
-    return false
+    // An unreadable patch cannot be shown to leave the verifier alone. Fail
+    // closed: refusing a genuine patch wastes one round, while promoting a
+    // change set nobody could inspect defeats the point of the gate.
+    return true
   }
   for (const line of text.split('\n')) {
     if (!line.startsWith('diff --git ')) continue
