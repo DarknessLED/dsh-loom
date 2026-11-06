@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
 import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
@@ -50,6 +50,61 @@ export function activeChain(state) {
   const found = state.chain.versions.find((v) => v.version === state.chain.activeVersion)
   if (!found) throw new Error('no active chain — call rsi_chain(action:"activate") first')
   return found.spec
+}
+
+/**
+ * The chain's own acceptance command, if it declares one.
+ *
+ * A chain may contain more than one verifier node (the `refactor` template has
+ * a `baseline` before the map). The node that gates per-candidate work is the
+ * first verifier after the map; a chain with no map, or with only a baseline,
+ * still yields a usable command from its first verifier node.
+ */
+export function chainVerifierNode(chain) {
+  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  const usable = (n) => n?.type === 'verifier' && typeof n.cmd === 'string' && n.cmd.trim() !== ''
+  const mapAt = nodes.findIndex((n) => n?.type === 'map')
+  const afterMap = mapAt >= 0 ? nodes.slice(mapAt + 1) : []
+  return afterMap.find(usable) || nodes.find(usable) || null
+}
+
+/**
+ * Resolve the acceptance command for one task.
+ *
+ * The task's own verifier always wins: a chain may supply a gate where the task
+ * states none, but it must never weaken or replace the criteria a task does
+ * state. With neither there is nothing to run, and the caller fails closed
+ * rather than mistaking the absence of a proof for a proof.
+ */
+export function acceptanceVerifier({ task, chain }) {
+  if (task?.verify && typeof task.verify.cmd === 'string' && task.verify.cmd.trim() !== '') {
+    return { spec: task.verify, source: 'task', cwd: null }
+  }
+  const node = chainVerifierNode(chain)
+  if (!node) return { spec: null, source: 'none', cwd: null }
+  const timeoutMs = Number(node.timeoutMs)
+  return {
+    spec: {
+      cmd: node.cmd,
+      ...(node.metrics && typeof node.metrics === 'object' ? { metrics: node.metrics } : {}),
+      ...(Number.isFinite(timeoutMs) && timeoutMs > 0 ? { timeoutMs } : {}),
+    },
+    source: 'chain',
+    cwd: typeof node.cwd === 'string' && node.cwd.trim() ? node.cwd : null,
+  }
+}
+
+/**
+ * The chain's human node, if it declares one.
+ *
+ * `when` states when a person must look: `always` outranks autopilot, `never`
+ * keeps an unattended campaign unattended, and anything else (the templates'
+ * `on_gain`) keeps the established rule — autopilot applies, a normal campaign
+ * waits for review.
+ */
+export function humanGate(chain) {
+  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  return nodes.find((n) => n?.type === 'human') || null
 }
 
 function tailOf(text, max = 200) {
@@ -318,7 +373,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     raise('setup', { message: 'no task available for this round' })
     return
   }
-  const verifyCmd = task.verify?.cmd || 'echo no-verifier && exit 1'
+  const acceptance = acceptanceVerifier({ task, chain })
+  const verifyCmd = acceptance.spec?.cmd || 'echo no-verifier && exit 1'
   const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).
@@ -459,7 +515,26 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const stall = runtime.stallReason(attemptId)
         const abandoned = runRes.stopReason === 'aborted' && !runRes.timedOut ? stall || 'interrupted' : null
 
-        const ver = await runVerifier(task.verify, { cwd: wtPath, timeoutMs: config.verify.timeoutMs })
+        // The task's own verifier wins; a chain-level verifier is a fallback for
+        // tasks that state no acceptance command. With neither, the attempt has
+        // no proof and must fail closed instead of throwing.
+        const ver = acceptance.spec
+          ? await runVerifier(acceptance.spec, {
+              cwd: acceptance.source === 'chain' && acceptance.cwd ? resolve(wtPath, acceptance.cwd) : wtPath,
+              timeoutMs: config.verify.timeoutMs,
+            })
+          : {
+              ok: false,
+              exitCode: null,
+              signal: null,
+              timedOut: false,
+              durationMs: 0,
+              stdout: '',
+              stderr: 'no verifier: the task has no verify.cmd and the chain defines no verifier node',
+              metrics: {},
+              command: null,
+              cwd: wtPath,
+            }
         let lean = null
         try {
           lean = await runTaskLeanGate({ task, config, worktree: wtPath })
@@ -677,7 +752,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       } catch (err) {
         log('lesson derivation failed:', err?.message ?? err)
       }
-      const auto = config.loopPolicy.autoApply || state.autopilot?.enabled === true
+      // A chain's human node decides whether a person must look. `when: always`
+      // outranks autopilot; `when: never` lets an unattended campaign stay
+      // unattended; anything else keeps the existing autopilot rule.
+      const human = humanGate(chain)
+      const autoByConfig = config.loopPolicy.autoApply || state.autopilot?.enabled === true
+      const auto = human?.when === 'always' ? false : human?.when === 'never' ? true : autoByConfig
       if (auto && checks.noop) {
         // Nothing to apply: the tree already satisfies the verifier. Marking the round
         // landed is what stops the selector spending more rounds on this task.
@@ -712,7 +792,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         }
       } else {
         raise('gate', {
-          message: `round ${n} produced a passing patch (score ${score}); review and apply`,
+          message: human?.prompt || `round ${n} produced a passing patch (score ${score}); review and apply`,
+          prompt: human?.prompt ?? null,
+          node: human?.id ?? null,
           patch: best.patch,
           attempt: best.id,
           score,
