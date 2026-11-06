@@ -581,6 +581,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           stdoutTail: (ver.stdout || '').split('\n').slice(-15).join('\n'),
           agentTail: (runRes.text || '').split('\n').slice(-12).join('\n'),
           usage: spend.usage,
+          usageEstimated: spend.estimated === true,
           costUsd: spend.usd,
           error: runRes.error,
         }

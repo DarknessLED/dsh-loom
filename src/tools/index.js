@@ -446,7 +446,7 @@ export function registerTools(ctx, { runtime, config }) {
       const spend = campaignUsage(s.rounds)
       const lines = [
         `# RSI campaign ${s.id}`,
-        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${spend.usd.toFixed(3)}/$${s.budget.usd} (computed from ${spend.inputTokens} in / ${spend.outputTokens} out tokens)`,
+        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${spend.usd.toFixed(3)}/$${s.budget.usd} (computed from ${spend.inputTokens} in / ${spend.outputTokens} out tokens${spend.estimated ? ', estimated from transcripts' : ''})`,
         `objective: ${s.objective}`,
         `chain: v${s.chain.activeVersion ?? '-'} · incumbent: ${s.incumbent ? `round ${s.incumbent.round ?? s.incumbent.chainVersion ?? '?'} score ${s.incumbent.score}` : 'none'}`,
       ]
