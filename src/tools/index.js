@@ -11,6 +11,7 @@ import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine
 import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
+import { nextCheckpointId } from '../runtime/ids.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -275,7 +276,7 @@ export function registerTools(ctx, { runtime, config }) {
         }
         runtime.append(view, 'artifact.promoted', { kind: 'chain', version: candVersion, score: cmp.candidateScore, delta: cmp.delta }, 'system')
         if (config.loopPolicy?.humanGate !== false && args.confirm !== true) {
-          const cpId = `cp-${Date.now().toString(36)}`
+          const cpId = nextCheckpointId()
           runtime.append(
             view,
             'checkpoint.raised',
@@ -583,7 +584,7 @@ export function registerTools(ctx, { runtime, config }) {
       // four rounds is a guess. Both facts belong in the checkpoint the human sees.
       if (args.commit) {
         const version = Number(state.policy?.version || 0) + 1
-        const cpId = `cp-${Date.now().toString(36)}`
+        const cpId = nextCheckpointId()
         runtime.append(
           v,
           'policy.proposed',

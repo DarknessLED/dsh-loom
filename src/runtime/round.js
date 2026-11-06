@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
 import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
@@ -15,6 +16,7 @@ import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
+import { nextCheckpointId } from './ids.js'
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -480,13 +482,42 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
+      testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
+    }
+    // Holdout tasks are excluded from selection, so passing the visible verifier
+    // proves less than it looks: a patch can special-case that task and break the
+    // one held back. Run the holdout here, inside the winning candidate's
+    // worktree, and let promotion wait for it. No holdout tasks means the check
+    // is not applicable, which is recorded as 'skipped' rather than a pass.
+    checks.holdout = 'skipped'
+    const heldOut = holdoutTasks(state)
+    if (heldOut.length) {
+      checks.holdout = true
+      if (!best?.worktree || best.screenedOut) {
+        checks.holdout = false
+      } else {
+        for (const h of heldOut) {
+          let result
+          try {
+            result = await runVerifier(h.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs })
+          } catch (err) {
+            result = { ok: false, stderr: String(err?.message ?? err) }
+          }
+          if (result.ok !== true) {
+            checks.holdout = false
+            log(`holdout task ${h.id} failed in ${best.worktree}: ${String(result.stderr || result.stdout || '').slice(-400)}`)
+          }
+        }
+      }
     }
     // A verified attempt that changed nothing is not evidence of new work, but it IS
     // evidence the task is satisfied (an earlier landing already covered it). Applying
     // an empty patch fails in git apply, so record it as a no-op landing instead.
     checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
-    const promote = checks.verifierOk && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
+    const basePass = checks.verifierOk && checks.testsClean && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
+    const promote = basePass && checks.holdout !== false
+    const rejectedByHoldout = basePass && checks.holdout === false
 
     runtime.append(
       view,
@@ -499,7 +530,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'artifact.promoted',
-        { kind: 'attempt', round: n, score, patch: best.patch, branch: best.branch, ...(checks.noop ? { noop: true } : {}) },
+        { kind: 'attempt', round: n, attemptId: best.id, score, patch: best.patch, branch: best.branch, ...(checks.noop ? { noop: true } : {}) },
         'system',
       )
       // Only verified work becomes knowledge, and only the mechanism (`why`),
@@ -561,7 +592,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : 'no-gain', score, promoted: promote === true },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true },
       'system',
     )
 
@@ -594,8 +625,66 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
 }
 
+const TEST_PATH_RE = /^tests(?:[/\\]|$)/
+
+function normalizeRepoPath(p) {
+  return String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '')
+}
+
+function touchesTests(p) {
+  return TEST_PATH_RE.test(normalizeRepoPath(p))
+}
+
+/**
+ * A patch that edits the tests can make any verifier pass, so promotion must
+ * refuse it. `diffStat` only sees paths git already tracks, and only when it is
+ * asked after `makePatch` staged intent-to-add entries; the patch file itself
+ * is the authoritative change set (it also covers new and deleted test files).
+ * Only `diff --git` section headers are parsed: content lines can begin with
+ * `+++`/`---` too, so those prefixes are not reliable path markers.
+ */
+function patchTouchesTests(patchPath) {
+  if (!patchPath) return false
+  let text
+  try {
+    text = readFileSync(patchPath, 'utf8')
+  } catch {
+    return false
+  }
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('diff --git ')) continue
+    const rest = line.slice('diff --git '.length)
+    const quoted = [...rest.matchAll(/"([ab])\/((?:\\.|[^"\\])*)"/g)].map((m) => m[2])
+    const paths = quoted.length ? quoted : (rest.match(/^a\/(.+?) b\/(.+)$/) || []).slice(1)
+    if (paths.some(touchesTests)) return true
+  }
+  return false
+}
+
+/**
+ * Resolve the campaign's holdout ids to the tasks that actually define a
+ * verifier. Holdouts are ids into the same task list (an object entry is
+ * tolerated for forward compatibility), and a task without `verify.cmd` cannot
+ * prove anything, so it is skipped rather than silently counted as a pass.
+ */
+function holdoutTasks(state) {
+  const all = Array.isArray(state.evalset?.tasks) ? state.evalset.tasks : []
+  const holdout = Array.isArray(state.evalset?.holdout) ? state.evalset.holdout : []
+  const out = []
+  const seen = new Set()
+  for (const entry of holdout) {
+    const id = typeof entry === 'string' ? entry : entry?.id != null ? String(entry.id) : null
+    if (!id || seen.has(id)) continue
+    const task = all.find((t) => t && String(t.id) === id) || (typeof entry === 'object' && entry?.verify?.cmd ? entry : null)
+    if (!task?.verify?.cmd) continue
+    seen.add(id)
+    out.push(task)
+  }
+  return out
+}
+
 export function raiseCheckpoint(runtime, view, kind, payload) {
-  const id = `cp-${Date.now().toString(36)}`
+  const id = nextCheckpointId()
   runtime.append(view, 'checkpoint.raised', { id, kind, payload }, 'system')
   return id
 }
