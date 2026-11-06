@@ -10,6 +10,7 @@ import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
+import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
@@ -191,6 +192,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
   const verifyCmd = task.verify?.cmd || 'echo no-verifier && exit 1'
   const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
+  // Which attempt gets the lessons rotates with the round, so the control is
+  // not always a1 (see src/runtime/exposure.js).
+  const exposed = exposeIndexes(candidates, n)
   const workspace = state.workspace
   if (!workspace) {
     raise('setup', { message: 'campaign has no workspace' })
@@ -254,7 +258,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
       const branch = `loom/${state.id}/${attemptId}`
       const startedAt = Date.now()
-      const phase = i === 1 ? 'explore' : 'exploit'
+      // The exposed candidate sees the lessons; every other candidate is the
+      // control. Rotating the exposed index is what turns the paired delta into
+      // evidence about the lesson instead of about the a1/a2 slot.
+      const treated = exposed.includes(i - 1)
+      const phase = treated ? 'exploit' : 'explore'
       let record = {
         id: attemptId,
         round: n,
@@ -271,11 +279,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const base = await headCommit(workspace).catch(() => null)
         await createWorktree({ repo: workspace, dir: wtPath, branch })
         const notes = readNotes(board, { kinds: ['obstacle', 'finding'], limit: 5, excludeAttempt: attemptId })
-        const lessons = policy.knowledge && config.knowledge?.enabled
+        const lessons = treated && policy.knowledge && config.knowledge?.enabled
           ? selectLessons(state.lessons || [], {
               round: n,
               task,
-              phase: config.knowledge.exploreFirst === false ? 'exploit' : phase,
+              phase,
               limit: config.knowledge.maxShown,
               excludeFamilies: holdoutFamilies,
             })
@@ -407,9 +415,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       /* board pruning is never fatal */
     }
 
-    // Paired evidence: treated attempts (i >= 2) against the control (i = 1).
-    // Nothing is learned from a single unevaluated success; the control is what
-    // makes the comparison mean something.
+    // Paired evidence: the exposed attempt (which saw lessons) against an
+    // unexposed control of the same round. Which attempt is which rotates by
+    // round, so `pairedImpacts` finds the control by "saw no lessons" instead of
+    // by position. Nothing is learned from a single unevaluated success; the
+    // control is what makes the comparison mean something.
     try {
       const impacts = pairedImpacts({ attempts, round: n })
       if (impacts.length) {

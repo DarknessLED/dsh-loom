@@ -44,8 +44,6 @@ export const DEFAULT_CONFIG = {
     enabled: true,
     /** Hard cap on lessons in one brief. Three is already a lot of prior. */
     maxShown: 3,
-    /** Attempt #1 of every round is the control and receives nothing. */
-    exploreFirst: true,
     /** Harms needed before a non-paying lesson is quarantined. */
     quarantineHarm: 2,
     ttlRounds: 12,

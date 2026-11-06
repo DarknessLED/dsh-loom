@@ -2,12 +2,14 @@
  * Paired evidence for lessons — the only way a lesson earns the right to be
  * shown again.
  *
- * Design note: a round runs `candidates` attempts on the *same* task. The first
- * attempt is always the control (it never receives lessons); the later ones may
- * receive at most `maxShown`. That gives a genuine paired comparison inside a
- * single round: same task, same verifier, same round, different guidance. A
- * lesson whose treated attempts do worse than the control is a hazard, not a
- * help, and loses its slot.
+ * Design note: a round runs `candidates` attempts on the *same* task. Exactly
+ * one of them (the exposed index, rotated by round — see
+ * `src/runtime/exposure.js`) may receive at most `maxShown` lessons; the rest
+ * stay clean as controls. That gives a genuine paired comparison inside a single
+ * round: same task, same verifier, same round, different guidance. A lesson
+ * whose treated attempt does worse than the control is a hazard, not a help, and
+ * loses its slot. The control is therefore found by "saw no lessons", never by
+ * attempt position.
  *
  * Nothing here reads files or clocks: pure functions over plain objects, so the
  * policy is testable without a host.
