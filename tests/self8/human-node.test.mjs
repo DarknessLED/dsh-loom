@@ -3,7 +3,7 @@
 // is overruled by a config flag. The chain is the campaign's stated process, so
 // its human node wins — while `when: never` keeps unattended campaigns unattended.
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
@@ -123,7 +123,7 @@ const config = {
   assert.equal(cp.data?.kind, 'gate', 'it is a review checkpoint')
   assert.equal(rt.events.some((e) => e.type === 'autopilot.applied'), false, 'autopilot did not apply it')
   assert.equal(readFileSync(join(dir, 'keep.txt'), 'utf8'), 'keep\n', 'the workspace was left alone')
-  assert.equal(readFileSync(join(dir, 'new.txt'), 'utf8').trim(), 'written', 'the worktree change stayed in the worktree')
+  assert.equal(existsSync(join(dir, 'new.txt')), false, 'the worktree change stayed in the worktree, not the workspace')
   ok('a human node with when: always blocks the automatic apply')
   rmSync(dir, { recursive: true, force: true })
 }
