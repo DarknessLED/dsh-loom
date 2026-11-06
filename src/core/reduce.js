@@ -121,6 +121,19 @@ function apply(s, ev) {
     case 'gate.evaluated': {
       const c = s.candidates.find((x) => x.id === d.candidateId)
       if (c) Object.assign(c, { gate: d, status: d.promoted ? 'promoted' : 'rejected' })
+      // Remember which attempt the gate chose: only that one can become reality,
+      // and only once it actually landed (see autopilot.applied / checkpoint).
+      const r = s.rounds.find((x) => x.n === d.round)
+      if (r && d.promoted) r.promotedAttemptId = d.candidateId
+      break
+    }
+    case 'autopilot.applied': {
+      // The patch reached the workspace and the guard passed: this round is
+      // real progress, and only rounds like this may mark a task as solved.
+      const r = s.rounds.find((x) => x.n === d.round)
+      if (r) r.landed = true
+      if (!Array.isArray(s.autopilotLog)) s.autopilotLog = []
+      s.autopilotLog.push({ round: d.round ?? null, patch: d.patch ?? null, at: ev.t })
       break
     }
     case 'artifact.promoted':

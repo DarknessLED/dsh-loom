@@ -12,10 +12,14 @@
 export function bestScores(rounds) {
   const best = new Map()
   for (const round of Array.isArray(rounds) ? rounds : []) {
+    // A task only counts as solved when the work that solved it actually
+    // reached the workspace — a 1.0 in a discarded worktree is not progress.
+    if (round?.landed !== true) continue
     for (const attempt of round?.attempts ?? []) {
       if (attempt?.screenedOut || attempt?.abandoned) continue
       if (attempt?.verifierOk !== true) continue
       if (!Number.isFinite(attempt?.score)) continue
+      if (round.promotedAttemptId && attempt.id !== round.promotedAttemptId) continue
       const taskId = round.taskId ?? attempt.taskId ?? null
       if (!taskId) continue
       if (!best.has(taskId) || attempt.score > best.get(taskId)) best.set(taskId, attempt.score)

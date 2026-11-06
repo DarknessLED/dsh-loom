@@ -18,7 +18,7 @@ function ok(name, cond, detail) {
 }
 
 const attempt = (id, score, extra = {}) => ({ id, score, verifierOk: true, ...extra })
-const round = (n, taskId, attempts) => ({ n, taskId, attempts })
+const round = (n, taskId, attempts) => ({ n, taskId, attempts, landed: true, promotedAttemptId: attempts?.[0]?.id })
 
 const tasks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
 

@@ -27,8 +27,14 @@ export function bestPriorScore(rounds, taskId, beforeRound) {
   let best = null
   for (const r of rounds || []) {
     if (!r || r.taskId !== taskId || Number(r.n) >= Number(beforeRound)) continue
+    // Only work that actually reached the workspace counts. An attempt can score
+    // 1.0 inside its own worktree and still be thrown away (empty patch, guard
+    // rollback); treating that as "task solved" would freeze the campaign on a
+    // task the workspace still fails.
+    if (r.landed !== true) continue
     for (const a of r.attempts || []) {
       if (!a || a.screenedOut || a.abandoned) continue
+      if (r.promotedAttemptId && a.id !== r.promotedAttemptId) continue
       const s = Number(a.score)
       if (Number.isFinite(s) && (best === null || s > best)) best = s
     }
@@ -463,7 +469,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'gate.evaluated',
-      { candidateId: best?.id ?? `r${n}a0`, promoted: promote, score, incumbentScore: taskBest, checks },
+      { candidateId: best?.id ?? `r${n}a0`, round: n, promoted: promote, score, incumbentScore: taskBest, checks },
       'system',
     )
 

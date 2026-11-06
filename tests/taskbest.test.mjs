@@ -9,7 +9,9 @@ function ok(cond, name) {
   console.log(`${cond ? 'ok  ' : 'FAIL'} ${pass + fail} - ${name}`)
 }
 
-const round = (n, taskId, attempts) => ({ n, taskId, attempts })
+// `landed` mirrors the reducer: only a round whose patch reached the workspace
+// and passed the guard counts as progress.
+const round = (n, taskId, attempts) => ({ n, taskId, attempts, landed: true, promotedAttemptId: attempts?.[0]?.id })
 const attempt = (id, score, extra = {}) => ({ id, score, ...extra })
 
 // --- the reason this exists ------------------------------------------------
@@ -50,6 +52,21 @@ ok(bestPriorScore(noisy, 'A', 2) === 0.5, 'skips screened-out, abandoned and non
 // --- degenerate input -------------------------------------------------------
 ok(bestPriorScore(undefined, 'A', 2) === null, 'no rounds yet')
 ok(bestPriorScore([null, {}, { n: 'x', taskId: 'A' }], 'A', 5) === null, 'malformed rounds do not throw')
+
+// --- a discarded attempt is not progress ------------------------------------
+// r1 scored 1.0 in its worktree but the patch never landed in the workspace,
+// so task A is still unsolved and the next round must be free to try again.
+const discarded = [{ n: 1, taskId: 'A', attempts: [attempt('r1a1', 1)], landed: false }]
+ok(bestPriorScore(discarded, 'A', 2) === null, 'an unlanded round does not count as solved')
+
+const pendingOnly = [{ n: 1, taskId: 'A', attempts: [attempt('r1a1', 1)] }]
+ok(bestPriorScore(pendingOnly, 'A', 2) === null, 'a round with no landed flag does not count')
+
+// Only the attempt the gate actually chose may set the bar.
+const twoAttempts = [
+  { n: 1, taskId: 'A', landed: true, promotedAttemptId: 'r1a2', attempts: [attempt('r1a1', 0.3), attempt('r1a2', 0.8)] },
+]
+ok(bestPriorScore(twoAttempts, 'A', 2) === 0.8, 'the promoted attempt sets the bar')
 
 console.log(`\n${pass}/${pass + fail} passed`)
 if (fail > 0) process.exitCode = 1
