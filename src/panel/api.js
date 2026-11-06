@@ -1,5 +1,6 @@
 import { svc } from '../core/services.js'
 import { campaignQuality } from '../runtime/quality.js'
+import { reviewQueue } from '../runtime/review.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -16,9 +17,23 @@ function send(res, status, body) {
   res.end(JSON.stringify(body))
 }
 
-function campaignRow(runtime, view, now) {
+function openCheckpointsOf(state) {
+  if (Array.isArray(state?.checkpoints)) {
+    return state.checkpoints.filter((c) => c && c.status === 'open')
+  }
+  if (Array.isArray(state?.openCheckpoints)) return state.openCheckpoints.filter(Boolean)
+  return []
+}
+
+function campaignRow(view, now, campaignId) {
   const s = view.state
-  const open = s.checkpoints.filter((c) => c.status === 'open')
+  const open = openCheckpointsOf(s)
+  // The panel ships the same ranked queue rsi_status prints, so the riskiest
+  // pending decision is visible without opening the campaign. `open` stays a
+  // numeric count for the badge.
+  const reviews = reviewQueue(s)
+    .slice(0, 3)
+    .map(({ id, kind, risk, summary }) => ({ id, kind, risk, summary }))
   const lessons = Array.isArray(s.lessons) ? s.lessons : []
   const lessonsTop = lessons
     .filter((l) => l.status === 'active')
@@ -43,7 +58,9 @@ function campaignRow(runtime, view, now) {
       }))
     : []
   return {
-    id: s.id,
+    // The row is keyed by the id the runtime listed; in production that is the
+    // state id, but the route must not rename a campaign it was asked about.
+    id: campaignId ?? s.id,
     status: s.status,
     objective: s.objective ?? '',
     workspace: s.workspace ?? null,
@@ -63,6 +80,8 @@ function campaignRow(runtime, view, now) {
     // The report prints the same reading; computing it here (rather than in the
     // browser) keeps the sidebar and the report on one definition of health.
     quality: campaignQuality(s),
+    open: open.length,
+    reviews,
     openCheckpoints: open.map((c) => ({
       id: c.id,
       kind: c.kind,
@@ -89,7 +108,8 @@ export function panelState({ runtime }) {
   const rows = []
   for (const id of ids) {
     try {
-      rows.push(campaignRow(runtime, runtime.get(id), now))
+      const view = typeof runtime.get === 'function' ? runtime.get(id) : runtime.open(id)
+      rows.push(campaignRow(view, now, id))
     } catch (err) {
       rows.push({ id, error: String(err?.message ?? err) })
     }

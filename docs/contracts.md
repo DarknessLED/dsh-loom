@@ -75,6 +75,7 @@
 ### report/ — 审计与导出
 
 - `src/report/export.js` — 把 campaign 折成一个版本化、可 JSON 往返的自包含包（目标、链、策略、评测集、落地产物），供 `rsi_export` 写到 `export/bundle.json`，让证据能随代码一起归档。
+- `src/report/digest.js` — 面向人的有界追读摘要：表头（campaign、状态、轮数、结论、花费）、最新在前的回合行、按风险排序的待决评审、经验计数；不含 stdout/patch/JSON，行数与行长都有硬上限，`rsi_report` 以它开头。
 
 ### runtime/ — 回合与运行时
 

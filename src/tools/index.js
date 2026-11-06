@@ -3,6 +3,7 @@ import { output } from './output.js'
 import { svc } from '../core/services.js'
 import { writeJsonAtomic } from '../core/atomic.js'
 import { exportBundle } from '../report/export.js'
+import { campaignDigest } from '../report/digest.js'
 import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
@@ -20,10 +21,17 @@ import { reviewQueue } from '../runtime/review.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
+function viewOf(runtime, id) {
+  // Runtimes expose `get` (cached) in production; lightweight embedders and
+  // tests may only implement `open`. Both return the same { state, dir } view.
+  if (typeof runtime.get === 'function') return runtime.get(String(id))
+  return runtime.open(String(id))
+}
+
 function resolve(runtime, id) {
-  if (id) return runtime.get(String(id))
+  if (id) return viewOf(runtime, id)
   const all = runtime.listCampaigns()
-  if (all.length === 1) return runtime.get(all[0])
+  if (all.length === 1) return viewOf(runtime, all[0])
   if (all.length === 0) throw new Error('no campaigns yet — call rsi_start first')
   throw new Error(`multiple campaigns (${all.join(', ')}); pass id`)
 }
@@ -460,17 +468,26 @@ export function registerTools(ctx, { runtime, config }) {
       const v = resolve(runtime, args.id)
       const s = v.state
       const limit = Math.max(1, Math.min(50, Number(args.limit) || 5))
-      const spend = campaignUsage(s.rounds)
+      const rounds = Array.isArray(s.rounds) ? s.rounds : []
+      const constraints = Array.isArray(s.constraints) ? s.constraints : []
+      const checkpoints = Array.isArray(s.checkpoints) ? s.checkpoints : []
+      const lessons = Array.isArray(s.lessons) ? s.lessons : []
+      const budget = s.budget ?? {}
+      const spend = campaignUsage(rounds)
+      // Lead with the bounded catch-up, so the first screen of a report says
+      // what changed and what needs a human before the ledger table starts.
       const lines = [
+        campaignDigest(s, { rounds: limit }),
+        '',
         `# RSI campaign ${s.id}`,
-        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${spend.usd.toFixed(3)}/$${s.budget.usd} (computed from ${spend.inputTokens} in / ${spend.outputTokens} out tokens${spend.estimated ? ', estimated from transcripts' : ''})`,
-        `objective: ${s.objective}`,
-        `chain: v${s.chain.activeVersion ?? '-'} · incumbent: ${s.incumbent ? `round ${s.incumbent.round ?? s.incumbent.chainVersion ?? '?'} score ${s.incumbent.score}` : 'none'}`,
+        `status: ${s.status} · rounds ${rounds.length}/${budget.rounds ?? '-'} · spend $${spend.usd.toFixed(3)}/$${budget.usd ?? '-'} (computed from ${spend.inputTokens} in / ${spend.outputTokens} out tokens${spend.estimated ? ', estimated from transcripts' : ''})`,
+        `objective: ${s.objective ?? ''}`,
+        `chain: v${s.chain?.activeVersion ?? '-'} · incumbent: ${s.incumbent ? `round ${s.incumbent.round ?? s.incumbent.chainVersion ?? '?'} score ${s.incumbent.score}` : 'none'}`,
       ]
-      if (s.constraints.filter((c) => c.active).length) {
-        lines.push('', 'constraints:', ...s.constraints.filter((c) => c.active).map((c) => `- ${c.text}`))
+      if (constraints.filter((c) => c.active).length) {
+        lines.push('', 'constraints:', ...constraints.filter((c) => c.active).map((c) => `- ${c.text}`))
       }
-      const open = s.checkpoints.filter((c) => c.status === 'open')
+      const open = checkpoints.filter((c) => c.status === 'open')
       if (open.length) lines.push('', 'open checkpoints:', ...open.map((c) => `- [${c.id}] ${c.kind}`))
       // One line per round, as a table: a settled campaign is only auditable if
       // the human can see which round ran which task, what it scored and
@@ -478,18 +495,17 @@ export function registerTools(ctx, { runtime, config }) {
       lines.push('', 'round history:')
       lines.push('| round | task | score | verdict | attempts |')
       lines.push('| --- | --- | --- | --- | --- |')
-      for (const r of s.rounds.slice(-limit)) {
+      for (const r of rounds.slice(-limit)) {
         lines.push(
           `| ${r.n} | ${r.taskId ?? '-'} | ${r.score == null ? '-' : r.score} | ${r.status} | ${r.attempts?.length ?? 0} |`,
         )
       }
-      if (!s.rounds.length) lines.push('| - | - | - | (none yet) | - |')
+      if (!rounds.length) lines.push('| - | - | - | (none yet) | - |')
       // The table shows what each round did; this line says whether the loop is
       // still working or spinning, so a human does not have to infer it from
       // the verdicts. Same helper the panel uses, so the two surfaces cannot
       // disagree about the same campaign.
       lines.push('', qualityLine(campaignQuality(s)))
-      const lessons = s.lessons || []
       lines.push('', 'lessons:')
       for (const l of lessons) {
         const claim = String(l.claim || '').replace(/\s+/g, ' ').trim()
