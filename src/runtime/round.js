@@ -354,6 +354,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           stopReason: runRes.stopReason,
           diff,
           patch: patch?.path ?? null,
+          patchBytes: patch?.bytes ?? 0,
           report,
           reportError: parsed.ok ? null : parsed.error,
           notesShown: notes.length,
@@ -471,10 +472,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const taskBest = bestPriorScore(state.rounds, task.id, n)
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
-      hasPatch: Boolean(best?.patch),
+      hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
-    const promote = checks.verifierOk && checks.hasPatch && checks.beatsIncumbent
+    // A verified attempt that changed nothing is not evidence of new work, but it IS
+        // evidence the task is satisfied (an earlier landing already covered it). Applying
+        // an empty patch fails in git apply, so record it as a no-op landing instead.
+        checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
+        const promote = checks.verifierOk && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
 
     runtime.append(
       view,
@@ -484,7 +489,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     )
 
     if (promote) {
-      runtime.append(view, 'artifact.promoted', { kind: 'attempt', round: n, score, patch: best.patch, branch: best.branch }, 'system')
+      runtime.append(
+        view,
+        'artifact.promoted',
+        { kind: 'attempt', round: n, score, patch: best.patch, branch: best.branch, ...(checks.noop ? { noop: true } : {}) },
+        'system',
+      )
       // Only verified work becomes knowledge, and only the mechanism (`why`),
       // never the plan or the excuse.
       try {
@@ -496,7 +506,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         log('lesson derivation failed:', err?.message ?? err)
       }
       const auto = config.loopPolicy.autoApply || state.autopilot?.enabled === true
-      if (auto) {
+      if (auto && checks.noop) {
+        // Nothing to apply: the tree already satisfies the verifier. Marking the round
+        // landed is what stops the selector spending more rounds on this task.
+        runtime.append(view, 'autopilot.applied', { round: n, patch: null, guard: null, noop: true, committed: false, at: Date.now() }, 'system')
+      } else if (auto) {
         const applied = await applyPatch({ repo: workspace, patchFile: best.patch })
         if (!applied.ok) {
           raise('anomaly', {

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { promisify } from 'node:util'
 
@@ -31,6 +31,12 @@ export async function makePatch({ dir, outFile, base = 'HEAD' }) {
 
 /** Apply a patch to a clean workspace. Never leaves the tree half-applied if --check fails. */
 export async function applyPatch({ repo, patchFile }) {
+  // An empty patch is not a failure: some attempts correctly change nothing.
+  try {
+    if (readFileSync(patchFile, 'utf8').trim() === '') return { ok: true, reason: 'empty-patch' }
+  } catch (err) {
+    return { ok: false, reason: 'patch-missing', detail: String(err?.message ?? err) }
+  }
   const { stdout: status } = await git(['status', '--porcelain'], repo)
   if (status.trim()) return { ok: false, reason: 'workspace-dirty', detail: status.trim().split('\n').slice(0, 10) }
   try {
