@@ -12,6 +12,7 @@ import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../
 import { pickSurvivors, screenEnabled } from './halving.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
+import { pickTask } from './selector.js'
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -176,7 +177,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     raise('setup', { message: 'no evaluation tasks registered' })
     return
   }
-  const task = tasks[(n - 1) % tasks.length]
+  const picked = pickTask(tasks, state.rounds, { round: n })
+  const task = picked.task
+  if (!task) {
+    raise('setup', { message: 'no task available for this round' })
+    return
+  }
   const verifyCmd = task.verify?.cmd || 'echo no-verifier && exit 1'
   const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
   const workspace = state.workspace
