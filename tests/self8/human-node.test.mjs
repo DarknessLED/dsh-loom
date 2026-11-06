@@ -33,8 +33,10 @@ function repo() {
 
 function fakeRuntime(dir) {
   const events = []
+  // The campaign's own directory must live outside the repo, otherwise writing
+  // ledger/artifact files makes the workspace dirty and the apply step refuses.
   return {
-    home: join(dir, 'home'),
+    home: mkdtempSync(join(tmpdir(), 'loom-hnode-home-')),
     events,
     dir,
     watchAttempt() {},
@@ -55,7 +57,7 @@ const REPORT = '{"changed":["new.txt"],"why":"wrote the file","evidence":["check
 
 function viewFor(dir, humanNode) {
   return {
-    dir: join(dir, 'campaign'),
+    dir: join(mkdtempSync(join(tmpdir(), 'loom-hnode-view-')), 'campaign'),
     state: {
       id: 'hnode',
       status: 'running',
