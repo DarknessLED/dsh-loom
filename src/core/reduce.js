@@ -99,7 +99,9 @@ function apply(s, ev) {
       break
     case 'round.finished': {
       const r = s.rounds.find((x) => x.n === d.n)
-      if (r) Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t })
+      // A missing flag (older ledgers) is not progress: plateau detection
+      // treats "no evidence of promotion" as flat.
+      if (r) Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t, promoted: d.promoted === true })
       break
     }
     case 'attempt.finished': {

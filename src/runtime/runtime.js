@@ -356,7 +356,7 @@ export class Runtime {
           this.append(
             view,
             'round.finished',
-            { n: round.n, status: 'interrupted', score: round.score ?? null, reason: 'host-restart' },
+            { n: round.n, status: 'interrupted', score: round.score ?? null, reason: 'host-restart', promoted: false },
             'system',
           )
           report.interruptedRounds.push(`${id}/r${round.n}`)

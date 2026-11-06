@@ -521,9 +521,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
     }
 
-    runtime.append(view, 'round.finished', { n, status: promote ? 'promoted' : 'no-gain', score }, 'system')
+    // `promoted` is what plateau detection reads: status can be 'promoted'
+    // for a patch that still needed a human, but only a gate promotion is
+    // progress. Recording it explicitly keeps the rounds array self-describing.
+    runtime.append(view, 'round.finished', { n, status: promote ? 'promoted' : 'no-gain', score, promoted: promote === true }, 'system')
   } catch (err) {
-    runtime.append(view, 'round.finished', { n, status: 'error', score: null, error: String(err?.message ?? err) }, 'system')
+    runtime.append(
+      view,
+      'round.finished',
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false },
+      'system',
+    )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })
     log('round crashed:', err?.stack ?? err)
   } finally {
