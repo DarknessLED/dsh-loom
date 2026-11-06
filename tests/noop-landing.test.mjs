@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
-import { applyPatch } from '../../src/exec/patch.js'
+import { applyPatch } from '../src/exec/patch.js'
 import { runRound } from '../../src/runtime/round.js'
 
 let pass = 0
@@ -38,6 +38,11 @@ function fakeRuntime(dir) {
     home: join(dir, 'home'),
     events,
     dir,
+    watchAttempt() {},
+    unwatchAttempt() {},
+    stallReason() {
+      return null
+    },
     append(_view, type, data) {
       events.push({ type, data })
     },
@@ -52,6 +57,8 @@ const baseState = {
   status: 'running',
   workspace: null,
   rounds: [],
+  constraints: [],
+  autopilot: { enabled: true, guard: null },
   lessons: [],
   budget: { rounds: 10, roundsUsed: 0, usd: 5, spentUsd: 0 },
   evalset: { tasks: [], holdout: [] },
