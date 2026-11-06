@@ -228,9 +228,10 @@ export class Runtime {
   }
 
   briefForPrompt(limit = 3) {
-    const ids = this.listCampaigns().slice(0, limit)
-    const rows = []
-    for (const id of ids) {
+    // A campaign the human has to act on must never fall off the end of this
+    // list, so rank by "needs attention" first and only then by recency.
+    const all = []
+    for (const id of this.listCampaigns()) {
       let v
       try {
         v = this.get(id)
@@ -239,13 +240,20 @@ export class Runtime {
       }
       const s = v.state
       const open = s.checkpoints.filter((c) => c.status === 'open').length
-      rows.push(
-        `${s.id} [${s.status}] round ${s.rounds.length}/${s.budget.rounds} · $${s.budget.spentUsd.toFixed(2)}/$${s.budget.usd}` +
-          `${s.incumbent?.score != null ? ` · best ${s.incumbent.score}` : ''}` +
-          `${open ? ` · ${open} checkpoint(s) awaiting you` : ''} — ${String(s.objective).slice(0, 80)}`,
-      )
+      const rank = open > 0 ? 0 : s.status === 'running' ? 1 : 2
+      all.push({ s, open, rank, at: Number.isFinite(s.updatedAt) ? s.updatedAt : 0 })
     }
-    if (!rows.length) return ''
+    if (!all.length) return ''
+    all.sort((a, b) => a.rank - b.rank || b.at - a.at)
+    const shown = all.slice(0, Math.max(1, limit))
+    const rows = shown.map(
+      ({ s, open }) =>
+        `${s.id} [${s.status}] round ${s.rounds.length}/${s.budget.rounds} · $${s.budget.spentUsd.toFixed(2)}/$${s.budget.usd}` +
+        `${s.incumbent?.score != null ? ` · best ${s.incumbent.score}` : ''}` +
+        `${open ? ` · ${open} checkpoint(s) awaiting you` : ''} — ${String(s.objective).slice(0, 80)}`,
+    )
+    const hidden = all.length - shown.length
+    if (hidden > 0) rows.push(`(+${hidden} more campaign(s) — see rsi_dashboard)`)
     return ['Active RSI campaigns (managed by dsh-loom; the loop runs in child sessions while you are idle):', ...rows.map((r) => `- ${r}`)].join('\n')
   }
 
