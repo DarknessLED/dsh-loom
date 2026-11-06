@@ -7,6 +7,7 @@ import { campaignDir, ensureDir, nowId } from '../core/paths.js'
 import { writeJsonAtomic } from '../core/atomic.js'
 import { claimOwnership, heartbeat, holdsOwnership, ownerStatus } from '../core/lock.js'
 import { runRound } from './round.js'
+import { pickTask } from './selector.js'
 import { flushDeferred, notifyCheckpoint } from './notify.js'
 import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
@@ -396,9 +397,27 @@ export class Runtime {
     )
   }
 
+  /** True when the visible task pool is non-empty and every task is solved. */
+  allTasksSolved(state) {
+    const evalset = state?.evalset || {}
+    const holdout = evalset.holdout || []
+    const tasks = (evalset.tasks || []).filter((t) => t && !holdout.includes(t.id))
+    if (!tasks.length) return false
+    const rounds = state.rounds || []
+    const picked = pickTask(tasks, rounds, { round: rounds.length + 1 })
+    return picked.task === null && picked.allSolved === true
+  }
+
   tickCampaign(view) {
     this.flush(view)
     if (this.disposed || this.inflight.has(view.id)) return
+    // The campaign loop stops when every visible task already sits at 1.0.
+    // This is the scheduler's decision: runRound itself runs whatever round it
+    // is handed, so a direct caller (another scheduler, a test) is not refused.
+    if (this.allTasksSolved(view.state)) {
+      this.append(view, 'campaign.status', { status: 'done', reason: 'all-tasks-solved' }, 'system')
+      return
+    }
     this.inflight.add(view.id)
     const dispatcher = this.dispatcherFor(view)
     const notify = this.config.checkpoint?.notify === false

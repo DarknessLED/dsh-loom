@@ -4,7 +4,7 @@ import { runVerifier } from '../exec/verifier.js'
 import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
-import { usageOfSession } from './cost.js'
+import { campaignUsage, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
@@ -177,9 +177,25 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(view, 'campaign.status', { status: 'converged', reason: 'round budget exhausted' }, 'system')
     return
   }
-  if (state.budget.spentUsd >= state.budget.usd) {
+  // The folded counter (`spentUsd`) is only as good as the `budget.spent`
+  // events a campaign happened to write: a ledger from before that event
+  // existed, or one whose fold never landed before a crash, reports zero while
+  // the attempt records already prove money was spent. Take the larger of the
+  // two rather than adding them — they are two views of the same spend, so
+  // summing would double-count a healthy ledger.
+  const recordedSpend = campaignUsage(state.rounds).usd
+  const spentUsd = Math.max(Number(state.budget.spentUsd) || 0, recordedSpend)
+  if (spentUsd >= state.budget.usd) {
+    // Close the round out explicitly before stopping the campaign: a round that
+    // silently vanishes leaves the ledger ambiguous about why no work started.
+    runtime.append(
+      view,
+      'round.finished',
+      { n, status: 'budget', score: null, promoted: false, spentUsd },
+      'system',
+    )
     runtime.append(view, 'campaign.status', { status: 'converged', reason: 'cost budget exhausted' }, 'system')
-    raise('budget', { message: `spend $${state.budget.spentUsd.toFixed(4)} reached cap $${state.budget.usd}` })
+    raise('budget', { message: `spend $${spentUsd.toFixed(4)} reached cap $${state.budget.usd}` })
     return
   }
   const tasks = state.evalset.tasks.filter((t) => !state.evalset.holdout.includes(t.id))
@@ -188,14 +204,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     return
   }
   const picked = pickTask(tasks, state.rounds, { round: n })
-  const task = picked.task
+  let task = picked.task
+  if (!task && picked.allSolved) {
+    // A direct call to runRound is an explicit request for one round. The
+    // campaign loop avoids this case (tickCampaign finishes a solved campaign
+    // first), so honour the request: rotate over the full pool and let the gate
+    // report the no-gain instead of returning before the round exists.
+    task = pickTask(tasks, [], { round: n }).task
+  }
   if (!task) {
-    // Every task already sits at 1.0: the campaign has nothing left to improve
-    // and must finish, not start another round on solved work.
-    if (picked.allSolved) {
-      runtime.append(view, 'campaign.status', { status: 'done', reason: 'all-tasks-solved' }, 'system')
-      return
-    }
     raise('setup', { message: 'no task available for this round' })
     return
   }
