@@ -1,0 +1,52 @@
+{
+  "name": "dsh-loom",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Human-in-the-loop recursive self-improvement loop for DeepSeek Harness: the main agent stays idle while an auditable work chain iterates in child sessions.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json",
+    "./client": "./client/index.js"
+  },
+  "files": [
+    "src",
+    "client",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "engines": {
+    "node": "^22.19 || >=24",
+    "dsh": ">=0.2.0-rc.2 <0.2.2-0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh": ">=0.2.0-rc.2 <0.2.2-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "check": "node --check src/index.js",
+    "verify": "node scripts/verify.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "test": "node tests/gate.test.mjs && node tests/exec.test.mjs && node tests/lease.test.mjs && node tests/watchdog.test.mjs && node tests/board.test.mjs && node tests/brief.test.mjs && node tests/select.test.mjs && node tests/knowledge.test.mjs && node tests/lean.test.mjs && node tests/loop.test.mjs && node tests/chain.test.mjs && node tests/imagine.test.mjs && node tests/panel.test.mjs && node tests/panel-client.test.mjs && node scripts/verify.mjs && node scripts/e2e.mjs"
+  }
+}

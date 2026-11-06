@@ -1,0 +1,9 @@
+# 本包作为 "组合包（bundle）" 时贡献的 patch。
+# profile 的 dsh.profile.bundles 里加入本包后，DSH 会按序把每个 bundle 的 patch 拼起来。
+# id 一旦发布就不要再改（用户 profile 的 cordis.patch.yml 会按 id 覆盖这一行）。
+- insert:
+    - id: dsh-rsi-loop
+      name: 'dsh-rsi-loop'
+      config:
+        tickMs: 5000
+        stateDir: ''

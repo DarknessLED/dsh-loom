@@ -1,0 +1,629 @@
+import { output } from './output.js'
+import { validateChainSpec } from '../chain/spec.js'
+import { templateFor, TEMPLATES } from '../chain/templates.js'
+import { compareChains, coverage } from '../chain/evidence.js'
+import { proposeMutations } from '../chain/mutate.js'
+import { applyPatch } from '../exec/patch.js'
+import { checkLemma } from '../lean/gate.js'
+import { probeLean } from '../lean/probe.js'
+import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
+import { effectivePolicy, normalizePolicy } from '../loop/policy.js'
+import { comparePolicies } from '../loop/replay.js'
+
+const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
+
+function resolve(runtime, id) {
+  if (id) return runtime.get(String(id))
+  const all = runtime.listCampaigns()
+  if (all.length === 1) return runtime.get(all[0])
+  if (all.length === 0) throw new Error('no campaigns yet — call rsi_start first')
+  throw new Error(`multiple campaigns (${all.join(', ')}); pass id`)
+}
+
+function brief(s) {
+  return {
+    id: s.id,
+    status: s.status,
+    objective: s.objective?.slice(0, 160) ?? '',
+    rounds: s.rounds.length,
+    budget: s.budget,
+    chainVersion: s.chain.activeVersion ?? null,
+    openCheckpoints: s.checkpoints.filter((c) => c.status === 'open').length,
+  }
+}
+
+export function registerTools(ctx, { runtime, config }) {
+  const defs = []
+
+  /**
+   * Mutating tools take the loop over on demand: after a restart the previous
+   * window may still hold the claim, and the visible window must not be stuck.
+   */
+  const own = () => {
+    if (runtime.ensureOwner()) return
+    throw new Error('another dsh-loom window is driving the loop and ownership could not be taken over; close it and retry')
+  }
+
+  defs.push({
+    name: 'rsi_start',
+    description:
+      'Create or inspect an RSI campaign: an objective plus a budget plus a policy chain. ' +
+      'Creating a campaign makes it "planning"; propose a chain with rsi_chain and an eval set with rsi_evalset, ' +
+      'then arm it with rsi_control(action:"start") and this plugin runs rounds in the background. ' +
+      'The human-in-the-loop main agent stays idle between checkpoints.',
+    parameters: {
+      type: 'object',
+      properties: {
+        objective: { type: 'string', description: 'What "excellent" means for this campaign, in one paragraph.' },
+        workspace: { type: 'string', description: 'Absolute path of the repo / directory the campaign operates on.' },
+        id: { type: 'string', description: 'Optional slug id, /^[a-z0-9][a-z0-9-]{2,63}$/.' },
+        budgetUsd: { type: 'number', description: 'API spend cap in USD (default 5).' },
+        budgetRounds: { type: 'integer', description: 'Round cap (default 12).' },
+        budgetMinutes: { type: 'integer', description: 'Wall-clock cap in minutes (default 240).' },
+        template: {
+          type: 'string',
+          enum: Object.keys(TEMPLATES),
+          description: 'Optional seed chain template to propose immediately.',
+        },
+        action: { type: 'string', enum: ['create', 'list', 'show'], description: 'Default: create when objective is given, else list.' },
+      },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 15_000,
+    async execute(args = {}) {
+      own()
+      const action = args.action || (args.objective ? 'create' : 'list')
+      if (action === 'list') return { campaigns: runtime.listCampaigns().map((id) => brief(runtime.get(id).state)) }
+      if (action === 'show') return brief(resolve(runtime, args.id).state)
+      if (!args.objective) throw new Error('objective is required')
+      const budget = {}
+      if (args.budgetUsd != null) budget.usd = Number(args.budgetUsd)
+      if (args.budgetRounds != null) budget.rounds = Number(args.budgetRounds)
+      if (args.budgetMinutes != null) budget.minutes = Number(args.budgetMinutes)
+      const view = runtime.create({
+        id: args.id,
+        objective: String(args.objective),
+        workspace: args.workspace ? String(args.workspace) : null,
+        budget,
+        actor: 'human',
+        initiator: currentSessionId(ctx),
+      })
+      let chain = null
+      if (args.template) {
+        const tpl = templateFor(String(args.template))
+        if (!tpl) throw new Error(`unknown template: ${args.template}`)
+        const spec = { ...JSON.parse(JSON.stringify(tpl)), version: 1 }
+        runtime.append(view, 'chain.proposed', { version: 1, spec }, 'agent')
+        chain = { version: 1, name: spec.name }
+      }
+      return {
+        campaign: view.id,
+        status: view.state.status,
+        chain,
+        next: [
+          'rsi_evalset(action:"register", tasks:[...], holdout:[...])',
+          'rsi_chain(action:"activate", version:1)',
+          'rsi_control(action:"start")',
+        ],
+      }
+    },
+  })
+
+  defs.push({
+    name: 'rsi_status',
+    description:
+      'Read campaign state: status, round count, budget, active chain, incumbent, last round, open checkpoints. ' +
+      'Cheap; safe to call often.',
+    parameters: {
+      type: 'object',
+      properties: { id: ID },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 10_000,
+    async execute(args = {}) {
+      if (!args.id && runtime.listCampaigns().length !== 1) {
+        return {
+          campaigns: runtime.listCampaigns().map((id) => brief(runtime.get(id).state)),
+          live: runtime.liveAttempts(),
+        }
+      }
+      return { ...runtime.status(resolve(runtime, args.id).id), live: runtime.liveAttempts() }
+    },
+  })
+
+  defs.push({
+    name: 'rsi_control',
+    description:
+      'Control a campaign: pause, resume, stop, change budget, add a constraint, add a note. ' +
+      'Constraints are binding instructions for every future round (they are injected into worker prompts).',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        action: { type: 'string', enum: ['pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note'] },
+        usd: { type: 'number', description: 'action=budget: new USD cap' },
+        rounds: { type: 'integer', description: 'action=budget: new round cap' },
+        text: { type: 'string', description: 'action=constraint|note: the text' },
+        reason: { type: 'string', description: 'action=stop: why' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 15_000,
+    async execute(args = {}) {
+      own()
+      const view = resolve(runtime, args.id)
+      const action = String(args.action)
+      let state
+      if (action === 'start') {
+        if (view.state.status !== 'planning') throw new Error(`cannot start from ${view.state.status}`)
+        state = runtime.append(view, 'campaign.status', { status: 'running' }, 'human')
+      } else if (action === 'stop') {
+        state = runtime.control(view.id, 'stop', { reason: args.reason }, 'human')
+      } else {
+        state = runtime.control(view.id, action, { usd: args.usd, rounds: args.rounds, text: args.text }, 'human')
+      }
+      return brief(state)
+    },
+  })
+
+  defs.push({
+    name: 'rsi_chain',
+    description:
+      'Inspect, propose, or activate a policy chain (the work pipeline). ' +
+      'A chain is JSON: {name, version, params, nodes[]}, node types agent|verifier|human|map. ' +
+      'Start from rsi_start(template:...) or rsi_chain(action:"templates"). ' +
+      'Proposing does not run anything; activation makes the next round execute it.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        action: { type: 'string', enum: ['show', 'templates', 'propose', 'activate', 'auto', 'compare', 'promote'] },
+        version: { type: 'integer', description: 'action=activate: which version to make active' },
+        spec: { type: 'object', description: 'action=propose: the chain spec (JSON object)' },
+        template: { type: 'string', description: 'action=propose: seed from this template name instead of spec' },
+        confirm: { type: 'boolean', description: 'action=promote: skip the human checkpoint and activate now.' },
+        candidate: { type: 'integer', description: 'action=compare/promote: the chain version to evaluate (default: newest candidate).' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 20_000,
+    async execute(args = {}) {
+      own()
+      const action = String(args.action)
+      if (action === 'templates') {
+        return Object.values(TEMPLATES).map((t) => ({ name: t.name, description: t.description, nodes: t.nodes.length }))
+      }
+      const view = resolve(runtime, args.id)
+      if (action === 'show') {
+        return { active: view.state.chain.activeVersion, versions: view.state.chain.versions.map((v) => ({ version: v.version, status: v.status, name: v.spec?.name })) }
+      }
+      if (action === 'propose') {
+        let spec = args.spec
+        if (!spec && args.template) spec = templateFor(String(args.template))
+        if (!spec) throw new Error('propose needs spec or template')
+        const errs = validateChainSpec(spec)
+        if (errs.length) throw new Error(`invalid chain spec: ${errs.join('; ')}`)
+        const version = Number(spec.version)
+        runtime.append(view, 'chain.proposed', { version, spec }, 'agent')
+        return { proposed: version, name: spec.name, nodes: spec.nodes.length }
+      }
+      if (action === 'activate') {
+        const version = Number(args.version)
+        const found = view.state.chain.versions.find((v) => v.version === version)
+        if (!found) throw new Error(`no chain version ${version}`)
+        runtime.append(view, 'chain.activated', { version }, 'agent')
+        return { active: version, name: found.spec?.name }
+      }
+      if (action === 'auto') {
+        const active = view.state.chain.versions.find((v) => v.version === view.state.chain.activeVersion)
+        if (!active) throw new Error('no active chain to mutate')
+        const maxMutations = Number(config.chain?.maxMutations) || 3
+        let nextVersion = view.state.chain.versions.reduce((m, v) => Math.max(m, Number(v.version) || 0), 0) + 1
+        const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations })
+        for (const m of produced) {
+          runtime.append(view, 'chain.proposed', { version: m.spec.version, spec: m.spec }, 'system')
+        }
+        return {
+          parent: active.version,
+          proposed: produced.map((m) => ({ version: m.spec.version, kind: m.kind, rationale: m.rationale })),
+          note: 'each candidate needs paired rounds on the same tasks before promote will accept it',
+        }
+      }
+      if (action === 'compare' || action === 'promote') {
+        const rounds = view.state.rounds.map((r) => ({ n: r.n, taskId: r.taskId, chainVersion: r.chainVersion, attempts: r.attempts || [] }))
+        const baseVersion = view.state.chain.activeVersion
+        const candVersion =
+          args.candidate != null
+            ? Number(args.candidate)
+            : (view.state.chain.versions.filter((v) => v.version !== baseVersion).map((v) => Number(v.version)).sort((a, b) => b - a)[0] ?? null)
+        if (candVersion == null) throw new Error('no chain candidate to compare; run rsi_chain(action:"auto") first')
+        const cmp = compareChains({
+          rounds,
+          baseVersion,
+          candidateVersion: candVersion,
+          minTasks: Number(config.chain?.minTasks) || 6,
+          minGain: Number(config.chain?.minGain) || 0.05,
+          holdoutSlack: Number(config.chain?.holdoutSlack) || 0.02,
+        })
+        const summary = { ...cmp, coverage: coverage(rounds) }
+        if (action === 'compare') return summary
+        if (!cmp.ok) {
+          throw new Error(`chain v${candVersion} not promoted: ${cmp.reason} (paired tasks ${cmp.pairedTasks}, delta ${cmp.delta})`)
+        }
+        runtime.append(view, 'artifact.promoted', { kind: 'chain', version: candVersion, score: cmp.candidateScore, delta: cmp.delta }, 'system')
+        if (config.loopPolicy?.humanGate !== false && args.confirm !== true) {
+          const cpId = `cp-${Date.now().toString(36)}`
+          runtime.append(
+            view,
+            'checkpoint.raised',
+            {
+              id: cpId,
+              kind: 'chain',
+              payload: { checkpoint: cpId, chainVersion: candVersion, delta: cmp.delta, pairedTasks: cmp.pairedTasks },
+            },
+            'system',
+          )
+          return { ...summary, promoted: false, checkpoint: cpId, note: 'evidence accepted; activate after rsi_decide(decision:"approve")' }
+        }
+        runtime.append(view, 'chain.activated', { version: candVersion }, 'human')
+        return { ...summary, promoted: true, activated: candVersion }
+      }
+      throw new Error(`unknown action: ${action}`)
+    },
+  })
+
+  defs.push({
+    name: 'rsi_evalset',
+    description:
+      'Register the evaluation tasks for a campaign: each task is a prompt plus a mechanical verifier ' +
+      '(command + exit code, optional JSON metrics). Holdout tasks are never shown to worker agents ' +
+      'and are used only by the promotion gate.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        action: { type: 'string', enum: ['show', 'register'] },
+        tasks: {
+          type: 'array',
+          description: 'action=register: [{id, prompt, verify:{cmd, cwd?, timeoutMs?, metrics?}}]',
+          items: { type: 'object', additionalProperties: true },
+        },
+        holdout: { type: 'array', description: 'action=register: task ids reserved for the gate', items: { type: 'string' } },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 15_000,
+    async execute(args = {}) {
+      own()
+      const view = resolve(runtime, args.id)
+      if (String(args.action) === 'show') {
+        return { tasks: view.state.evalset.tasks, holdout: view.state.evalset.holdout }
+      }
+      const tasks = Array.isArray(args.tasks) ? args.tasks : []
+      if (!tasks.length) throw new Error('register needs a non-empty tasks array')
+      const ids = new Set()
+      for (const t of tasks) {
+        if (!t?.id || typeof t.prompt !== 'string' || !t.verify?.cmd) {
+          throw new Error('each task needs id, prompt, verify.cmd')
+        }
+        if (ids.has(t.id)) throw new Error(`duplicate task id: ${t.id}`)
+        ids.add(t.id)
+      }
+      const holdout = Array.isArray(args.holdout) ? args.holdout.map(String) : []
+      for (const h of holdout) if (!ids.has(h)) throw new Error(`holdout task not in tasks: ${h}`)
+      runtime.append(view, 'evalset.registered', { tasks, holdout }, 'human')
+      return { registered: tasks.length, holdout: holdout.length }
+    },
+  })
+
+  defs.push({
+    name: 'rsi_decide',
+    description:
+      'Answer an open checkpoint raised by the loop (promotion approval, budget warning, anomaly, plateau). ' +
+      'Optional: the loop keeps running on its own, so silence is not a stop unless the checkpoint says so.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        checkpoint: { type: 'string', description: 'Checkpoint id' },
+        decision: { type: 'string', enum: ['approve', 'reject', 'stop', 'continue'] },
+        note: { type: 'string' },
+      },
+      required: ['decision'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 15_000,
+    async execute(args = {}) {
+      own()
+      const view = resolve(runtime, args.id)
+      const open = view.state.checkpoints.filter((c) => c.status === 'open')
+      const target = args.checkpoint ? open.find((c) => c.id === args.checkpoint) : open[open.length - 1]
+      if (!target) throw new Error('no open checkpoint to answer')
+
+      if (args.decision === 'approve' && target.kind === 'chain' && target.payload?.chainVersion != null) {
+        runtime.append(view, 'chain.activated', { version: Number(target.payload.chainVersion) }, 'human')
+      }
+      if (args.decision === 'approve' && target.kind === 'policy' && target.payload?.policy) {
+        runtime.append(
+          view,
+          'policy.promoted',
+          { version: target.payload.policyVersion ?? null, policy: target.payload.policy },
+          'human',
+        )
+      }
+
+      let applied = null
+      if (args.decision === 'approve' && target.payload?.patch) {
+        if (!view.state.workspace) throw new Error('campaign has no workspace to apply into')
+        applied = await applyPatch({ repo: view.state.workspace, patchFile: target.payload.patch })
+        if (!applied.ok) {
+          throw new Error(`cannot apply patch: ${applied.reason} ${typeof applied.detail === 'string' ? applied.detail : ''}`.trim())
+        }
+      }
+
+      const state = runtime.append(
+        view,
+        'checkpoint.answered',
+        { id: target.id, answer: { decision: args.decision, note: args.note || null, applied: applied?.ok ?? false } },
+        'human',
+      )
+      if (args.decision === 'stop') {
+        runtime.append(view, 'campaign.status', { status: 'stopped', reason: 'human stop' }, 'human')
+      }
+      return { answered: target.id, decision: args.decision, applied: applied?.ok ?? false, status: view.state.status }
+    },
+  })
+
+  defs.push({
+    name: 'rsi_report',
+    description: 'Human-readable round report: what happened, why the winner won, what is blocked, cost so far.',
+    parameters: {
+      type: 'object',
+      properties: { id: ID, limit: { type: 'integer', description: 'How many recent rounds to include (default 5).' } },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 10_000,
+    async execute(args = {}) {
+      const v = resolve(runtime, args.id)
+      const s = v.state
+      const limit = Math.max(1, Math.min(50, Number(args.limit) || 5))
+      const lines = [
+        `# RSI campaign ${s.id}`,
+        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${s.budget.spentUsd.toFixed(2)}/$${s.budget.usd}`,
+        `objective: ${s.objective}`,
+        `chain: v${s.chain.activeVersion ?? '-'} · incumbent: ${s.incumbent ? `round ${s.incumbent.round ?? s.incumbent.chainVersion ?? '?'} score ${s.incumbent.score}` : 'none'}`,
+      ]
+      if (s.constraints.filter((c) => c.active).length) {
+        lines.push('', 'constraints:', ...s.constraints.filter((c) => c.active).map((c) => `- ${c.text}`))
+      }
+      const open = s.checkpoints.filter((c) => c.status === 'open')
+      if (open.length) lines.push('', 'open checkpoints:', ...open.map((c) => `- [${c.id}] ${c.kind}`))
+      lines.push('', 'recent rounds:')
+      for (const r of s.rounds.slice(-limit)) {
+        lines.push(`- round ${r.n}: ${r.status} ${r.score == null ? '' : `score=${r.score}`} (${r.attempts.length} attempts)`)
+      }
+      if (!s.rounds.length) lines.push('- (none yet)')
+      return lines.join('\n')
+    },
+  })
+
+  defs.push({
+    name: 'rsi_lean',
+    description:
+      'Mechanically check a Lean 4 claim, or see whether a toolchain exists. ' +
+      'action:"probe" reports lean/lake versions and the install command when missing. ' +
+      'action:"check" compiles the claim in a scratch project and rejects it for any of: sorry/admit, ' +
+      'a new axiom/constant/opaque, native_decide, @[implemented_by], unsafe, an import outside the ' +
+      'allow-list, a compile error, or an axiom report outside {propext, Classical.choice, Quot.sound} ' +
+      'plus the configured extras. This is the gate a mathematical claim has to pass before it may ' +
+      'steer an algorithmic campaign; it never asks a model whether a proof is valid.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['probe', 'check', 'imagine'], description: 'probe = environment check; imagine = cheap claim screening; check = verify a claim.' },
+        source: { type: 'string', description: 'Lean source (theorem/lemma with its proof). Required for action:"check".' },
+        theorem: { type: 'string', description: 'Theorem name to run #print axioms on. Omit to skip the axiom check.' },
+        task: { type: 'object', description: 'action=imagine: the task the claims are about ({id, prompt}).' },
+        maxClaims: { type: 'integer', description: 'action=imagine: how many claims to keep (default 3).' },
+        imports: { type: 'array', items: { type: 'string' }, description: 'Imports to place at the top of the check file.' },
+        allowedImports: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Allow-list for imports (overrides the campaign config). An import outside it fails the claim.',
+        },
+        allowAxioms: { type: 'array', items: { type: 'string' }, description: 'Extra axiom names to tolerate.' },
+        compiler: { type: 'string', enum: ['lake', 'lean'], description: 'Which binary compiles the claim (default: config).' },
+        dir: { type: 'string', description: 'Existing Lake project directory to compile in (default: a scratch dir).' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 300_000,
+    async execute(args = {}) {
+      const leanCfg = config.lean || {}
+      if (args.action === 'probe') {
+        return probeLean()
+      }
+      if (args.action === 'imagine') {
+        const raw = String(args.source || '')
+        // Two modes: with statements, screen them; without, hand back the brief
+        // that asks an agent for statements. Both are free.
+        if (!raw.trim()) {
+          return { prompt: buildImaginePrompt({ task: args.task || null, maxClaims: Number(args.maxClaims) || 3 }) }
+        }
+        const claims = extractClaims(raw)
+        const screened = screenClaims(claims, { task: args.task || null, max: Number(args.maxClaims) || 3 })
+        return { extracted: claims.length, ...screened, next: screened.accepted.length ? 'run rsi_lean(action:"check", source:<claim + proof>) on the survivors' : 'no claim worth proving; stay with tests alone' }
+      }
+      if (!args.source || !String(args.source).trim()) throw new Error('source is required for action:"check"')
+      return checkLemma({
+        source: args.source,
+        theorem: args.theorem ?? null,
+        imports: Array.isArray(args.imports) ? args.imports : [],
+        allowedImports: Array.isArray(args.allowedImports) ? args.allowedImports : leanCfg.allowedImports || [],
+        allowAxioms: Array.isArray(args.allowAxioms) ? args.allowAxioms : leanCfg.allowAxioms || [],
+        dir: args.dir ?? null,
+        compiler: args.compiler || leanCfg.compiler || 'lake',
+        timeoutMs: leanCfg.timeoutMs ?? 120_000,
+      })
+    },
+  })
+
+
+  defs.push({
+    name: 'rsi_replay',
+    description:
+      'L2: replay the rounds already recorded under a candidate loop policy, without calling a single model. ' +
+      'It answers "would a stricter gain bar / fewer candidates have promoted less and ended lower?" from numbers ' +
+      'alone — it cannot simulate different tasks or prompts, so a tie is not evidence of improvement. ' +
+      'commit:true freezes the comparison as a policy proposal and raises a human checkpoint; the policy only ' +
+      'takes effect after rsi_decide(decision:"approve").',
+
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        minGain: { type: 'number', description: 'Candidate promotion gain threshold (0..1).' },
+        candidates: { type: 'integer', description: 'Candidate attempts per round (1..4).' },
+        knowledge: { type: 'boolean', description: 'Inject statement-form lessons at all.' },
+        halving: { type: 'boolean', description: 'Screen candidates before the expensive attempt.' },
+        commit: { type: 'boolean', description: 'Record the comparison and raise a policy checkpoint.' },
+        note: { type: 'string', description: 'Why this policy is worth trying (kept in the audit trail).' },
+      },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 20_000,
+    async execute(args = {}) {
+      own()
+      const v = resolve(runtime, args.id)
+      const state = v.state
+      const rounds = state.rounds.map((r) => ({ n: r.n, attempts: r.attempts || [] }))
+      const base = effectivePolicy({ state, config })
+      const candidate = normalizePolicy(
+        { minGain: args.minGain, candidates: args.candidates, knowledge: args.knowledge, halving: args.halving },
+        base,
+      )
+      const cmp = comparePolicies({ rounds, base, candidate })
+      const summary = {
+        verdict: cmp.verdict,
+        roundsReplayed: rounds.length,
+        base: cmp.base.metrics,
+        candidate: cmp.candidate.metrics,
+        delta: cmp.delta,
+        basePolicy: cmp.base.policy,
+        candidatePolicy: cmp.candidate.policy,
+        committed: false,
+      }
+      if (!rounds.length) {
+        return { ...summary, message: 'no rounds recorded yet — replay needs history to re-decide' }
+      }
+      // A replay cannot invent evidence, and a policy change that looks better on
+      // four rounds is a guess. Both facts belong in the checkpoint the human sees.
+      if (args.commit) {
+        const version = Number(state.policy?.version || 0) + 1
+        const cpId = `cp-${Date.now().toString(36)}`
+        runtime.append(
+          v,
+          'policy.proposed',
+          {
+            version,
+            policy: cmp.candidate.policy,
+            evidence: { verdict: cmp.verdict, rounds: rounds.length, delta: cmp.delta, base: cmp.base.metrics, candidate: cmp.candidate.metrics },
+            note: args.note || null,
+          },
+          'system',
+        )
+        runtime.append(
+          v,
+          'checkpoint.raised',
+          {
+            id: cpId,
+            kind: 'policy',
+            payload: { checkpoint: cpId, policyVersion: version, policy: cmp.candidate.policy, verdict: cmp.verdict, delta: cmp.delta },
+          },
+          'system',
+        )
+        summary.committed = true
+        summary.checkpoint = cpId
+        summary.policyVersion = version
+      }
+      return summary
+    },
+  })
+
+  defs.push({
+    name: 'rsi_dashboard',
+    description:
+      'One board for every campaign: status, rounds and spend against the caps, best score, open checkpoints, ' +
+      'live child attempts, and how much knowledge has accumulated. Cheap enough to call on every interaction; ' +
+      'this is the "what is my loop doing right now" view.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 10_000,
+    async execute() {
+      const ids = runtime.listCampaigns()
+      if (!ids.length) return { campaigns: [], text: 'No RSI campaigns yet. rsi_start(objective, workspace) to begin.' }
+      const live = runtime.liveAttempts()
+      const rows = []
+      for (const id of ids) {
+        const v = runtime.get(id)
+        const s = v.state
+        const lessons = s.lessons || []
+        rows.push({
+          id: s.id,
+          status: s.status,
+          rounds: `${s.rounds.length}/${s.budget.rounds}`,
+          spend: `${s.budget.spentUsd.toFixed(2)}/${s.budget.usd}`,
+          best: s.incumbent?.score ?? null,
+          open: s.checkpoints.filter((c) => c.status === 'open').length,
+          lessons: lessons.filter((l) => l.status === 'active').length,
+          quarantined: lessons.filter((l) => l.status === 'quarantined').length,
+          policy: s.policy?.status === 'promoted' ? `v${s.policy.version}` : 'default',
+          objective: (s.objective || '').slice(0, 80),
+        })
+      }
+      const lines = ['| campaign | status | rounds | spend | best | open | lessons | policy | objective |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |']
+      for (const r of rows) {
+        lines.push(
+          `| ${r.id} | ${r.status} | ${r.rounds} | $${r.spend} | ${r.best ?? '-'} | ${r.open} | ${r.lessons}${r.quarantined ? ` (+${r.quarantined}q)` : ''} | ${r.policy} | ${r.objective} |`,
+        )
+      }
+      if (live.length) lines.push('', `live attempts: ${live.map((a) => `${a.attemptId} (idle ${Math.round(a.idleMs / 1000)}s)`).join(', ')}`)
+      return { campaigns: rows, live, text: lines.join(String.fromCharCode(10)) }
+    },
+  })
+
+  return defs.map((def) => ctx.effect(() => ctx.tools.register(def), `dsh-loom: tool(${def.name})`))
+}
+
+/** The session that is talking to us, when a tool callback is running. */
+function currentSessionId(ctx) {
+  try {
+    const agent = ctx.agents?.currentInitiator?.()
+    return agent?.id ?? null
+  } catch {
+    return null
+  }
+}

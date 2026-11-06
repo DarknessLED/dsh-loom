@@ -1,0 +1,248 @@
+import { spawn } from 'node:child_process'
+import { resolve } from 'node:path'
+import process from 'node:process'
+import { StringDecoder } from 'node:string_decoder'
+
+/** Keep at most 64KB of tail per stream (contract §1). */
+const MAX_STREAM_BYTES = 64 * 1024
+/** Default verifier timeout: 10 minutes. */
+const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+/** Grace after kill before we resolve with whatever output we have. */
+const KILL_GRACE_MS = 4000
+const TRUNCATED_MARK = '...[truncated]\n'
+
+/**
+ * Tail-keeping buffer: appends decoded text, trims from the front once the
+ * capped size is exceeded, and marks truncated output with a prefix.
+ */
+class TailBuffer {
+  #decoder = new StringDecoder('utf8')
+  #text = ''
+  #truncated = false
+
+  constructor(limit = MAX_STREAM_BYTES) {
+    this.limit = limit
+    this.ended = false
+  }
+
+  push(chunk) {
+    this.#text += this.#decoder.write(chunk)
+    this.#trim()
+  }
+
+  /** Flush pending (possibly incomplete) multibyte bytes. */
+  end() {
+    if (this.ended) return
+    this.ended = true
+    this.#text += this.#decoder.end()
+    this.#trim()
+  }
+
+  #trim() {
+    if (this.#text.length > this.limit) {
+      this.#truncated = true
+      this.#text = this.#text.slice(this.#text.length - this.limit)
+    }
+  }
+
+  toString() {
+    return this.#truncated ? TRUNCATED_MARK + this.#text : this.#text
+  }
+}
+
+function normalizeTimeout(value, fallback) {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+function buildEnv(extra) {
+  const env = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === 'string') env[key] = value
+  }
+  if (extra && typeof extra === 'object') {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value === undefined || value === null) continue
+      env[key] = String(value)
+    }
+  }
+  return env
+}
+
+/**
+ * Kill the whole `shell: true` process tree, then the shell itself.
+ * The taskkill call must not race with child.kill(): killing cmd.exe first
+ * orphans its child (Windows then reports "process not found" and the real
+ * command keeps running), so the shell is only killed once taskkill is done.
+ */
+function terminateTree(child) {
+  const pid = child.pid
+  let finished = false
+  const killShell = () => {
+    if (finished) return
+    finished = true
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // already gone
+    }
+  }
+  if (process.platform !== 'win32' || typeof pid !== 'number') {
+    killShell()
+    return
+  }
+  try {
+    const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    killer.on('close', killShell)
+    killer.on('error', killShell)
+    const guard = setTimeout(killShell, 10_000)
+    if (typeof guard.unref === 'function') guard.unref()
+  } catch {
+    killShell()
+  }
+}
+
+function parseMetrics(stdout, specs) {
+  const metrics = {}
+  if (!specs || typeof specs !== 'object') return metrics
+  for (const [name, def] of Object.entries(specs)) {
+    try {
+      if (!def || typeof def.pattern !== 'string') continue
+      const re = def.pattern instanceof RegExp ? def.pattern : new RegExp(def.pattern)
+      const match = re.exec(stdout)
+      if (!match) continue
+      const group = def.group ?? 1
+      const raw = match[group]
+      if (raw === undefined) continue
+      const value = Number(raw)
+      if (Number.isNaN(value)) continue
+      metrics[name] = value
+    } catch {
+      // invalid pattern / group: the key is simply omitted
+    }
+  }
+  return metrics
+}
+
+/**
+ * @param {{cmd: string, cwd?: string, timeoutMs?: number,
+ *          metrics?: Record<string, {pattern: string, group?: number}>}} spec
+ * @param {{cwd: string, timeoutMs?: number, env?: Record<string,string>}} opts
+ * @returns {Promise<{
+ *   ok: boolean,
+ *   exitCode: number|null,
+ *   signal: string|null,
+ *   timedOut: boolean,
+ *   durationMs: number,
+ *   stdout: string,
+ *   stderr: string,
+ *   metrics: Record<string, number>,
+ *   command: string,
+ *   cwd: string,
+ * }>}
+ */
+export async function runVerifier(spec, opts = {}) {
+  if (!spec || typeof spec.cmd !== 'string' || spec.cmd.trim() === '') {
+    throw new TypeError('runVerifier: spec.cmd must be a non-empty string')
+  }
+  const options = opts && typeof opts === 'object' ? opts : {}
+  const rawCwd = options.cwd ?? spec.cwd ?? process.cwd()
+  if (typeof rawCwd !== 'string' || rawCwd === '') {
+    throw new TypeError('runVerifier: opts.cwd must be a non-empty string')
+  }
+  const cwd = resolve(rawCwd)
+  const timeoutMs = normalizeTimeout(
+    options.timeoutMs ?? spec.timeoutMs,
+    DEFAULT_TIMEOUT_MS,
+  )
+  const env = buildEnv(options.env)
+  const command = spec.cmd
+  const startedAt = Date.now()
+
+  const stdoutBuf = new TailBuffer()
+  const stderrBuf = new TailBuffer()
+
+  let exitCode = null
+  let signal = null
+  let timedOut = false
+
+  const child = spawn(command, {
+    shell: true,
+    cwd,
+    env,
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+
+  const finished = new Promise((resolve) => {
+    let settled = false
+    let killTimer = null
+    let graceTimer = null
+
+    const settle = () => {
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      if (graceTimer) clearTimeout(graceTimer)
+      if (!stdoutBuf.ended) stdoutBuf.end()
+      if (!stderrBuf.ended) stderrBuf.end()
+      resolve({
+        ok: exitCode === 0 && !timedOut,
+        exitCode,
+        signal,
+        timedOut,
+        durationMs: Date.now() - startedAt,
+        stdout: stdoutBuf.toString(),
+        stderr: stderrBuf.toString(),
+        metrics: parseMetrics(stdoutBuf.toString(), spec.metrics),
+        command,
+        cwd,
+      })
+    }
+
+    child.on('spawn', () => {
+      killTimer = setTimeout(() => {
+        if (settled) return
+        timedOut = true
+        terminateTree(child)
+        // A shell that ignores termination can linger; never hang the caller
+        // waiting for 'close'.
+        graceTimer = setTimeout(settle, KILL_GRACE_MS)
+      }, timeoutMs)
+      if (typeof killTimer.unref === 'function') killTimer.unref()
+    })
+
+    if (child.stdout) {
+      child.stdout.on('data', (chunk) => stdoutBuf.push(chunk))
+      child.stdout.on('error', () => {})
+    }
+    if (child.stderr) {
+      child.stderr.on('data', (chunk) => stderrBuf.push(chunk))
+      child.stderr.on('error', () => {})
+    }
+
+    child.on('error', (error) => {
+      // spawn failure (ENOENT etc.): report through the return value, not a throw
+      stderrBuf.push(Buffer.from(`spawn error: ${error?.message ?? String(error)}\n`))
+      if (child.pid === undefined) {
+        settle()
+        return
+      }
+      if (!graceTimer) {
+        graceTimer = setTimeout(settle, KILL_GRACE_MS)
+        if (typeof graceTimer.unref === 'function') graceTimer.unref()
+      }
+    })
+
+    child.on('close', (code, sig) => {
+      exitCode = typeof code === 'number' ? code : null
+      signal = sig ?? null
+      settle()
+    })
+  })
+
+  return finished
+}

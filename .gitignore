@@ -1,0 +1,5 @@
+# The reference clones are research input, not part of the plugin.
+research/gear/
+research/open-dream-rsi/
+node_modules/
+*.log

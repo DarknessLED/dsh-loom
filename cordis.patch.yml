@@ -1,0 +1,6 @@
+# dsh-loom bundle: inserts the plugin row into the profile loader.
+- insert:
+    - id: dsh-loom
+      name: dsh-loom
+      config:
+        tickMs: 20000
