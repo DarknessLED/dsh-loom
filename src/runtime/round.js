@@ -701,11 +701,19 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // worktree, and let promotion wait for it. No holdout tasks means the check
     // is not applicable, which is recorded as 'skipped' rather than a pass.
     checks.holdout = 'skipped'
+    // A failing holdout is the one rejection a worker could not see coming, so
+    // keep the task id and the output it produced: the round status alone would
+    // say `holdout-failed` without saying which task or what it printed.
+    const holdoutFailures = []
     const heldOut = holdoutTasks(state)
     if (heldOut.length) {
       checks.holdout = true
       if (!best?.worktree || best.screenedOut) {
         checks.holdout = false
+        holdoutFailures.push({
+          task: heldOut[0]?.id ?? null,
+          detail: 'the winning candidate had no worktree in which to run the holdout',
+        })
       } else {
         for (const h of heldOut) {
           let result
@@ -716,7 +724,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           }
           if (result.ok !== true) {
             checks.holdout = false
-            log(`holdout task ${h.id} failed in ${best.worktree}: ${String(result.stderr || result.stdout || '').slice(-400)}`)
+            const output = String(result.stderr || result.stdout || '')
+            holdoutFailures.push({ task: String(h.id), detail: output.slice(-400) })
+            log(`holdout task ${h.id} failed in ${best.worktree}: ${output.slice(-400)}`)
           }
         }
       }
@@ -818,6 +828,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true },
       'system',
     )
+
+    // A holdout rejection is the most valuable failure of a round: the patch
+    // passed everything the worker could see and broke the task it could not.
+    // Written only as a round status it vanishes, so surface it on the same
+    // channel a human watches — naming the task and quoting what it printed —
+    // while the promotion path stays untouched (nothing was applied above).
+    const holdoutOn = !Array.isArray(config.checkpoint?.on) || config.checkpoint.on.includes('holdout')
+    if (rejectedByHoldout && holdoutOn) {
+      const first = holdoutFailures[0] || { task: null, detail: '' }
+      raise('holdout', {
+        message: `round ${n} was rejected by holdout task ${first.task ?? '(unknown)'}; nothing was applied`,
+        task: first.task,
+        detail: first.detail,
+        failures: holdoutFailures,
+        round: n,
+        score,
+      })
+    }
 
     // Ask the plateau predicate AFTER the round is recorded, and ask through the
     // same checkpoint channel a human watches. `oncePlateau` looks at any plateau

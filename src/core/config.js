@@ -12,7 +12,7 @@ export const DEFAULT_CONFIG = {
     holdoutReuse: 3,
   },
   checkpoint: {
-    on: ['gate', 'budget_50', 'anomaly', 'plateau'],
+    on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout'],
     /** "HH:MM-HH:MM" local quiet window; checkpoints are batched until it ends. */
     quietHours: null,
     batch: true,
