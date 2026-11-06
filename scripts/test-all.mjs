@@ -16,6 +16,10 @@ const files = readdirSync(testsDir)
   .filter((f) => f.endsWith('.test.mjs'))
   .sort()
   .map((f) => join(testsDir, f))
+// Specs that pin behaviour the loop already has: they are not tasks, but they
+// must keep passing, so a promotion cannot quietly remove the guard.
+const standing = ['tests/self10/panel-decide.test.mjs']
+for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
 
 let failed = 0
