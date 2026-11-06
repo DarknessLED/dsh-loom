@@ -58,6 +58,107 @@ function tailOf(text, max = 200) {
   return `…${s.slice(-max)}`
 }
 
+/** A planner reports a plan in prose; the attempt-report schema would be noise. */
+const RECON_GUIDE =
+  'Reply with the plan as short plain text, not a JSON report: this pass is not scored and its text is handed to the implementing agents as-is. State the gap or failure, the files involved, and how success is verified.'
+
+/**
+ * The agent nodes that run before the chain's `map` node.
+ *
+ * These are the reconnaissance step: one fresh session inspects the task, and
+ * every parallel worker gets its findings in the brief. A chain without one
+ * (or one whose first node is the map) must behave exactly as it did before
+ * chains had executable nodes, so an empty list here means "no extra work".
+ */
+export function preMapAgentNodes(chain) {
+  const out = []
+  for (const node of Array.isArray(chain?.nodes) ? chain.nodes : []) {
+    if (!node || typeof node !== 'object') continue
+    // Everything from the map onward is per-candidate work; only what comes
+    // before it is shared setup.
+    if (node.type === 'map') break
+    if (node.type !== 'agent') continue
+    if (typeof node.prompt !== 'string' || !node.prompt.trim()) continue
+    out.push(node)
+  }
+  return out
+}
+
+/**
+ * Run the pre-map agent nodes, one fresh session each, and return their text.
+ *
+ * A node is a planning step, not an attempt: it never produces a patch, never
+ * touches the campaign workspace (it gets a throwaway worktree of the base
+ * commit) and can never fail the round. Every outcome — including a throw, a
+ * timeout, an empty or error reply — is recorded as `node.finished` and the
+ * round continues with whatever findings were usable.
+ */
+async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, log }) {
+  const findings = []
+  const nodes = preMapAgentNodes(chain)
+  for (const node of nodes) {
+    const id = String(node.id)
+    const startedAt = Date.now()
+    const record = {
+      id,
+      type: 'agent',
+      role: node.role ?? null,
+      round,
+      ok: false,
+      durationMs: 0,
+      sessionId: null,
+      stopReason: null,
+      error: null,
+      summary: '',
+    }
+    const wtPath = join(runtime.home, 'worktrees', state.id, `recon-${id}`)
+    const branch = `loom/${state.id}/recon-${id}`
+    try {
+      // Inspect the base commit in isolation: an agent that ignores "do not
+      // edit" must not dirty the workspace the next promotion lands in.
+      await createWorktree({ repo: state.workspace, dir: wtPath, branch })
+      const brief = buildWorkerBrief({
+        objective: state.objective,
+        task: { id: `${task.id}:${id}`, prompt: node.prompt },
+        chain: { name: chain.name, version: chain.version },
+        constraints: [
+          `You are the "${node.role || id}" node of this chain, running before the implementation attempts.`,
+          `Work ONLY inside ${wtPath}. Do not read or write outside it.`,
+          'This is a reconnaissance pass: inspect the repository and report. Do not change any file.',
+        ],
+        plan: findings,
+        reportGuide: RECON_GUIDE,
+        workspace: { branch, cwd: wtPath },
+      })
+      const res = await dispatcher.run(brief, {
+        cwd: wtPath,
+        timeoutMs: config.session.attemptTimeoutMs,
+        label: `loom:${state.id}:r${round}:${id}`,
+        model: config.models.worker || null,
+      })
+      const text = String(res?.text ?? '').trim()
+      record.sessionId = res?.sessionId ?? null
+      record.stopReason = res?.stopReason ?? null
+      record.error = res?.error ?? null
+      record.ok = res?.stopReason !== 'error' && !res?.timedOut && !res?.error && text.length > 0
+      record.summary = tailOf(text, 400)
+      if (record.ok) findings.push({ id, role: node.role ?? null, text })
+      else {
+        log(
+          `round ${round}: chain node ${id} produced no usable plan (${record.stopReason || record.error || 'empty reply'}); continuing without it`,
+        )
+      }
+    } catch (err) {
+      record.error = String(err?.message ?? err)
+      log(`round ${round}: chain node ${id} failed:`, record.error)
+    }
+    record.durationMs = Date.now() - startedAt
+    runtime.append(view, 'node.finished', record, 'system')
+    await removeWorktree({ repo: state.workspace, dir: wtPath }).catch(() => {})
+  }
+  return findings
+}
+
 function lastFailure(state) {
   const prev = state.rounds[state.rounds.length - 1]
   if (!prev) return null
@@ -76,7 +177,7 @@ function lastFailure(state) {
  * sibling history beyond a handful of notes, no knowledge the round has not
  * earned yet.
  */
-function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons }) {
+function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [] }) {
   const mapNode = (chain.nodes || []).find((n) => n.type === 'map')
   const rolePrompt = mapNode?.of?.prompt || 'Do the task in your worktree, then run the verification command.'
   const constraints = state.constraints.filter((c) => c.active).map((c) => c.text)
@@ -96,6 +197,7 @@ function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, inde
     constraints,
     notes,
     lessons,
+    plan,
     previousFailure: lastFailure(state),
     workspace: { branch: `loom/${state.id}/${attemptId}`, cwd: worktree },
   })
@@ -251,6 +353,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   let survivors = plan.map((p) => p.attemptId)
   let best = null
   try {
+    // Shared reconnaissance first: these nodes are the work that makes the
+    // parallel attempts smart, and their findings reach every worker brief.
+    // A chain without one dispatches exactly as it always did.
+    const planFindings = await runPreMapNodes({
+      runtime,
+      view,
+      state,
+      config,
+      dispatcher,
+      task,
+      chain,
+      round: n,
+      log,
+    })
     if (screening) {
       const results = []
       for (const p of plan) {
@@ -325,6 +441,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           total: candidates,
           notes,
           lessons,
+          plan: planFindings,
         })
         const timeoutMs = config.session.attemptTimeoutMs
         writeLease(view.dir, { attemptId, round: n, deadline: Date.now() + timeoutMs })

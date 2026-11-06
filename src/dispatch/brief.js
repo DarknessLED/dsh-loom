@@ -12,6 +12,10 @@
 const MAX_BRIEF_CHARS = 6000
 const MAX_LESSONS = 3
 const MAX_NOTES = 5
+// A plan is a summary, not a transcript: the planner is asked for something the
+// next agent can act on, and the brief refuses to spend its whole budget on it.
+const MAX_PLAN_CHARS = 1500
+const MAX_GUIDE_CHARS = 1500
 const ELLIPSIS = '…'
 const FIELD_CLAMP = 200
 const REASON_CLAMP = 1200
@@ -113,6 +117,24 @@ export function buildWorkerBrief(input) {
         `- [${pickKind(note.kind, ['obstacle', 'finding'], 'finding')}] ${cleanString(note.text)}`,
     )
 
+  // What a chain's pre-map agent nodes found. Unlike attempt notes this is not
+  // sibling guesswork: it is the plan every worker in this round is meant to
+  // follow, so it keeps its own labelled section.
+  const planBody = clamp(
+    (Array.isArray(source.plan) ? source.plan : [])
+      .filter((entry) => isRecord(entry) && cleanString(entry.text))
+      .map((entry) => {
+        const label = cleanString(entry.role) || cleanString(entry.id) || 'planner'
+        return `- ${label}: ${cleanString(entry.text)}`
+      })
+      .join('\n'),
+    MAX_PLAN_CHARS,
+  )
+
+  // A reconnaissance node returns a plan, not an attempt report; callers can
+  // swap the closing instruction without forking the whole compiler.
+  const reportGuide = clamp(cleanString(source.reportGuide) || REPORT_GUIDE, MAX_GUIDE_CHARS)
+
   const failure = isRecord(source.previousFailure) ? source.previousFailure : null
   const failureReason = failure
     ? clamp(cleanString(failure.reason) || '(missing)', REASON_CLAMP)
@@ -150,6 +172,9 @@ export function buildWorkerBrief(input) {
       section('Task', taskBody(overrides.prompt !== undefined ? overrides.prompt : promptBody)),
       section('Rules', overrides.rules !== undefined ? overrides.rules : rulesBody),
     ]
+    if (planBody) {
+      parts.push(section('Plan from reconnaissance', planBody))
+    }
     if (includeNotes) {
       parts.push(section('What siblings already found', `${NOTES_HINT}\n${notes.join('\n')}`))
     }
@@ -161,7 +186,7 @@ export function buildWorkerBrief(input) {
         section('Last attempt failed', failureBody(includeDetail ? failureDetail : '')),
       )
     }
-    parts.push(section('Report', REPORT_GUIDE))
+    parts.push(section('Report', reportGuide))
     return parts.join('\n\n')
   }
 

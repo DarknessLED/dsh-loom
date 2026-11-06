@@ -65,9 +65,13 @@ const REPORT_TEXT =
   }) +
   '\n```'
 let calls = 0
+let reconCalls = 0
 const dispatcher = {
   async run(prompt, opts) {
-    calls += 1
+    // The chain's pre-map recon node is a planning pass, not a candidate
+    // attempt: it runs once before the map, on its own throwaway worktree.
+    if (String(opts?.label || '').endsWith(':recon')) reconCalls += 1
+    else calls += 1
     writeFileSync(join(opts.cwd, 'fix.txt'), 'ok\n')
     return { text: REPORT_TEXT, sessionId: `stub-${calls}`, stopReason: 'completed', timedOut: false, error: null }
   },
@@ -92,6 +96,7 @@ const gate = events.find((e) => e.type === 'gate.evaluated')?.data
 const checkpoints = events.filter((e) => e.type === 'checkpoint.raised')
 
 check('two attempts ran', calls === 2)
+check('the recon node ran once before the map', reconCalls === 1, String(reconCalls))
 check('round.started first', types.includes('round.started'))
 check('attempts verified', events.filter((e) => e.type === 'attempt.finished').every((e) => e.data.verifierOk))
 check('attempt carries diff', attempt?.diff?.files === 1, JSON.stringify(attempt?.diff))
@@ -157,11 +162,18 @@ runtime.append(view2, 'chain.proposed', {
 runtime.append(view2, 'chain.activated', { version: 1 })
 runtime.append(view2, 'campaign.status', { status: 'running' })
 let screenCalls = 0
+let attemptCalls2 = 0
+let reconCalls2 = 0
+let runCalls2 = 0
 const dispatcher2 = {
   async run(prompt, opts) {
-    screenCalls += 1
+    runCalls2 += 1
+    const label = String(opts?.label || '')
+    if (label.endsWith(':recon')) reconCalls2 += 1
+    else if (label.endsWith(':screen')) screenCalls += 1
+    else attemptCalls2 += 1
     writeFileSync(join(opts.cwd, 'fix.txt'), 'ok\n')
-    return { text: 'worked on it', sessionId: `stub2-${screenCalls}`, stopReason: 'completed', timedOut: false, error: null }
+    return { text: 'worked on it', sessionId: `stub2-${runCalls2}`, stopReason: 'completed', timedOut: false, error: null }
   },
 }
 await runRound({ runtime, view: view2, config, dispatcher: dispatcher2, log: (...a) => console.log('[round2]', ...a) })
@@ -170,7 +182,9 @@ const recs2 = e2.filter((e) => e.type === 'attempt.finished').map((e) => e.data)
 const screenedOut = recs2.filter((r) => r.screenedOut === true)
 check('screening keeps half of four candidates', screenedOut.length === 2, JSON.stringify(recs2.map((r) => [r.id, r.screenedOut === true])))
 check('screened-out attempts never reach the real run', recs2.filter((r) => !r.screenedOut).length === 2)
-check('every candidate was screened first', screenCalls === 6, String(screenCalls))
+check('every candidate was screened first', screenCalls === 4, String(screenCalls))
+check('only the two survivors ran', attemptCalls2 === 2, String(attemptCalls2))
+check('the recon node ran once before screening', reconCalls2 === 1, String(reconCalls2))
 check('screening verdict is recorded on the survivor', recs2.some((r) => r.screened && r.screened.ok === true && r.screenedOut !== true))
 
 
