@@ -429,11 +429,18 @@ export function registerTools(ctx, { runtime, config }) {
       }
       const open = s.checkpoints.filter((c) => c.status === 'open')
       if (open.length) lines.push('', 'open checkpoints:', ...open.map((c) => `- [${c.id}] ${c.kind}`))
-      lines.push('', 'recent rounds:')
+      // One line per round, as a table: a settled campaign is only auditable if
+      // the human can see which round ran which task, what it scored and
+      // whether the gate promoted it. A one-line summary hides wasted rounds.
+      lines.push('', 'round history:')
+      lines.push('| round | task | score | verdict | attempts |')
+      lines.push('| --- | --- | --- | --- | --- |')
       for (const r of s.rounds.slice(-limit)) {
-        lines.push(`- round ${r.n}: ${r.status} ${r.score == null ? '' : `score=${r.score}`} (${r.attempts.length} attempts)`)
+        lines.push(
+          `| ${r.n} | ${r.taskId ?? '-'} | ${r.score == null ? '-' : r.score} | ${r.status} | ${r.attempts?.length ?? 0} |`,
+        )
       }
-      if (!s.rounds.length) lines.push('- (none yet)')
+      if (!s.rounds.length) lines.push('| - | - | - | (none yet) | - |')
       const lessons = s.lessons || []
       lines.push('', 'lessons:')
       for (const l of lessons) {
