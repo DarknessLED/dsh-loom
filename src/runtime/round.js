@@ -14,6 +14,7 @@ import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
+import { oncePlateau } from './plateau.js'
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -551,7 +552,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // `promoted` is what plateau detection reads: status can be 'promoted'
     // for a patch that still needed a human, but only a gate promotion is
     // progress. Recording it explicitly keeps the rounds array self-describing.
-    runtime.append(view, 'round.finished', { n, status: promote ? 'promoted' : 'no-gain', score, promoted: promote === true }, 'system')
+    const finished = runtime.append(
+      view,
+      'round.finished',
+      { n, status: promote ? 'promoted' : 'no-gain', score, promoted: promote === true },
+      'system',
+    )
+
+    // Ask the plateau predicate AFTER the round is recorded, and ask through the
+    // same checkpoint channel a human watches. `oncePlateau` looks at any plateau
+    // checkpoint, not just open ones, so a fourth flat round stays quiet.
+    const plateauOn = !Array.isArray(config.checkpoint?.on) || config.checkpoint.on.includes('plateau')
+    if (plateauOn && oncePlateau(finished, { window: config.checkpoint?.window ?? 3 })) {
+      raise('plateau', {
+        message: `the last ${config.checkpoint?.window ?? 3} rounds promoted nothing; the loop is not making progress`,
+        window: config.checkpoint?.window ?? 3,
+        rounds: (finished.rounds || []).slice(-(config.checkpoint?.window ?? 3)).map((r) => r.n),
+      })
+    }
   } catch (err) {
     runtime.append(
       view,
