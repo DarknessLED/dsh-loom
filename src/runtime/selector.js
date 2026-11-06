@@ -4,8 +4,8 @@
  * The loop must not burn rounds re-running tasks that are already perfect:
  * once a task scores 1.0 there is nothing left to gain from it, and spending a
  * round there costs real tokens while telling us nothing. So rounds rotate
- * over the tasks that still have headroom, and only fall back to the full list
- * when every task is solved (the campaign is then just holding its ground).
+ * over the tasks that still have headroom, and report `allSolved` when none
+ * are left so the scheduler can finish the campaign instead of spinning.
  */
 
 /** Best verifier-passing score recorded for each task so far. */
@@ -36,14 +36,18 @@ export function isSolved(taskId, best) {
 
 /**
  * Pick the task for round `n`.
- * @returns {{task: object|null, poolSize: number, solvedCount: number}}
+ *
+ * `allSolved` is the scheduler's signal to stop: when every task has landed at
+ * 1.0 there is no useful work left, and handing one back would spend a round
+ * re-proving a solved task.
+ * @returns {{task: object|null, poolSize: number, solvedCount: number, allSolved: boolean}}
  */
 export function pickTask(tasks, rounds, { round = 1 } = {}) {
   const list = Array.isArray(tasks) ? tasks.filter(Boolean) : []
-  if (!list.length) return { task: null, poolSize: 0, solvedCount: 0 }
+  if (!list.length) return { task: null, poolSize: 0, solvedCount: 0, allSolved: false }
   const best = bestScores(rounds)
   const open = list.filter((task) => !isSolved(task.id, best))
-  const pool = open.length ? open : list
-  const index = ((Math.max(1, round) - 1) % pool.length + pool.length) % pool.length
-  return { task: pool[index], poolSize: pool.length, solvedCount: list.length - open.length }
+  if (!open.length) return { task: null, poolSize: 0, solvedCount: list.length, allSolved: true }
+  const index = ((Math.max(1, round) - 1) % open.length + open.length) % open.length
+  return { task: open[index], poolSize: open.length, solvedCount: list.length - open.length, allSolved: false }
 }

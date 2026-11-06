@@ -188,6 +188,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const picked = pickTask(tasks, state.rounds, { round: n })
   const task = picked.task
   if (!task) {
+    // Every task already sits at 1.0: the campaign has nothing left to improve
+    // and must finish, not start another round on solved work.
+    if (picked.allSolved) {
+      runtime.append(view, 'campaign.status', { status: 'done', reason: 'all-tasks-solved' }, 'system')
+      return
+    }
     raise('setup', { message: 'no task available for this round' })
     return
   }

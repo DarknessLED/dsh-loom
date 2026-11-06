@@ -62,8 +62,8 @@ const allSolved = [
   round(3, 'c', [attempt('r3a1', 1)]),
 ]
 const fallback = pickTask(tasks, allSolved, { round: 4 })
-ok('pickTask: falls back to every task when all are solved', fallback.task !== null && fallback.poolSize === 3)
-ok('pickTask: fallback still rotates', fallback.task.id === 'a', JSON.stringify(fallback))
+ok('pickTask: reports all tasks solved instead of re-running one', fallback.task === null && fallback.allSolved === true, JSON.stringify(fallback))
+ok('pickTask: an open campaign is not reported as solved', pickTask(tasks, solvedA, { round: 1 }).allSolved === false)
 
 const withHoldout = pickTask([{ id: 'x' }], [], { round: 1 })
 ok('pickTask: single task is picked', withHoldout.task.id === 'x')

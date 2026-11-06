@@ -14,7 +14,7 @@ import { reconcileLeases, sweepLeases } from './lease.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 
-const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'stopped']
+const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'done', 'stopped']
 
 /**
  * Owns campaign storage and the materialized views. The scheduler/round engine
