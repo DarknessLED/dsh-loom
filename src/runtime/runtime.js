@@ -7,7 +7,7 @@ import { campaignDir, ensureDir, nowId } from '../core/paths.js'
 import { writeJsonAtomic } from '../core/atomic.js'
 import { claimOwnership, heartbeat, holdsOwnership, ownerStatus } from '../core/lock.js'
 import { runRound } from './round.js'
-import { notifyCheckpoint } from './notify.js'
+import { flushDeferred, notifyCheckpoint } from './notify.js'
 import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
 import { reconcileLeases, sweepLeases } from './lease.js'
@@ -311,8 +311,11 @@ export class Runtime {
       this.watchdog.check()
       const max = Math.max(1, Number(this.config.session?.maxConcurrent) || 1)
       for (const id of this.listCampaigns()) {
-        if (this.inflight.size >= max) break
         const v = this.get(id)
+        // Held checkpoints leave on the same clock as rounds, even while every
+        // dispatch slot is busy or the campaign is paused.
+        this.flushHeld(v)
+        if (this.inflight.size >= max) continue
         if (v.state.status !== 'running') continue
         this.tickCampaign(v)
       }
@@ -376,6 +379,13 @@ export class Runtime {
       )
     }
     return report
+  }
+
+  /** Deliver checkpoints held for quiet hours; repeatable and never throws. */
+  flushHeld(view) {
+    Promise.resolve(flushDeferred(this.ctx, { view, config: this.config, now: Date.now(), log: this.log })).catch((err) =>
+      this.log(`deferred flush for ${view.id} failed:`, err?.message ?? err),
+    )
   }
 
   tickCampaign(view) {

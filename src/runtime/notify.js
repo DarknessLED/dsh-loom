@@ -1,4 +1,5 @@
 import { svc } from '../core/services.js'
+import { deferUntil } from './deferred.js'
 
 // Wake the human-facing session only when something needs a decision.
 //
@@ -6,6 +7,11 @@ import { svc } from '../core/services.js'
 // module turns a checkpoint into one queued prompt on the initiator session,
 // which starts exactly one turn for the human to see. Delivery is fire-and-
 // forget (sessionController.prompt resolves on admission, not completion).
+//
+// A checkpoint raised inside the configured quiet hours is neither delivered
+// nor dropped: it is written to the campaign log as `checkpoint.deferred`, and
+// `flushDeferred` (driven from the runtime tick) delivers it once the window
+// closes, recording `checkpoint.notified` so it can never be sent twice.
 
 const KIND_LABEL = {
   gate: 'a passing patch is waiting for review',
@@ -15,40 +21,11 @@ const KIND_LABEL = {
   plateau: 'the loop stopped making progress',
 }
 
-/** Parse "HH:MM" into minutes past local midnight; null when malformed. */
-function clockMinutes(value) {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? '').trim())
-  if (!match) return null
-  const hours = Number(match[1])
-  const minutes = Number(match[2])
-  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null
-}
-
-/** config.checkpoint.quietHours is { start, end } or the documented "HH:MM-HH:MM". */
-function quietWindow(quietHours) {
-  if (typeof quietHours === 'string') {
-    const [start, end] = quietHours.split('-')
-    return { start, end }
-  }
-  return quietHours && typeof quietHours === 'object' ? quietHours : null
-}
-
-/** True inside the half-open local window [start, end); overnight windows wrap. */
-function inQuietHours(quietHours, now) {
-  const window = quietWindow(quietHours)
-  const start = clockMinutes(window?.start)
-  const end = clockMinutes(window?.end)
-  if (start === null || end === null || start === end) return false
-  const at = new Date(now)
-  const minute = at.getHours() * 60 + at.getMinutes()
-  return start < end ? minute >= start && minute < end : minute >= start || minute < end
-}
-
 function render(view, kind, payload) {
   const s = view.state
   const head = KIND_LABEL[kind] || kind
   const lines = [
-    `🛠 RSI checkpoint [${payload?.id ?? '?'}] — ${head}`,
+    `🛠 RSI checkpoint [${payload?.id ?? payload?.checkpoint ?? '?'}] — ${head}`,
     '',
     `campaign: ${s.id} · ${s.status} · round ${s.rounds.length}/${s.budget.rounds} · spend $${s.budget.spentUsd.toFixed(3)}/$${s.budget.usd}`,
   ]
@@ -60,20 +37,20 @@ function render(view, kind, payload) {
   return lines.join('\n')
 }
 
-/** Send one checkpoint to the session that started the campaign. */
-export async function notifyCheckpoint(ctx, { view, kind, payload, config, now = Date.now(), log = () => {} }) {
-  const quietHours = config?.checkpoint?.quietHours
-  if (quietHours && inQuietHours(quietHours, now)) {
-    // Human attention is the scarce resource: hold it for the window instead of waking them.
-    log(`checkpoint ${payload?.id} held: quiet hours`)
-    return { delivered: false, reason: 'quiet-hours' }
-  }
-  const sessionId = view.state.initiator
+/** Stable id for one notification; named payload ids win so retries stay idempotent. */
+function notificationId(view, payload) {
+  const named = payload?.id ?? payload?.checkpoint
+  if (named != null && String(named) !== '') return `loom-cp-${named}`
+  const seq = view.ledger && Number.isFinite(view.ledger.seq) ? view.ledger.seq + 1 : Date.now().toString(36)
+  return `loom-cp-${seq}-${Date.now().toString(36)}`
+}
+
+/** Queue one rendered checkpoint on the campaign's initiator session. */
+async function deliver(ctx, { view, sessionId, requestId, kind, payload, log }) {
   if (!sessionId) return { delivered: false, reason: 'no-initiator' }
   const sessionController = svc(ctx, 'sessionController')
   const prompt = sessionController?.prompt
   if (typeof prompt !== 'function') return { delivered: false, reason: 'no-session-controller' }
-  const requestId = `loom-cp-${payload?.id ?? Date.now().toString(36)}`
   try {
     await prompt.call(sessionController, {
       requestId,
@@ -81,11 +58,84 @@ export async function notifyCheckpoint(ctx, { view, kind, payload, config, now =
       mode: 'queue',
       content: [{ type: 'text', text: render(view, kind, payload) }],
     })
-    log(`checkpoint ${payload?.id} queued on session ${sessionId}`)
+    log(`checkpoint ${payload?.id ?? payload?.checkpoint ?? requestId} queued on session ${sessionId}`)
     return { delivered: true }
   } catch (err) {
     // Never break the loop because the UI could not be woken.
     log('checkpoint delivery failed:', err?.message ?? err)
     return { delivered: false, error: String(err?.message ?? err) }
   }
+}
+
+/** Send one checkpoint to the session that started the campaign. */
+export async function notifyCheckpoint(ctx, { view, kind, payload, config, now = Date.now(), log = () => {} }) {
+  const quietHours = config?.checkpoint?.quietHours
+  const deferredUntil = quietHours ? deferUntil(quietHours, now) : null
+  if (deferredUntil !== null) {
+    // Human attention is the scarce resource: hold it for the window instead of
+    // waking them, and remember it durably so a restart cannot lose it.
+    const id = notificationId(view, payload)
+    const rec = {
+      id,
+      checkpointId: payload?.id ?? payload?.checkpoint ?? null,
+      kind,
+      payload: payload ?? {},
+      sessionId: view.state.initiator ?? null,
+      deferredUntil,
+      at: now,
+    }
+    if (view.ledger && typeof view.ledger.append === 'function') {
+      view.ledger.append('checkpoint.deferred', rec, 'system')
+    }
+    log(`checkpoint ${rec.checkpointId ?? id} held: quiet hours until ${new Date(deferredUntil).toISOString()}`)
+    return { delivered: false, reason: 'quiet-hours', deferredUntil }
+  }
+  return deliver(ctx, {
+    view,
+    sessionId: view.state.initiator,
+    requestId: notificationId(view, payload),
+    kind,
+    payload,
+    log,
+  })
+}
+
+/**
+ * Deliver every held checkpoint whose quiet window has passed.
+ *
+ * The campaign log is the queue: `checkpoint.deferred` records what to send and
+ * `checkpoint.notified` records what already went out, so calling this on every
+ * tick is safe and each checkpoint leaves exactly once. Failed deliveries stay
+ * held and are retried on a later tick.
+ *
+ * @returns {Promise<{ delivered: Array<{ id: string, checkpointId: string | null }> }>}
+ */
+export async function flushDeferred(ctx, { view, config, now = Date.now(), log = () => {} }) {
+  const delivered = []
+  const events = view.ledger && typeof view.ledger.all === 'function' ? view.ledger.all() : []
+  const held = new Map()
+  const notified = new Set()
+  for (const ev of events) {
+    if (ev?.type === 'checkpoint.deferred' && ev.data?.id) held.set(ev.data.id, ev.data)
+    else if (ev?.type === 'checkpoint.notified' && ev.data?.id) notified.add(ev.data.id)
+  }
+  for (const [id, rec] of held) {
+    if (notified.has(id)) continue
+    if (!(typeof rec.deferredUntil === 'number' && rec.deferredUntil <= now)) continue
+    const result = await deliver(ctx, {
+      view,
+      sessionId: rec.sessionId ?? view.state.initiator,
+      requestId: id,
+      kind: rec.kind,
+      payload: rec.payload,
+      log,
+    })
+    if (!result.delivered) continue
+    if (view.ledger && typeof view.ledger.append === 'function') {
+      view.ledger.append('checkpoint.notified', { id, checkpointId: rec.checkpointId ?? null, at: now }, 'system')
+    }
+    notified.add(id)
+    delivered.push({ id, checkpointId: rec.checkpointId ?? null })
+  }
+  return { delivered }
 }
