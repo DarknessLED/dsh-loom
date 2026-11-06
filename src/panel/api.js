@@ -19,6 +19,16 @@ function campaignRow(runtime, view, now) {
   const s = view.state
   const open = s.checkpoints.filter((c) => c.status === 'open')
   const lessons = Array.isArray(s.lessons) ? s.lessons : []
+  const lessonsTop = lessons
+    .filter((l) => l.status === 'active')
+    .map((l) => ({
+      id: l.id,
+      claim: l.claim ?? '',
+      kind: l.kind ?? 'fact',
+      score: Number(l.gainSum) || 0,
+    }))
+    .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, 3)
   const rounds = Array.isArray(s.rounds) ? s.rounds : []
   const last = rounds[rounds.length - 1] || null
   const attempts = last
@@ -48,6 +58,7 @@ function campaignRow(runtime, view, now) {
     holdout: Array.isArray(s.evalset?.holdout) ? s.evalset.holdout.length : 0,
     lessons: lessons.length,
     quarantined: lessons.filter((l) => l.status === 'quarantined').length,
+    lessonsTop,
     openCheckpoints: open.map((c) => ({
       id: c.id,
       kind: c.kind,
