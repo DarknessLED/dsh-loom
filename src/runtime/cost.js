@@ -60,18 +60,53 @@ export function priceUsage(usage, pricing = {}) {
   return Math.round(usd * 1e6) / 1e6
 }
 
+/**
+ * Ask the host's token meter for a session's usage. Child session logs carry
+ * no `usage` on assistant messages (verified against real archives), so this
+ * is the only source of a real measurement; it returns null when the service
+ * is absent, does not expose `measure`, returns nothing usable, or throws.
+ */
+function measureViaMeter(ctx, sessionId) {
+  try {
+    const meter = svc(ctx, 'tokenMeter')
+    if (!meter || typeof meter.measure !== 'function') return null
+    const usage = normalizeMeterUsage(meter.measure(sessionId))
+    // A zeroed measurement is not evidence of real spend; let the log win.
+    return usage && Object.values(usage).some((v) => v !== 0) ? usage : null
+  } catch {
+    return null
+  }
+}
+
+/** Coerce a meter result (`usage`-wrapped or flat) into a token record. */
+function normalizeMeterUsage(raw) {
+  const u = raw && typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw
+  if (!u || typeof u !== 'object') return null
+  return {
+    inputTokens: num(u.inputTokens),
+    outputTokens: num(u.outputTokens),
+    cacheReadTokens: num(u.cacheReadTokens),
+    cacheWriteTokens: num(u.cacheWriteTokens),
+  }
+}
+
 /** Read one session's token usage. Returns zeros when the session is unavailable. */
 export function usageOfSession(ctx, sessionId, pricing) {
   // Never touch ctx.<service> directly: under cordis a fiber without the
   // inject declaration throws on property access, and this runs inside a
   // timer fiber where `sessions` is not declared.
   if (!sessionId) return { usage: { ...ZERO }, usd: 0 }
+  let logged = { ...ZERO }
   try {
-    const session = svc(ctx, 'sessions').get(sessionId)
+    const sessions = svc(ctx, 'sessions')
+    const session = sessions?.get ? sessions.get(sessionId) : undefined
     const events = session?.snapshotEvents ? session.snapshotEvents() : []
-    const usage = sumUsage(events)
-    return { usage, usd: priceUsage(usage, pricing) }
+    logged = sumUsage(events)
   } catch {
-    return { usage: { ...ZERO }, usd: 0 }
+    /* an unreadable session log degrades to no logged usage */
   }
+  // The host measurement is authoritative whenever it reports real tokens;
+  // otherwise keep the log's (usually zero) answer instead of inventing one.
+  const usage = measureViaMeter(ctx, sessionId) ?? logged
+  return { usage, usd: priceUsage(usage, pricing) }
 }
