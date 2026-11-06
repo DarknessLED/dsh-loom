@@ -200,6 +200,14 @@ export class Runtime {
       case 'note':
         if (!payload.text) throw new Error('note requires text')
         return this.append(v, 'note.added', { text: payload.text }, actor)
+      case 'autopilot':
+        if (typeof payload.enabled !== 'boolean') throw new Error('autopilot requires enabled: boolean')
+        return this.append(
+          v,
+          'campaign.autopilot',
+          { enabled: payload.enabled, guard: payload.guard == null ? null : String(payload.guard) },
+          actor,
+        )
       default:
         throw new Error(`unknown action: ${action}`)
     }

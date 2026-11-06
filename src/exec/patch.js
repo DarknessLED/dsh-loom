@@ -9,9 +9,21 @@ function git(args, cwd, timeout = 60_000) {
   return run('git', ['-C', cwd, ...args], { timeout, maxBuffer: 32 * 1024 * 1024, windowsHide: true })
 }
 
-/** Capture the attempt's tracked changes as a patch file. Returns its path and size. */
-export async function makePatch({ dir, outFile }) {
-  const { stdout } = await git(['diff', '--binary', 'HEAD'], dir)
+/**
+ * Capture the attempt's changes as a patch file. Returns its path and size.
+ *
+ * `git diff HEAD` silently skips untracked files, so a task whose whole point
+ * is a new module used to score 1 in its worktree and then promote a patch that
+ * did not contain the module at all. `add -N` (intent to add) makes the new
+ * files show up as additions without staging their content.
+ */
+export async function makePatch({ dir, outFile, base = 'HEAD' }) {
+  try {
+    await git(['add', '-A', '-N'], dir)
+  } catch {
+    // An empty worktree or a git that dislikes -A is not a reason to lose the diff.
+  }
+  const { stdout } = await git(['diff', '--binary', base], dir)
   mkdirSync(dirname(outFile), { recursive: true })
   writeFileSync(outFile, stdout)
   return { path: outFile, bytes: Buffer.byteLength(stdout), empty: stdout.trim() === '' }

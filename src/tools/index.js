@@ -145,11 +145,16 @@ export function registerTools(ctx, { runtime, config }) {
       type: 'object',
       properties: {
         id: ID,
-        action: { type: 'string', enum: ['pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note'] },
+        action: { type: 'string', enum: ['pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot'] },
         usd: { type: 'number', description: 'action=budget: new USD cap' },
         rounds: { type: 'integer', description: 'action=budget: new round cap' },
         text: { type: 'string', description: 'action=constraint|note: the text' },
         reason: { type: 'string', description: 'action=stop: why' },
+        enabled: { type: 'boolean', description: 'action=autopilot: apply verified patches without waiting for a human.' },
+        guard: {
+          type: 'string',
+          description: 'action=autopilot: command run in the workspace after each applied patch; a non-zero exit rolls the patch back.',
+        },
       },
       required: ['action'],
       additionalProperties: false,
@@ -168,7 +173,13 @@ export function registerTools(ctx, { runtime, config }) {
       } else if (action === 'stop') {
         state = runtime.control(view.id, 'stop', { reason: args.reason }, 'human')
       } else {
-        state = runtime.control(view.id, action, { usd: args.usd, rounds: args.rounds, text: args.text }, 'human')
+        state = runtime.control(view.id, action, {
+          usd: args.usd,
+          rounds: args.rounds,
+          text: args.text,
+          enabled: args.enabled,
+          guard: args.guard,
+        }, 'human')
       }
       return brief(state)
     },

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
-import { createWorktree, removeWorktree, diffStat } from '../exec/worktree.js'
+import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { usageOfSession } from './cost.js'
@@ -256,6 +256,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         screened: screening ? screenInfo.get(attemptId) ?? null : null,
       }
       try {
+        const base = await headCommit(workspace).catch(() => null)
         await createWorktree({ repo: workspace, dir: wtPath, branch })
         const notes = readNotes(board, { kinds: ['obstacle', 'finding'], limit: 5, excludeAttempt: attemptId })
         const lessons = policy.knowledge && config.knowledge?.enabled
@@ -309,7 +310,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         }
         const gateOk = ver.ok && (lean ? lean.ok : true)
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
-        const patch = await makePatch({ dir: wtPath, outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`) }).catch(() => null)
+        const patch = await makePatch({ dir: wtPath, outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`), base: base ?? 'HEAD' }).catch(() => null)
         const score = scoreAttempt({
           attemptId,
           taskScores: { [task.id]: gateOk ? 1 : 0 },
@@ -472,7 +473,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       } catch (err) {
         log('lesson derivation failed:', err?.message ?? err)
       }
-      if (config.loopPolicy.autoApply) {
+      const auto = config.loopPolicy.autoApply || state.autopilot?.enabled === true
+      if (auto) {
         const applied = await applyPatch({ repo: workspace, patchFile: best.patch })
         if (!applied.ok) {
           raise('anomaly', {
@@ -480,6 +482,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             detail: applied.detail,
             patch: best.patch,
           })
+        } else {
+          const guard = state.autopilot?.guard && state.autopilot.enabled ? state.autopilot.guard : null
+          const checked = guard
+            ? await runVerifier({ cmd: guard }, { cwd: workspace }).catch((err) => ({ ok: false, stderr: String(err?.message ?? err) }))
+            : { ok: true }
+          if (!checked.ok) {
+            await rollbackWorkspace(workspace)
+            raise('anomaly', {
+              message: `autopilot applied round ${n} and then the guard failed; the workspace was rolled back`,
+              guard,
+              detail: String(checked.stderr || checked.stdout || '').slice(-400),
+              patch: best.patch,
+            })
+          } else {
+            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard, at: Date.now() }, 'system')
+          }
         }
       } else {
         raise('gate', {

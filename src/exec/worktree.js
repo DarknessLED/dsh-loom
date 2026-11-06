@@ -196,6 +196,30 @@ export async function createWorktree({ repo, dir, branch, baseRef = 'HEAD' } = {
 }
 
 /**
+ * Undo uncommitted changes in a workspace (used when an applied promotion fails
+ * its guard). Best effort: never throws.
+ * @param {string} repo
+ */
+export async function rollbackWorkspace(repo) {
+  await runGit(repo, ['checkout', '--', '.']).catch(() => null)
+  await runGit(repo, ['clean', '-fd']).catch(() => null)
+}
+
+/**
+ * The commit a fresh worktree is started from. Captured before the attempt runs
+ * so the patch can be taken against it even when the agent commits on its own
+ * branch — `git diff HEAD` would otherwise return an empty patch.
+ * @param {string} repo
+ * @returns {Promise<string|null>}
+ */
+export async function headCommit(repo) {
+  const result = await runGit(repo, ['rev-parse', 'HEAD'])
+  if (result.code !== 0) return null
+  const sha = String(result.stdout || '').trim()
+  return sha || null
+}
+
+/**
  * Best-effort worktree removal. Never throws: falls back to `rm -rf` and always
  * prunes stale registrations afterwards.
  * @param {{repo: string, dir: string}} options

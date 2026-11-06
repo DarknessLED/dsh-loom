@@ -51,6 +51,15 @@ function apply(s, ev) {
     case 'campaign.status':
       s.status = d.status
       break
+    case 'campaign.autopilot':
+      // Hands-off promotion: the loop applies its own verified patches, optionally
+      // behind a guard command that must still pass afterwards (else it rolls back).
+      s.autopilot = {
+        enabled: d.enabled === true,
+        guard: typeof d.guard === 'string' && d.guard ? d.guard : null,
+        at: ev.t,
+      }
+      break
     case 'objective.updated':
       s.objective = d.objective
       break
