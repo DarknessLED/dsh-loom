@@ -8,7 +8,7 @@ import { applyPatch } from '../exec/patch.js'
 import { checkLemma } from '../lean/gate.js'
 import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
-import { effectivePolicy, normalizePolicy } from '../loop/policy.js'
+import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
 
@@ -372,10 +372,20 @@ export function registerTools(ctx, { runtime, config }) {
         runtime.append(view, 'chain.activated', { version: Number(target.payload.chainVersion) }, 'human')
       }
       if (args.decision === 'approve' && target.kind === 'policy' && target.payload?.policy) {
+        // The checkpoint asks a human to agree to a change, so the event must
+        // say what the change is. Diff the effective policy in force against
+        // the effective policy the promotion would put in force — unset fields
+        // fall back to config, so comparing raw blobs would both invent changes
+        // and hide them.
+        const before = effectivePolicy({ state: view.state, config })
+        const after = effectivePolicy({
+          state: { ...view.state, policy: { ...(view.state.policy || {}), policy: target.payload.policy } },
+          config,
+        })
         runtime.append(
           view,
           'policy.promoted',
-          { version: target.payload.policyVersion ?? null, policy: target.payload.policy },
+          { version: target.payload.policyVersion ?? null, policy: target.payload.policy, diff: diffPolicy(before, after) },
           'human',
         )
       }
