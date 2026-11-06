@@ -76,7 +76,7 @@ const baseState = {
   const rt = fakeRuntime(dir)
   const view = {
     dir: join(dir, 'campaign'),
-    state: { ...baseState, workspace: dir, evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } }] } },
+    state: { ...baseState, workspace: dir, evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } }], holdout: [] } },
   }
   mkdirSync(view.dir, { recursive: true })
   const config = {

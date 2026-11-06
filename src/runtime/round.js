@@ -476,10 +476,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
     // A verified attempt that changed nothing is not evidence of new work, but it IS
-        // evidence the task is satisfied (an earlier landing already covered it). Applying
-        // an empty patch fails in git apply, so record it as a no-op landing instead.
-        checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
-        const promote = checks.verifierOk && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
+    // evidence the task is satisfied (an earlier landing already covered it). Applying
+    // an empty patch fails in git apply, so record it as a no-op landing instead.
+    checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
+    const promote = checks.verifierOk && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
 
     runtime.append(
       view,
