@@ -16,6 +16,7 @@ import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
 import { nextCheckpointId } from '../runtime/ids.js'
 import { campaignQuality, qualityLine } from '../runtime/quality.js'
+import { reviewQueue } from '../runtime/review.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -132,13 +133,26 @@ export function registerTools(ctx, { runtime, config }) {
     isConcurrencySafe: () => true,
     timeoutMs: 10_000,
     async execute(args = {}) {
-      if (!args.id && runtime.listCampaigns().length !== 1) {
+      const all = runtime.listCampaigns()
+      if (!args.id && all.length !== 1) {
+        if (!all.length) throw new Error('no campaigns yet — call rsi_start first')
         return {
-          campaigns: runtime.listCampaigns().map((id) => brief(runtime.get(id).state)),
+          campaigns: all.map((id) => brief(runtime.get(id).state)),
           live: runtime.liveAttempts(),
         }
       }
-      return { ...runtime.status(resolve(runtime, args.id).id), live: runtime.liveAttempts() }
+      const id = args.id ? String(args.id) : all[0]
+      // Rank the open decisions so the most dangerous one is read first; the
+      // status view already carries the checkpoints, so no extra ledger read.
+      const pending = reviewQueue(runtime.status(id))
+      return {
+        ...runtime.status(id),
+        live: runtime.liveAttempts(),
+        pendingReviews: pending,
+        reviewLines: pending.map(
+          (r) => `[${r.risk}] ${r.id} (${r.kind}) — ${r.summary} → ${r.recommendation}`,
+        ),
+      }
     },
   })
 
