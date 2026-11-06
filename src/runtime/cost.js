@@ -37,7 +37,10 @@ export function priceUsage(usage, pricing = {}) {
 
 /** Read one session's token usage. Returns zeros when the session is unavailable. */
 export function usageOfSession(ctx, sessionId, pricing) {
-  if (!sessionId || !ctx?.sessions?.get) return { usage: { ...ZERO }, usd: 0 }
+  // Never touch ctx.<service> directly: under cordis a fiber without the
+  // inject declaration throws on property access, and this runs inside a
+  // timer fiber where `sessions` is not declared.
+  if (!sessionId) return { usage: { ...ZERO }, usd: 0 }
   try {
     const session = svc(ctx, 'sessions').get(sessionId)
     const events = session?.snapshotEvents ? session.snapshotEvents() : []
