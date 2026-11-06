@@ -23,6 +23,31 @@ function num(x) {
   return typeof x === 'number' && Number.isFinite(x) ? x : 0
 }
 
+/**
+ * Campaign-level spend: sum every recorded attempt's usage. The report cannot
+ * trust `budget.spentUsd` alone, because older ledgers never folded a
+ * budget.spent event and a crash can land the attempt record before the fold.
+ * Attempts without usage (or with non-finite fields) contribute zero.
+ */
+export function campaignUsage(rounds) {
+  const total = { usd: 0, inputTokens: 0, outputTokens: 0 }
+  for (const round of Array.isArray(rounds) ? rounds : []) {
+    for (const attempt of Array.isArray(round?.attempts) ? round.attempts : []) {
+      if (!attempt || typeof attempt !== 'object') continue
+      const u = attempt.usage
+      const hasUsage = u !== null && typeof u === 'object'
+      if (hasUsage) {
+        total.inputTokens += num(u.inputTokens)
+        total.outputTokens += num(u.outputTokens)
+      }
+      // Newer records keep the priced figure inside `usage`; older ones keep
+      // `costUsd` on the attempt itself. Prefer the usage figure when present.
+      total.usd += hasUsage && u.costUsd !== undefined ? num(u.costUsd) : num(attempt.costUsd)
+    }
+  }
+  return total
+}
+
 /** Price a usage record with a per-million-token table (USD). */
 export function priceUsage(usage, pricing = {}) {
   const inP = num(pricing.inputPerMTok) || 0

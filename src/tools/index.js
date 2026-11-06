@@ -10,6 +10,7 @@ import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
 import { effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
+import { campaignUsage } from '../runtime/cost.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -416,9 +417,10 @@ export function registerTools(ctx, { runtime, config }) {
       const v = resolve(runtime, args.id)
       const s = v.state
       const limit = Math.max(1, Math.min(50, Number(args.limit) || 5))
+      const spend = campaignUsage(s.rounds)
       const lines = [
         `# RSI campaign ${s.id}`,
-        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${s.budget.spentUsd.toFixed(2)}/$${s.budget.usd}`,
+        `status: ${s.status} · rounds ${s.rounds.length}/${s.budget.rounds} · spend $${spend.usd.toFixed(3)}/$${s.budget.usd} (computed from ${spend.inputTokens} in / ${spend.outputTokens} out tokens)`,
         `objective: ${s.objective}`,
         `chain: v${s.chain.activeVersion ?? '-'} · incumbent: ${s.incumbent ? `round ${s.incumbent.round ?? s.incumbent.chainVersion ?? '?'} score ${s.incumbent.score}` : 'none'}`,
       ]
