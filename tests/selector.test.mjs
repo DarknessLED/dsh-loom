@@ -76,13 +76,12 @@ ok('pickTask: large rounds wrap', pickTask(tasks, [], { round: 7 }).task.id === 
 const mixed = [round(1, 'a', [attempt('r1a1', 1)]), round(2, 'b', [attempt('r2a1', 0.5)])]
 ok('pickTask: a solved task does not mask an unsolved one', pickTask(tasks, mixed, { round: 1 }).task.id !== 'a')
 
-console.log(`\n${pass}/${pass + fails.length} passed`)
 // A task whose 1.0 was thrown away is still open.
 const discarded = [{ n: 1, taskId: 'a', attempts: [attempt('r1a1', 1)], landed: false }]
 ok('bestScores: unlanded rounds do not solve a task', bestScores(discarded).size === 0)
 ok('pickTask: keeps chasing a discarded task', pickTask([{ id: 'a' }, { id: 'b' }], discarded, { round: 1 }).poolSize === 2)
-
 if (fails.length) {
   console.error(fails.join('\n'))
   process.exitCode = 1
 }
+console.log(`\n${pass}/${pass + fails.length} passed`)
