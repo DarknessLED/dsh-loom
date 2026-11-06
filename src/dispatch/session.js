@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { svc } from '../core/services.js'
 
 function textOf(output) {
   if (!Array.isArray(output)) return ''
@@ -33,7 +34,7 @@ export class Dispatcher {
 
   async ensureParent() {
     if (this.owned) return this.owned.agent
-    const sc = this.ctx.sessionController
+    const sc = svc(this.ctx, 'sessionController')
     if (this.parentSessionId && sc?.resolveAgent) {
       try {
         const resolved = await sc.resolveAgent(this.parentSessionId)
@@ -42,7 +43,7 @@ export class Dispatcher {
         this.log('resolveAgent failed:', err?.message ?? err)
       }
     }
-    const loop = this.ctx.agentLoop
+    const loop = svc(this.ctx, 'agentLoop')
     if (!loop?.createAgent) throw new Error('no sessionController.resolveAgent and no agentLoop.createAgent')
     const sessionId = randomUUID()
     const handle = await loop.createAgent(this.ctx, {
@@ -59,7 +60,7 @@ export class Dispatcher {
    */
   async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, onStart = null } = {}) {
     if (this.disposed) throw new Error('dispatcher disposed')
-    const subagents = this.ctx.subagents
+    const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
 
     const parent = await this.ensureParent()

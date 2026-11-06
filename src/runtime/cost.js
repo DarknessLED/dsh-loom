@@ -1,3 +1,5 @@
+import { svc } from '../core/services.js'
+
 // Token accounting for a child session. DSH exposes no dollar figure, so we sum
 // the per-call `usage` on assistant messages and price it with a config table.
 
@@ -37,7 +39,7 @@ export function priceUsage(usage, pricing = {}) {
 export function usageOfSession(ctx, sessionId, pricing) {
   if (!sessionId || !ctx?.sessions?.get) return { usage: { ...ZERO }, usd: 0 }
   try {
-    const session = ctx.sessions.get(sessionId)
+    const session = svc(ctx, 'sessions').get(sessionId)
     const events = session?.snapshotEvents ? session.snapshotEvents() : []
     const usage = sumUsage(events)
     return { usage, usd: priceUsage(usage, pricing) }

@@ -12,6 +12,7 @@ import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
 import { reconcileLeases, sweepLeases } from './lease.js'
 import { Dispatcher } from '../dispatch/session.js'
+import { svc } from '../core/services.js'
 
 const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'stopped']
 
@@ -39,7 +40,7 @@ export class Runtime {
       stallMs: config.session?.stallMs,
       seqOf: (sessionId) => {
         try {
-          const session = this.ctx.sessions?.get?.(sessionId)
+          const session = svc(this.ctx, 'sessions')?.get?.(sessionId)
           if (!session) return null
           const seq = Number(session.seq)
           if (Number.isFinite(seq)) return seq

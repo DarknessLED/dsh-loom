@@ -1,3 +1,5 @@
+import { svc } from '../core/services.js'
+
 /**
  * The browser half's only data source: one JSON route.
  *
@@ -169,5 +171,6 @@ export function registerPanel(ctx, deps) {
       }
     },
   }
-  ctx.effect(() => ctx.webServer.register(route), 'dsh-loom: panel route')
+  const webServer = svc(ctx, 'webServer')
+  ctx.effect(() => webServer.register(route), 'dsh-loom: panel route')
 }

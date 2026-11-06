@@ -1,3 +1,5 @@
+import { svc } from '../core/services.js'
+
 // Wake the human-facing session only when something needs a decision.
 //
 // The main agent is idle by design: rounds run inside child sessions. This
@@ -33,11 +35,12 @@ function render(view, kind, payload) {
 export async function notifyCheckpoint(ctx, { view, kind, payload, log = () => {} }) {
   const sessionId = view.state.initiator
   if (!sessionId) return { delivered: false, reason: 'no-initiator' }
-  const prompt = ctx?.sessionController?.prompt
+  const sessionController = svc(ctx, 'sessionController')
+  const prompt = sessionController?.prompt
   if (typeof prompt !== 'function') return { delivered: false, reason: 'no-session-controller' }
   const requestId = `loom-cp-${payload?.id ?? Date.now().toString(36)}`
   try {
-    await prompt.call(ctx.sessionController, {
+    await prompt.call(sessionController, {
       requestId,
       sessionId,
       mode: 'queue',

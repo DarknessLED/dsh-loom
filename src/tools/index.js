@@ -1,4 +1,5 @@
 import { output } from './output.js'
+import { svc } from '../core/services.js'
 import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
@@ -615,13 +616,14 @@ export function registerTools(ctx, { runtime, config }) {
     },
   })
 
-  return defs.map((def) => ctx.effect(() => ctx.tools.register(def), `dsh-loom: tool(${def.name})`))
+  const tools = svc(ctx, 'tools')
+  return defs.map((def) => ctx.effect(() => tools.register(def), `dsh-loom: tool(${def.name})`))
 }
 
 /** The session that is talking to us, when a tool callback is running. */
 function currentSessionId(ctx) {
   try {
-    const agent = ctx.agents?.currentInitiator?.()
+    const agent = svc(ctx, 'agents')?.currentInitiator?.()
     return agent?.id ?? null
   } catch {
     return null

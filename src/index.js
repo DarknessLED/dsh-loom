@@ -5,6 +5,7 @@ import { normalizeConfig } from './core/config.js'
 import { loomHome } from './core/paths.js'
 import { claimOwnership, releaseLock } from './core/lock.js'
 import { Runtime } from './runtime/runtime.js'
+import { svc } from './core/services.js'
 import { registerTools } from './tools/index.js'
 import { registerPanel } from './panel/api.js'
 
@@ -112,8 +113,9 @@ function applyInner(ctx, config) {
   if (typeof ctx.inject === 'function') {
     ctx.inject(['systemPrompt'], (scope) => {
       try {
+        const systemPrompt = svc(scope, 'systemPrompt')
         scope.effect(() =>
-          scope.systemPrompt.section({
+          systemPrompt.section({
             name: 'dsh-loom:campaigns',
             order: 118,
             text: () => {
@@ -156,8 +158,10 @@ function applyInner(ctx, config) {
   trace('apply:panel+prompt')
   ctx.effect(() => () => releaseLock(claim.file), 'dsh-loom: lock')
 
-  trace(`apply:done tools=${ctx.tools?.schemas?.()?.length ?? '?'}`)
+  trace(`apply:done tools=${svc(ctx, 'tools')?.schemas?.()?.length ?? '?'}`)
   log(`ready at ${home} (pid ${process.pid}, instance ${claim.record.instance})`)
 }
 
 export default apply
+
+// touch: 2026-11-06T17:08:36Z
