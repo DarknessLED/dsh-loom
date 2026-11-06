@@ -13,6 +13,28 @@ import { pickSurvivors, screenEnabled } from './halving.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 
+/**
+ * Best score this campaign has already seen on one task, or null.
+ *
+ * Scores are only comparable inside a single task: a multi-task campaign runs
+ * a different task each round, so an attempt on task B must not be measured
+ * against a promoted attempt that was scored on task A. Without this, the
+ * first task to reach 1.0 freezes the gate and every later improvement is
+ * rejected for "not beating" a number that measured something else.
+ */
+export function bestPriorScore(rounds, taskId, beforeRound) {
+  let best = null
+  for (const r of rounds || []) {
+    if (!r || r.taskId !== taskId || Number(r.n) >= Number(beforeRound)) continue
+    for (const a of r.attempts || []) {
+      if (!a || a.screenedOut || a.abandoned) continue
+      const s = Number(a.score)
+      if (Number.isFinite(s) && (best === null || s > best)) best = s
+    }
+  }
+  return best
+}
+
 export function activeChain(state) {
   const found = state.chain.versions.find((v) => v.version === state.chain.activeVersion)
   if (!found) throw new Error('no active chain — call rsi_chain(action:"activate") first')
@@ -421,21 +443,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     if (roundCost > 0) {
       runtime.append(view, 'budget.spent', { usd: roundCost, attempts: attempts.length }, 'system')
     }
-    const incumbent = state.incumbent
-
     runtime.append(view, 'candidate.proposed', { id: best?.id ?? `r${n}a0`, kind: 'attempt', version: n }, 'system')
 
+    const taskBest = bestPriorScore(state.rounds, task.id, n)
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch),
-      beatsIncumbent: !incumbent || score - Number(incumbent.score || 0) >= policy.minGain - 1e-9,
+      beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
     const promote = checks.verifierOk && checks.hasPatch && checks.beatsIncumbent
 
     runtime.append(
       view,
       'gate.evaluated',
-      { candidateId: best?.id ?? `r${n}a0`, promoted: promote, score, incumbentScore: incumbent?.score ?? null, checks },
+      { candidateId: best?.id ?? `r${n}a0`, promoted: promote, score, incumbentScore: taskBest, checks },
       'system',
     )
 
