@@ -1,8 +1,93 @@
 # dsh-loom 内部契约（v0，M1）
 
-插件布局：`src/index.js`（apply）→ `src/runtime/runtime.js`（状态/事件）→ `src/runtime/round.js`（回合引擎）→ 三个纯模块。
+插件布局：插件入口（apply）→ 运行时（状态/事件/tick）→ 回合引擎 → 一组不依赖宿主即可单测的纯函数模块；每个模块的职责见下面的模块地图。
 
 约束：**零运行时依赖**，只用 node 内置模块；ESM；Node ^22.19 || >=24；所有导出必须能在无 DSH 运行时的情况下被单测 import。
+
+## 模块地图
+
+`src/` 下每个模块的职责如下；后续各节给出关键模块的详细契约。新增模块必须在这里补一行，说明它为什么存在。
+
+### 入口与工具
+
+- `src/index.js` — 插件入口：`apply()` 归一化配置、抢占所有权锁、创建 `Runtime`，并注册工具与面板路由；卸载时释放锁。
+- `src/tools/index.js` — 注册全部 `rsi_*` 工具（start/status/control/chain/evalset/decide/report/lean/replay/dashboard），把工具参数翻译成事件或纯函数调用。
+- `src/tools/output.js` — 工具输出描述符：无损 JSON schema 进、文本卡片出的统一封装，避免每个工具手写一遍返回形状。
+
+### chain/ — 链（L1）
+
+- `src/chain/spec.js` — 校验链规格的 JSON 结构（节点类型、版本、参数、节点 id），返回人可读的错误字符串数组，供提案检查点直接展示。
+- `src/chain/templates.js` — 内置 `code-fix` / `refactor` 两条种子链与 `templateFor(name)`，主 agent 复制一份后按任务改写。
+- `src/chain/evidence.js` — 把回合日志折成 (version, task) 配对分数表，并按任务数、增益、单任务回归三项给出链晋升判定。
+- `src/chain/mutate.js` — 四种小而可审的链变异（多加候选、最小改动、禁止改测试、声明不确定性），一次只改工作方式，不改验收标准。
+
+### collab/
+
+- `src/collab/board.js` — 同一回合内兄弟尝试共享的追加式 JSONL 便签板（障碍/发现/做法），带长度裁剪与摘要，避免各自重复踩同一个坑。
+
+### core/ — 状态与基础设施
+
+- `src/core/atomic.js` — 原子落盘原语：临时文件加 rename 的 JSON 写、JSONL 追加/读取、无损序列化，供所有状态文件复用。
+- `src/core/config.js` — 默认配置与归一化：tick 周期、预算、gate 阈值、检查点、静默时段、会话与定价表，非法值一律回落默认。
+- `src/core/ledger.js` — 只追加的事件日志：序号从文件现状分配以兼容热重载双写者，所有派生状态都必须能由它重建。
+- `src/core/lock.js` — 面板所有权锁：newest-writer-wins 的抢占、心跳刷新、存活/过期判定，以及只删自己记录的释放。
+- `src/core/paths.js` — 状态目录布局：`~/.dsh/loom` 根、campaign 目录校验、目录创建与安全文件名片段。
+- `src/core/reduce.js` — 纯 reducer：把事件序列折叠成 `state.json` 形状的 campaign 状态，是面板与工具读到的同一份事实。
+- `src/core/services.js` — `ctx.get(name)` 的服务解析垫片，让 effect、定时器、工具回调都能在不声明 inject 的地方取到宿主服务。
+
+### dispatch/ — 子会话
+
+- `src/dispatch/brief.js` — 编译有上限的 worker 简报（固定小节顺序、经验/便签配额），并解析与校验子 agent 返回的单个 JSON 尝试报告。
+- `src/dispatch/session.js` — `Dispatcher`：为每次尝试起一个无父上下文的全新子会话，负责 prompt、取消与释放。
+
+### exec/ — 进程与工作树
+
+- `src/exec/verifier.js` — 跑验收命令：`spawn` + `shell`、每流 64KB 尾部裁剪、超时杀进程树、按正则抽取 `metrics`，失败只进返回值不抛。
+- `src/exec/worktree.js` — git worktree 生命周期：创建/移除、HEAD 快照、diff 统计、提交与回滚，全部 `git -C` 且有超时。
+- `src/exec/patch.js` — 把尝试的改动导出为补丁文件，并在晋升或回滚时正向应用或反向撤销。
+
+### gate/
+
+- `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；对畸形输入不抛异常。
+
+### knowledge/ — 经验
+
+- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去。
+- `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
+
+### lean/ — Lean 门
+
+- `src/lean/scan.js` — Lean 门的廉价半边：剥注释后扫描 `sorry`、新公理、`native_decide` 等违规与 import 白名单，纯函数不碰磁盘。
+- `src/lean/probe.js` — 探测本机 Lean 工具链是否可用（elan/lean 路径、版本），缺失时给出安装命令而不是静默下载几个 GB。
+- `src/lean/gate.js` — 完整 Lean 门：源码扫描 → 真实编译 → 公理报告，三者都通过才算证明，stderr 已裁到首个 error。
+- `src/lean/task.js` — 任务级 Lean 门：读取任务里的 Lean 声明、拒绝工作树外的路径，并复用 `checkLemma` 作为第二道机械门。
+- `src/lean/imagine.js` — 证明前的廉价筛选：从文本抽取定理声明，按任务相关性与去重裁到最多 N 条，并生成 imagine 提示。
+
+### loop/ — 循环策略（L2）
+
+- `src/loop/policy.js` — 把循环策略（增益阈值、候选数、知识注入、halving、holdout slack）变成可归一化、可比较的纯数据。
+- `src/loop/replay.js` — 只重放数值决策的策略回放：同一批回合在不同阈值下会晋升几次；明确不模拟换任务或换提示。
+
+### panel/
+
+- `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。
+
+### runtime/ — 回合与运行时
+
+- `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；缺失 usage 时用 transcript 长度给出带 `estimated` 标记的上界。
+- `src/runtime/deferred.js` — 静默时段计算：把落在 quiet hours 内的检查点推迟到窗口结束的瞬间，既不投递也不丢弃。
+- `src/runtime/exposure.js` — 决定本轮哪个候选看到经验：只暴露一个且按回合轮换，保证同一轮存在真正的对照组。
+- `src/runtime/halving.js` — 轮内 successive halving：先用廉价的 screen 验证器淘汰一半候选，再只为幸存者付真实尝试成本。
+- `src/runtime/ids.js` — 检查点 id 生成：时间戳加定宽单调计数器，保证同一毫秒内多次 raise 也不碰撞。
+- `src/runtime/lease.js` — 尝试租约：记录「本该在跑」的尝试，崩溃重启时对账，并按 TTL 清扫陈旧租约。
+- `src/runtime/notify.js` — 检查点通知：只在该决策时唤醒主会话一次；静默时段写 `checkpoint.deferred` 并由 tick 补发，且永不重复投递。
+- `src/runtime/plateau.js` — 平台期判定：连续 N 轮没有 `promoted === true` 就认为停止进步，供检查点与面板使用。
+- `src/runtime/quality.js` — 战役证据健康度：把回合账本折成通过率、增益、停滞等少数指标，供报告与面板给出同一结论。
+- `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点。
+- `src/runtime/runtime.js` — `Runtime`：campaign 生命周期与 tick 派发，含所有权心跳、watchdog 看护、租约对账和状态缓存。
+- `src/runtime/sampling.js` — 确定性选题：普通轮在未解决任务间轮转，每 `holdoutEvery` 轮消耗一个 holdout 任务，可重放。
+- `src/runtime/selector.js` — 选题策略：跳过已满分任务以免浪费回合，全部做满时报告 `allSolved` 让调度收尾。
+- `src/runtime/watchdog.js` — 看护运行中的尝试：以子会话事件水位而非 pid 判断存活，租约到期或 `stallMs` 无事件即写掉。
 
 ## 1. `src/exec/verifier.js`
 
