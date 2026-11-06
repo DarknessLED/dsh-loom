@@ -4,7 +4,7 @@ import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
-import { applyPatch } from '../exec/patch.js'
+import { applyPatch, reversePatch } from '../exec/patch.js'
 import { checkLemma } from '../lean/gate.js'
 import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
@@ -400,6 +400,14 @@ export function registerTools(ctx, { runtime, config }) {
         }
       }
 
+      let reverted = null
+      if (args.decision === 'reject' && target.payload?.staged && target.payload?.patch) {
+        // A human gate stages the candidate diff in the workspace so the
+        // reviewer can see it. Rejecting must undo that stage, or the change
+        // the person refused would linger as an unexplained dirty tree.
+        reverted = await reversePatch({ repo: view.state.workspace, patchFile: target.payload.patch })
+      }
+
       const state = runtime.append(
         view,
         'checkpoint.answered',
@@ -409,7 +417,13 @@ export function registerTools(ctx, { runtime, config }) {
       if (args.decision === 'stop') {
         runtime.append(view, 'campaign.status', { status: 'stopped', reason: 'human stop' }, 'human')
       }
-      return { answered: target.id, decision: args.decision, applied: applied?.ok ?? false, status: view.state.status }
+      return {
+        answered: target.id,
+        decision: args.decision,
+        applied: applied?.ok ?? false,
+        reverted: reverted?.ok ?? null,
+        status: view.state.status,
+      }
     },
   })
 

@@ -791,6 +791,27 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           }
         }
       } else {
+        // A chain with a human node has asked a person to review this change.
+        // Hand that person the change itself, not a patch path they would have
+        // to locate: stage the winning diff in the campaign workspace without
+        // committing it, so the review is "look at the tree" and landing stays
+        // a separate decision. Autopilot is still off — no autopilot.applied
+        // event and no commit are produced.
+        let staged = false
+        if (human) {
+          const applied = await applyPatch({ repo: workspace, patchFile: best.patch })
+          if (applied.ok) {
+            staged = true
+            runtime.append(
+              view,
+              'workspace.staged',
+              { round: n, attemptId: best.id, patch: best.patch, reason: 'human-review', at: Date.now() },
+              'system',
+            )
+          } else {
+            log(`round ${n}: could not stage the patch for review: ${applied.reason}`)
+          }
+        }
         raise('gate', {
           message: human?.prompt || `round ${n} produced a passing patch (score ${score}); review and apply`,
           prompt: human?.prompt ?? null,
@@ -798,6 +819,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           patch: best.patch,
           attempt: best.id,
           score,
+          staged,
         })
       }
     }

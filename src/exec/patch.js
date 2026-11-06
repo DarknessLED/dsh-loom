@@ -29,7 +29,16 @@ export async function makePatch({ dir, outFile, base = 'HEAD' }) {
   return { path: outFile, bytes: Buffer.byteLength(stdout), empty: stdout.trim() === '' }
 }
 
-/** Apply a patch to a clean workspace. Never leaves the tree half-applied if --check fails. */
+/** Undo a patch still present in the workspace (a rejected review stage). */
+export async function reversePatch({ repo, patchFile }) {
+  try {
+    await git(['apply', '--reverse', patchFile], repo)
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, reason: 'reverse-failed', detail: String(err?.stderr ?? err?.message ?? err) }
+  }
+}
+
 export async function applyPatch({ repo, patchFile }) {
   // An empty patch is not a failure: some attempts correctly change nothing.
   try {
@@ -38,7 +47,18 @@ export async function applyPatch({ repo, patchFile }) {
     return { ok: false, reason: 'patch-missing', detail: String(err?.message ?? err) }
   }
   const { stdout: status } = await git(['status', '--porcelain'], repo)
-  if (status.trim()) return { ok: false, reason: 'workspace-dirty', detail: status.trim().split('\n').slice(0, 10) }
+  if (status.trim()) {
+    // A human-review gate stages the winning patch in the workspace without
+    // committing it, so the reviewer can see the change. Approving that
+    // checkpoint asks to apply the same patch again; a tree that differs from
+    // HEAD by exactly this patch makes that a no-op, not a dirty-workspace error.
+    try {
+      await git(['apply', '--reverse', '--check', patchFile], repo)
+      return { ok: true, reason: 'already-applied' }
+    } catch {
+      return { ok: false, reason: 'workspace-dirty', detail: status.trim().split('\n').slice(0, 10) }
+    }
+  }
   try {
     await git(['apply', '--check', patchFile], repo)
   } catch (err) {
