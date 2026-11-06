@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { normalizeConfig } from './core/config.js'
 import { loomHome } from './core/paths.js'
 import { claimOwnership, releaseLock } from './core/lock.js'
@@ -11,7 +13,31 @@ export const name = 'dsh-loom'
 /** Hard dependency: `ctx.tools` exists by the time apply() runs. */
 export const inject = ['tools']
 
+function traceLine(stage, err) {
+  try {
+    const home = process.env.LOOM_HOME || join(process.env.USERPROFILE || process.env.HOME || '.', '.dsh', 'loom')
+    mkdirSync(home, { recursive: true })
+    appendFileSync(
+      join(home, 'apply.log'),
+      `${new Date().toISOString()} pid=${process.pid} ${stage}${err ? ` :: ${err?.stack || err}` : ''}
+`,
+    )
+  } catch {
+    /* tracing must never throw */
+  }
+}
+
 export function apply(ctx, config) {
+  try {
+    return applyInner(ctx, config)
+  } catch (err) {
+    // A throw here would otherwise be a single warning inside a packaged host.
+    traceLine('apply:threw', err)
+    throw err
+  }
+}
+
+function applyInner(ctx, config) {
   let cfg
   try {
     cfg = normalizeConfig(config)
@@ -20,6 +46,10 @@ export function apply(ctx, config) {
     return
   }
   const home = loomHome(cfg)
+
+  const trace = traceLine
+  trace('apply:start')
+  trace('apply:config')
 
   const log = (...args) => {
     try {
@@ -35,6 +65,8 @@ export function apply(ctx, config) {
   if (claim.previous && claim.previous.pid !== process.pid) {
     log(`took the loop over from pid ${claim.previous.pid}`)
   }
+
+  trace(`apply:claimed owner=${claim.ok} instance=${claim.record?.instance}`)
 
   const runtime = new Runtime({ ctx, home, config: cfg, log, lockFile: claim.file })
 
@@ -54,7 +86,9 @@ export function apply(ctx, config) {
   // still be able to look, and say clearly that another window is driving.
   try {
     registerTools(ctx, { runtime, config: cfg })
+    trace('apply:tools')
   } catch (err) {
+    trace('apply:tools-failed', err)
     log('tool registration failed:', err?.message ?? err)
   }
 
@@ -119,8 +153,10 @@ export function apply(ctx, config) {
     }
   }, 'dsh-loom: scheduler')
 
+  trace('apply:panel+prompt')
   ctx.effect(() => () => releaseLock(claim.file), 'dsh-loom: lock')
 
+  trace(`apply:done tools=${ctx.tools?.schemas?.()?.length ?? '?'}`)
   log(`ready at ${home} (pid ${process.pid}, instance ${claim.record.instance})`)
 }
 
