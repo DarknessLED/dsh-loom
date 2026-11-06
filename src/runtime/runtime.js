@@ -377,7 +377,7 @@ export class Runtime {
     const dispatcher = this.dispatcherFor(view)
     const notify = this.config.checkpoint?.notify === false
       ? null
-      : (kind, payload) => notifyCheckpoint(this.ctx, { view, kind, payload, log: this.log })
+      : (kind, payload) => notifyCheckpoint(this.ctx, { view, kind, payload, config: this.config, log: this.log })
     const done = runRound({ runtime: this, view, config: this.config, dispatcher, log: this.log, notify })
     done
       .catch((err) => this.log(`round for ${view.id} failed:`, err?.stack ?? err))

@@ -15,6 +15,35 @@ const KIND_LABEL = {
   plateau: 'the loop stopped making progress',
 }
 
+/** Parse "HH:MM" into minutes past local midnight; null when malformed. */
+function clockMinutes(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? '').trim())
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null
+}
+
+/** config.checkpoint.quietHours is { start, end } or the documented "HH:MM-HH:MM". */
+function quietWindow(quietHours) {
+  if (typeof quietHours === 'string') {
+    const [start, end] = quietHours.split('-')
+    return { start, end }
+  }
+  return quietHours && typeof quietHours === 'object' ? quietHours : null
+}
+
+/** True inside the half-open local window [start, end); overnight windows wrap. */
+function inQuietHours(quietHours, now) {
+  const window = quietWindow(quietHours)
+  const start = clockMinutes(window?.start)
+  const end = clockMinutes(window?.end)
+  if (start === null || end === null || start === end) return false
+  const at = new Date(now)
+  const minute = at.getHours() * 60 + at.getMinutes()
+  return start < end ? minute >= start && minute < end : minute >= start || minute < end
+}
+
 function render(view, kind, payload) {
   const s = view.state
   const head = KIND_LABEL[kind] || kind
@@ -32,7 +61,13 @@ function render(view, kind, payload) {
 }
 
 /** Send one checkpoint to the session that started the campaign. */
-export async function notifyCheckpoint(ctx, { view, kind, payload, log = () => {} }) {
+export async function notifyCheckpoint(ctx, { view, kind, payload, config, now = Date.now(), log = () => {} }) {
+  const quietHours = config?.checkpoint?.quietHours
+  if (quietHours && inQuietHours(quietHours, now)) {
+    // Human attention is the scarce resource: hold it for the window instead of waking them.
+    log(`checkpoint ${payload?.id} held: quiet hours`)
+    return { delivered: false, reason: 'quiet-hours' }
+  }
   const sessionId = view.state.initiator
   if (!sessionId) return { delivered: false, reason: 'no-initiator' }
   const sessionController = svc(ctx, 'sessionController')
