@@ -220,6 +220,37 @@ export async function headCommit(repo) {
 }
 
 /**
+ * Commit everything the workspace currently holds, so the next worktree starts
+ * from a tree that includes the promotion we just applied.
+ *
+ * Without this, round N+1 branches off a base that predates round N's patch
+ * while the workspace still carries the uncommitted change — the two then
+ * conflict on apply ("patch does not apply") and the promotion is lost.
+ *
+ * Never throws. `committed:false` means there was nothing to commit.
+ * @param {string} repo
+ * @param {string} message
+ * @returns {Promise<{ok: boolean, committed: boolean, sha: string|null, detail?: string}>}
+ */
+export async function commitWorkspace(repo, message) {
+  try {
+    const staged = await runGit(repo, ['add', '-A'])
+    if (staged.code !== 0) return { ok: false, committed: false, sha: null, detail: staged.stderr }
+    const status = await runGit(repo, ['status', '--porcelain'])
+    if (status.code !== 0) return { ok: false, committed: false, sha: null, detail: status.stderr }
+    if (String(status.stdout || '').trim() === '') return { ok: true, committed: false, sha: null }
+    const committed = await runGit(repo, ['commit', '-m', String(message || 'loom: promotion')])
+    if (committed.code !== 0) {
+      return { ok: false, committed: false, sha: null, detail: committed.stderr || committed.stdout }
+    }
+    const sha = await headCommit(repo)
+    return { ok: true, committed: true, sha }
+  } catch (err) {
+    return { ok: false, committed: false, sha: null, detail: String(err?.message ?? err) }
+  }
+}
+
+/**
  * Best-effort worktree removal. Never throws: falls back to `rm -rf` and always
  * prunes stale registrations afterwards.
  * @param {{repo: string, dir: string}} options

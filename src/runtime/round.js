@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
-import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace } from '../exec/worktree.js'
+import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { usageOfSession } from './cost.js'
@@ -508,7 +508,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               patch: best.patch,
             })
           } else {
-            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard, at: Date.now() }, 'system')
+            // Commit the promotion immediately: the next round branches off HEAD,
+            // and leaving it dirty is what makes the following apply conflict.
+            const landed = await commitWorkspace(workspace, `loom ${state.id} round ${n}: promote ${best.id} (score ${score})`)
+            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard, commit: landed.sha, committed: landed.committed === true, at: Date.now() }, 'system')
           }
         }
       } else {
