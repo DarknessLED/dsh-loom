@@ -44,6 +44,13 @@ window.__ModuleLoader__.load({
       return '#555'
     }
 
+    function qualityTone(verdict) {
+      if (verdict === 'healthy') return '#2e7d32'
+      if (verdict === 'stalled') return '#8a6d00'
+      if (verdict === 'regressing') return '#b3261e'
+      return '#555'
+    }
+
     function when(cond, node) {
       return cond ? node : null
     }
@@ -297,6 +304,23 @@ window.__ModuleLoader__.load({
             text(c.objective, '(no objective)'),
           ),
           h('div', { style: { opacity: 0.6, fontSize: 11 } }, meta.join(' · ')),
+          when(
+            c.quality,
+            h(
+              'div',
+              { style: { fontSize: 11, color: qualityTone(c.quality.verdict) } },
+              'evidence: ' +
+                c.quality.verdict +
+                ' · ' +
+                c.quality.promotions +
+                '/' +
+                c.quality.rounds +
+                ' promoted' +
+                (c.quality.avgRoundMs === null || c.quality.avgRoundMs === undefined
+                  ? ''
+                  : ' · ' + Math.round(c.quality.avgRoundMs / 1000) + 's/round'),
+            ),
+          ),
           when(
             live.length > 0,
             h(

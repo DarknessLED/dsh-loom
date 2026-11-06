@@ -1,4 +1,5 @@
 import { svc } from '../core/services.js'
+import { campaignQuality } from '../runtime/quality.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -59,6 +60,9 @@ function campaignRow(runtime, view, now) {
     lessons: lessons.length,
     quarantined: lessons.filter((l) => l.status === 'quarantined').length,
     lessonsTop,
+    // The report prints the same reading; computing it here (rather than in the
+    // browser) keeps the sidebar and the report on one definition of health.
+    quality: campaignQuality(s),
     openCheckpoints: open.map((c) => ({
       id: c.id,
       kind: c.kind,

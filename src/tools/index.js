@@ -12,6 +12,7 @@ import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
 import { nextCheckpointId } from '../runtime/ids.js'
+import { campaignQuality, qualityLine } from '../runtime/quality.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -466,6 +467,11 @@ export function registerTools(ctx, { runtime, config }) {
         )
       }
       if (!s.rounds.length) lines.push('| - | - | - | (none yet) | - |')
+      // The table shows what each round did; this line says whether the loop is
+      // still working or spinning, so a human does not have to infer it from
+      // the verdicts. Same helper the panel uses, so the two surfaces cannot
+      // disagree about the same campaign.
+      lines.push('', qualityLine(campaignQuality(s)))
       const lessons = s.lessons || []
       lines.push('', 'lessons:')
       for (const l of lessons) {
