@@ -1,5 +1,8 @@
+import { join } from 'node:path'
 import { output } from './output.js'
 import { svc } from '../core/services.js'
+import { writeJsonAtomic } from '../core/atomic.js'
+import { exportBundle } from '../report/export.js'
 import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
@@ -674,6 +677,40 @@ export function registerTools(ctx, { runtime, config }) {
       }
       if (live.length) lines.push('', `live attempts: ${live.map((a) => `${a.attemptId} (idle ${Math.round(a.idleMs / 1000)}s)`).join(', ')}`)
       return { campaigns: rows, live, text: lines.join(String.fromCharCode(10)) }
+    },
+  })
+
+  // Export needs to re-open a campaign from its append-only ledger to snapshot a
+  // settled campaign, so advertise it only where the runtime exposes `open`.
+  // A view-only host cannot produce a trustworthy bundle and says so by omission.
+  if (typeof runtime.open === 'function') defs.push({
+    name: 'rsi_export',
+    description:
+      'Export one campaign as a single self-contained, JSON round-trippable bundle: campaign identity, active chain spec, ' +
+      'effective policy, eval set, and one artifact per attempt that actually landed. Writes <campaign>/export/bundle.json ' +
+      'so the evidence can be archived or attached to a report instead of living only under the loom home directory.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        outDir: {
+          type: 'string',
+          description: 'Optional campaign directory to write under (default: the campaign directory itself).',
+        },
+      },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 10_000,
+    async execute(args = {}) {
+      // Registration is gated on `runtime.open`, so re-reading the ledger here is safe.
+      const view = args.id ? runtime.open(String(args.id)) : resolve(runtime)
+      const bundle = exportBundle({ state: view.state, view, config })
+      const root = args.outDir ? String(args.outDir) : view.dir
+      const path = join(root, 'export', 'bundle.json')
+      writeJsonAtomic(path, bundle)
+      return { written: true, path }
     },
   })
 

@@ -72,6 +72,10 @@
 
 - `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。
 
+### report/ — 审计与导出
+
+- `src/report/export.js` — 把 campaign 折成一个版本化、可 JSON 往返的自包含包（目标、链、策略、评测集、落地产物），供 `rsi_export` 写到 `export/bundle.json`，让证据能随代码一起归档。
+
 ### runtime/ — 回合与运行时
 
 - `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；缺失 usage 时用 transcript 长度给出带 `estimated` 标记的上界。
