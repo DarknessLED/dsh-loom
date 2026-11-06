@@ -1,7 +1,7 @@
 // Candidates in a round are independent by construction: each attempt gets its own
 // worktree, its own session and its own verifier run. Today runRound still walks
 // them one at a time, so a two-candidate round costs two full model runs back to
-// back. dispatch them concurrently up to session.maxConcurrent and a round gets
+// back. Dispatch them concurrently up to session.maxConcurrent and a round gets
 // shorter without getting weaker: the gate still ranks every attempt and only the
 // best one can land.
 import assert from 'node:assert/strict'
@@ -12,9 +12,22 @@ import { execFileSync } from 'node:child_process'
 import { runRound } from '../../src/runtime/round.js'
 
 let pass = 0
+let fail = 0
 const ok = (name) => {
   pass += 1
   console.log(`ok ${pass} - ${name}`)
+}
+const bad = (name, err) => {
+  fail += 1
+  console.log(`not ok ${pass + fail} - ${name}: ${err?.message ?? err}`)
+}
+async function check(name, fn) {
+  try {
+    await fn()
+    ok(name)
+  } catch (err) {
+    bad(name, err)
+  }
 }
 
 function git(cwd, ...args) {
@@ -75,7 +88,7 @@ function viewFor(dir, candidates) {
       lessons: [],
       budget: { rounds: 10, roundsUsed: 0, usd: 5, spentUsd: 0 },
       evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'make it pass', verify: { cmd: 'exit 0' } }], holdout: [] },
-      chain: { activeVersion: 1, versions: [{ version: 1, spec: { name: 't', version: 1, nodes: [] }, params: { candidates } }] },
+      chain: { activeVersion: 1, versions: [{ version: 1, spec: { name: 't', version: 1, nodes: [], params: { candidates } } }] },
     },
   }
 }
@@ -101,19 +114,28 @@ function countingDispatcher(delayMs) {
       state.calls += 1
       state.live += 1
       state.peak = Math.max(state.peak, state.live)
-      await new Promise((r) => setTimeout(r, delayMs))
-      // each attempt writes a distinct file inside its own worktree
-      const tag = String(opts?.cwd ?? '').replace(/[^a-z0-9]/gi, '') || 'x'
-      writeFileSync(join(opts.cwd, `marker-${tag}.txt`), 'x\n')
-      state.live -= 1
-      return { sessionId: `s-${tag}`, text: REPORT, stopReason: 'completed' }
+      try {
+        await new Promise((r) => setTimeout(r, delayMs))
+        const tag = String(opts?.cwd ?? '').replace(/[^a-z0-9]/gi, '') || 'x'
+        writeFileSync(join(opts.cwd, `marker-${tag}.txt`), 'x\n')
+        return { sessionId: `s-${tag}`, text: REPORT, stopReason: 'completed' }
+      } finally {
+        state.live -= 1
+      }
     },
   }
 }
 
-// 1. three candidates, room for three: they overlap
-{
+const dirs = []
+function scratch() {
   const dir = repo()
+  dirs.push(dir)
+  return dir
+}
+
+// 1. three candidates with room for three: they overlap and the round is shorter
+await check('candidates dispatch concurrently up to session.maxConcurrent', async () => {
+  const dir = scratch()
   const rt = fakeRuntime(dir)
   const view = viewFor(dir, 3)
   mkdirSync(view.dir, { recursive: true })
@@ -127,30 +149,37 @@ function countingDispatcher(delayMs) {
   assert.ok(elapsed < 3 * 250, `a parallel round should be shorter than sequential (${elapsed}ms)`)
   const attempts = rt.events.filter((e) => e.type === 'attempt.finished')
   assert.equal(attempts.length, 3, 'all three attempts are recorded')
-  ok('candidates dispatch concurrently up to session.maxConcurrent')
+  const gate = rt.events.find((e) => e.type === 'gate.evaluated')
+  assert.ok(gate, 'the gate still evaluates the round')
+})
 
-  const par = repo()
-  const rt2 = fakeRuntime(par)
-  const view2 = viewFor(par, 3)
-  mkdirSync(view2.dir, { recursive: true })
-  const serial = countingDispatcher(40)
-  await runRound({ runtime: rt2, view: view2, config: config(1), dispatcher: serial, log: () => {}, notify: () => {} })
-  assert.equal(serial.state.peak, 1, 'maxConcurrent 1 still means one at a time')
-  ok('session.maxConcurrent 1 keeps dispatch sequential')
+// 2. an explicit limit of one keeps the old sequential behaviour
+await check('session.maxConcurrent 1 keeps dispatch sequential', async () => {
+  const dir = scratch()
+  const rt = fakeRuntime(dir)
+  const view = viewFor(dir, 3)
+  mkdirSync(view.dir, { recursive: true })
+  const dispatcher = countingDispatcher(30)
+  await runRound({ runtime: rt, view, config: config(1), dispatcher, log: () => {}, notify: () => {} })
+  assert.equal(dispatcher.state.calls, 3, 'all candidates still run one at a time')
+  assert.equal(dispatcher.state.peak, 1, 'never two attempts in flight with a limit of one')
+})
 
-  const missing = repo()
-  const rt3 = fakeRuntime(missing)
-  const view3 = viewFor(missing, 2)
-  mkdirSync(view3.dir, { recursive: true })
-  const unbounded = countingDispatcher(40)
-  await runRound({ runtime: rt3, view: view3, config: { ...config(0), session: {} }, dispatcher: unbounded, log: () => {}, notify: () => {} })
-  assert.ok(unbounded.state.peak >= 1, 'a missing limit still dispatches')
-  ok('a missing maxConcurrent never blocks dispatch')
+// 3. no limit configured: dispatch must not stall
+await check('a missing maxConcurrent never blocks dispatch', async () => {
+  const dir = scratch()
+  const rt = fakeRuntime(dir)
+  const view = viewFor(dir, 2)
+  mkdirSync(view.dir, { recursive: true })
+  const dispatcher = countingDispatcher(20)
+  const cfg = config(0)
+  delete cfg.session.maxConcurrent
+  await runRound({ runtime: rt, view, config: cfg, dispatcher, log: () => {}, notify: () => {} })
+  assert.equal(dispatcher.state.calls, 2, 'both candidates run')
+  assert.ok(dispatcher.state.peak >= 1)
+})
 
-  rmSync(dir, { recursive: true, force: true })
-  rmSync(par, { recursive: true, force: true })
-  rmSync(missing, { recursive: true, force: true })
-}
+for (const dir of dirs) rmSync(dir, { recursive: true, force: true })
 
-console.log(`\n${pass}/3 passed`)
-process.exitCode = pass === 3 ? 0 : 1
+console.log(`\n${pass}/${pass + fail} passed`)
+process.exitCode = fail === 0 ? 0 : 1
