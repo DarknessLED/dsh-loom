@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
-import { runRound } from '../src/runtime/round.js'
+import { runRound } from '../../src/runtime/round.js'
 
 let pass = 0
 const ok = (name) => {

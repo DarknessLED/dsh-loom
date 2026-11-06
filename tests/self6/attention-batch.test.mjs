@@ -3,7 +3,7 @@
 // into one digest per window and says so, while a checkpoint raised after the
 // window still leaves immediately.
 import assert from 'node:assert/strict'
-import { notifyCheckpoint } from '../src/runtime/notify.js'
+import { notifyCheckpoint } from '../../src/runtime/notify.js'
 
 let pass = 0
 const ok = (name) => {
@@ -39,6 +39,8 @@ function harness({ batch } = {}) {
       id: 'attn',
       status: 'running',
       initiator: 'sess-main',
+      rounds: [],
+      budget: { rounds: 10, usd: 5, spentUsd: 0.25 },
       checkpoints: [
         { id: 'cp-a', kind: 'gate', status: 'open', payload: { patch: '/tmp/a.patch' } },
         { id: 'cp-b', kind: 'gate', status: 'open', payload: { patch: '/tmp/b.patch' } },

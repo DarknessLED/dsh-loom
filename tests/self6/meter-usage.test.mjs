@@ -3,7 +3,7 @@
 // archives), so the loop must ask the host's token meter when one is available,
 // and must keep returning zeros when it is not.
 import assert from 'node:assert/strict'
-import { usageOfSession } from '../src/runtime/cost.js'
+import { usageOfSession } from '../../src/runtime/cost.js'
 
 let pass = 0
 const ok = (name) => {
