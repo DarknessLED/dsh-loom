@@ -14,7 +14,7 @@ import {
 } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
-import { campaignUsage, usageOfSession } from './cost.js'
+import { campaignUsage, fallbackSpend, hasTokens, resolvePricing, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
@@ -433,7 +433,7 @@ export function tokensOf(spend, brief, text) {
  * reconnaissance step. Defaulting to 0 keeps a round with no planned nodes a
  * measurement ("this round planned nothing") rather than an unknown.
  */
-export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs = 0) {
+export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs = 0, priceSource = null) {
   let attemptMs = 0
   let tokens = 0
   let costUsd = 0
@@ -451,6 +451,9 @@ export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs
     verifierMs,
     tokens,
     costUsd: Math.round(costUsd * 1e6) / 1e6,
+    // Which table priced the tokens above: 'default' means the documented
+    // fallback rates, 'configured' means the campaign supplied its own.
+    priceSource,
   }
 }
 
@@ -465,6 +468,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // L2: the promoted loop policy overrides the plugin defaults for this campaign.
   const policy = effectivePolicy({ state, config })
   const chain = activeChain(state)
+  // Resolve the price table once: every attempt in this round is billed at the
+  // same rates, and the finished record must name the table its dollars came
+  // from ('default' rates when the campaign configured none).
+  const pricing = resolvePricing(config.models?.pricing)
   const raise = (kind, payload) => {
     const id = raiseCheckpoint(runtime, view, kind, payload)
     if (notify) {
@@ -839,9 +846,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           verifierOk: gateOk,
           metrics: ver.metrics,
         })
-        const spend = usageOfSession(runtime.ctx, runRes.sessionId, config.models?.pricing)
+        const spend = usageOfSession(runtime.ctx, runRes.sessionId, pricing.table)
         const parsed = parseAttemptReport(runRes.text || '')
         const report = parsed.ok ? parsed.report : null
+        // A session that reported tokens already priced them. When it published
+        // no usage at all, `tokensOf` still counts the brief and the answer —
+        // bill that same fallback, or the record shows tokens with $0.00.
+        const billed = hasTokens(spend.usage) ? spend : fallbackSpend(brief, runRes.text, pricing.table)
         record = {
           ...record,
           verifierOk: gateOk,
@@ -864,10 +875,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           lessons: lessons.map((l) => l.id),
           stdoutTail: (ver.stdout || '').split('\n').slice(-15).join('\n'),
           agentTail: (runRes.text || '').split('\n').slice(-12).join('\n'),
-          usage: spend.usage,
-          usageEstimated: spend.estimated === true,
-          costUsd: spend.usd,
-          tokens: tokensOf(spend, brief, runRes.text),
+          usage: billed.usage,
+          usageEstimated: billed.estimated === true,
+          costUsd: billed.usd,
+          priceSource: pricing.source,
+          tokens: tokensOf(billed, brief, runRes.text),
           textChars: (runRes.text || '').length,
           error: runRes.error,
           failureKind: outcomeKind,
@@ -984,7 +996,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'round.finished',
-        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
+        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
         'system',
       )
       // A folding runtime already materialized the round above; one that only
@@ -1206,7 +1218,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
       'system',
     )
 
@@ -1285,7 +1297,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
       'system',
     )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })

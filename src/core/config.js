@@ -34,8 +34,13 @@ export const DEFAULT_CONFIG = {
      * another model — that only doubles the bill without changing the outcome.
      */
     fallback: [],
-    /** USD per million tokens; override to match the account's real prices. */
-    pricing: { inputPerMTok: 0.28, outputPerMTok: 0.42, cacheReadPerMTok: 0.028 },
+    /**
+     * USD per million tokens; override to match the account's real prices.
+     * Left unset by default: `DEFAULT_PRICING` in src/runtime/cost.js supplies
+     * the documented rates, and only an explicitly configured table counts as
+     * configured (which is what `round.finished.priceSource` reports).
+     */
+    pricing: null,
   },
   session: {
     /** Force this agent preset for worker sessions (null = inherit). */
@@ -101,7 +106,6 @@ export function normalizeConfig(raw) {
     models: {
       ...DEFAULT_CONFIG.models,
       ...(c.models || {}),
-      pricing: { ...DEFAULT_CONFIG.models.pricing, ...((c.models || {}).pricing || {}) },
     },
     session: { ...DEFAULT_CONFIG.session, ...(c.session || {}) },
     verify: { ...DEFAULT_CONFIG.verify, ...(c.verify || {}) },

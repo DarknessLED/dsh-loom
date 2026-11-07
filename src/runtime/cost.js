@@ -5,6 +5,20 @@ import { svc } from '../core/services.js'
 
 const ZERO = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
 
+/**
+ * Documented rates, USD per million tokens, used when the campaign config names
+ * no pricing table. DSH exposes no dollar figure of its own, so without these a
+ * round with real tokens was priced at exactly zero — "not priced" and "free"
+ * were indistinguishable, and the budget preflight could never fire. Override
+ * `config.models.pricing` to match the account's real prices; an explicit table
+ * always wins.
+ */
+export const DEFAULT_PRICING = Object.freeze({
+  inputPerMTok: 0.28,
+  outputPerMTok: 0.42,
+  cacheReadPerMTok: 0.028,
+})
+
 // A transcript is the last-resort source of spend. DSH tokens are roughly four
 // characters each, so the text length is a usable upper-bound estimate and is
 // always labelled `estimated` so nobody mistakes it for a meter reading.
@@ -65,7 +79,8 @@ export function estimateUsage(events) {
   }
 }
 
-function hasTokens(usage) {
+/** True when a usage record contains at least one non-zero token field. */
+export function hasTokens(usage) {
   return Object.values(usage || {}).some((v) => v !== 0)
 }
 
@@ -101,16 +116,66 @@ export function campaignUsage(rounds) {
   return total
 }
 
-/** Price a usage record with a per-million-token table (USD). */
-export function priceUsage(usage, pricing = {}) {
-  const inP = num(pricing.inputPerMTok) || 0
-  const outP = num(pricing.outputPerMTok) || 0
-  const cacheP = num(pricing.cacheReadPerMTok) || inP
+const PRICE_KEYS = ['inputPerMTok', 'outputPerMTok', 'cacheReadPerMTok', 'cacheWritePerMTok']
+
+/** A rate is configured when the caller supplied a finite number for it. */
+function isRate(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+/**
+ * Resolve the table that prices a round, plus where it came from. A caller that
+ * supplies at least one finite rate has configured pricing and wins; anything
+ * else (absent table, `{}`, non-object) falls back to DEFAULT_PRICING. The
+ * source is recorded as `round.finished.priceSource` so a report can say which
+ * table its dollars came from instead of guessing.
+ *
+ * @returns {{table: object, source: 'default'|'configured'}}
+ */
+export function resolvePricing(pricing) {
+  const configured = pricing !== null && typeof pricing === 'object' && PRICE_KEYS.some((k) => isRate(pricing[k]))
+  return configured ? { table: pricing, source: 'configured' } : { table: DEFAULT_PRICING, source: 'default' }
+}
+
+/** Use an explicit rate when present, else the default for that leg. */
+function rateOf(value, fallback) {
+  return isRate(value) ? value : fallback
+}
+
+/**
+ * Price a usage record with a per-million-token table (USD). Rates missing from
+ * an explicit table fall back to the documented default for that leg, so a
+ * partial override cannot silently make output free.
+ */
+export function priceUsage(usage, pricing) {
+  const table = resolvePricing(pricing).table
+  const u = usage || ZERO
+  const inP = rateOf(table.inputPerMTok, DEFAULT_PRICING.inputPerMTok)
+  const outP = rateOf(table.outputPerMTok, DEFAULT_PRICING.outputPerMTok)
+  const cacheP = rateOf(table.cacheReadPerMTok, inP)
   const usd =
-    (usage.inputTokens / 1e6) * inP +
-    (usage.outputTokens / 1e6) * outP +
-    (usage.cacheReadTokens / 1e6) * cacheP
+    (num(u.inputTokens) / 1e6) * inP +
+    (num(u.outputTokens) / 1e6) * outP +
+    (num(u.cacheReadTokens) / 1e6) * cacheP
   return Math.round(usd * 1e6) / 1e6
+}
+
+/**
+ * Price a round from its transcript, split by provenance: the brief we sent is
+ * input, the agent's answer is output. `usageOfSession` already estimates from
+ * the same character count, but a session that publishes no usage block leaves
+ * that fallback unpriced — `tokensOf` then counts tokens while `costUsd` stays
+ * at zero, which is the exact hole that made the budget guard unreachable.
+ * An empty brief and answer stay free and are not labelled an estimate.
+ */
+export function fallbackSpend(brief, text, pricing) {
+  const usage = {
+    inputTokens: Math.ceil((brief?.length || 0) / CHARS_PER_TOKEN),
+    outputTokens: Math.ceil((text?.length || 0) / CHARS_PER_TOKEN),
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  }
+  return { ...usage, usage, usd: priceUsage(usage, pricing), estimated: hasTokens(usage) }
 }
 
 /**
