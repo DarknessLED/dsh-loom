@@ -309,6 +309,21 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
 }
 
 /**
+ * How many candidates may be in flight at once.
+ *
+ * `session.maxConcurrent` already caps how many rounds the campaign ticker
+ * runs, so it must mean the same thing inside a round: the number of attempts
+ * in flight. A missing or nonsensical value means "no cap": defaulting it to 1
+ * would silently restore the serial walk, and treating 0 as a hard limit would
+ * stall dispatch forever.
+ */
+function dispatchLimit(config, total) {
+  const cap = Number(config?.session?.maxConcurrent)
+  if (!Number.isFinite(cap) || cap < 1) return Math.max(1, total)
+  return Math.max(1, Math.min(Math.floor(cap), Math.max(1, total)))
+}
+
+/**
  * One round: pick a task, run `candidates` attempts in isolated worktrees, verify
  * mechanically, promote the best one. Never throws: every failure becomes an
  * event + (when it needs a human) a checkpoint.
@@ -452,8 +467,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         log(`round ${n}: ${id} screened out (${picked.keep} kept)`)
       }
     }
-    for (const { i, attemptId } of plan) {
-      if (!survivors.includes(attemptId)) continue
+    // Candidates are independent — own worktree, own session, own verifier — so
+    // the only thing that ever made a round cost the sum of their runs was this
+    // loop awaiting each one. Dispatch them through a pool capped at
+    // session.maxConcurrent; a cap of 1 keeps the old sequential behaviour, and
+    // no configured cap means "run them all" rather than "never dispatch".
+    const dispatchPlan = plan.filter((p) => survivors.includes(p.attemptId))
+    const limit = dispatchLimit(config, dispatchPlan.length)
+    const records = new Map()
+    const runCandidate = async ({ i, attemptId }) => {
       const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
       const branch = `loom/${state.id}/${attemptId}`
       const startedAt = Date.now()
@@ -619,6 +641,43 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           /* best effort */
         }
       }
+      return record
+    }
+    let cursor = 0
+    const workerCount = Math.min(limit, dispatchPlan.length)
+    await Promise.all(
+      Array.from({ length: workerCount }, async () => {
+        for (;;) {
+          const at = cursor
+          cursor += 1
+          if (at >= dispatchPlan.length) return
+          const item = dispatchPlan[at]
+          // runCandidate catches its own failures; this guard only protects the
+          // pool itself from an unexpected throw in its bookkeeping.
+          try {
+            records.set(item.attemptId, await runCandidate(item))
+          } catch (err) {
+            records.set(item.attemptId, {
+              id: item.attemptId,
+              round: n,
+              chainVersion: state.chain.activeVersion,
+              branch: `loom/${state.id}/${item.attemptId}`,
+              worktree: join(runtime.home, 'worktrees', state.id, item.attemptId),
+              verifierOk: false,
+              score: 0,
+              error: String(err?.message ?? err),
+              durationMs: 0,
+            })
+          }
+        }
+      }),
+    )
+    // Emit in plan order, not completion order: the round ledger keeps the
+    // same shape it has always had regardless of which candidate finished first.
+    for (const { attemptId } of plan) {
+      if (!survivors.includes(attemptId)) continue
+      const record = records.get(attemptId)
+      if (!record) continue
       attempts.push(record)
       runtime.append(view, 'attempt.finished', record, 'system')
       if (record.abandoned) {
