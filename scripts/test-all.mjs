@@ -50,6 +50,12 @@ const standing = [
   'tests/tri2/recon-reuse.test.mjs',
   'tests/tri2/guard-reuse.test.mjs',
   'tests/tri/budget-preflight.test.mjs',
+  // evidence has to be scoped to what it measured: a verdict belongs to the
+  // commit it ran on, tokens are priced or said to be unpriced, and a plan that
+  // no longer covers a changed file is not reused.
+  'tests/tri4/verifier-key.test.mjs',
+  'tests/tri4/cost-truth.test.mjs',
+  'tests/tri4/plan-delta.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
