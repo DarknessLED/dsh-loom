@@ -181,12 +181,17 @@ window.__ModuleLoader__.load({
       // both sitting on one baseline so a glance compares them.
       '.loom-vitals{margin-top:6px;display:flex;align-items:flex-end;gap:10px;min-width:0}',
       '.loom-spark{display:flex;align-items:flex-end;gap:2px;height:16px;flex:0 0 auto;padding-bottom:1px}',
-      '.loom-spark .pt{display:block;width:4px;min-height:2px;border-radius:1px;background:var(--loom-faint);',
+      // An unscored round draws nothing at all: no min-height, so height 0 is
+      // truly invisible instead of a 2px stub that reads as a zero score.
+      '.loom-spark .pt{display:block;width:4px;border-radius:1px;background:var(--loom-faint);',
       ' transition:background 150ms var(--loom-ease)}',
       '.loom-spark .pt[data-tone="ok"]{background:var(--loom-ok)}',
       '.loom-spark .pt[data-tone="warn"]{background:var(--loom-warn)}',
       '.loom-spark .pt[data-tone="bad"]{background:var(--loom-bad)}',
       '.loom-spark .pt[data-tone="idle"]{background:var(--loom-faint)}',
+      // A measured zero is a neutral baseline tick, not a verdict-coloured bar:
+      // it must be visible, and it must not be mistaken for an unscored slot.
+      '.loom-spark .pt[data-zero="true"]{background:var(--loom-line2);border-radius:0}',
       '.loom-meters{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}',
       '.loom-meter{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0}',
       '.loom-meter .k{font-size:9px;line-height:1;letter-spacing:.04em;color:var(--loom-faint);white-space:nowrap}',
@@ -464,6 +469,11 @@ window.__ModuleLoader__.load({
             id: cp.id,
             kind: cp.kind,
             risk: review ? review.risk : 'normal',
+            // Where the risk came from. The host trims each campaign's reviews
+            // to three, so a fourth open checkpoint arrives with no assessment
+            // at all; calling that risk "normal" is a quiet lie. `default` says
+            // nobody has looked yet.
+            riskSource: review ? 'review' : 'default',
             summary: review ? review.summary : '',
             waitMs: at === null ? null : Math.max(0, now - at),
             actions: verbs,
@@ -474,6 +484,34 @@ window.__ModuleLoader__.load({
         return riskOf(a.risk) - riskOf(b.risk) || (a.campaign < b.campaign ? -1 : a.campaign > b.campaign ? 1 : 0) || (a.id < b.id ? -1 : 1)
       })
       return out
+    }
+
+    /**
+     * The open-checkpoint queue with its own arithmetic.
+     *
+     * `pending` returns the rows but no count, so a caller that trims what it
+     * draws also shrinks what it claims exists. Here `total` is the number of
+     * questions actually waiting (before any display cap), `shown` is how many
+     * are being drawn, and `assessed` counts the rows whose risk came from a
+     * real review rather than the `normal` default.
+     */
+    function queueOf(data, opts) {
+      var rows = pending(data, opts)
+      var total = rows.length
+      var raw = opts && opts.limit
+      var limit = typeof raw === 'number' && isFinite(raw) && raw >= 0 ? Math.floor(raw) : null
+      var drawn = limit === null ? rows : rows.slice(0, limit)
+      var reviewed = 0
+      for (var i = 0; i < rows.length; i += 1) {
+        if (rows[i].riskSource === 'review') reviewed += 1
+      }
+      return {
+        rows: drawn,
+        total: total,
+        shown: drawn.length,
+        limit: limit,
+        assessed: reviewed,
+      }
     }
 
     /**
@@ -693,8 +731,11 @@ window.__ModuleLoader__.load({
 
     /**
      * The last eight rounds as bars: height is the score against the best of
-     * the window, colour is the verdict. No rounds is an empty sparkline, not
-     * an error — a campaign one minute old has nothing to trend yet.
+     * the window, colour is the verdict. Three states, three marks: no score is
+     * `unknown` and draws nothing, a measured zero is `zero` and keeps a
+     * baseline mark, a scored round scales with the score. No rounds is an
+     * empty sparkline, not an error — a campaign one minute old has nothing to
+     * trend yet.
      */
     function sparkOf(c) {
       var list = trendOf(c)
@@ -712,12 +753,20 @@ window.__ModuleLoader__.load({
       if (max <= 0) max = 1
       var bars = rounds.map(function (r, index) {
         var score = scores[index]
-        var share = score === null || score <= 0 ? 0 : Math.min(1, score / max)
+        // Three different states, three different marks: a round with no score
+        // is unknown and draws nothing, a round that ran and scored zero keeps
+        // a baseline mark, and a scored round is proportional to its score.
+        var unknown = score === null
+        var zero = !unknown && score <= 0
+        var share = unknown || zero ? 0 : Math.min(1, score / max)
+        var px = unknown ? 0 : zero ? 2 : 2 + Math.max(1, Math.round(share * (SPARK_PX - 2)))
         return {
           key: 'r' + r.n,
           n: r.n,
           score: score,
-          px: 2 + Math.round(share * (SPARK_PX - 2)),
+          unknown: unknown,
+          zero: zero,
+          px: px,
           tone: sparkTone(r),
           title: barTitle(r, score),
         }
@@ -1126,7 +1175,7 @@ window.__ModuleLoader__.load({
           }),
         )
 
-        var queue = pending(data)
+        var queue = queueOf(data)
         var tree = knowledge(data)
 
         // Which campaign is worth opening by default: the one that is waiting on
@@ -1167,25 +1216,49 @@ window.__ModuleLoader__.load({
         }
 
         var pendingBlock =
-          queue.length === 0
+          queue.total === 0
             ? null
             : h(
                 'div',
                 { className: 'loom-sec' },
-                h('div', { className: 'loom-sec-head' }, '待你处理', h('span', { className: 'n' }, String(queue.length))),
-                queue.map(function (q) {
+                h(
+                  'div',
+                  { className: 'loom-sec-head' },
+                  '待你处理',
+                  h(
+                    'span',
+                    {
+                      className: 'n',
+                      title: queue.assessed === queue.total
+                        ? queue.total + ' 条都带有风险评估'
+                        : queue.total + ' 条等待中，其中 ' + (queue.total - queue.assessed) + ' 条没有风险评估（宿主只送来前三条）',
+                    },
+                    String(queue.total),
+                  ),
+                ),
+                queue.rows.map(function (q) {
                   var key = q.campaign + ':' + q.id
                   var busyKey = q.campaign + ':decide'
                   var armed = confirming === key
+                  var assessed = q.riskSource === 'review'
                   return h(
                     'div',
                     { key: key, className: 'loom-row' },
-                    h('span', { className: 'loom-dot', style: { color: riskTone(q.risk) } }),
+                    h('span', {
+                      className: 'loom-dot',
+                      // An unreviewed checkpoint has unknown risk, not normal:
+                      // the dot stays neutral instead of borrowing the "normal"
+                      // amber the host never sent.
+                      style: { color: assessed ? riskTone(q.risk) : 'var(--loom-faint)' },
+                    }),
                     h(
                       'span',
-                      { className: 'txt', title: q.summary || checkpointLabel(q.kind) },
+                      { className: 'txt', title: assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险' },
                       h('b', null, q.campaign),
                       ' · ' + checkpointLabel(q.kind) + (q.summary ? ' — ' + q.summary : ''),
+                      assessed
+                        ? null
+                        : h('span', { className: 'loom-chip quiet', style: { marginLeft: 6 } }, '未评估'),
                     ),
                     h(
                       'button',
@@ -1406,16 +1479,18 @@ window.__ModuleLoader__.load({
         })
 
         // A bar's height is its score against the best round of the window;
-        // the colour is the verdict. Hover tells the round, result and score.
+        // the colour is the verdict. An unscored round has no bar, a measured
+        // zero is a neutral baseline tick, and the rest scale with the score.
         var sparkNode = spark.count > 0
           ? h(
             'div',
-            { className: 'loom-spark', title: '最近 ' + spark.count + ' 轮：柱高按分数、柱色按结果' },
+            { className: 'loom-spark', title: '最近 ' + spark.count + ' 轮：柱高按分数、柱色按结果；空白=未计分，底线=0 分' },
             spark.bars.map(function (bar) {
               return h('span', {
                 key: bar.key,
                 className: 'pt',
                 'data-tone': bar.tone,
+                'data-zero': bar.zero ? 'true' : 'false',
                 title: bar.title,
                 style: { height: bar.px + 'px' },
               })
@@ -1638,6 +1713,7 @@ window.__ModuleLoader__.load({
       overview: overview,
       metrics: metrics,
       pending: pending,
+      queueOf: queueOf,
       hitProps: hitProps,
       knowledge: knowledge,
       chainPath: chainPath,
