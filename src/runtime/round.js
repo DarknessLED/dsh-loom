@@ -48,6 +48,14 @@ const verifierEnv = {
 }
 
 /**
+ * Why a candidate was stopped before it finished: a sibling already satisfied
+ * the task outright (verifier passed, score 1.0), so its own result could not
+ * change the round. One constant because the attempt record, the round ledger
+ * and the lease must all agree on the spelling.
+ */
+const SOLVED_BY_SIBLING = 'solved-by-sibling'
+
+/**
  * Best score this campaign has already seen on one task, or null.
  *
  * Scores are only comparable inside a single task: a multi-task campaign runs
@@ -308,8 +316,28 @@ function lastFailure(state) {
   const worst = failed[failed.length - 1]
   const detail = worst.reportError || worst.error || worst.stdoutTail || worst.agentTail || ''
   return {
-    reason: worst.abandoned ? `attempt was written off (${worst.abandoned})` : 'verifier failed in the previous round',
+    reason: worst.abandoned ? `attempt was written off (${worst.reason ?? worst.abandoned})` : 'verifier failed in the previous round',
     detail: tailOf(detail, 300),
+  }
+}
+
+/**
+ * What an attempt records when it was stopped before it could be judged. The
+ * verifier never ran, so the ledger gets a failing verdict that says so rather
+ * than a pass or a silence that would read as evidence.
+ */
+function abandonedVerdict(reason, cwd) {
+  return {
+    ok: false,
+    exitCode: null,
+    signal: null,
+    timedOut: false,
+    durationMs: 0,
+    stdout: '',
+    stderr: `not verified: attempt was abandoned (${reason})`,
+    metrics: {},
+    command: null,
+    cwd,
   }
 }
 
@@ -682,7 +710,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   let best = null
   // Recorded on `round.finished` so a cheaper round says what it did not buy.
   let skippedCandidates = 0
-  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates })
+  // Candidates whose session was stopped because a sibling had already solved
+  // the task. Counted separately from skippedCandidates: they were dispatched,
+  // and their records carry the evidence they had produced up to the stop.
+  let abortedCandidates = 0
+  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates, abortedCandidates })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
@@ -742,6 +774,23 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // configured pool exactly as before.
     const limit = candidateMode === 'cascade' ? 1 : dispatchLimit(config, dispatchPlan.length)
     const records = new Map()
+    // The abort hooks the dispatcher hands each running attempt in `onStart`.
+    // A candidate that satisfies the task outright uses them to stop its
+    // siblings instead of paying for sessions whose result the gate cannot use.
+    const aborts = new Map()
+    const stoppedBySibling = new Set()
+    let solvedBy = null
+    const stopForSibling = (id, abort) => {
+      // A dispatcher that never registers a hook (a plain embedder) simply
+      // keeps its candidates: stopping is an optimisation, not a requirement.
+      if (typeof abort !== 'function') return
+      stoppedBySibling.add(id)
+      try {
+        abort()
+      } catch {
+        /* the child may have finished between the check and the call */
+      }
+    }
     const runCandidate = async ({ i, attemptId }) => {
       const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
       const branch = `loom/${state.id}/${attemptId}`
@@ -792,15 +841,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         let retried = null
         const timeoutMs = config.session.attemptTimeoutMs
         writeLease(view.dir, { attemptId, round: n, deadline: Date.now() + timeoutMs })
+        // Every session this attempt starts is registered here, because the
+        // abort hook is the only lever a sibling has on a running candidate.
+        const startedHook = ({ sessionId, abort, deadline }) => {
+          updateLease(view.dir, attemptId, { sessionId, deadline })
+          aborts.set(attemptId, abort)
+          runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
+          // The winner may have crossed the line while this session was still
+          // starting; stop it now rather than pay for a run it cannot affect.
+          if (solvedBy && solvedBy !== attemptId) stopForSibling(attemptId, abort)
+        }
         let runRes = await dispatcher.run(brief, {
           cwd: wtPath,
           timeoutMs,
           label: `loom:${state.id}:r${n}a${i}`,
           model: config.models.worker || null,
-          onStart: ({ sessionId, abort, deadline }) => {
-            updateLease(view.dir, attemptId, { sessionId, deadline })
-            runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
-          },
+          onStart: startedHook,
         })
         // A context overflow is a packaging problem, not a code problem: the
         // child never got to work. Retry once with a brief that carries less
@@ -830,16 +886,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             timeoutMs,
             label: `loom:${state.id}:r${n}a${i}:retry`,
             model: config.models.worker || null,
-            onStart: ({ sessionId, abort, deadline }) => {
-              updateLease(view.dir, attemptId, { sessionId, deadline })
-              runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
-            },
+            onStart: startedHook,
           })
         }
         if (retried) outcomeKind = runRes.failureKind ?? classifyResult(runRes)
         runtime.unwatchAttempt(attemptId)
+        aborts.delete(attemptId)
         const stall = runtime.stallReason(attemptId)
-        const abandoned = runRes.stopReason === 'aborted' && !runRes.timedOut ? stall || 'interrupted' : null
+        // Two ways an attempt can be written off: the host stopped it, or this
+        // round stopped it because a sibling already satisfied the task. The
+        // second is not a failure, so it carries its own reason and the record
+        // and the event agree on it. A sibling that finished its turn before the
+        // abort landed completed normally, so it keeps its own evidence.
+        const cancelledBySibling = stoppedBySibling.has(attemptId) && runRes.stopReason !== 'completed' && runRes.timedOut !== true
+        const abandoned = cancelledBySibling
+          ? SOLVED_BY_SIBLING
+          : runRes.stopReason === 'aborted' && !runRes.timedOut
+            ? stall || 'interrupted'
+            : null
 
         // The patch is the candidate's evidence; hash it before the verifier so
         // a byte-identical candidate can inherit a verdict this campaign has
@@ -853,45 +917,52 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // tasks that state no acceptance command. With neither, the attempt has
         // no proof and must fail closed instead of throwing.
         const verifierCwd = acceptance.source === 'chain' && acceptance.cwd ? resolve(wtPath, acceptance.cwd) : wtPath
-        const verified = acceptanceSpec
-          ? await verifyOnce({
-              dir: view.dir,
-              patchFile: patch?.path ?? null,
-              keySuffix: `${acceptanceSpec.cmd}\n${acceptanceSpec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
-              cwd: verifierCwd,
-              base,
-              run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs, env: verifierEnv }),
-            })
-          : {
-              reused: false,
-              verdict: {
-                ok: false,
-                exitCode: null,
-                signal: null,
-                timedOut: false,
-                durationMs: 0,
-                stdout: '',
-                stderr: 'no verifier: the task has no verify.cmd and the chain defines no verifier node',
-                metrics: {},
-                command: null,
-                cwd: wtPath,
-              },
-            }
+        // An abandoned attempt's tree is unfinished work: verifying it would buy
+        // a verdict the round cannot use, and could even score work the winner
+        // already replaced. It keeps the patch and diff it had and stops there.
+        const verified = abandoned
+          ? { reused: false, skipped: true, verdict: abandonedVerdict(abandoned, verifierCwd) }
+          : acceptanceSpec
+            ? await verifyOnce({
+                dir: view.dir,
+                patchFile: patch?.path ?? null,
+                keySuffix: `${acceptanceSpec.cmd}\n${acceptanceSpec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
+                cwd: verifierCwd,
+                base,
+                run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs, env: verifierEnv }),
+              })
+            : {
+                reused: false,
+                verdict: {
+                  ok: false,
+                  exitCode: null,
+                  signal: null,
+                  timedOut: false,
+                  durationMs: 0,
+                  stdout: '',
+                  stderr: 'no verifier: the task has no verify.cmd and the chain defines no verifier node',
+                  metrics: {},
+                  command: null,
+                  cwd: wtPath,
+                },
+              }
         const ver = verified.verdict
-        // Only a real spawn is a verifier run; a reused verdict costs nothing.
-        if (!verified.reused) {
+        // Only a real spawn is a verifier run; a reused (or skipped) verdict costs nothing.
+        if (!verified.reused && !verified.skipped) {
           verifierRuns += 1
           verifierMs += Math.max(0, Number(ver.durationMs) || 0)
         }
         let lean = null
-        try {
-          lean = await runTaskLeanGate({ task, config, worktree: wtPath })
-        } catch (err) {
-          lean = {
-            ok: false,
-            violations: [{ code: 'internal', detail: String(err?.message ?? err) }],
-            axioms: null,
-            durationMs: 0,
+        if (!verified.skipped) {
+          try {
+            lean = await runTaskLeanGate({ task, config, worktree: wtPath })
+          } catch (err) {
+            lean = {
+              ok: false,
+              violations: [{ code: 'internal', detail: String(err?.message ?? err) }],
+              axioms: null,
+              durationMs: 0,
+            }
           }
         }
         // A child that never finished its turn cannot have produced verified
@@ -900,22 +971,25 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const gateOk = ver.ok && (lean ? lean.ok : true) && outcomeKind === 'ok'
         // A verifier run is a cost centre of its own: it is the part of the round
         // the agent cannot speed up. Record it so the efficiency leg has a number.
-        runtime.append(
-          view,
-          'verifier.finished',
-          {
-            round: n,
-            attemptId,
-            ok: ver.ok === true,
-            exitCode: ver.exitCode ?? null,
-            timedOut: ver.timedOut === true,
-            durationMs: verified.reused ? 0 : Math.max(0, Number(ver.durationMs) || 0),
-            lean: lean ? lean.ok === true : null,
-            command: ver.command ?? null,
-            ...(verified.reused ? { reused: true } : {}),
-          },
-          'system',
-        )
+        // An abandoned attempt did not run the verifier, so it has no event.
+        if (!verified.skipped) {
+          runtime.append(
+            view,
+            'verifier.finished',
+            {
+              round: n,
+              attemptId,
+              ok: ver.ok === true,
+              exitCode: ver.exitCode ?? null,
+              timedOut: ver.timedOut === true,
+              durationMs: verified.reused ? 0 : Math.max(0, Number(ver.durationMs) || 0),
+              lean: lean ? lean.ok === true : null,
+              command: ver.command ?? null,
+              ...(verified.reused ? { reused: true } : {}),
+            },
+            'system',
+          )
+        }
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
         const score = scoreAttempt({
           attemptId,
@@ -937,7 +1011,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           verifySignature: verifierSignature(ver),
           lean,
           timedOut: ver.timedOut || runRes.timedOut,
-          abandoned,
+          abandoned: cancelledBySibling ? true : abandoned,
+          ...(cancelledBySibling ? { reason: SOLVED_BY_SIBLING } : {}),
           durationMs: Date.now() - startedAt,
           score,
           metrics: ver.metrics,
@@ -965,6 +1040,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           modelSwitch: runRes.modelSwitch ?? null,
           retried,
         }
+        // One-shot success: every sibling still running cannot change the
+        // outcome, so stop them through the dispatcher's own abort hook rather
+        // than waiting out sessions whose result the gate will never read. The
+        // hooks are walked after `solvedBy` is set, so a sibling that starts
+        // its session later still sees the win instead of running to the end.
+        if (record.verifierOk === true && Number(record.score) === 1) {
+          solvedBy = attemptId
+          for (const [id, stop] of aborts) {
+            if (id === attemptId) continue
+            stopForSibling(id, stop)
+          }
+        }
         try {
           updateLease(view.dir, attemptId, {
             state: abandoned ? 'abandoned' : 'done',
@@ -991,7 +1078,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           log(`attempt ${attemptId}: board or lease update failed:`, err?.message ?? err)
         }
       } catch (err) {
-        record = { ...record, durationMs: Date.now() - startedAt, failureKind: 'crash', error: String(err?.message ?? err) }
+        aborts.delete(attemptId)
+        // A sibling that was stopped mid-flight may surface as a thrown run;
+        // record it the same way as a resolved abort instead of a crash.
+        const cancelled = stoppedBySibling.has(attemptId)
+        record = {
+          ...record,
+          ...(cancelled ? { abandoned: true, reason: SOLVED_BY_SIBLING } : {}),
+          durationMs: Date.now() - startedAt,
+          failureKind: 'crash',
+          error: String(err?.message ?? err),
+        }
         log(`attempt ${attemptId} failed:`, record.error)
         try {
           updateLease(view.dir, attemptId, { state: 'failed', reason: record.error, endedAt: Date.now() })
@@ -1050,12 +1147,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const record = records.get(attemptId)
       if (!record) continue
       attempts.push(record)
+      // Counted from the record, not from the signal: an attempt that stopped
+      // by itself before the abort landed was not aborted, however late it was.
+      if (record.reason === SOLVED_BY_SIBLING) abortedCandidates += 1
       runtime.append(view, 'attempt.finished', record, 'system')
       if (record.abandoned) {
         runtime.append(
           view,
           'attempt.abandoned',
-          { id: attemptId, round: n, reason: record.abandoned },
+          { id: attemptId, round: n, reason: record.reason ?? record.abandoned },
           'system',
         )
       }
@@ -1108,7 +1208,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // by position. Nothing is learned from a single unevaluated success; the
     // control is what makes the comparison mean something.
     try {
-      const impacts = pairedImpacts({ attempts, round: n })
+      // An abandoned attempt was stopped, not evaluated: counting its zero
+      // against a lesson would read as harm the lesson never caused.
+      const impacts = pairedImpacts({ attempts: attempts.filter((a) => !a.abandoned), round: n })
       if (impacts.length) {
         for (const imp of impacts) {
           runtime.append(
