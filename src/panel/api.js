@@ -116,9 +116,18 @@ export function panelState({ runtime }) {
   }
   let ownership = { owner: null, mine: true }
   try {
-    ownership = runtime.ownership()
+    ownership = runtime.ownership() ?? ownership
   } catch {
     /* ownership is advisory for the panel */
+  }
+  // A watchdog read is a probe, not a promise: a table the runtime can no
+  // longer read must empty the live list, never take the whole panel down.
+  let live = []
+  try {
+    const attempts = runtime.liveAttempts ? runtime.liveAttempts() : []
+    if (Array.isArray(attempts)) live = attempts
+  } catch {
+    /* no live attempts is the safe answer */
   }
   let lean = null
   try {
@@ -128,7 +137,7 @@ export function panelState({ runtime }) {
   }
   return {
     campaigns: rows,
-    live: runtime.liveAttempts(),
+    live,
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },
     lean: lean ? { available: lean.available === true, versions: lean.versions ?? null } : null,
     now,
