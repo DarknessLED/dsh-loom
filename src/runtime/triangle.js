@@ -60,6 +60,7 @@ export function campaignTriangle(rounds) {
   let planMs = 0
   let attemptMs = 0
   let verifierMs = 0
+  let holdoutMs = 0
   let tokens = 0
   let usd = 0
   let timed = 0
@@ -85,6 +86,9 @@ export function campaignTriangle(rounds) {
     }
     attemptMs += num(r.attemptMs)
     verifierMs += num(r.verifierMs)
+    // The holdout gate is paid after the candidates finish. A round that never
+    // recorded it paid nothing extra as far as the ledger knows, so 0 is right.
+    holdoutMs += num(r.holdoutMs)
     if (num(r.tokens) > 0) {
       tokens += num(r.tokens)
       measuredTokens += 1
@@ -99,13 +103,17 @@ export function campaignTriangle(rounds) {
   // Planning: a campaign whose rounds never reported `planMs` has not measured
   // it (null); a campaign that reported zero planned nothing (0 is a fact).
   const planningMs = planned > 0 ? planMs : null
-  // `parallelFactor` folds planning into the serial denominator, so a round that
-  // planned for a third of its wall time reads as less parallel than its attempt
-  // phase actually was. `planAwareFactor` credits candidates only against the
-  // window planning left them. Without a planning measurement there is no window
-  // to subtract and the plain factor is the honest answer; when planning consumed
-  // the whole round the ratio has no denominator and stays null, not Infinity.
+  // `parallelFactor` folds planning and the holdout gate into the serial
+  // denominator, so a round that planned for a third of its wall time or spent
+  // seconds proving a holdout reads as less parallel than its attempt phase
+  // actually was. `attemptWindowMs` names the part of the round candidates could
+  // occupy — wall time minus planning minus the holdout gate — and
+  // `planAwareFactor` credits candidates only against it. Without a planning
+  // measurement there is no window to name and the plain factor is the honest
+  // answer; a window of zero has no denominator and stays null, not Infinity.
   const parallelFactor = ratio(attemptMs, durationMs)
+  const attemptWindowMs =
+    timed === 0 || planningMs === null ? null : Math.max(0, durationMs - planningMs - holdoutMs)
   return {
     rounds: finished,
     timedRounds: timed,
@@ -114,9 +122,11 @@ export function campaignTriangle(rounds) {
     planMs: planningMs,
     attemptMs,
     verifierMs,
+    holdoutMs,
     secondsPerRound: timed > 0 ? durationMs / timed / 1000 : null,
     parallelFactor,
-    planAwareFactor: planningMs === null ? parallelFactor : ratio(attemptMs, durationMs - planningMs),
+    attemptWindowMs,
+    planAwareFactor: attemptWindowMs === null ? parallelFactor : ratio(attemptMs, attemptWindowMs),
     verifierShare: ratio(verifierMs, durationMs),
     planShare: planningMs === null ? null : ratio(planningMs, durationMs),
     // quality

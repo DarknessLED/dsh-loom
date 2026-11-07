@@ -432,8 +432,12 @@ export function tokensOf(spend, brief, text) {
  * hides inside `durationMs` and a reader cannot tell a slow agent from a slow
  * reconnaissance step. Defaulting to 0 keeps a round with no planned nodes a
  * measurement ("this round planned nothing") rather than an unknown.
+ *
+ * `holdoutMs`/`holdoutRuns` are the same split for the gate that runs after the
+ * candidates: `durationMs` contains that proof, so without them a round reads as
+ * pure candidate work and the loop looks slower than it was.
  */
-export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs = 0, priceSource = null) {
+export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs = 0, priceSource = null, holdoutMs = 0, holdoutRuns = 0) {
   let attemptMs = 0
   let tokens = 0
   let costUsd = 0
@@ -449,6 +453,8 @@ export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs
     attemptMs,
     verifierRuns,
     verifierMs,
+    holdoutMs: Math.max(0, Number(holdoutMs) || 0),
+    holdoutRuns: Math.max(0, Number(holdoutRuns) || 0),
     tokens,
     costUsd: Math.round(costUsd * 1e6) / 1e6,
     // Which table priced the tokens above: 'default' means the documented
@@ -1103,8 +1109,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // keep the task id and the output it produced: the round status alone would
     // say `holdout-failed` without saying which task or what it printed.
     const holdoutFailures = []
+    // The gate is paid after the candidates, so time it on its own clock: left
+    // inside `durationMs` a round that spent its seconds proving a patch reads
+    // as pure candidate work, and the loop looks slower than it is.
+    let holdoutMs = 0
+    let holdoutRuns = 0
     const heldOut = holdoutTasks(state)
     if (heldOut.length) {
+      const holdoutStartedAt = Date.now()
       checks.holdout = true
       if (!best?.worktree || best.screenedOut) {
         checks.holdout = false
@@ -1115,6 +1127,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       } else {
         for (const h of heldOut) {
           let result
+          // Counted before the attempt so a verifier that throws is still a run.
+          holdoutRuns += 1
           try {
             result = await runVerifier(h.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
           } catch (err) {
@@ -1128,6 +1142,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           }
         }
       }
+      holdoutMs = Math.max(0, Date.now() - holdoutStartedAt)
     }
     // A verified attempt that changed nothing is not evidence of new work, but it IS
     // evidence the task is satisfied (an earlier landing already covered it). Applying
@@ -1226,7 +1241,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
