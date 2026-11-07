@@ -1,5 +1,7 @@
 # dsh-loom — 人在环的可递归自我改进循环（DSH 插件）
 
+[![ci](https://github.com/DarknessLED/dsh-loom/actions/workflows/ci.yml/badge.svg)](https://github.com/DarknessLED/dsh-loom/actions/workflows/ci.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.0--rc.2%20%3C0.3.0-0-blue)
+
 **Human-in-the-loop recursive self-improvement for DeepSeek Harness.** Hand the main agent one objective and a budget; dsh-loom turns it into a repeatable work chain (scout → several candidates → mechanical verifier → score → promote) and runs it round after round in child sessions, so the main agent stays idle and available to you. It only wakes you for real decisions — accept a patch, raise the budget, or unstick a loop — and every round lands in an append-only event log you can replay, audit and reproduce.
 
 > 主 agent 保持空闲；一个目标 + 预算 + 工作链在后台子会话里自己迭代；只有需要人判断时才叫醒你。
