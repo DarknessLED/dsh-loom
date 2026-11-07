@@ -95,6 +95,7 @@
 - `src/runtime/sampling.js` — 确定性选题：普通轮在未解决任务间轮转，每 `holdoutEvery` 轮消耗一个 holdout 任务，可重放。
 - `src/runtime/selector.js` — 选题策略：跳过已满分任务以免浪费回合，全部做满时报告 `allSolved` 让调度收尾。
 - `src/runtime/triangle.js` — 效率/质量/成本三角的聚合定义：把回合记录折成每秒轮、并行度、验证器占比、晋升率与 token 成本，面板、报告与 `scripts/loom-metrics.mjs` 共用同一套口径。
+- `src/runtime/verifier-reuse.js` — 验证器复用：按补丁字节（sha1）加验证命令缓存裁决，同一战役里补丁完全相同的后到候选项继承前一次的 ok/exitCode/输出并把 durationMs 记 0，只对真正启动的验证器计入 verifierRuns；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
 - `src/runtime/switch.js` — 循环总开关：`~/.dsh/loom/switch.json` 存 enabled/at/by，另开 `switch.jsonl` 审计；翻转绝不写 campaign 日志，所以 seq 不偏移、恢复时也无需重新汇总。
 - `src/runtime/watchdog.js` — 看护运行中的尝试：以子会话事件水位而非 pid 判断存活，租约到期或 `stallMs` 无事件即写掉。
 

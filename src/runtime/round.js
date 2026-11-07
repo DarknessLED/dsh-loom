@@ -20,6 +20,7 @@ import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
+import { verifyOnce } from './verifier-reuse.js'
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -619,28 +620,47 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const stall = runtime.stallReason(attemptId)
         const abandoned = runRes.stopReason === 'aborted' && !runRes.timedOut ? stall || 'interrupted' : null
 
+        // The patch is the candidate's evidence; hash it before the verifier so
+        // a byte-identical candidate can inherit a verdict this campaign has
+        // already paid for instead of spawning the command again.
+        const patch = await makePatch({
+          dir: wtPath,
+          outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`),
+          base: base ?? 'HEAD',
+        }).catch(() => null)
         // The task's own verifier wins; a chain-level verifier is a fallback for
         // tasks that state no acceptance command. With neither, the attempt has
         // no proof and must fail closed instead of throwing.
-        const ver = acceptance.spec
-          ? await runVerifier(acceptance.spec, {
-              cwd: acceptance.source === 'chain' && acceptance.cwd ? resolve(wtPath, acceptance.cwd) : wtPath,
-              timeoutMs: config.verify.timeoutMs,
+        const verifierCwd = acceptance.source === 'chain' && acceptance.cwd ? resolve(wtPath, acceptance.cwd) : wtPath
+        const verified = acceptance.spec
+          ? await verifyOnce({
+              dir: view.dir,
+              patchFile: patch?.path ?? null,
+              keySuffix: `${acceptance.spec.cmd}\n${acceptance.spec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
+              cwd: verifierCwd,
+              run: () => runVerifier(acceptance.spec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs }),
             })
           : {
-              ok: false,
-              exitCode: null,
-              signal: null,
-              timedOut: false,
-              durationMs: 0,
-              stdout: '',
-              stderr: 'no verifier: the task has no verify.cmd and the chain defines no verifier node',
-              metrics: {},
-              command: null,
-              cwd: wtPath,
+              reused: false,
+              verdict: {
+                ok: false,
+                exitCode: null,
+                signal: null,
+                timedOut: false,
+                durationMs: 0,
+                stdout: '',
+                stderr: 'no verifier: the task has no verify.cmd and the chain defines no verifier node',
+                metrics: {},
+                command: null,
+                cwd: wtPath,
+              },
             }
-        verifierRuns += 1
-        verifierMs += Math.max(0, Number(ver.durationMs) || 0)
+        const ver = verified.verdict
+        // Only a real spawn is a verifier run; a reused verdict costs nothing.
+        if (!verified.reused) {
+          verifierRuns += 1
+          verifierMs += Math.max(0, Number(ver.durationMs) || 0)
+        }
         let lean = null
         try {
           lean = await runTaskLeanGate({ task, config, worktree: wtPath })
@@ -667,14 +687,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             ok: ver.ok === true,
             exitCode: ver.exitCode ?? null,
             timedOut: ver.timedOut === true,
-            durationMs: Math.max(0, Number(ver.durationMs) || 0),
+            durationMs: verified.reused ? 0 : Math.max(0, Number(ver.durationMs) || 0),
             lean: lean ? lean.ok === true : null,
             command: ver.command ?? null,
+            ...(verified.reused ? { reused: true } : {}),
           },
           'system',
         )
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
-        const patch = await makePatch({ dir: wtPath, outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`), base: base ?? 'HEAD' }).catch(() => null)
         const score = scoreAttempt({
           attemptId,
           taskScores: { [task.id]: gateOk ? 1 : 0 },
