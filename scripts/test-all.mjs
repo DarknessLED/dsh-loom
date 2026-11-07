@@ -34,6 +34,7 @@ const standing = [
   // panel that 500s must not come back.
   'tests/chaos2/panel-degrade.test.mjs',
   'tests/chaos2/exhausted-round.test.mjs',
+  'tests/chaos3/stuck-gate.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
