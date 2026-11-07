@@ -1,5 +1,6 @@
 import { svc } from '../core/services.js'
 import { campaignQuality } from '../runtime/quality.js'
+import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { activeChain } from '../runtime/round.js'
 
@@ -98,6 +99,9 @@ function campaignRow(view, now, campaignId) {
     // The report prints the same reading; computing it here (rather than in the
     // browser) keeps the sidebar and the report on one definition of health.
     quality: campaignQuality(s),
+    // Efficiency / quality / cost, computed on the host so the sidebar, the
+    // report and scripts/loom-metrics.mjs cannot disagree about the numbers.
+    triangle: campaignTriangle(rounds),
     open: open.length,
     reviews,
     openCheckpoints: open.map((c) => ({

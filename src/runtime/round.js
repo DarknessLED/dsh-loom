@@ -327,6 +327,45 @@ function dispatchLimit(config, total) {
 }
 
 /**
+ * Tokens for one attempt: the meter/log figure when the session actually
+ * reported usage, otherwise a character-count estimate. The estimate is the
+ * point — without it the cost leg of the triangle reads zero on every real
+ * ledger, because child sessions publish no `usage` block.
+ */
+export function tokensOf(spend, brief, text) {
+  const u = spend?.usage
+  const measured = (Number(u?.inputTokens) || 0) + (Number(u?.outputTokens) || 0)
+  if (measured > 0) return measured
+  return Math.ceil(((brief?.length || 0) + (text?.length || 0)) / 4)
+}
+
+/**
+ * The round's triangle, measured rather than inferred: wall time, how much of it
+ * the candidates used, how much the verifiers used, and what the models cost.
+ * `attemptMs` above `durationMs` means the round ran in parallel; `verifierMs`
+ * that rivals it means the gate, not the agent, is the bottleneck.
+ */
+export function roundStats(attempts, startedAt, verifierRuns, verifierMs) {
+  let attemptMs = 0
+  let tokens = 0
+  let costUsd = 0
+  for (const a of Array.isArray(attempts) ? attempts : []) {
+    attemptMs += Number(a?.durationMs) || 0
+    tokens += Number(a?.tokens) || 0
+    costUsd += Number(a?.costUsd) || 0
+  }
+  return {
+    durationMs: Math.max(0, Date.now() - startedAt),
+    attemptCount: Array.isArray(attempts) ? attempts.length : 0,
+    attemptMs,
+    verifierRuns,
+    verifierMs,
+    tokens,
+    costUsd: Math.round(costUsd * 1e6) / 1e6,
+  }
+}
+
+/**
  * One round: pick a task, run `candidates` attempts in isolated worktrees, verify
  * mechanically, promote the best one. Never throws: every failure becomes an
  * event + (when it needs a human) a checkpoint.
@@ -417,6 +456,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
 
   runtime.append(view, 'round.started', { n, taskId: task.id, chainVersion: state.chain.activeVersion }, 'system')
   log(`round ${n} starting on task ${task.id}, ${candidates} candidate(s)`)
+  const roundStartedAt = Date.now()
+  let verifierRuns = 0
+  let verifierMs = 0
 
   const attempts = []
   const board = boardPath(view.dir, n)
@@ -597,6 +639,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               command: null,
               cwd: wtPath,
             }
+        verifierRuns += 1
+        verifierMs += Math.max(0, Number(ver.durationMs) || 0)
         let lean = null
         try {
           lean = await runTaskLeanGate({ task, config, worktree: wtPath })
@@ -612,6 +656,23 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // work, even if the verifier happens to pass on an untouched tree. Only a
         // completed turn counts as evidence; everything else is a failed attempt.
         const gateOk = ver.ok && (lean ? lean.ok : true) && outcomeKind === 'ok'
+        // A verifier run is a cost centre of its own: it is the part of the round
+        // the agent cannot speed up. Record it so the efficiency leg has a number.
+        runtime.append(
+          view,
+          'verifier.finished',
+          {
+            round: n,
+            attemptId,
+            ok: ver.ok === true,
+            exitCode: ver.exitCode ?? null,
+            timedOut: ver.timedOut === true,
+            durationMs: Math.max(0, Number(ver.durationMs) || 0),
+            lean: lean ? lean.ok === true : null,
+            command: ver.command ?? null,
+          },
+          'system',
+        )
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
         const patch = await makePatch({ dir: wtPath, outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`), base: base ?? 'HEAD' }).catch(() => null)
         const score = scoreAttempt({
@@ -648,6 +709,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           usage: spend.usage,
           usageEstimated: spend.estimated === true,
           costUsd: spend.usd,
+          tokens: tokensOf(spend, brief, runRes.text),
+          textChars: (runRes.text || '').length,
           error: runRes.error,
           failureKind: outcomeKind,
           model: runRes.model ?? null,
@@ -750,7 +813,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'round.finished',
-        { n, status: 'exhausted', score: 0, promoted: false, models },
+        { n, status: 'exhausted', score: 0, promoted: false, models, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
         'system',
       )
       // A folding runtime already materialized the round above; one that only
@@ -969,7 +1032,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
       'system',
     )
 
@@ -1048,7 +1111,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false },
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
       'system',
     )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })

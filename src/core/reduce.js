@@ -101,7 +101,14 @@ function apply(s, ev) {
       const r = s.rounds.find((x) => x.n === d.n)
       // A missing flag (older ledgers) is not progress: plateau detection
       // treats "no evidence of promotion" as flat.
-      if (r) Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t, promoted: d.promoted === true })
+      if (r) {
+        Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t, promoted: d.promoted === true })
+        // Triangle accounting travels with the round so a reader never has to
+        // re-derive it from attempt timings that older ledgers do not carry.
+        for (const key of ['durationMs', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd']) {
+          if (d[key] !== undefined) r[key] = d[key]
+        }
+      }
       break
     }
     case 'attempt.finished': {
