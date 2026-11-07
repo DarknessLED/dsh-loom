@@ -5,9 +5,14 @@
 
 ## 一句话结论
 
-十三个自优化战役，12 个已完成（1 个手动停），全部规格从失败变为通过，
-`scripts/test-all.mjs` 从 22 个测试套件长到 2x 个且全绿，仓库从「没有 git」变成一个有
-~70 次提交、可回溯的工作树。改动全部来自循环自己写的补丁，经 holdout 门与护栏放行。
+十四次自优化战役（`loom-self` … `loom-self14`），**13 次跑完（all-tasks-solved）**，1 次
+手动停（self2 已达成目标后空转）。每一批规格都是「先失败、再由循环自己改成通过」，
+`scripts/test-all.mjs` 从 22 个套件长到 25 个（含 3 个回归钉）且全绿；仓库从「没有 git」
+变成一个 ~78 次提交、可回溯的工作树。改动全部来自循环自己写的补丁，经 holdout 门与
+护栏放行，且每次落地都由它自己提交。
+
+关键是：**它改的是自己**——holdout 门、no-op landing、landed 语义、自提链变异、
+候选并行，这些都不是我写的功能，而是我写了一条会失败的规格，然后它把规格变成实现。
 
 ## 运行方式（这本身就是要演示的东西）
 
@@ -47,7 +52,7 @@ rsi_control { action: 'start' }
 | self11 | 2 | done | 无 token 计量时的估算口径、文档覆盖检查 |
 | self12 | 2 | done | 可导出 `loom.bundle/1`、待审队列按风险排序 |
 | self13 | 2 | done | 摘要 digest、面板暴露待审项 |
-| self14 | — | 跑 | 候选真正的并发派发（见下「没做到的」） |
+| self14 | 3 | done | **候选并行派发**（每轮 N 个候选同时在各自 worktree 里跑，仍只让最好的落地） |
 
 ## 夜里的六个人类修（循环自己没修，因为我看到的是「证据语义」问题）
 
@@ -75,5 +80,15 @@ self8 round 2 曾把胜出补丁直接铺进工作区「供人审」。但夜里
 ## 留下的东西
 
 - `docs/contracts.md` 现在是全量契约（self11 的 docs-coverage 规格逼出来的）。
-- `scripts/test-all.mjs` 25+ 套件；`night-committer.mjs` / `commit-policy.mjs` 负责夜间提交纪律。
+- `scripts/test-all.mjs` 25 套件；`night-committer.mjs` / `commit-policy.mjs` 负责夜间提交纪律。
 - 每个自优化规格都留成了回归钉（`standing` 列表），下一轮改动不能把它们弄坏。
+- 14 组 `tests/self*/` 规格 = 这一夜的行为记录，也是下一次要改自己时的第一手基线。
+
+## 没做到的（下一次从这里开始）
+
+1. **成本仍是装饰性的**：DSH 子会话事件不含 token 用量，`spend` 基本是估算。要让 USD 预算
+   真起作用，得接宿主 `tokenMeter`（`measure`/`estimateMessage`）或读 provider 侧账单。
+2. **L3（插件改插件）没做**：现在改的是 `src/`，但没让循环给自己的**装配/工具面**做变异。
+3. **Lean 子目标递归没做**：`rsi_lean imagine` 只筛不定，unsolved goals 还没自动转成 `map` 子节点。
+4. **并行只做到候选级**：轮与轮之间仍串行；跨战役也没有共享的准入队列。
+5. **held-out 只在轮内跑一次**：多轮之间没有 holdout 轮换与配额。
