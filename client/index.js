@@ -252,6 +252,7 @@ window.__ModuleLoader__.load({
       '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
+      '.loom-note{padding:1px 12px 5px 18px;font-size:10px;line-height:1.5;color:var(--loom-faint)}',
       // shell
       '.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;',
       ' scrollbar-width:thin}',
@@ -494,16 +495,32 @@ window.__ModuleLoader__.load({
      * questions actually waiting (before any display cap), `shown` is how many
      * are being drawn, and `assessed` counts the rows whose risk came from a
      * real review rather than the `normal` default.
+     *
+     * The host can ship a campaign's open questions as a count with fewer (or
+     * no) `openCheckpoints` rows, because it trims what it sends. Counting rows
+     * alone would let `total` fall to whatever survived that trim — the exact
+     * lie this queue exists to prevent — so each campaign contributes the
+     * larger of its listed rows and its reported open count.
      */
     function queueOf(data, opts) {
       var rows = pending(data, opts)
-      var total = rows.length
+      var listed = {}
+      for (var i = 0; i < rows.length; i += 1) {
+        listed[rows[i].campaign] = (listed[rows[i].campaign] || 0) + 1
+      }
+      var campaigns = (data && data.campaigns) || []
+      var total = 0
+      for (var c = 0; c < campaigns.length; c += 1) {
+        var campaign = campaigns[c]
+        if (!campaign || campaign.error) continue
+        total += Math.max(listed[campaign.id] || 0, openCount(campaign))
+      }
       var raw = opts && opts.limit
       var limit = typeof raw === 'number' && isFinite(raw) && raw >= 0 ? Math.floor(raw) : null
       var drawn = limit === null ? rows : rows.slice(0, limit)
       var reviewed = 0
-      for (var i = 0; i < rows.length; i += 1) {
-        if (rows[i].riskSource === 'review') reviewed += 1
+      for (var k = 0; k < rows.length; k += 1) {
+        if (rows[k].riskSource === 'review') reviewed += 1
       }
       return {
         rows: drawn,
@@ -511,6 +528,9 @@ window.__ModuleLoader__.load({
         shown: drawn.length,
         limit: limit,
         assessed: reviewed,
+        // Questions the host counted but did not itemise. They are waiting
+        // too; the header must not hide them just because no row can be drawn.
+        unlisted: Math.max(0, total - rows.length),
       }
     }
 
@@ -1215,6 +1235,15 @@ window.__ModuleLoader__.load({
           })
         }
 
+        // The header must answer two questions, not one: how many are waiting,
+        // and how many of those anybody has actually assessed. The host trims
+        // reviews to three, so the difference is not decoration.
+        var queueUnassessed = Math.max(0, queue.total - queue.assessed)
+        var queueNotes = []
+        if (queueUnassessed > 0) queueNotes.push('「未评估」表示宿主没有看过这条检查点的风险，不是低优先级。')
+        if (queue.unlisted > 0) queueNotes.push('另有 ' + queue.unlisted + ' 条宿主只给了数量，没有明细。')
+        var queueNote = queueNotes.length ? h('div', { className: 'loom-note' }, queueNotes.join('')) : null
+
         var pendingBlock =
           queue.total === 0
             ? null
@@ -1229,13 +1258,14 @@ window.__ModuleLoader__.load({
                     'span',
                     {
                       className: 'n',
-                      title: queue.assessed === queue.total
-                        ? queue.total + ' 条都带有风险评估'
-                        : queue.total + ' 条等待中，其中 ' + (queue.total - queue.assessed) + ' 条没有风险评估（宿主只送来前三条）',
+                      title:
+                        queue.total + ' 条等待中，其中 ' + queue.assessed + ' 条有风险评估，' +
+                        queueUnassessed + ' 条没有（宿主最多只评估三条）',
                     },
-                    String(queue.total),
+                    queue.total + ' 条 · ' + queue.assessed + ' 已评估',
                   ),
                 ),
+                queueNote,
                 queue.rows.map(function (q) {
                   var key = q.campaign + ':' + q.id
                   var busyKey = q.campaign + ':decide'

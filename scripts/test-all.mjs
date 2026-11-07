@@ -61,6 +61,10 @@ const standing = [
   // the queue tells you how long it has waited, and a hit is reachable by keyboard
   'tests/ui/pending-queue.test.mjs',
   'tests/ui/keyboard-hit.test.mjs',
+  // the queue says how many are waiting and where each risk came from, and a
+  // sparkline tells an unscored round apart from one that scored zero
+  'tests/ui/queue-total.test.mjs',
+  'tests/ui/spark-baseline.test.mjs',
   // colours come from one palette, and parallelism is measured against the
   // window candidates actually had
   'tests/ui/tones.test.mjs',
