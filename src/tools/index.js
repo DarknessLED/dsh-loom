@@ -9,6 +9,8 @@ import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
+import { commitWorkspace } from '../exec/worktree.js'
+import { runVerifier } from '../exec/verifier.js'
 import { checkLemma } from '../lean/gate.js'
 import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
@@ -467,12 +469,57 @@ export function registerTools(ctx, { runtime, config }) {
       }
 
       let applied = null
+      let landed = null
       if (args.decision === 'approve' && target.payload?.patch) {
         if (!view.state.workspace) throw new Error('campaign has no workspace to apply into')
         applied = await applyPatch({ repo: view.state.workspace, patchFile: target.payload.patch })
         if (!applied.ok) {
           throw new Error(`cannot apply patch: ${applied.reason} ${typeof applied.detail === 'string' ? applied.detail : ''}`.trim())
         }
+        // Approval is not the same thing as landing. Until the applied change is
+        // committed and the round is told it landed, two things stay broken: the
+        // selector keeps offering a task the campaign already solved, and the next
+        // round diffs against a base commit that no longer matches the workspace.
+        const guard = view.state.autopilot?.guard || null
+        let checked = null
+        if (guard) {
+          checked = await runVerifier({ cmd: guard }, { cwd: view.state.workspace, timeoutMs: config?.verify?.timeoutMs }).catch(
+            (err) => ({ ok: false, stderr: String(err?.message ?? err) }),
+          )
+          if (checked.ok !== true) {
+            const undone = await reversePatch({ repo: view.state.workspace, patchFile: target.payload.patch })
+            throw new Error(
+              `guard failed after applying the patch (${guard}); reverted: ${undone.ok === true}`,
+            )
+          }
+        }
+        const attemptId = target.payload.attempt ?? target.payload.attemptId ?? null
+        const fromAttempt = /^r(\d+)a/.exec(String(attemptId ?? ''))
+        const round = Number.isFinite(Number(target.payload.round))
+          ? Number(target.payload.round)
+          : fromAttempt
+            ? Number(fromAttempt[1])
+            : null
+        const commit = await commitWorkspace(
+          view.state.workspace,
+          `loom ${view.state.id}: apply approved promotion${round ? ` (round ${round})` : ''}`,
+        )
+        landed = { round, attemptId, guard, checked, commit }
+        runtime.append(
+          view,
+          'autopilot.applied',
+          {
+            round,
+            attemptId,
+            patch: target.payload.patch,
+            guard,
+            guardOk: checked ? checked.ok === true : null,
+            committed: commit.committed === true,
+            commit: commit.sha ?? null,
+            by: 'human',
+          },
+          'human',
+        )
       }
 
       let reverted = null
@@ -496,6 +543,7 @@ export function registerTools(ctx, { runtime, config }) {
         answered: target.id,
         decision: args.decision,
         applied: applied?.ok ?? false,
+        landed: landed ? { round: landed.round, committed: landed.commit?.committed === true, commit: landed.commit?.sha ?? null } : null,
         reverted: reverted?.ok ?? null,
         status: view.state.status,
       }

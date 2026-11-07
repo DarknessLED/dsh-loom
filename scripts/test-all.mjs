@@ -39,6 +39,11 @@ const standing = [
   'tests/chaos2/recover-idempotent.test.mjs',
   // the master switch must never move campaign history
   'tests/switch/switch.test.mjs',
+  // the triangle's first two solved specs: a second candidate with a
+  // byte-identical patch must not re-spawn the verifier, and a round the budget
+  // cannot afford must not be dispatched.
+  'tests/tri/verifier-reuse.test.mjs',
+  'tests/tri/budget-preflight.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
