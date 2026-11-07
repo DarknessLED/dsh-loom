@@ -483,6 +483,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     }
     return id
   }
+  // A setup problem is a standing condition, not a per-tick event. While the
+  // same message is still unanswered, repeating it every tick buries the
+  // checkpoints a human can actually act on (a workspace-less campaign once
+  // raised eight identical ones in four minutes). Answering it re-arms it.
+  const raiseSetup = (payload) => {
+    if (setupAlreadyRaised(view.state, payload?.message)) return null
+    return raise('setup', payload)
+  }
 
   if (state.budget.roundsUsed >= state.budget.rounds) {
     runtime.append(view, 'campaign.status', { status: 'converged', reason: 'round budget exhausted' }, 'system')
@@ -528,7 +536,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
   const tasks = state.evalset.tasks.filter((t) => !state.evalset.holdout.includes(t.id))
   if (!tasks.length) {
-    raise('setup', { message: 'no evaluation tasks registered' })
+    raiseSetup({ message: 'no evaluation tasks registered' })
     return
   }
   const picked = pickTask(tasks, state.rounds, { round: n })
@@ -541,7 +549,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     task = pickTask(tasks, [], { round: n }).task
   }
   if (!task) {
-    raise('setup', { message: 'no task available for this round' })
+    raiseSetup({ message: 'no task available for this round' })
     return
   }
   const acceptance = acceptanceVerifier({ task, chain })
@@ -570,14 +578,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const exposed = exposeIndexes(candidates, n)
   const workspace = state.workspace
   if (!workspace) {
-    raise('setup', { message: 'campaign has no workspace' })
+    raiseSetup({ message: 'campaign has no workspace' })
     return
   }
 
   if (leanSpecOf(task) && config.lean?.enabled !== false) {
     const probe = runtime.leanProbe?.() || { available: false, install: null }
     if (!probe.available) {
-      raise('setup', {
+      raiseSetup({
         message: `task ${task.id} declares a Lean claim but no Lean toolchain was found; install it or drop the claim`,
         install: probe.install ?? null,
       })
@@ -1430,6 +1438,18 @@ function repeatedStuckSignature(rounds, taskId, window = 3) {
     signature: signatures[0],
     rounds: tail.map((r) => Number(r.n)).filter((n) => Number.isFinite(n)),
   }
+}
+
+/**
+ * True while an unanswered checkpoint already says exactly this. Setup problems
+ * are standing conditions: one problem is one question, however many ticks it
+ * survives.
+ */
+function setupAlreadyRaised(state, message) {
+  const checkpoints = Array.isArray(state?.checkpoints) ? state.checkpoints : []
+  return checkpoints.some(
+    (c) => c && c.kind === 'setup' && c.status === 'open' && c.payload?.message === message,
+  )
 }
 
 /** True when this task + signature has already been reported to a human. */
