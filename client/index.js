@@ -105,6 +105,10 @@ window.__ModuleLoader__.load({
       ' transition:color 150ms var(--loom-ease)}',
       '.loom-switch:hover{color:var(--loom-ink)}',
       '.loom-switch:focus-visible{outline:1px solid var(--loom-soft);outline-offset:2px}',
+      // A campaign row is a div with role=button, not a native button, so the
+      // ring has to be drawn here too: without it the keyboard lands on a row
+      // nobody can see. The outline is real and sits outside the row.
+      '.loom-camp .loom-hit:focus-visible{outline:1px solid var(--loom-soft);outline-offset:2px}',
       '.loom-dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;flex:0 0 auto}',
       '.loom-dot.on{color:var(--loom-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-ok) 14%,transparent)}',
       '.loom-dot.off{color:var(--loom-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-warn) 14%,transparent)}',
@@ -308,6 +312,36 @@ window.__ModuleLoader__.load({
       return n < 0.01 ? '$' + n.toFixed(4) : '$' + n.toFixed(2)
     }
 
+    /**
+     * What a campaign has spent, or null when the host has not measured it.
+     *
+     * `triangle.usd === null` and `measured: false` both mean "unknown", not
+     * "free", and the difference is the whole point of the money strip. A
+     * payload without a triangle falls back to the budget, then to spendUsd,
+     * which is what older hosts sent.
+     */
+    function costOf(c) {
+      var t = c && c.triangle
+      if (t) {
+        if (t.measured === false) return null
+        return typeof t.usd === 'number' && isFinite(t.usd) ? t.usd : null
+      }
+      var budget = c && c.budget
+      if (budget && typeof budget.spentUsd === 'number' && isFinite(budget.spentUsd)) return budget.spentUsd
+      return c && typeof c.spendUsd === 'number' && isFinite(c.spendUsd) ? c.spendUsd : null
+    }
+
+    /** A campaign's cost, said out loud: 未定价 rather than a $0 it cannot back. */
+    function costLabel(c) {
+      var usd = costOf(c)
+      return usd === null ? '未定价' : money(usd)
+    }
+
+    /** Whether the payload carries any cost figure for this campaign. */
+    function costKnown(c) {
+      return !!(c && (c.triangle || c.budget || typeof c.spendUsd === 'number'))
+    }
+
     function age(ms) {
       if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return ''
       var s = Math.round(ms / 1000)
@@ -437,14 +471,20 @@ window.__ModuleLoader__.load({
     /** One line a reader can act on: how much work is in flight, how much is pending. */
     function overview(data) {
       var rows = (data && data.campaigns) || []
-      var o = { campaigns: 0, running: 0, rounds: 0, spend: 0, open: 0, live: 0, lessons: 0 }
+      var o = { campaigns: 0, running: 0, rounds: 0, spend: 0, priced: 0, open: 0, live: 0, lessons: 0 }
       for (var i = 0; i < rows.length; i += 1) {
         var c = rows[i]
         if (!c || c.error) continue
         o.campaigns += 1
         if (c.status === 'running') o.running += 1
         o.rounds += num(c.rounds)
-        o.spend += num(c.spendUsd)
+        // Only measured money enters the sum: an unpriced campaign must not
+        // pad the total with a zero it did not earn.
+        var usd = costOf(c)
+        if (usd !== null) {
+          o.spend += usd
+          o.priced += 1
+        }
         o.open += num(c.open)
         o.lessons += num(c.lessons)
       }
@@ -464,7 +504,9 @@ window.__ModuleLoader__.load({
         { key: 'running', label: '运行中', value: String(o.running) },
         { key: 'rounds', label: '轮数', value: String(o.rounds) },
         { key: 'pending', label: '待处理', value: String(o.open), hot: o.open > 0 },
-        { key: 'spend', label: '花费', value: money(o.spend) },
+        // Zero measured campaigns is "unpriced", not "$0": a total over no
+        // measurements is not a measurement.
+        { key: 'spend', label: '花费', value: o.priced === 0 ? '未定价' : money(o.spend) },
         { key: 'lessons', label: '知识', value: String(o.lessons) },
       ]
     }
@@ -641,6 +683,29 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The loop control as a real switch: announced as a switch, says whether it
+     * is on, sits in the tab order, and toggles on Enter/Space only. Pure for
+     * the same reason as hitProps: the keyboard contract is pinned without a
+     * browser. A missing handler is not a crash, only a switch that cannot act.
+     */
+    function switchProps(on, onToggle) {
+      var checked = on === true
+      return {
+        role: 'switch',
+        'aria-checked': checked,
+        tabIndex: 0,
+        onKeyDown: function (e) {
+          var key = e && e.key
+          // Only the two keys that flip a switch; everything else (letters,
+          // Tab, arrows) belongs to the page and must not be consumed.
+          if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return
+          if (typeof e.preventDefault === 'function') e.preventDefault()
+          if (typeof onToggle === 'function') onToggle(!checked)
+        },
+      }
+    }
+
+    /**
      * The knowledge tree, as the loop actually uses it: what it learned, where
      * from, and how much that lesson has earned or cost. Grouped by kind,
      * because "hazard" and "recipe" are read differently.
@@ -697,6 +762,9 @@ window.__ModuleLoader__.load({
      */
     function campaignMeta(c) {
       var out = []
+      // A folded row must carry the unpriced label: the meters only exist on
+      // the expanded card, so silence here would read as "it cost nothing".
+      if (costKnown(c) && costOf(c) === null) out.push(costLabel(c))
       if (c.incumbent && c.incumbent.score !== null && c.incumbent.score !== undefined) out.push('最佳 ' + c.incumbent.score)
       if (c.lessons) out.push(num(c.lessons) + ' 条知识')
       if (c.holdout) out.push(num(c.holdout) + ' 留出')
@@ -1230,16 +1298,18 @@ window.__ModuleLoader__.load({
         // dispatch and nothing else, so it sits in the header and never asks
         // which campaign it refers to.
         var rsiOn = !(data && data.rsi && data.rsi.enabled === false)
+        var switchToggle = function () {
+          act('', rsiOn ? 'disable' : 'enable')
+        }
+        // Same shape as a campaign row: the pure props first, then the look.
+        var switchLook = switchProps(rsiOn, switchToggle)
+        switchLook.type = 'button'
+        switchLook.className = 'loom-switch'
+        switchLook.onClick = switchToggle
+        switchLook.title = rsiOn ? '循环正在派发；点这里停掉，战役历史不受影响' : '循环已停；在你打开之前不会派发任何一轮'
         var switchBtn = h(
           'button',
-          {
-            type: 'button',
-            className: 'loom-switch',
-            title: rsiOn ? '循环正在派发；点这里停掉，战役历史不受影响' : '循环已停；在你打开之前不会派发任何一轮',
-            onClick: function () {
-              act('', rsiOn ? 'disable' : 'enable')
-            },
-          },
+          switchLook,
           h('span', { className: 'loom-dot ' + (rsiOn ? 'on' : 'off') }),
           h('span', null, rsiOn ? '循环 开' : '循环 关'),
         )
@@ -1330,7 +1400,16 @@ window.__ModuleLoader__.load({
             ? null
             : h(
                 'div',
-                { className: 'loom-sec' },
+                {
+                  className: 'loom-sec',
+                  // A checkpoint can arrive while the panel is already open, so
+                  // the whole queue is a polite live region: additions are
+                  // announced, and nothing interrupts what is being read. The
+                  // quoted keys below are React props; the canonical names are
+                  // aria-live: 'polite' and aria-label: '待你处理'.
+                  'aria-live': 'polite',
+                  'aria-label': '待你处理',
+                },
                 h(
                   'div',
                   { className: 'loom-sec-head' },
@@ -1835,6 +1914,9 @@ window.__ModuleLoader__.load({
     exports.__panel = {
       TONES: TONES,
       money: money,
+      costOf: costOf,
+      costLabel: costLabel,
+      costKnown: costKnown,
       age: age,
       statusTone: statusTone,
       qualityTone: qualityTone,
@@ -1846,6 +1928,7 @@ window.__ModuleLoader__.load({
       pending: pending,
       queueOf: queueOf,
       hitProps: hitProps,
+      switchProps: switchProps,
       knowledge: knowledge,
       chainPath: chainPath,
       campaignMeta: campaignMeta,
