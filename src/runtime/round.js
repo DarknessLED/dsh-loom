@@ -735,6 +735,42 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         )
       }
     }
+    // Every model in the chain burned its budget. No gate can pass on work that
+    // never ran, so closing this as `no-gain` would let plateau detection keep
+    // paying for the same wall round after round. Exhaustion is an operator
+    // problem: name it, ask once, and stop spending on this round.
+    if (attempts.length > 0 && attempts.every((a) => a.failureKind === 'exhausted')) {
+      const models = [...new Set(attempts.flatMap((a) => a.modelsTried || []))]
+      const exhaustedSpend = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
+      if (exhaustedSpend > 0) {
+        runtime.append(view, 'budget.spent', { usd: exhaustedSpend, attempts: attempts.length }, 'system')
+      }
+      runtime.append(
+        view,
+        'round.finished',
+        { n, status: 'exhausted', score: 0, promoted: false, models },
+        'system',
+      )
+      // A folding runtime already materialized the round above; one that only
+      // records events leaves it missing from the caller's view. Project it so
+      // both see why the round stopped.
+      projectRound(view.state, {
+        n,
+        taskId: task.id,
+        status: 'exhausted',
+        score: 0,
+        promoted: false,
+        attempts,
+      })
+      raise('exhausted', {
+        message: `every model in the chain is out of budget; round ${n} could not run`,
+        round: n,
+        taskId: task.id,
+        models,
+        attempts: attempts.map((a) => ({ id: a.id, model: a.model ?? null, modelsTried: a.modelsTried ?? [] })),
+      })
+      return { status: 'exhausted', round: n, score: 0, promoted: false, taskId: task.id, models }
+    }
     try {
       pruneNotes(board, { max: 20 })
     } catch {
@@ -1051,6 +1087,41 @@ function holdoutTasks(state) {
     out.push(task)
   }
   return out
+}
+
+/**
+ * Make a round visible in the caller's materialized state.
+ *
+ * `runtime.append` folds the ledger in production, but not every runtime does
+ * (a bare embedder may only record events). Merge by round number and attempt
+ * id rather than pushing blindly, so running this after a folding append is a
+ * no-op instead of a duplicate.
+ */
+function projectRound(state, round) {
+  if (!state || !Array.isArray(state.rounds)) return
+  let r = state.rounds.find((x) => Number(x?.n) === Number(round.n))
+  if (!r) {
+    r = {
+      n: round.n,
+      at: Date.now(),
+      attempts: [],
+      status: round.status,
+      score: round.score ?? null,
+      taskId: round.taskId ?? null,
+    }
+    state.rounds.push(r)
+  }
+  Object.assign(r, {
+    status: round.status,
+    score: round.score ?? r.score ?? null,
+    promoted: round.promoted === true,
+    endedAt: Date.now(),
+  })
+  if (!Array.isArray(r.attempts)) r.attempts = []
+  const seen = new Set(r.attempts.map((a) => a?.id))
+  for (const a of round.attempts || []) {
+    if (!seen.has(a.id)) r.attempts.push(a)
+  }
 }
 
 export function raiseCheckpoint(runtime, view, kind, payload) {
