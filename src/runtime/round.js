@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
 import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
@@ -24,6 +24,18 @@ import { verifyOnce } from './verifier-reuse.js'
 import { planCacheKey, cachedPlan, rememberPlan } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost } from './triangle.js'
+
+/**
+ * A verify command is written by the task, not by the harness, so it may say
+ * `node` and trust PATH. The harness itself can be started from an absolute
+ * path with nothing on PATH that answers `node` (the DSH runtime does exactly
+ * that on Windows), and then a sound candidate fails for the wrong reason.
+ * Append the interpreter's own directory: `node` resolves whenever the task
+ * assumes it, and a project that provides its own earlier on PATH keeps it.
+ */
+const verifierEnv = {
+  PATH: [process.env.PATH, dirname(process.execPath)].filter(Boolean).join(delimiter),
+}
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -332,7 +344,7 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       label: `loom:${state.id}:${attemptId}:screen`,
       model: config.models.worker || null,
     })
-    const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs })
+    const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
     Object.assign(out, {
       ok: Boolean(ver.ok),
       exitCode: ver.exitCode ?? null,
@@ -500,6 +512,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // criteria the worker must satisfy, even when the loop does not spawn it twice.
   const verifyCmd = acceptance.spec?.cmd || 'echo no-verifier && exit 1'
   const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
+  // Sampling a second candidate cannot beat a first one that already scores
+  // 1.0, so `cascade` buys the next opinion only while the result leaves room
+  // to improve. Read from the config directly, not from `effectivePolicy`:
+  // policy normalization is a whitelist and would silently drop the mode. The
+  // default stays `parallel`, so every existing campaign is unchanged.
+  const candidateMode = config.loopPolicy?.candidateMode === 'cascade' ? 'cascade' : 'parallel'
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).
   const exposed = exposeIndexes(candidates, n)
@@ -535,6 +553,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const screenInfo = new Map()
   let survivors = plan.map((p) => p.attemptId)
   let best = null
+  // Recorded on `round.finished` so a cheaper round says what it did not buy.
+  let skippedCandidates = 0
+  const modeRecord = () => ({ candidateMode, candidatesPlanned: candidates, skippedCandidates })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
@@ -584,7 +605,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // session.maxConcurrent; a cap of 1 keeps the old sequential behaviour, and
     // no configured cap means "run them all" rather than "never dispatch".
     const dispatchPlan = plan.filter((p) => survivors.includes(p.attemptId))
-    const limit = dispatchLimit(config, dispatchPlan.length)
+    // Cascade is serial by definition: the whole saving comes from deciding
+    // after one candidate rather than buying both at once. Parallel keeps the
+    // configured pool exactly as before.
+    const limit = candidateMode === 'cascade' ? 1 : dispatchLimit(config, dispatchPlan.length)
     const records = new Map()
     const runCandidate = async ({ i, attemptId }) => {
       const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
@@ -703,7 +727,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               patchFile: patch?.path ?? null,
               keySuffix: `${acceptanceSpec.cmd}\n${acceptanceSpec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
               cwd: verifierCwd,
-              run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs }),
+              run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs, env: verifierEnv }),
             })
           : {
               reused: false,
@@ -840,13 +864,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       return record
     }
     let cursor = 0
+    let dispatched = 0
+    // "Solved outright" is the round's own criterion, not a metaphor: the
+    // verifier passed AND the score is already the maximum. A second candidate
+    // cannot beat 1.0, so in cascade mode its run would be bought for nothing.
+    const solvedOutright = (rec) => Boolean(rec) && rec.verifierOk === true && Number(rec.score) === 1
+    const cascadeSatisfied = () =>
+      candidateMode === 'cascade' && [...records.values()].some(solvedOutright)
     const workerCount = Math.min(limit, dispatchPlan.length)
     await Promise.all(
       Array.from({ length: workerCount }, async () => {
         for (;;) {
+          // The pool is serial in cascade mode, so every record here is final:
+          // one perfect candidate ends the round instead of buying a second opinion.
+          if (cascadeSatisfied()) return
           const at = cursor
           cursor += 1
           if (at >= dispatchPlan.length) return
+          dispatched += 1
           const item = dispatchPlan[at]
           // runCandidate catches its own failures; this guard only protects the
           // pool itself from an unexpected throw in its bookkeeping.
@@ -868,6 +903,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         }
       }),
     )
+    // Planned minus dispatched is the whole saving; parallel never skips.
+    skippedCandidates = candidateMode === 'cascade' ? Math.max(0, dispatchPlan.length - dispatched) : 0
     // Emit in plan order, not completion order: the round ledger keeps the
     // same shape it has always had regardless of which candidate finished first.
     for (const { attemptId } of plan) {
@@ -898,7 +935,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'round.finished',
-        { n, status: 'exhausted', score: 0, promoted: false, models, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
         'system',
       )
       // A folding runtime already materialized the round above; one that only
@@ -1010,7 +1047,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         for (const h of heldOut) {
           let result
           try {
-            result = await runVerifier(h.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs })
+            result = await runVerifier(h.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
           } catch (err) {
             result = { ok: false, stderr: String(err?.message ?? err) }
           }
@@ -1079,7 +1116,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // the verdict that promoted the patch is also the guard's verdict.
           const reusedGuard = Boolean(guard && acceptance.spec && guardIsPartOf(acceptance.spec.cmd, guard))
           const checked = guard && !reusedGuard
-            ? await runVerifier({ cmd: guard }, { cwd: workspace }).catch((err) => ({ ok: false, stderr: String(err?.message ?? err) }))
+            ? await runVerifier({ cmd: guard }, { cwd: workspace, env: verifierEnv }).catch((err) => ({ ok: false, stderr: String(err?.message ?? err) }))
             : { ok: true }
           if (!checked.ok) {
             await rollbackWorkspace(workspace)
@@ -1120,7 +1157,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
       'system',
     )
 
@@ -1199,7 +1236,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
       'system',
     )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })
