@@ -49,8 +49,10 @@ RSI 想要的是另一种形态：
 | **Lean imagine 阶段**：先产出候选陈述，再用结构规则筛掉空/重复/平凡/sorry/超长，只把值得证的交给编译器 | ✅ M4 |
 | **GUI 面板**：侧栏 `RSI` 面板，每 5 秒刷新战役卡片（轮次/花费/最佳分/知识量/活尝试/检查点），可直接 pause/resume/stop 与 approve/reject | ✅ M7 |
 | **多窗口安全**：任何新窗口都能拿到全部工具；循环所有权按心跳最新者持有，旧窗口自动降级为只读观察，不会两个窗口同时派发 | ✅ M7 |
+| **对抗加固（chaos）**：子会话死掉 / 模型额度用尽换模型 / 上下文爆掉缩小简报重试一次 / ledger 漂移（重复 seq、乱序、torn 尾行）/ 重启后撤回「记了落地但没提交」的假成功 | ✅ M8 |
 
 测试：`scripts/verify.mjs` 87 项、`tests/panel.test.mjs` 49 项、`tests/panel-client.test.mjs` 9 项、`tests/gate.test.mjs` 78 项、`tests/exec.test.mjs` 53 项、`tests/lease.test.mjs` 21 项、`tests/watchdog.test.mjs` 31 项、`tests/board.test.mjs` 64 项、`tests/brief.test.mjs` 96 项、`tests/select.test.mjs` 72 项、`tests/knowledge.test.mjs` 63 项、`tests/lean.test.mjs` 78 项、`tests/loop.test.mjs` 45 项、`tests/chain.test.mjs` 30 项、`tests/imagine.test.mjs` 23 项、**712 条单元断言**；`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent；含两轮知识投放、一次 4→2 连续减半、一次 L2 策略晋升把门锁死）。
+另有对抗套件 `tests/chaos/*`（13 项：子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复）与 `tests/chaos2/recover-idempotent`（3 项回归钉），全部并入 `scripts/test-all.mjs`（30 套件）。
 
 ---
 
@@ -160,3 +162,20 @@ research/             三份调研报告（DSH 插件 API / Gear / Open Dream-RS
 
 - **rsi-gear/gear**：它的 outer loop 优化的是「harness 本身（提示词/工具/skill/上下文管理）」，跑在 Docker 里、Windows 不在官方支持范围。我们借了它的四阶段（Diagnose → Evolve → Evaluate → Promote）与「证据完整性准入 + 最小增益 + held-out 不回归」的晋升判据，但把粒度下沉到「一个战役 = 一个目标」。
 - **open-dream-rsi**：它冻结模型、只优化任务内策略（policy_program / policy_parameters / recipe），编排层是硬编码的（`interval_seconds=300` 等常数），作者明确说 cadence 不属于学习系统。我们借了它的三件判据（回放门控晋升、append-only 事件溯源 + 可重建物化视图、termination_reason 分类），而**编排循环本身**正是本插件要优化的对象（M3）。
+
+---
+
+## 8. 对抗测试（M8）
+
+循环跑在别人的进程、别人的额度和别人的时钟上，所以「正常路径正确」不够。`tests/chaos/` 用故障注入把五类坏情况钉成规格，每一条都对应一处真实修复：
+
+| 故障 | 注入方式 | 现在的行为 |
+|---|---|---|
+| 子会话死掉 | dispatcher 返回 `stopReason:"error"` / 直接抛错 | `attempt.finished.failureKind="died"`，回合照常收尾、租约清掉、不晋升；验证器在工作树上的「恰好通过」不算证据（`gateOk` 还要求 `failureKind==="ok"`） |
+| 模型额度用尽 | 首个模型报 `context length exceeded`、`max-tokens`、quota | 按 `models.fallback` 换下一个模型并记录 `modelSwitch`；全部用尽 → `failureKind="exhausted"`，回合记 `exhausted` 并挂检查点，不再把空转伪装成 no-gain |
+| 上下文压缩失败 | `compaction failed: prompt is too long` | 丢 notes/lessons/plan，用约一半长度的简报**只重试一次**，记 `retried:"smaller-brief"`；再失败即 `context`，不晋升 |
+| 历史漂移 | 重复 seq、乱序行、torn 尾行、双写者 | `Ledger` 排序去重（同 seq 先到先得）、丢 torn 行、从磁盘最大 seq 继续；`appendJsonl` 先补换行，避免坏尾行吞掉新记录 |
+| 重启恢复（含「假恢复」） | 账本有 `autopilot.applied{committed:false}` + 脏工作区 + 活租约 | `recovery.js` 判定「未证明的落地」→ `round.unlanded`（任务重新变回未解决）+ 只清理补丁自己新建的文件、`git checkout --` 恢复被改的已跟踪文件；**没有未提交证据时不动用户自己的脏工作区**；连跑两次第二次零写入（幂等） |
+
+边界（有意不做）：`git clean -fd` 从不使用（会删用户未跟踪文件）；凭据/权限失败不重试（重试不会让账号有钱）；换模型只为额度类失败买单，进程死掉换模型只会翻倍账单。
+

@@ -208,3 +208,16 @@ Lesson {
 - **为什么不加构建**：客户端半是手写懒 CJS（`window.__ModuleLoader__.load({id, factory})`），不引 bundler、不编译 JSX，用 `require('react')` 拿宿主同一份 React；槽位名对不上时只掉面板、不影响工具面（`ctx.slots?.inject?.(...)` 全程可选链）。
 - **所有权语义**（`src/core/lock.js`）：每个窗口 `apply()` 都 `claimOwnership` 并**总是**注册工具；`tick()` 只在 `holdsOwnership` 时派发，其余窗口降级为只读观察并照常 `flushAll()`。工具里改状态的 6 个入口先 `runtime.ensureOwner()`，holder 死了或心跳超过 90 秒就接管，否则明确报错而不是静默执行两份循环。
 - **心跳**：`tick()` 每轮刷新 `heartbeatAt`；`ownerStatus` 的 `fresh` 判定用 90 秒，远大于 tick 默认 20 秒，避免正常抖动被误判为「holder 已死」。
+
+## 9. M8 对抗加固（chaos）
+
+循环的钱、进程和时间都不归自己管，所以「正常路径对」不够。做法是先把五类坏情况写成**会失败的可执行规格**（`tests/chaos/`），再改代码到全绿——和整夜自优化用的是同一套机制。
+
+1. **子进程死掉**：`classifyResult()` 把 dispatcher 的结果归一成 `ok | timeout | tokens | context | died | exhausted`。`died` 不给分、不换模型、不重试（换模型只是把账单翻倍），回合照常收尾。关键一条：`gateOk` 现在要求 `failureKind === 'ok'`——子进程没跑完就不算验证通过，此前「验证器在未改动的工作树上恰好 exit 0」会被当成证据。
+2. **token 用尽 / 上下文爆掉**：`models.fallback` 是有序的降级链，只在 `tokens | context` 类失败上换下一个模型并记 `modelSwitch`；`context` 额外允许**一次**缩小简报的重试（丢掉 notes/lessons/plan，长度约减半），记 `retried:"smaller-brief"`。两者都不再静默变成 `no-gain`：全链用尽即 `round.finished.status="exhausted"` + `checkpoint{kind:"exhausted"}`。
+3. **历史偏移**：`Ledger.normalize()` 只留有限 seq、按 seq 升序、同 seq 先到先得；`appendJsonl` 在追加前补换行，避免 torn 尾行吞掉新记录。事件溯源因此保持「物化视图可由日志重建」的前提。
+4. **重启后的诚实恢复**（`src/runtime/recovery.js`）：账本里 `autopilot.applied` 只记了「应用过」而没记 commit，就不能算已落地。恢复时把这些轮次显式 `round.unlanded`（任务重新变为未解决），并只清理补丁自己 `new file mode` 建的文件 + `git checkout --` 恢复被改的已跟踪文件；**没有未提交证据时绝不动用户自己的脏工作区**（不用 `git clean -fd`）。同一份账本连跑两次恢复，第二次零写入。
+5. **面板降级**：一块坏数据只降级对应的行/字段（`{id, error}`、`live: []`、`lean: null`），不允许一条坏战役把整个侧栏变成 500——操作者无法从 500 里 debug 任何东西。
+
+**为什么不自动重试更多次**：重试是资源消耗，不是正确性。额度类失败靠换模型 + 交给人；进程死掉靠租约与看门狗识别；只有「成本已知且很可能成功」的场景（上下文超限）才值得自动重跑一次。
+
