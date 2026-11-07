@@ -77,6 +77,7 @@ export function registerTools(ctx, { runtime, config }) {
         workspace: { type: 'string', description: 'Absolute path of the repo / directory the campaign operates on.' },
         id: { type: 'string', description: 'Optional slug id, /^[a-z0-9][a-z0-9-]{2,63}$/.' },
         budgetUsd: { type: 'number', description: 'API spend cap in USD (default 5).' },
+        budgetTokens: { type: 'number', description: 'Token cap — what the provider actually meters. Optional; unset means no token cap.' },
         budgetRounds: { type: 'integer', description: 'Round cap (default 12).' },
         budgetMinutes: { type: 'integer', description: 'Wall-clock cap in minutes (default 240).' },
         template: {
@@ -99,6 +100,7 @@ export function registerTools(ctx, { runtime, config }) {
       if (!args.objective) throw new Error('objective is required')
       const budget = {}
       if (args.budgetUsd != null) budget.usd = Number(args.budgetUsd)
+      if (args.budgetTokens != null) budget.tokens = Number(args.budgetTokens)
       if (args.budgetRounds != null) budget.rounds = Number(args.budgetRounds)
       if (args.budgetMinutes != null) budget.minutes = Number(args.budgetMinutes)
       const view = runtime.create({
@@ -183,6 +185,7 @@ export function registerTools(ctx, { runtime, config }) {
           description: 'enable/disable: the global loop switch (no campaign required).',
         },
         usd: { type: 'number', description: 'action=budget: new USD cap' },
+        tokens: { type: 'number', description: 'action=budget: new token cap (what the provider actually meters)' },
         rounds: { type: 'integer', description: 'action=budget: new round cap' },
         text: { type: 'string', description: 'action=constraint|note: the text' },
         reason: { type: 'string', description: 'action=stop|enable|disable: why' },
@@ -227,6 +230,7 @@ export function registerTools(ctx, { runtime, config }) {
       } else {
         state = runtime.control(view.id, action, {
           usd: args.usd,
+          tokens: args.tokens,
           rounds: args.rounds,
           text: args.text,
           enabled: args.enabled,

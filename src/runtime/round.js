@@ -33,7 +33,7 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
-import { estimatedRoundCost } from './triangle.js'
+import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
 
 /**
  * A verify command is written by the task, not by the harness, so it may say
@@ -521,23 +521,67 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const projectedUsd = Math.round((spentUsd + estimatedUsd) * 1e6) / 1e6
   const exhausted = spentUsd >= capUsd
   const unaffordable = estimatedUsd > 0 && Number.isFinite(capUsd) && projectedUsd > capUsd + 1e-9
-  if (exhausted || unaffordable) {
+  // Money is only half of what a round consumes: the provider meters tokens
+  // even when the dollars still fit, so a campaign can sit inside its USD cap
+  // and be out of the allowance its account actually sells. The token cap has
+  // the same shape as the dollar one: spend comes from the round ledger's
+  // measured `tokens`, the estimate is their mean, and a campaign that has
+  // measured nothing projects nothing — 0 means unknown, never free and never
+  // empty, so the first round is never blocked by a cap it cannot reason about.
+  const rawTokenCap = state.budget.tokens
+  const capTokens = rawTokenCap == null ? NaN : Number(rawTokenCap)
+  const hasTokenCap = Number.isFinite(capTokens)
+  const spentTokens = recordedRoundTokens(state.rounds)
+  const estimatedTokens = estimatedRoundTokens(state.rounds)
+  const projectedTokens = spentTokens + estimatedTokens
+  const tokensMeasured = spentTokens > 0 || estimatedTokens > 0
+  const tokensExhausted = hasTokenCap && tokensMeasured && spentTokens >= capTokens
+  const tokensUnaffordable = hasTokenCap && tokensMeasured && projectedTokens > capTokens
+  const hitTokens = tokensExhausted || tokensUnaffordable
+  if (exhausted || unaffordable || tokensExhausted || tokensUnaffordable) {
     // Close the round out explicitly before stopping the campaign: a round that
     // silently vanishes leaves the ledger ambiguous about why no work started.
+    // Both projections travel on the record whichever cap fired, so a reader
+    // can see the whole affordability picture without replaying the preflight.
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'budget', score: null, promoted: false, spentUsd, estimatedUsd, projectedUsd },
+      {
+        n,
+        status: 'budget',
+        score: null,
+        promoted: false,
+        reason: hitTokens ? 'tokens' : 'usd',
+        spentUsd,
+        estimatedUsd,
+        projectedUsd,
+        spentTokens,
+        estimatedTokens,
+        projectedTokens,
+      },
       'system',
     )
-    runtime.append(view, 'campaign.status', { status: 'converged', reason: 'cost budget exhausted' }, 'system')
+    runtime.append(
+      view,
+      'campaign.status',
+      { status: 'converged', reason: hitTokens ? 'token budget exhausted' : 'cost budget exhausted' },
+      'system',
+    )
+    const usdMessage = exhausted
+      ? `spend $${spentUsd.toFixed(4)} reached cap $${state.budget.usd}`
+      : `spend $${spentUsd.toFixed(4)} + estimated round $${estimatedUsd.toFixed(4)} would cross cap $${state.budget.usd}`
+    const tokenMessage = tokensExhausted
+      ? `tokens ${spentTokens} reached cap ${capTokens}`
+      : `tokens ${spentTokens} + estimated round ${estimatedTokens} would cross cap ${capTokens}`
     raise('budget', {
-      message: exhausted
-        ? `spend $${spentUsd.toFixed(4)} reached cap $${state.budget.usd}`
-        : `spend $${spentUsd.toFixed(4)} + estimated round $${estimatedUsd.toFixed(4)} would cross cap $${state.budget.usd}`,
+      message: hitTokens ? tokenMessage : usdMessage,
       spentUsd,
       estimatedUsd,
       projectedUsd,
+      spentTokens,
+      estimatedTokens,
+      projectedTokens,
+      ...(hasTokenCap ? { capTokens } : {}),
     })
     return
   }

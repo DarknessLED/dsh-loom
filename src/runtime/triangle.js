@@ -51,6 +51,61 @@ export function estimatedRoundCost(rounds) {
 }
 
 /**
+ * The ledger's token measurements, in one place so "what was spent" and "what
+ * the next round will cost" cannot disagree about which rounds count.
+ *
+ * A round with no `tokens` field, `null`, or a non-finite value never reported
+ * a measurement and is skipped. `0` counts: a round that recorded zero tokens
+ * measured zero, which is a fact and not the same claim as silence.
+ *
+ * @param {Array<object>} rounds folded rounds carrying `tokens`
+ * @returns {{sum: number, count: number}} measured token total and round count
+ */
+function tokenTotals(rounds) {
+  const list = Array.isArray(rounds) ? rounds : []
+  let sum = 0
+  let count = 0
+  for (const r of list) {
+    if (!r || typeof r !== 'object') continue
+    if (r.tokens === null || r.tokens === undefined) continue
+    const tokens = Number(r.tokens)
+    if (!Number.isFinite(tokens)) continue
+    sum += tokens
+    count += 1
+  }
+  return { sum, count }
+}
+
+/**
+ * What one more round is likely to consume in this campaign, from its own
+ * ledger. Same convention as {@link estimatedRoundCost}: the mean of measured
+ * `round.tokens`, and 0 when no round measured any — the caller must read 0 as
+ * "unknown, do not block" rather than "free". The provider meters tokens even
+ * when the dollars still fit, so this is the number a token cap is compared
+ * against.
+ *
+ * @param {Array<object>} rounds folded rounds carrying `tokens`
+ * @returns {number} mean measured round tokens, 0 when unmeasured
+ */
+export function estimatedRoundTokens(rounds) {
+  const { sum, count } = tokenTotals(rounds)
+  return count > 0 ? Math.round(sum / count) : 0
+}
+
+/**
+ * Tokens this campaign can already be shown to have spent, from the same
+ * measured rounds. A `budget.spent` fold would be a second view of the same
+ * spend and summing both would double-count it, so only the round ledger is
+ * read here — exactly the rule `campaignUsage` applies to dollars.
+ *
+ * @param {Array<object>} rounds folded rounds carrying `tokens`
+ * @returns {number} sum of measured round tokens, 0 when unmeasured
+ */
+export function recordedRoundTokens(rounds) {
+  return tokenTotals(rounds).sum
+}
+
+/**
  * @param {Array<object>} rounds folded rounds (`durationMs`, `planMs`,
  *   `attemptMs`, `verifierMs`, `tokens`, `costUsd`, `status`, `promoted`)
  */

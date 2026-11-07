@@ -201,7 +201,10 @@ export class Runtime {
         const next = {}
         if (payload.usd != null) next.usd = Number(payload.usd)
         if (payload.rounds != null) next.rounds = Number(payload.rounds)
-        if (!Object.keys(next).length) throw new Error('budget requires usd and/or rounds')
+        // Tokens are the cap the provider actually meters, so it must be
+        // settable through the same door as dollars or it is not a cap.
+        if (payload.tokens != null) next.tokens = Number(payload.tokens)
+        if (!Object.keys(next).length) throw new Error('budget requires usd, tokens and/or rounds')
         for (const [k, n] of Object.entries(next)) {
           if (!Number.isFinite(n) || n < 0) throw new Error(`invalid budget.${k}`)
         }
