@@ -26,12 +26,13 @@ export class Watchdog {
     this.tracked = new Map()
   }
 
-  track({ attemptId, sessionId, abort = null, deadline = null }) {
+  track({ attemptId, sessionId, abort = null, deadline = null, campaign = null }) {
     if (!attemptId) throw new TypeError('track requires attemptId')
     const now = Date.now()
     this.tracked.set(String(attemptId), {
       attemptId: String(attemptId),
       sessionId: sessionId ? String(sessionId) : null,
+      campaign: campaign ? String(campaign) : null,
       abort: typeof abort === 'function' ? abort : null,
       deadline: Number(deadline) > 0 ? Number(deadline) : null,
       startedAt: now,
@@ -44,6 +45,37 @@ export class Watchdog {
   /** Called when an attempt finishes normally, so it is not mistaken for a stall. */
   untrack(attemptId) {
     this.tracked.delete(String(attemptId))
+  }
+
+  /**
+   * Ask one attempt to stop early (a human pressed stop, or the campaign was
+   * closed). The abort is best-effort by contract: the attempt still finishes
+   * through its own path and records what happened, so this never fabricates a
+   * result. Returns true only when a tracked attempt was actually asked.
+   */
+  abort(attemptId) {
+    const entry = this.tracked.get(String(attemptId))
+    if (!entry) return false
+    if (entry.aborted) return false
+    entry.aborted = true
+    try {
+      entry.abort?.()
+    } catch (err) {
+      this.log(`watchdog: abort of ${attemptId} threw: ${err?.message ?? err}`)
+    }
+    entry.abortRequestedAt = Date.now()
+    return true
+  }
+
+  /** Abort every tracked attempt belonging to one campaign; returns how many. */
+  abortCampaign(campaignId) {
+    if (!campaignId) return 0
+    let n = 0
+    for (const entry of [...this.tracked.values()]) {
+      if (entry.campaign !== String(campaignId)) continue
+      if (this.abort(entry.attemptId)) n += 1
+    }
+    return n
   }
 
   size() {

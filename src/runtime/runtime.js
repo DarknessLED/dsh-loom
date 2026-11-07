@@ -61,8 +61,18 @@ export class Runtime {
   }
 
   /** Track a live attempt so the watchdog can write it off if it goes silent. */
-  watchAttempt({ attemptId, sessionId, abort, deadline }) {
-    this.watchdog.track({ attemptId, sessionId, abort, deadline })
+  watchAttempt({ attemptId, sessionId, abort, deadline, campaign }) {
+    this.watchdog.track({ attemptId, sessionId, abort, deadline, campaign })
+  }
+
+  /**
+   * Stop the attempts a campaign currently has in flight. Used when a human
+   * stops the campaign: leaving a child running after "stop" is the sort of
+   * state that later looks like a phantom. The attempt still finishes through
+   * its own path, so the ledger records what actually happened.
+   */
+  abortCampaign(campaignId) {
+    return this.watchdog.abortCampaign(campaignId)
   }
 
   unwatchAttempt(attemptId) {

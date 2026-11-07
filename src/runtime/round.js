@@ -535,7 +535,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           model: config.models.worker || null,
           onStart: ({ sessionId, abort, deadline }) => {
             updateLease(view.dir, attemptId, { sessionId, deadline })
-            runtime.watchAttempt({ attemptId, sessionId, abort, deadline })
+            runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
           },
         })
         // A context overflow is a packaging problem, not a code problem: the
@@ -568,7 +568,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             model: config.models.worker || null,
             onStart: ({ sessionId, abort, deadline }) => {
               updateLease(view.dir, attemptId, { sessionId, deadline })
-              runtime.watchAttempt({ attemptId, sessionId, abort, deadline })
+              runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
             },
           })
         }

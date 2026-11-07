@@ -216,6 +216,11 @@ export function registerTools(ctx, { runtime, config }) {
         state = runtime.append(view, 'campaign.status', { status: 'running' }, 'human')
       } else if (action === 'stop') {
         state = runtime.control(view.id, 'stop', { reason: args.reason }, 'human')
+        // "Stopped" should mean the child is stopped too. Abort is best-effort:
+        // the attempt still finishes through its own path and records whether it
+        // was interrupted, so nothing is silently rewritten.
+        const aborted = runtime.abortCampaign ? runtime.abortCampaign(view.id) : 0
+        if (aborted) runtime.append(view, 'campaign.aborted', { attempts: aborted }, 'human')
       } else {
         state = runtime.control(view.id, action, {
           usd: args.usd,

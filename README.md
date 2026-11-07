@@ -109,6 +109,7 @@ rsi_control(action:"enable")                        # 下次 tick 继续，从�
 - 关掉后：不再派发新回合，**但所有工具照常可用**（`rsi_status`、`rsi_report`、`rsi_dashboard`、`rsi_decide`、`rsi_lean`…），已挂起的检查点也还在等你处理。
 - 历史不偏移：不追加任何 campaign 事件，`seq` 不动，恢复时不需要重放或重新总结；重启后开关状态从磁盘读回，不依赖任何摘要。
 - 想只花一轮、不重启循环：`rsi_run(id:"...")` —— 手动跑一轮，走完全一样的 worktree / 验证器 / 迁升路径，即使开关是关的。
+- 开关只管**派发**；已经跑起来的那一轮会自己收尾并如实记账。想让在飞的那轮也停：`rsi_control(action:"stop", id:"...")` 会中断该战役正在跑的尝试（尽力而为），尝试仍走自己的收尾路径并记下 `aborted`，不会伪造结果。
 - 面板右上角有 `loop on / loop off` 按钮，走同一条 `POST /dsh-loom/state`。
 
 ### 面板
