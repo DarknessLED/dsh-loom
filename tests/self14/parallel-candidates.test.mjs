@@ -134,22 +134,34 @@ function scratch() {
 }
 
 // 1. three candidates with room for three: they overlap and the round is shorter
-await check('candidates dispatch concurrently up to session.maxConcurrent', async () => {
+// Timing is compared against a sequential run measured in this same process, not
+// against a hard-coded budget: a round also pays for worktrees, verifiers and
+// patch generation, and that fixed cost must not be mistaken for dispatch time.
+async function timedRound(limit) {
   const dir = scratch()
   const rt = fakeRuntime(dir)
   const view = viewFor(dir, 3)
   mkdirSync(view.dir, { recursive: true })
   const dispatcher = countingDispatcher(250)
   const started = Date.now()
-  await runRound({ runtime: rt, view, config: config(3), dispatcher, log: () => {}, notify: () => {} })
-  const elapsed = Date.now() - started
-  assert.equal(dispatcher.state.calls, 3, 'every candidate still runs')
-  assert.ok(dispatcher.state.peak >= 2, `candidates should overlap, saw peak ${dispatcher.state.peak}`)
-  assert.ok(dispatcher.state.peak <= 3, 'never more attempts than the limit allows')
-  assert.ok(elapsed < 3 * 250, `a parallel round should be shorter than sequential (${elapsed}ms)`)
-  const attempts = rt.events.filter((e) => e.type === 'attempt.finished')
+  await runRound({ runtime: rt, view, config: config(limit), dispatcher, log: () => {}, notify: () => {} })
+  return { elapsed: Date.now() - started, dispatcher, rt }
+}
+
+await check('candidates dispatch concurrently up to session.maxConcurrent', async () => {
+  const seq = await timedRound(1)
+  const par = await timedRound(3)
+  assert.equal(par.dispatcher.state.calls, 3, 'every candidate still runs')
+  assert.equal(seq.dispatcher.state.peak, 1, 'the sequential baseline never overlaps')
+  assert.ok(par.dispatcher.state.peak >= 2, `candidates should overlap, saw peak ${par.dispatcher.state.peak}`)
+  assert.ok(par.dispatcher.state.peak <= 3, 'never more attempts than the limit allows')
+  assert.ok(
+    par.elapsed < seq.elapsed - 250,
+    `a parallel round must beat the sequential baseline by roughly one dispatch (par ${par.elapsed}ms vs seq ${seq.elapsed}ms)`,
+  )
+  const attempts = par.rt.events.filter((e) => e.type === 'attempt.finished')
   assert.equal(attempts.length, 3, 'all three attempts are recorded')
-  const gate = rt.events.find((e) => e.type === 'gate.evaluated')
+  const gate = par.rt.events.find((e) => e.type === 'gate.evaluated')
   assert.ok(gate, 'the gate still evaluates the round')
 })
 
