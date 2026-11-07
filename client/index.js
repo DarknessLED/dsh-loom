@@ -55,7 +55,110 @@ window.__ModuleLoader__.load({
       return cond ? node : null
     }
 
-    function Panel(react) {
+    // ---- what the panel says, computed without React ----------------------
+    //
+    // These three are pure functions over one `/dsh-loom/state` payload. They
+    // are the panel's actual design: React below only turns them into nodes.
+    // Keeping them separate is also why they can be tested without a browser.
+
+    function num(value) {
+      return typeof value === 'number' && isFinite(value) ? value : 0
+    }
+
+    /** One line a reader can act on: how much work is in flight, how much is pending. */
+    function overview(data) {
+      var rows = (data && data.campaigns) || []
+      var o = { campaigns: 0, running: 0, rounds: 0, spend: 0, open: 0, live: 0, lessons: 0 }
+      for (var i = 0; i < rows.length; i += 1) {
+        var c = rows[i]
+        if (!c || c.error) continue
+        o.campaigns += 1
+        if (c.status === 'running') o.running += 1
+        o.rounds += num(c.rounds)
+        o.spend += num(c.spendUsd)
+        o.open += num(c.open)
+        o.lessons += num(c.lessons)
+      }
+      o.live = ((data && data.live) || []).length
+      return o
+    }
+
+    var RISK_ORDER = { high: 0, normal: 1, low: 2 }
+    function riskOf(value) {
+      return RISK_ORDER[value] === undefined ? 9 : RISK_ORDER[value]
+    }
+
+    /**
+     * Every decision waiting on a human, across every campaign, riskiest first.
+     * A checkpoint is the loop asking a question; hiding it one campaign card
+     * down is how a person misses the one that mattered.
+     */
+    function pending(data) {
+      var out = []
+      var rows = (data && data.campaigns) || []
+      for (var i = 0; i < rows.length; i += 1) {
+        var c = rows[i]
+        if (!c || c.error) continue
+        var reviews = c.reviews || []
+        var cps = c.openCheckpoints || []
+        for (var j = 0; j < cps.length; j += 1) {
+          var cp = cps[j]
+          var review = null
+          for (var k = 0; k < reviews.length; k += 1) {
+            if (reviews[k].id === cp.id) {
+              review = reviews[k]
+              break
+            }
+          }
+          out.push({
+            campaign: c.id,
+            id: cp.id,
+            kind: cp.kind,
+            risk: review ? review.risk : 'normal',
+            summary: review ? review.summary : '',
+            ageMs: c.ageMs === null || c.ageMs === undefined ? null : c.ageMs,
+          })
+        }
+      }
+      out.sort(function (a, b) {
+        return riskOf(a.risk) - riskOf(b.risk) || (a.campaign < b.campaign ? -1 : a.campaign > b.campaign ? 1 : 0) || (a.id < b.id ? -1 : 1)
+      })
+      return out
+    }
+
+    /**
+     * The knowledge tree, as the loop actually uses it: what it learned, where
+     * from, and how much that lesson has earned or cost. Grouped by kind,
+     * because "hazard" and "recipe" are read differently.
+     */
+    function knowledge(data) {
+      var rows = (data && data.campaigns) || []
+      var groups = { fact: [], hazard: [], recipe: [] }
+      var active = 0
+      var quarantined = 0
+      for (var i = 0; i < rows.length; i += 1) {
+        var c = rows[i]
+        if (!c || c.error) continue
+        active += num(c.lessons)
+        quarantined += num(c.quarantined)
+        var top = c.lessonsTop || []
+        for (var j = 0; j < top.length; j += 1) {
+          var l = top[j]
+          var kind = l.kind === 'hazard' || l.kind === 'recipe' ? l.kind : 'fact'
+          groups[kind].push({ campaign: c.id, id: l.id, claim: l.claim, score: num(l.score) })
+        }
+      }
+      var kinds = []
+      for (var key in groups) {
+        var items = groups[key].sort(function (a, b) {
+          return b.score - a.score || (a.id < b.id ? -1 : 1)
+        })
+        if (items.length) kinds.push({ kind: key, items: items.slice(0, 4), total: items.length })
+      }
+      return { active: active, quarantined: quarantined, kinds: kinds }
+    }
+
+    function Panel(react, CardView) {
       var h = react.createElement
       var useState = react.useState
       var useEffect = react.useEffect
@@ -165,6 +268,107 @@ window.__ModuleLoader__.load({
           ),
         )
 
+        var ov = overview(data)
+        var queue = pending(data)
+        var tree = knowledge(data)
+
+        var strip = h(
+          'div',
+          { style: { display: 'flex', flexWrap: 'wrap', gap: 10, padding: '0 14px 8px', fontSize: 11, opacity: 0.85 } },
+          [
+            ov.campaigns + ' campaigns',
+            ov.running + ' running',
+            ov.rounds + ' rounds',
+            money(ov.spend),
+            ov.open ? ov.open + ' pending' : 'nothing pending',
+            ov.lessons + ' lessons',
+          ].map(function (label, i) {
+            return h('span', { key: i }, label)
+          }),
+        )
+
+        var pendingBlock =
+          queue.length === 0
+            ? null
+            : h(
+                'div',
+                { style: { padding: '0 12px 8px' } },
+                h('div', { style: { fontSize: 11, fontWeight: 600, opacity: 0.7, marginBottom: 4 } }, 'WAITING ON YOU (' + queue.length + ')'),
+                queue.map(function (q) {
+                  var key = q.campaign + ':' + q.id
+                  return h(
+                    'div',
+                    {
+                      key: key,
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 6px',
+                        marginBottom: 4,
+                        borderRadius: 6,
+                        background: q.risk === 'high' ? 'rgba(179,38,30,.10)' : 'rgba(255,193,7,.12)',
+                        border: '1px solid ' + (q.risk === 'high' ? 'rgba(179,38,30,.35)' : 'rgba(255,193,7,.4)'),
+                        fontSize: 11,
+                      },
+                    },
+                    h('span', { style: { fontWeight: 600 } }, q.risk),
+                    h('span', { style: { opacity: 0.9, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, q.campaign + ' · ' + q.kind + (q.summary ? ' — ' + q.summary : '')),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        disabled: box.busy === q.campaign + ':decide',
+                        onClick: function () {
+                          act(q.campaign, 'decide', 'approve', q.id)
+                        },
+                        style: { font: 'inherit', fontSize: 11, padding: '1px 7px', borderRadius: 6, cursor: 'pointer' },
+                      },
+                      'approve',
+                    ),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        disabled: box.busy === q.campaign + ':decide',
+                        onClick: function () {
+                          act(q.campaign, 'decide', 'reject', q.id)
+                        },
+                        style: { font: 'inherit', fontSize: 11, padding: '1px 7px', borderRadius: 6, cursor: 'pointer' },
+                      },
+                      'reject',
+                    ),
+                  )
+                }),
+              )
+
+        var treeBlock =
+          tree.kinds.length === 0
+            ? null
+            : h(
+                'div',
+                { style: { padding: '0 12px 10px' } },
+                h(
+                  'div',
+                  { style: { fontSize: 11, fontWeight: 600, opacity: 0.7, marginBottom: 4 } },
+                  'KNOWLEDGE ' + tree.active + ' active' + (tree.quarantined ? ' · ' + tree.quarantined + ' quarantined' : ''),
+                ),
+                tree.kinds.map(function (g) {
+                  return h(
+                    'div',
+                    { key: g.kind, style: { fontSize: 11, marginBottom: 4 } },
+                    h('div', { style: { opacity: 0.75 } }, g.kind + ' · ' + g.total),
+                    g.items.map(function (item) {
+                      return h(
+                        'div',
+                        { key: item.campaign + ':' + item.id, style: { opacity: 0.85, paddingLeft: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                        (item.score > 0 ? '+' : '') + item.score + ' ' + text(item.claim, item.id),
+                      )
+                    }),
+                  )
+                }),
+              )
+
         var body
         if (box.loading) {
           body = h('div', { style: { padding: '6px 14px 14px', opacity: 0.6, fontSize: 12 } }, 'loading…')
@@ -185,7 +389,7 @@ window.__ModuleLoader__.load({
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8, padding: '0 12px 12px' } },
             data.campaigns.map(function (c) {
-              return h(Card, { key: c.id, c: c, live: data.live, busy: box.busy, act: act })
+              return h(CardView, { key: c.id, c: c, live: data.live, busy: box.busy, act: act })
             }),
           )
         }
@@ -199,7 +403,16 @@ window.__ModuleLoader__.load({
           data && data.lean ? ' · lean ' + (data.lean.available ? 'available' : 'missing') : '',
         )
 
-        return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0 } }, header, body, footer)
+        // The header and the strip stay put; only the middle scrolls, so the
+        // loop switch and the totals never scroll out of reach.
+        return h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+          header,
+          strip,
+          h('div', { style: { flex: '1 1 auto', overflowY: 'auto', minHeight: 0 } }, pendingBlock, body, treeBlock),
+          footer,
+        )
       }
     }
 
@@ -332,6 +545,21 @@ window.__ModuleLoader__.load({
           ),
           h('div', { style: { opacity: 0.6, fontSize: 11 } }, meta.join(' · ')),
           when(
+            c.chain && c.chain.nodes && c.chain.nodes.length,
+            h(
+              'div',
+              { style: { fontSize: 10, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+              'chain v' +
+                text(String(c.chain.version), '?') +
+                ': ' +
+                c.chain.nodes
+                  .map(function (n) {
+                    return n.name ? n.type + '/' + n.name : n.type
+                  })
+                  .join(' → '),
+            ),
+          ),
+          when(
             c.quality,
             h(
               'div',
@@ -400,8 +628,11 @@ window.__ModuleLoader__.load({
         console.error('[loom] panel skipped: ' + error)
         return
       }
-      var PanelView = Panel(react)
+      // Card must be closed over by Panel: passing the factory itself is how
+      // the sidebar used to render a header and nothing else (React refuses a
+      // component that returns a function).
       var CardView = Card(react)
+      var PanelView = Panel(react, CardView)
 
       if (typeof ctx.inject !== 'function') return
       ctx.inject(['slots'], function (scope) {
@@ -434,7 +665,7 @@ window.__ModuleLoader__.load({
     exports.apply = apply
     // `slots` is optional: the host may run headless, where nothing registers.
     exports.inject = []
-    exports.__panel = { money: money, age: age, statusTone: statusTone, text: text, Panel: Panel, Card: Card }
+    exports.__panel = { money: money, age: age, statusTone: statusTone, text: text, Panel: Panel, Card: Card, overview: overview, pending: pending, knowledge: knowledge }
     return module.exports
   },
 })

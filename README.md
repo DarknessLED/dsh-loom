@@ -118,6 +118,18 @@ rsi_control(action:"enable")                        # 下次 tick 继续，从�
 
 多开窗口是安全的：每个窗口都注册了全部工具，但只有心跳最新的那个窗口会真正派发回合；旧窗口自动降级为只读观察（工具仍可读，改状态时会提示「another dsh-loom window is driving the loop」）。
 
+面板从上到下是四块，顺序按「谁需要你」排：
+
+| 区块 | 内容 |
+| --- | --- |
+| 顶栏 | `loop on / loop off` 开关、`refresh` |
+| 概览条 | 战役数 / 运行中 / 总轮数 / 花费 / 待处理数 / 知识条数 |
+| 待你处理 | **跨战役**汇总的开放检查点，按风险排序（`high` 红、`normal` 黄），每行可直接 approve / reject |
+| 战役卡 | 每张卡：状态、目标、轮数/花费/链版本/最佳分/知识条数/holdout、**证据质量**（healthy / stalled / regressing、晋升率、平均每轮秒数）、`chain v1: agent → map → verifier → human`、上一轮各候选的分数与状态、该战役的检查点与 pause/resume/stop |
+| 知识 | 按 `fact / hazard / recipe` 分组的活跃知识，按累计收益排序，显示 claim 与收益值；隔离条数单列 |
+
+只有中间那栏滚动，开关与概览永远在视野里。数据全部来自同一条 `GET /dsh-loom/state`，与 `rsi_dashboard` / `rsi_report` 同源（面板不读战役文件，也不自己派发回合）。
+
 ### Lean 4
 
 本机已装 Lean 4.35.0（elan 在 `~/.elan`，toolchain 在 `~/.elan/toolchains/leanprover--lean4---v4.35.0`）。用 `rsi_lean(action:"probe")` 确认。

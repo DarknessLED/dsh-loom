@@ -1,6 +1,7 @@
 import { svc } from '../core/services.js'
 import { campaignQuality } from '../runtime/quality.js'
 import { reviewQueue } from '../runtime/review.js'
+import { activeChain } from '../runtime/round.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -47,6 +48,22 @@ function campaignRow(view, now, campaignId) {
     .slice(0, 3)
   const rounds = Array.isArray(s.rounds) ? s.rounds : []
   const last = rounds[rounds.length - 1] || null
+  // The active chain is the "how" of the campaign, and it is a tree a reader
+  // can check at a glance. It is read defensively: a campaign whose chain was
+  // never activated is still a campaign worth showing.
+  let chain = null
+  try {
+    const spec = activeChain(s)
+    const nodes = Array.isArray(spec?.nodes) ? spec.nodes : []
+    chain = {
+      version: s.chain?.activeVersion ?? null,
+      name: spec?.name ?? null,
+      nodes: nodes.map((n) => ({ type: n?.type ?? 'agent', name: n?.name ?? null })),
+      count: nodes.length,
+    }
+  } catch {
+    chain = null
+  }
   const attempts = last
     ? (last.attempts || []).map((a) => ({
         id: a.id,
@@ -68,6 +85,7 @@ function campaignRow(view, now, campaignId) {
     spendUsd: Math.round((s.budget?.spentUsd ?? 0) * 1e6) / 1e6,
     budget: s.budget ?? null,
     chainVersion: s.chain?.activeVersion ?? null,
+    chain,
     incumbent: s.incumbent
       ? { round: s.incumbent.round ?? null, score: s.incumbent.score ?? null }
       : null,
