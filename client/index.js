@@ -229,6 +229,8 @@ window.__ModuleLoader__.load({
       '.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-node .acts{flex:0 0 auto;display:flex;gap:2px}',
       '.loom-node .acts .loom-btn{font-size:10.5px;padding:2px 5px}',
+      // 检查点解释换行显示：读者不必 hover 才知道这一行是什么、不管会怎样。
+      '.loom-node .help{flex:1 0 100%;font-size:10px;line-height:1.45;color:var(--loom-faint);white-space:normal}',
       // checkpoint block: a hairline ledger entry inside the tree
       '.loom-cp{margin:0;padding:5px 0 6px}',
       '.loom-cp-head{display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;',
@@ -355,6 +357,61 @@ window.__ModuleLoader__.load({
     }
     function checkpointLabel(v) {
       return CP_ZH[v] || v || ''
+    }
+
+    // 每种检查点的说明：发生了什么，以及放着不管要付什么代价。
+    // 标签只是名字，读者还得知道「门不可达」意味着什么、不点会不会自己好。
+    // 键集合与 CP_ZH 一致；未知类型也要说明自己未知，而不是渲染成空白。
+    var CP_HELP = {
+      gate: {
+        what: '有一轮改动通过了验收，正等一次人工点头才会落地成提交。',
+        ifIgnored: '这一轮会一直停在待审状态，晋升不会落地，战役也不会继续往下跑。',
+      },
+      anomaly: {
+        what: '循环在账本里发现了前后矛盾的记录，例如记了落地却没有对应的提交。',
+        ifIgnored: '矛盾不会被自动修复，之后的轮次会继续基于错误的账本累积。',
+      },
+      plateau: {
+        what: '连续多轮没有出现晋升，循环怀疑这条链已经不再带来增益。',
+        ifIgnored: '循环会按原策略继续空转，继续消耗预算却不改变结论。',
+      },
+      holdout: {
+        what: '留出集上的分数出现回退，晋升门因此把这一轮的候选挡了下来。',
+        ifIgnored: '回退不会自己消失，后续候选会继续在留出集上失分。',
+      },
+      stuck: {
+        what: '工作树里的验收门始终不可达，候选跑完了也拿不到一个裁决。',
+        ifIgnored: '同一道门会一轮轮重试，每轮都烧掉一次完整的候选成本。',
+      },
+      exhausted: {
+        what: '链里所有模型的预算都已耗尽，这一轮根本没跑起来。',
+        ifIgnored: '循环会反复重试同样的模型，继续失败却不产生任何新证据。',
+      },
+      budget: {
+        what: '这一轮的预计花费会越过战役设定的美元或轮次上限。',
+        ifIgnored: '预算会被悄悄超支，或者轮次在你还想要结果时就被截断。',
+      },
+      human: {
+        what: '这是一个需要人给方向的确认点，循环自己无法决定下一步。',
+        ifIgnored: '循环会停在原地等待，不产生新的轮次，也不会自动越过这个决定。',
+      },
+    }
+
+    /** 某类检查点的解释；未知类型如实说自己未知，并带上类型名。 */
+    function checkpointHelp(kind) {
+      var known = CP_HELP[kind]
+      if (known) return { what: known.what, ifIgnored: known.ifIgnored }
+      var label = kind === undefined || kind === null || kind === '' ? '(未命名)' : String(kind)
+      return {
+        what: '未知的检查点类型「' + label + '」，面板还没有为它写过说明。',
+        ifIgnored: '不知道它意味着什么，也就无法判断放着不管要付什么代价；请先看事件日志里这一条的原始数据。',
+      }
+    }
+
+    /** 一行里同时给出「是什么」和「不管会怎样」。 */
+    function checkpointHelpText(kind) {
+      var help = checkpointHelp(kind)
+      return help.what + ' 若忽略：' + help.ifIgnored
     }
     function nodeLabel(v) {
       return NODE_ZH[v] || v || ''
@@ -942,6 +999,7 @@ window.__ModuleLoader__.load({
             kind: checkpointLabel(cp.kind),
             label: cp.id,
             meta: detail.join(' · '),
+            help: checkpointHelpText(cp.kind),
             mono: true,
             actions: [
               { label: '批准', title: '接受这个检查点，让这一轮落地', action: 'decide', decision: 'approve', checkpoint: cp.id },
@@ -1012,6 +1070,7 @@ window.__ModuleLoader__.load({
           label: node.label,
           kind: node.kind || '',
           meta: node.meta || '',
+          help: node.help || '',
           tone: node.tone || '',
           mono: node.mono === true,
           actions: node.actions || [],
@@ -1567,6 +1626,9 @@ window.__ModuleLoader__.load({
           if (row.kind) parts.push(h('span', { className: 'k', key: 'k' }, row.kind))
           parts.push(h('span', { className: 't' + (row.mono ? ' mono' : ''), key: 't', title: row.label }, row.label))
           if (row.meta) parts.push(h('span', { className: 'v', key: 'v' }, row.meta))
+          // The explanation wraps onto its own line: the row says what the
+          // checkpoint is and what ignoring it costs without a hover.
+          if (row.help) parts.push(h('span', { className: 'help', key: 'h' }, row.help))
           if (row.actions && row.actions.length) {
             parts.push(
               h(
@@ -1762,6 +1824,8 @@ window.__ModuleLoader__.load({
       qualityLabel: qualityLabel,
       kindLabel: kindLabel,
       checkpointLabel: checkpointLabel,
+      checkpointHelp: checkpointHelp,
+      checkpointHelpText: checkpointHelpText,
       openCount: openCount,
       nodeLabel: nodeLabel,
       riskLabel: riskLabel,

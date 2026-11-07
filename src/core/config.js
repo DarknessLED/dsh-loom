@@ -88,8 +88,14 @@ export const DEFAULT_CONFIG = {
     compiler: 'lake',
     timeoutMs: 120_000,
   },
-  /** L2 policy evaluation defaults. */
-  loopPolicy: { replayOnly: true, humanGate: true },
+  /**
+   * L2 policy evaluation defaults. `autoCandidateMode` is opt-in: when true,
+   * a round may infer `cascade` from the campaign's own history instead of
+   * sampling in parallel. The default stays false, so a campaign that does not
+   * ask for it keeps the historical parallel behaviour. An explicit
+   * `candidateMode` always outranks the inference.
+   */
+  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }

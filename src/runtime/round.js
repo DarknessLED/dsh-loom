@@ -22,6 +22,7 @@ import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
+import { adaptiveCandidateMode } from './candidates.js'
 import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
@@ -578,7 +579,25 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // to improve. Read from the config directly, not from `effectivePolicy`:
   // policy normalization is a whitelist and would silently drop the mode. The
   // default stays `parallel`, so every existing campaign is unchanged.
-  const candidateMode = config.loopPolicy?.candidateMode === 'cascade' ? 'cascade' : 'parallel'
+  //
+  // Three sources, in order: an explicit setting always wins; otherwise a
+  // campaign may opt into reading its own record (`autoCandidateMode`), which
+  // only infers `cascade` when its recent rounds show a second opinion never
+  // mattered; otherwise `parallel`. The source travels on `round.finished` so an
+  // inferred mode is never passed off as something the operator configured.
+  const configuredMode = config.loopPolicy?.candidateMode
+  const candidateModeSource =
+    configuredMode === 'cascade' || configuredMode === 'parallel'
+      ? 'config'
+      : config.loopPolicy?.autoCandidateMode === true
+        ? 'auto'
+        : 'default'
+  const candidateMode =
+    candidateModeSource === 'config'
+      ? configuredMode
+      : candidateModeSource === 'auto'
+        ? adaptiveCandidateMode(state.rounds)
+        : 'parallel'
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).
   const exposed = exposeIndexes(candidates, n)
@@ -619,7 +638,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   let best = null
   // Recorded on `round.finished` so a cheaper round says what it did not buy.
   let skippedCandidates = 0
-  const modeRecord = () => ({ candidateMode, candidatesPlanned: candidates, skippedCandidates })
+  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
