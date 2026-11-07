@@ -99,6 +99,13 @@ export function campaignTriangle(rounds) {
   // Planning: a campaign whose rounds never reported `planMs` has not measured
   // it (null); a campaign that reported zero planned nothing (0 is a fact).
   const planningMs = planned > 0 ? planMs : null
+  // `parallelFactor` folds planning into the serial denominator, so a round that
+  // planned for a third of its wall time reads as less parallel than its attempt
+  // phase actually was. `planAwareFactor` credits candidates only against the
+  // window planning left them. Without a planning measurement there is no window
+  // to subtract and the plain factor is the honest answer; when planning consumed
+  // the whole round the ratio has no denominator and stays null, not Infinity.
+  const parallelFactor = ratio(attemptMs, durationMs)
   return {
     rounds: finished,
     timedRounds: timed,
@@ -108,7 +115,8 @@ export function campaignTriangle(rounds) {
     attemptMs,
     verifierMs,
     secondsPerRound: timed > 0 ? durationMs / timed / 1000 : null,
-    parallelFactor: ratio(attemptMs, durationMs),
+    parallelFactor,
+    planAwareFactor: planningMs === null ? parallelFactor : ratio(attemptMs, durationMs - planningMs),
     verifierShare: ratio(verifierMs, durationMs),
     planShare: planningMs === null ? null : ratio(planningMs, durationMs),
     // quality

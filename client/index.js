@@ -41,6 +41,16 @@ window.__ModuleLoader__.load({
     var STYLE_ID = 'dsh-loom-style'
     var COLLAPSE_KEY = 'dsh-loom-collapsed'
 
+    // Tones are names, never values: every tone resolves through the custom
+    // property the stylesheet already declares, so a palette change is one edit
+    // and the screen cannot disagree with the stylesheet.
+    var TONES = {
+      ok: 'var(--loom-ok)',
+      warn: 'var(--loom-warn)',
+      bad: 'var(--loom-bad)',
+      idle: 'var(--loom-idle)',
+    }
+
     // The reference's tokens, expressed as one stylesheet rather than inline
     // objects: hover, focus and transition states are half of a design system
     // and inline styles cannot express them.
@@ -302,17 +312,17 @@ window.__ModuleLoader__.load({
     }
 
     function statusTone(status) {
-      if (status === 'running') return '#3d8a58'
-      if (status === 'paused') return '#8f7a33'
-      if (status === 'failed' || status === 'error') return '#c05a4a'
-      return '#7a7f87'
+      if (status === 'running') return TONES.ok
+      if (status === 'paused') return TONES.warn
+      if (status === 'failed' || status === 'error') return TONES.bad
+      return TONES.idle
     }
 
     function qualityTone(verdict) {
-      if (verdict === 'healthy') return '#3d8a58'
-      if (verdict === 'stalled') return '#8f7a33'
-      if (verdict === 'regressing') return '#c05a4a'
-      return '#7a7f87'
+      if (verdict === 'healthy') return TONES.ok
+      if (verdict === 'stalled') return TONES.warn
+      if (verdict === 'regressing') return TONES.bad
+      return TONES.idle
     }
 
     // ---- 词表 ---------------------------------------------------------------
@@ -794,9 +804,9 @@ window.__ModuleLoader__.load({
     }
 
     function riskTone(risk) {
-      if (risk === 'high') return '#c05a4a'
-      if (risk === 'low') return '#7a7f87'
-      return '#8f7a33'
+      if (risk === 'high') return TONES.bad
+      if (risk === 'low') return TONES.idle
+      return TONES.warn
     }
 
     // ---- the tree ----------------------------------------------------------
@@ -831,7 +841,7 @@ window.__ModuleLoader__.load({
           key: 'a-' + a.id,
           label: String(a.id),
           meta: score + (notes.length ? ' · ' + notes.join(' · ') : ''),
-          tone: a.verifierOk ? '#3d8a58' : '#c05a4a',
+          tone: a.verifierOk ? TONES.ok : TONES.bad,
           mono: true,
         }
       })
@@ -839,7 +849,7 @@ window.__ModuleLoader__.load({
         key: 'round',
         label: '第 ' + lr.n + ' 轮',
         meta: [roundStatusLabel(lr), lr.score === null || lr.score === undefined ? '' : String(lr.score)].filter(Boolean).join(' · '),
-        tone: lr.promoted ? '#3d8a58' : '#8f7a33',
+        tone: lr.promoted ? TONES.ok : TONES.warn,
         children: kids,
       }
     }
@@ -851,7 +861,7 @@ window.__ModuleLoader__.load({
         key: 'wait',
         label: '待审',
         meta: String(cps.length),
-        tone: '#8f7a33',
+        tone: TONES.warn,
         children: cps.map(function (cp) {
           var payload = cp.payload || {}
           var detail = []
@@ -880,10 +890,10 @@ window.__ModuleLoader__.load({
         key: 'live',
         label: '进行中',
         meta: String(live.length),
-        tone: '#3d8a58',
+        tone: TONES.ok,
         children: live.map(function (a) {
           var idle = typeof a.idleMs === 'number' ? ' · 静默 ' + Math.round(a.idleMs / 1000) + ' 秒' : ''
-          return { key: 'live-' + a.attemptId, label: String(a.attemptId), meta: '运行中' + idle, mono: true, tone: '#3d8a58' }
+          return { key: 'live-' + a.attemptId, label: String(a.attemptId), meta: '运行中' + idle, mono: true, tone: TONES.ok }
         }),
       }
     }
@@ -1239,7 +1249,7 @@ window.__ModuleLoader__.load({
                           h('span', { className: 'claim' }, text(item.claim, item.id)),
                           h(
                             'span',
-                            { className: 'score', style: { color: item.score > 0 ? '#3d8a58' : item.score < 0 ? '#c05a4a' : undefined } },
+                            { className: 'score', style: { color: item.score > 0 ? TONES.ok : item.score < 0 ? TONES.bad : undefined } },
                             (item.score > 0 ? '+' : '') + item.score,
                           ),
                         )
@@ -1617,6 +1627,7 @@ window.__ModuleLoader__.load({
     // `slots` is optional: the host may run headless, where nothing registers.
     exports.inject = []
     exports.__panel = {
+      TONES: TONES,
       money: money,
       age: age,
       statusTone: statusTone,
