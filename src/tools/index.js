@@ -722,8 +722,11 @@ export function registerTools(ctx, { runtime, config }) {
     isConcurrencySafe: () => true,
     timeoutMs: 10_000,
     async execute() {
+      const sw = runtime.switchState()
       const ids = runtime.listCampaigns()
-      if (!ids.length) return { campaigns: [], text: 'No RSI campaigns yet. rsi_start(objective, workspace) to begin.' }
+      if (!ids.length) {
+        return { campaigns: [], rsi: { enabled: sw.enabled, at: sw.at, by: sw.by }, text: 'No RSI campaigns yet. rsi_start(objective, workspace) to begin.' }
+      }
       const live = runtime.liveAttempts()
       const rows = []
       for (const id of ids) {
@@ -750,7 +753,10 @@ export function registerTools(ctx, { runtime, config }) {
         )
       }
       if (live.length) lines.push('', `live attempts: ${live.map((a) => `${a.attemptId} (idle ${Math.round(a.idleMs / 1000)}s)`).join(', ')}`)
-      return { campaigns: rows, live, text: lines.join(String.fromCharCode(10)) }
+      // The switch is the first thing a reader needs: "nothing is moving" has two
+      // very different causes (no running campaign, or the loop is off by hand).
+      const head = sw.enabled ? 'loop: on' : `loop: OFF (by ${sw.by}${sw.at ? ` at ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')}` : ''}) — nothing is dispatched`
+      return { campaigns: rows, live, rsi: { enabled: sw.enabled, at: sw.at, by: sw.by }, text: [head, ...lines].join(String.fromCharCode(10)) }
     },
   })
 
