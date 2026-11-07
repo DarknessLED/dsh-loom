@@ -61,6 +61,9 @@ const standing = [
   // the queue tells you how long it has waited, and a hit is reachable by keyboard
   'tests/ui/pending-queue.test.mjs',
   'tests/ui/keyboard-hit.test.mjs',
+  // a checkpoint row says what happened and what ignoring it costs, in its
+  // own line and in the row's title, not only on hover
+  'tests/ui/checkpoint-help.test.mjs',
   // the queue says how many are waiting and where each risk came from, and a
   // sparkline tells an unscored round apart from one that scored zero
   'tests/ui/queue-total.test.mjs',

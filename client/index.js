@@ -533,6 +533,9 @@ window.__ModuleLoader__.load({
             // nobody has looked yet.
             riskSource: review ? 'review' : 'default',
             summary: review ? review.summary : '',
+            // The queue is often the only place a checkpoint is read, so the
+            // row carries the same explanation the campaign tree shows.
+            help: checkpointHelpText(cp.kind),
             waitMs: at === null ? null : Math.max(0, now - at),
             actions: verbs,
           })
@@ -1330,6 +1333,10 @@ window.__ModuleLoader__.load({
                   var busyKey = q.campaign + ':decide'
                   var armed = confirming === key
                   var assessed = q.riskSource === 'review'
+                  var why = assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险'
+                  // What happened and what ignoring it costs, in the tooltip:
+                  // the queue row is too narrow to wrap the whole explanation.
+                  var rowTitle = q.help ? why + ' · ' + q.help : why
                   return h(
                     'div',
                     { key: key, className: 'loom-row' },
@@ -1342,7 +1349,7 @@ window.__ModuleLoader__.load({
                     }),
                     h(
                       'span',
-                      { className: 'txt', title: assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险' },
+                      { className: 'txt', title: rowTitle },
                       h('b', null, q.campaign),
                       ' · ' + checkpointLabel(q.kind) + (q.summary ? ' — ' + q.summary : ''),
                       assessed
@@ -1624,7 +1631,7 @@ window.__ModuleLoader__.load({
           // column is noise, four is a legend.
           if (row.tone && row.depth === 1) parts.push(h('span', { className: 'loom-dot', key: 'd', style: { color: row.tone, marginRight: 2 } }))
           if (row.kind) parts.push(h('span', { className: 'k', key: 'k' }, row.kind))
-          parts.push(h('span', { className: 't' + (row.mono ? ' mono' : ''), key: 't', title: row.label }, row.label))
+          parts.push(h('span', { className: 't' + (row.mono ? ' mono' : ''), key: 't', title: row.help || row.label }, row.label))
           if (row.meta) parts.push(h('span', { className: 'v', key: 'v' }, row.meta))
           // The explanation wraps onto its own line: the row says what the
           // checkpoint is and what ignoring it costs without a hover.
