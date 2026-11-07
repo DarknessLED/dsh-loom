@@ -41,14 +41,14 @@ assert.equal(state.campaigns[0].id, 'good')
 assert.equal(state.campaigns[0].status, 'running', 'the healthy campaign is unaffected')
 assert.equal(state.campaigns[1].id, 'broken')
 assert.equal(typeof state.campaigns[1].error, 'string', 'the broken campaign carries its error')
-done(1, 'a broken campaign degrades to a row, not a 500')
+ok('a broken campaign degrades to a row, not a 500')
 
 assert.deepEqual(state.live, [], 'a throwing live-attempt read degrades to an empty list')
-done(2, 'live attempts degrade to empty')
+ok('live attempts degrade to empty')
 
 assert.equal(state.ownership.mine, true, 'an unreadable lock does not disable the panel')
 assert.equal(state.lean, null, 'an exploding lean probe degrades to null')
-done(3, 'ownership and lean degrade without throwing')
+ok('ownership and lean degrade without throwing')
 
 // The caller asked for a specific campaign: a broken one must still answer with
 // its error, never by silently dropping the row.
@@ -57,6 +57,6 @@ const broken = panelState({ runtime: onlyBroken })
 assert.equal(broken.campaigns.length, 1)
 assert.equal(broken.campaigns[0].id, 'broken')
 assert.equal(typeof broken.campaigns[0].error, 'string')
-done(4, 'a lone broken campaign is reported, not hidden')
+ok('a lone broken campaign is reported, not hidden')
 
 done()

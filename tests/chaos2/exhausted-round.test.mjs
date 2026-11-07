@@ -38,18 +38,13 @@ const exhausted = async () => ({
 const runtime = fakeRuntime(dir, ws)
 const config = baseConfig()
 
-let result = null
-try {
-  result = await runRound({
-    runtime,
-    view,
-    config,
-    dispatcher: { run: exhausted },
-    log: () => {},
-  })
-} finally {
-  /* nothing to clean up */
-}
+const result = await runRound({
+  runtime,
+  view,
+  config,
+  dispatcher: { run: exhausted },
+  log: () => {},
+})
 
 const appended = runtime.events.map((e) => e.type)
 assert.equal(appended.includes('round.finished'), true, 'the round still closes')
@@ -61,14 +56,14 @@ assert.equal(finished.data.promoted, false, 'an exhausted round never promotes')
 const attempt = view.state.rounds.at(-1)?.attempts?.[0] ?? null
 assert.equal(attempt?.failureKind, 'exhausted', 'the attempt records why it could not run')
 assert.deepEqual(attempt?.modelsTried, ['model-a', 'model-b'], 'the attempt records every model spent')
-done(1, 'an exhausted round closes as exhausted and records the models spent')
+ok('an exhausted round closes as exhausted and records the models spent')
 
 const raised = runtime.events.filter((e) => e.type === 'checkpoint.raised')
 assert.equal(raised.length, 1, 'exhaustion raises exactly one checkpoint')
 assert.equal(raised[0].data.kind, 'exhausted', 'the checkpoint names exhaustion as the reason')
-done(2, 'exhaustion asks a human instead of looping silently')
+ok('exhaustion asks a human instead of looping silently')
 
 assert.equal(result?.status, 'exhausted', 'the caller learns the round was exhausted')
-done(3, 'the round result reports exhaustion')
+ok('the round result reports exhaustion')
 
 done()
