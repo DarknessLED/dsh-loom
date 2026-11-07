@@ -30,6 +30,10 @@ const standing = [
   // the loop must not be able to un-solve a task it already solved.
   'tests/self11/spend-estimate.test.mjs',
   'tests/self11/docs-coverage.test.mjs',
+  // the chain got cheaper and the loop has to stay that way: no second candidate
+  // once the first one solves the task, and planning counted as its own leg.
+  'tests/tri3/cascade.test.mjs',
+  'tests/tri3/plan-share.test.mjs',
   // the adversarial specs the loop solved are pins too: an unreachable gate or a
   // panel that 500s must not come back.
   'tests/chaos2/panel-degrade.test.mjs',
