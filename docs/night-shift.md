@@ -46,7 +46,8 @@ rsi_control { action: 'start' }
 | self10 | 2 | done | 质量指标 `campaignQuality`（healthy/stalled/regressing） |
 | self11 | 2 | done | 无 token 计量时的估算口径、文档覆盖检查 |
 | self12 | 2 | done | 可导出 `loom.bundle/1`、待审队列按风险排序 |
-| self13 | — | 跑 | 摘要 digest、面板暴露待审项 |
+| self13 | 2 | done | 摘要 digest、面板暴露待审项 |
+| self14 | — | 跑 | 候选真正的并发派发（见下「没做到的」） |
 
 ## 夜里的六个人类修（循环自己没修，因为我看到的是「证据语义」问题）
 
