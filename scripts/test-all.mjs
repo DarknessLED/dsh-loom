@@ -35,6 +35,8 @@ const standing = [
   'tests/chaos2/panel-degrade.test.mjs',
   'tests/chaos2/exhausted-round.test.mjs',
   'tests/chaos3/stuck-gate.test.mjs',
+  // recovery is idempotent: running it twice must repair once and then do nothing
+  'tests/chaos2/recover-idempotent.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

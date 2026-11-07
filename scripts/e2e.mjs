@@ -212,8 +212,12 @@ const dispatcher3 = {
 }
 await runRound({ runtime, view: view3, config, dispatcher: dispatcher3, log: (...a) => console.log('[round3]', ...a) })
 const gate3 = view3.ledger.all().filter((e) => e.type === 'gate.evaluated').slice(-1)[0]?.data
-check('a strict promoted policy blocks the promotion', gate3?.promoted === false, JSON.stringify(gate3?.checks))
-check('the blocked reason is the gain bar', gate3?.checks?.beatsIncumbent === false)
+// Evidence is per task: an incumbent measured on another task must never block a
+// task's first verified result (before 2026-11-07, the first task to reach 1.0
+// froze every other task at "no-gain"). The bar still applies within one task,
+// which tests/gate.test.mjs and tests/taskbest.test.mjs pin directly.
+check('a strict policy still lets a fresh task land on evidence', gate3?.promoted === true && gate3?.checks?.beatsIncumbent === true, JSON.stringify(gate3?.checks))
+check('the promoted strict bar is the one in force', effectivePolicy({ state: view3.state, config }).minGain === 0.99)
 
 
 // ------------------------------------------------- M4: no Lean, no wasted round

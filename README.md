@@ -175,6 +175,7 @@ research/             三份调研报告（DSH 插件 API / Gear / Open Dream-RS
 | 模型额度用尽 | 首个模型报 `context length exceeded`、`max-tokens`、quota | 按 `models.fallback` 换下一个模型并记录 `modelSwitch`；全部用尽 → `failureKind="exhausted"`，回合记 `exhausted` 并挂检查点，不再把空转伪装成 no-gain |
 | 上下文压缩失败 | `compaction failed: prompt is too long` | 丢 notes/lessons/plan，用约一半长度的简报**只重试一次**，记 `retried:"smaller-brief"`；再失败即 `context`，不晋升 |
 | 历史漂移 | 重复 seq、乱序行、torn 尾行、双写者 | `Ledger` 排序去重（同 seq 先到先得）、丢 torn 行、从磁盘最大 seq 继续；`appendJsonl` 先补换行，避免坏尾行吞掉新记录 |
+| 视图漂移 | `views/state.json` 被删、写一半、或声称「已 done / 已 landed」 | 视图只是缓存：`runtime.open()` 永远从事件日志 reduce，坏缓存不解析、旧缓存赢不了日志（假 `done`、假 `landed`、假 incumbent 都推翻）；`flush()` 用日志的结果重建文件 |
 | 重启恢复（含「假恢复」） | 账本有 `autopilot.applied{committed:false}` + 脏工作区 + 活租约 | `recovery.js` 判定「未证明的落地」→ `round.unlanded`（任务重新变回未解决）+ 只清理补丁自己新建的文件、`git checkout --` 恢复被改的已跟踪文件；**没有未提交证据时不动用户自己的脏工作区**；连跑两次第二次零写入（幂等） |
 | 门根本不可达（任务写坏了） | 连续三轮「补丁在变、验证器 stderr 一模一样」（`tests/chaos3`） | `attempt.finished.verifySignature`（exit code + stderr 尾部 20 行的 sha1 前 12 位）；同一任务连续 3 轮签名相同 → 挂**一个** `checkpoint{kind:"stuck"}` 并继续跑，不把预算烧在不可能完成的任务上；签名在变（真的在推进）不报 |
 
