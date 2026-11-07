@@ -75,6 +75,10 @@ const standing = [
   // the holdout gate is timed instead of being charged to the candidates
   'tests/tri6/attempt-window.test.mjs',
   'tests/tri6/holdout-split.test.mjs',
+  // the campaign reads its own record to decide whether a second opinion pays,
+  // and every checkpoint explains itself
+  'tests/tri7/adaptive-cascade.test.mjs',
+  'tests/ui/checkpoint-help.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
