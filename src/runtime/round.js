@@ -742,6 +742,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               patchFile: patch?.path ?? null,
               keySuffix: `${acceptanceSpec.cmd}\n${acceptanceSpec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
               cwd: verifierCwd,
+              base,
               run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs, env: verifierEnv }),
             })
           : {

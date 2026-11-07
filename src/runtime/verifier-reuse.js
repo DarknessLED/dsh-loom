@@ -71,18 +71,23 @@ function stored(verdict) {
 }
 
 /**
- * Run the verifier once per (patch, command) pair, or reuse the verdict an
- * earlier candidate in this campaign already paid for.
+ * Run the verifier once per (patch, command, base commit) triple, or reuse the
+ * verdict an earlier candidate in this campaign already paid for. The base
+ * commit is part of the key because a verdict is evidence about a patch *on a
+ * tree*: the same bytes rebased onto another commit have to be measured again.
+ * An absent base is its own key (`null`), so it neither inherits a scoped
+ * verdict nor is inherited by one.
  *
  * @param {object} opts
  * @param {string} opts.dir campaign directory (where the cache lives)
  * @param {string} opts.patchFile path to the candidate's patch file
  * @param {string} opts.keySuffix stable description of the verifier command
  * @param {string} opts.cwd resolved working directory for this candidate
+ * @param {string|null} [opts.base] commit the candidate's worktree was based on
  * @param {() => Promise<object>} opts.run spawns the verifier
  * @returns {Promise<{verdict: object, reused: boolean}>}
  */
-export async function verifyOnce({ dir, patchFile, keySuffix, cwd, run }) {
+export async function verifyOnce({ dir, patchFile, keySuffix, cwd, base = null, run }) {
   let bytes = null
   try {
     bytes = readFileSync(patchFile)
@@ -94,7 +99,7 @@ export async function verifyOnce({ dir, patchFile, keySuffix, cwd, run }) {
   // inherit. Keep the verifier per candidate in that case.
   if (!bytes || bytes.toString('utf8').trim() === '') return { verdict: await run(), reused: false }
 
-  const key = sha1(`${sha1(bytes)}\n${keySuffix ?? ''}`)
+  const key = sha1(JSON.stringify([sha1(bytes), keySuffix ?? '', base ?? null]))
   const cache = readCache(dir)
   if (usable(cache[key])) {
     return { verdict: inherited(cache[key], cwd), reused: true }
