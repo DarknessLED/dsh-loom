@@ -62,7 +62,17 @@ RSI 想要的是另一种形态：
 
 ## 3. 安装
 
-已经装进当前 profile（`desktop`）：
+**从插件市场装**（收录后）：设置 → 插件 → 插件市场里搜 `dsh-loom`，一键安装。目录条目是 [`data/plugins/DarknessLED__dsh-loom.yml`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/data/plugins/DarknessLED__dsh-loom.yml)。
+
+**从 GitHub 装**（现在就能用）：
+
+```
+dsh plugin --profile desktop add DarknessLED/dsh-loom
+```
+
+或者手工把 `dsh-loom` 加进 profile 的 `dsh.profile.bundles`。仓库根有 `cordis.patch.yml`，`dsh plugin add` 认这个 bundle manifest。
+
+已经装进当前开发机的 profile（`desktop`）：
 
 - `C:\Users\Darkness\.dsh\profiles\desktop\package.json`：`dependencies["dsh-loom"] = "file:C:/Projects/RSI"`，`dsh.profile.bundles` 追加 `dsh-loom`
 - `node_modules\dsh-loom` → 指向 `C:\Projects\RSI` 的目录联接
