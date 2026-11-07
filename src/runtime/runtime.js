@@ -11,7 +11,8 @@ import { pickTask } from './selector.js'
 import { flushDeferred, notifyCheckpoint } from './notify.js'
 import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
-import { reconcileLeases, sweepLeases } from './lease.js'
+import { sweepLeases } from './lease.js'
+import { planRecovery, repairWorkspace } from './recovery.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 
@@ -339,7 +340,7 @@ export class Runtime {
    * Write both down as abandoned so the campaign does not stall forever.
    */
   recover() {
-    const report = { abandonedAttempts: [], interruptedRounds: [] }
+    const report = { abandonedAttempts: [], interruptedRounds: [], unlanded: [], workspaces: [] }
     for (const id of this.listCampaigns()) {
       let view
       try {
@@ -348,13 +349,14 @@ export class Runtime {
         this.log(`recover: cannot open ${id}:`, err?.message ?? err)
         continue
       }
-      let stale = []
+      let plan
       try {
-        stale = reconcileLeases(view.dir)
+        plan = planRecovery({ dir: view.dir, events: view.ledger.all(), state: view.state })
       } catch (err) {
-        this.log(`recover: lease scan failed for ${id}:`, err?.message ?? err)
+        this.log(`recover: plan failed for ${id}:`, err?.message ?? err)
+        continue
       }
-      for (const lease of stale) {
+      for (const lease of plan.staleLeases) {
         try {
           this.append(view, 'attempt.abandoned', { id: lease.attemptId, round: lease.round, reason: 'host-restart' }, 'system')
           report.abandonedAttempts.push(`${id}/${lease.attemptId}`)
@@ -362,8 +364,7 @@ export class Runtime {
           this.log(`recover: cannot record abandoned attempt ${lease.attemptId}:`, err?.message ?? err)
         }
       }
-      const running = view.state.rounds.filter((r) => r.status === 'running')
-      for (const round of running) {
+      for (const round of plan.runningRounds) {
         try {
           this.append(
             view,
@@ -376,15 +377,40 @@ export class Runtime {
           this.log(`recover: cannot close round ${round.n}:`, err?.message ?? err)
         }
       }
+      // A landing without a commit is a promise the ledger cannot keep: withdraw
+      // it so the task is retried instead of looking solved forever.
+      for (const entry of plan.unproven) {
+        try {
+          this.append(view, 'round.unlanded', { round: entry.round, reason: entry.reason }, 'system')
+          report.unlanded.push(`${id}/r${entry.round}`)
+        } catch (err) {
+          this.log(`recover: cannot withdraw landing for round ${entry.round}:`, err?.message ?? err)
+        }
+      }
+      // The tree may still hold the half-applied patch. Repair runs off the
+      // event loop's critical path: tools must be usable the moment we boot.
+      if (plan.unproven.length && view.state.workspace) {
+        repairWorkspace({
+          workspace: view.state.workspace,
+          patches: plan.unproven.map((u) => u.patch).filter(Boolean),
+          rounds: plan.unproven.map((u) => u.round),
+          append: (type, data) => this.append(view, type, data, 'system'),
+          log: this.log,
+        })
+          .then((action) => {
+            if (action) report.workspaces.push(`${id}:${action}`)
+          })
+          .catch((err) => this.log(`recover: repair failed for ${id}:`, err?.message ?? err))
+      }
       try {
         sweepLeases(view.dir)
       } catch {
         /* best effort */
       }
     }
-    if (report.abandonedAttempts.length || report.interruptedRounds.length) {
+    if (report.abandonedAttempts.length || report.interruptedRounds.length || report.unlanded.length) {
       this.log(
-        `recover: ${report.abandonedAttempts.length} abandoned attempt(s), ${report.interruptedRounds.length} interrupted round(s)`,
+        `recover: ${report.abandonedAttempts.length} abandoned attempt(s), ${report.interruptedRounds.length} interrupted round(s), ${report.unlanded.length} withdrawn landing(s)`,
       )
     }
     return report

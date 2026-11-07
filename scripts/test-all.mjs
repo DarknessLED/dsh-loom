@@ -18,6 +18,12 @@ const files = readdirSync(testsDir)
   .map((f) => join(testsDir, f))
 // Specs that pin behaviour the loop already has: they are not tasks, but they
 // must keep passing, so a promotion cannot quietly remove the guard.
+// Adversarial specs live in their own directory: they model failures (dead
+// children, drifting ledgers, restarts) rather than features.
+const chaosDir = join(testsDir, 'chaos')
+for (const f of readdirSync(chaosDir).filter((n) => n.endsWith('.test.mjs')).sort()) {
+  files.push(join(chaosDir, f))
+}
 const standing = [
   'tests/self10/panel-decide.test.mjs',
   // once a self-improvement campaign lands, its spec becomes a regression pin:

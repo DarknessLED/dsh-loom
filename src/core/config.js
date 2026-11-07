@@ -21,6 +21,12 @@ export const DEFAULT_CONFIG = {
     worker: null,
     meta: null,
     judge: null,
+    /**
+     * Models to fall back to, in order, when the child dies on a *model* limit
+     * (context window, token budget, quota). A dead child is never retried on
+     * another model — that only doubles the bill without changing the outcome.
+     */
+    fallback: [],
     /** USD per million tokens; override to match the account's real prices. */
     pricing: { inputPerMTok: 0.28, outputPerMTok: 0.42, cacheReadPerMTok: 0.028 },
   },

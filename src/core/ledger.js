@@ -13,7 +13,7 @@ import { appendJsonl, readJsonl } from './atomic.js'
 export class Ledger {
   constructor(file) {
     this.file = file
-    this.events = readJsonl(file)
+    this.events = normalize(readJsonl(file))
     this.seq = maxSeq(this.events)
     this.size = sizeOf(file)
   }
@@ -22,7 +22,7 @@ export class Ledger {
   #sync() {
     const size = sizeOf(this.file)
     if (size === this.size) return
-    this.events = readJsonl(this.file)
+    this.events = normalize(readJsonl(this.file))
     this.size = size
     this.seq = maxSeq(this.events)
   }
@@ -49,6 +49,26 @@ export class Ledger {
 
 function maxSeq(events) {
   return events.reduce((max, e) => (Number.isFinite(e?.seq) && e.seq > max ? e.seq : max), 0)
+}
+
+/**
+ * The log survives things the writer did not plan for: a torn line from a killed
+ * process, an out-of-order append from a second instance, and — from older
+ * releases — the same seq written twice. Replaying a duplicate `round.started`
+ * would fold a round twice and quietly corrupt every derived number, so the read
+ * path normalises: finite seq only, ordered by seq, first writer of a seq wins.
+ */
+export function normalize(events) {
+  const seen = new Set()
+  const out = []
+  for (const ev of events) {
+    if (!ev || !Number.isFinite(ev.seq)) continue
+    if (seen.has(ev.seq)) continue
+    seen.add(ev.seq)
+    out.push(ev)
+  }
+  out.sort((a, b) => a.seq - b.seq)
+  return out
 }
 
 function sizeOf(file) {

@@ -10,11 +10,43 @@ function textOf(output) {
 }
 
 /**
+ * Model-side failures that a different model can plausibly survive. Everything
+ * else — a dead child, a crash, a timeout — is not a model problem, and retrying
+ * it on another model only doubles the bill.
+ */
+const MODEL_LIMIT = /context[ _-]?(length|window)|too long|maximum context|max[ _-]?tokens|token (limit|budget|quota)|quota|rate limit|overloaded|capacity/i
+
+/** Why an attempt ended, in the vocabulary the round records. */
+export function classifyResult(res) {
+  if (!res) return 'died'
+  if (res.timedOut === true) return 'timeout'
+  if (res.stopReason === 'completed') return 'ok'
+  if (res.stopReason === 'max-tokens') return 'tokens'
+  const text = String(res.error ?? '')
+  if (text && MODEL_LIMIT.test(text)) return /context|compaction/i.test(text) ? 'context' : 'tokens'
+  return 'died'
+}
+
+/** The models an attempt may use, in order: explicit list, then config fallbacks. */
+export function modelChain(models, model, config) {
+  const explicit = Array.isArray(models) && models.length ? models : null
+  if (explicit) return explicit.filter((m) => typeof m === 'string' && m.length > 0)
+  const first = typeof model === 'string' && model ? model : config?.models?.worker
+  const fallback = Array.isArray(config?.models?.fallback) ? config.models.fallback : []
+  const chain = [first, ...fallback].filter((m) => typeof m === 'string' && m.length > 0)
+  return chain.length ? chain : [null]
+}
+
+/**
  * Owns model-backed child sessions. One attempt = one fresh child agent
  * (`spawn` provider: own session, own prompt, zero parent context).
  *
  * Strategy: `ctx.subagents.startActivation({delivery:'caller'})` hands us the
  * SubagentResult promise directly, so a round never has to poll event streams.
+ *
+ * A child that dies on a *model limit* (context window, token budget, quota) is
+ * retried on the next model in the chain; a child that dies any other way is
+ * reported as-is. The caller always learns which models were spent and why.
  */
 export class Dispatcher {
   constructor({ ctx, config, log = () => {} }) {
@@ -55,14 +87,50 @@ export class Dispatcher {
   }
 
   /**
+   * Run one attempt, falling through the model chain on model-limit failures.
+   *
    * @returns {Promise<{sessionId:string|null, text:string, structured:unknown,
-   *   stopReason:string, timedOut:boolean, error:string|null}>}
+   *   stopReason:string, timedOut:boolean, error:string|null,
+   *   failureKind:'ok'|'timeout'|'context'|'tokens'|'died'|'exhausted',
+   *   model:string|null, modelsTried:string[], modelSwitch:{from:string|null,to:string|null}|null}>}
    */
-  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, onStart = null } = {}) {
+  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, onStart = null } = {}) {
     if (this.disposed) throw new Error('dispatcher disposed')
     const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
 
+    const chain = modelChain(models, model, this.config)
+    const tried = []
+    let res = null
+    for (let i = 0; i < chain.length; i += 1) {
+      const current = chain[i]
+      res = await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })
+      tried.push(current ?? 'default')
+      const kind = classifyResult(res)
+      const last = i === chain.length - 1
+      if (kind === 'ok' || (kind !== 'context' && kind !== 'tokens') || last) {
+        return {
+          ...res,
+          failureKind: kind === 'ok' ? 'ok' : last && (kind === 'context' || kind === 'tokens') ? 'exhausted' : kind,
+          model: current,
+          modelsTried: tried,
+          modelSwitch: tried.length > 1 ? { from: tried[0], to: current } : null,
+        }
+      }
+      this.log(`model ${current ?? 'default'} hit a limit (${kind}); trying ${chain[i + 1] ?? 'default'}`)
+    }
+    return {
+      ...res,
+      failureKind: 'exhausted',
+      model: chain[chain.length - 1] ?? null,
+      modelsTried: tried,
+      modelSwitch: tried.length > 1 ? { from: tried[0], to: chain[chain.length - 1] } : null,
+    }
+  }
+
+  /** One child session, one model, no retry. */
+  async #one(prompt, { cwd, timeoutMs, label, model, onStart }) {
+    const subagents = svc(this.ctx, 'subagents')
     const parent = await this.ensureParent()
     const controller = new AbortController()
     const agentOptions = {}

@@ -66,11 +66,19 @@ function section(title, body) {
  * @param {object} input
  * @returns {string}
  */
+/** A caller may ask for a smaller brief (a retry after a context overflow). */
+function normalizeBriefLimit(raw) {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return MAX_BRIEF_CHARS
+  return Math.max(600, Math.min(MAX_BRIEF_CHARS, Math.round(n)))
+}
+
 export function buildWorkerBrief(input) {
   const source = isRecord(input) ? input : {}
   const task = isRecord(source.task) ? source.task : {}
   const chain = isRecord(source.chain) ? source.chain : {}
   const workspace = isRecord(source.workspace) ? source.workspace : {}
+  const limit = normalizeBriefLimit(source.maxChars)
 
   const objective = cleanString(source.objective) || '(missing)'
   const prompt = cleanString(task.prompt) || '(missing)'
@@ -193,15 +201,15 @@ export function buildWorkerBrief(input) {
   let output = assemble()
 
   // Budget priority: notes, then lessons, then previousFailure.detail.
-  if (output.length > MAX_BRIEF_CHARS && includeNotes) {
+  if (output.length > limit && includeNotes) {
     includeNotes = false
     output = assemble()
   }
-  if (output.length > MAX_BRIEF_CHARS && includeLessons) {
+  if (output.length > limit && includeLessons) {
     includeLessons = false
     output = assemble()
   }
-  if (output.length > MAX_BRIEF_CHARS && includeDetail) {
+  if (output.length > limit && includeDetail) {
     includeDetail = false
     output = assemble()
   }
@@ -209,33 +217,33 @@ export function buildWorkerBrief(input) {
   /** Largest truncated body that keeps the whole brief within budget. */
   const fit = (raw, key) => {
     const render = (candidate) => assemble({ [key]: candidate })
-    if (render(raw).length <= MAX_BRIEF_CHARS) return raw
-    if (render(ELLIPSIS).length > MAX_BRIEF_CHARS) return ''
+    if (render(raw).length <= limit) return raw
+    if (render(ELLIPSIS).length > limit) return ''
     let low = 0
     let high = Math.max(0, raw.length - 1)
     while (low < high) {
       const mid = Math.ceil((low + high) / 2)
-      if (render(raw.slice(0, mid) + ELLIPSIS).length <= MAX_BRIEF_CHARS) low = mid
+      if (render(raw.slice(0, mid) + ELLIPSIS).length <= limit) low = mid
       else high = mid - 1
     }
     return raw.slice(0, low) + ELLIPSIS
   }
 
-  if (output.length > MAX_BRIEF_CHARS) {
+  if (output.length > limit) {
     promptBody = fit(promptBody, 'prompt')
     output = assemble()
   }
-  if (output.length > MAX_BRIEF_CHARS) {
+  if (output.length > limit) {
     objectiveBody = fit(objectiveBody, 'objective')
     output = assemble()
   }
-  if (output.length > MAX_BRIEF_CHARS) {
+  if (output.length > limit) {
     rulesBody = fit(rulesBody, 'rules')
     output = assemble()
   }
-  if (output.length > MAX_BRIEF_CHARS) {
+  if (output.length > limit) {
     // Unreachable with the clamps above; keep the hard cap absolute anyway.
-    output = output.slice(0, MAX_BRIEF_CHARS)
+    output = output.slice(0, limit)
   }
 
   return output

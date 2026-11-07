@@ -138,6 +138,17 @@ function apply(s, ev) {
       s.autopilotLog.push({ round: d.round ?? null, patch: d.patch ?? null, at: ev.t })
       break
     }
+    case 'round.unlanded': {
+      // Recovery withdrew a landing it could not prove: the patch was said to be
+      // applied but no commit exists, so the task must be retried. Writing a
+      // new event (instead of editing history) keeps the log append-only.
+      const r = s.rounds.find((x) => x.n === d.round)
+      if (r) {
+        r.landed = false
+        r.unlanded = { reason: d.reason ?? null, at: ev.t }
+      }
+      break
+    }
     case 'artifact.promoted':
       if (d.kind === 'chain') {
         // The chain and the attempt each keep their own incumbent; a chain

@@ -97,6 +97,10 @@ export function sweepLeases(campaignDir, { now = Date.now(), ttlMs = 7 * 24 * 36
   for (const rec of listLeases(campaignDir)) {
     if (rec.state === 'running') continue
     const ended = Number(rec.endedAt ?? rec.startedAt ?? 0)
+    // A lease written by an older release (or by hand) may carry no timestamp at
+    // all. Sweeping it because `0` looks ancient would delete the only record of
+    // an abandoned attempt, so keep anything we cannot date.
+    if (!Number.isFinite(ended) || ended <= 0) continue
     if (now - ended > ttlMs) {
       if (clearLease(campaignDir, rec.attemptId)) removed += 1
     }

@@ -206,6 +206,16 @@ export async function rollbackWorkspace(repo) {
 }
 
 /**
+ * Undo changes to *tracked* files only. This is the safe half of a rollback: it
+ * cannot delete anything a person created, which is what recovery needs when the
+ * patch that dirtied the tree is only known from a file.
+ */
+export async function restoreTrackedFiles(repo) {
+  const res = await runGit(repo, ['checkout', '--', '.'])
+  return { ok: res.code === 0, detail: (res.stderr || '').trim() || null }
+}
+
+/**
  * The commit a fresh worktree is started from. Captured before the attempt runs
  * so the patch can be taken against it even when the agent commits on its own
  * branch — `git diff HEAD` would otherwise return an empty patch.

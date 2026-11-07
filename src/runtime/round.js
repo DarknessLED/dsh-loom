@@ -6,6 +6,7 @@ import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { campaignUsage, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
+import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
 import { selectLessons } from '../knowledge/select.js'
@@ -233,7 +234,7 @@ function lastFailure(state) {
  * sibling history beyond a handful of notes, no knowledge the round has not
  * earned yet.
  */
-function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [] }) {
+function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars }) {
   const mapNode = (chain.nodes || []).find((n) => n.type === 'map')
   const rolePrompt = mapNode?.of?.prompt || 'Do the task in your worktree, then run the verification command.'
   const constraints = state.constraints.filter((c) => c.active).map((c) => c.text)
@@ -256,6 +257,7 @@ function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, inde
     plan,
     previousFailure: lastFailure(state),
     workspace: { branch: `loom/${state.id}/${attemptId}`, cwd: worktree },
+    ...(maxChars ? { maxChars } : {}),
   })
 }
 
@@ -509,7 +511,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               excludeFamilies: holdoutFamilies,
             })
           : []
-        const brief = attemptBrief({
+        let brief = attemptBrief({
           chain,
           state,
           task,
@@ -522,9 +524,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           lessons,
           plan: planFindings,
         })
+        let retried = null
         const timeoutMs = config.session.attemptTimeoutMs
         writeLease(view.dir, { attemptId, round: n, deadline: Date.now() + timeoutMs })
-        const runRes = await dispatcher.run(brief, {
+        let runRes = await dispatcher.run(brief, {
           cwd: wtPath,
           timeoutMs,
           label: `loom:${state.id}:r${n}a${i}`,
@@ -534,6 +537,41 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             runtime.watchAttempt({ attemptId, sessionId, abort, deadline })
           },
         })
+        // A context overflow is a packaging problem, not a code problem: the
+        // child never got to work. Retry once with a brief that carries less
+        // (no notes, no lessons, no plan) before writing the attempt off.
+        let outcomeKind = runRes.failureKind ?? classifyResult(runRes)
+        if (outcomeKind === 'context') {
+          retried = 'smaller-brief'
+          const smaller = attemptBrief({
+            chain,
+            state,
+            task,
+            verifyCmd,
+            worktree: wtPath,
+            attemptId,
+            index: i,
+            total: candidates,
+            notes: [],
+            lessons: [],
+            plan: [],
+            maxChars: Math.max(1200, Math.floor(brief.length * 0.5)),
+          })
+          log(`attempt ${attemptId}: context overflow, retrying with a ${smaller.length}-char brief`)
+          brief = smaller
+          writeLease(view.dir, { attemptId, round: n, deadline: Date.now() + timeoutMs })
+          runRes = await dispatcher.run(brief, {
+            cwd: wtPath,
+            timeoutMs,
+            label: `loom:${state.id}:r${n}a${i}:retry`,
+            model: config.models.worker || null,
+            onStart: ({ sessionId, abort, deadline }) => {
+              updateLease(view.dir, attemptId, { sessionId, deadline })
+              runtime.watchAttempt({ attemptId, sessionId, abort, deadline })
+            },
+          })
+        }
+        if (retried) outcomeKind = runRes.failureKind ?? classifyResult(runRes)
         runtime.unwatchAttempt(attemptId)
         const stall = runtime.stallReason(attemptId)
         const abandoned = runRes.stopReason === 'aborted' && !runRes.timedOut ? stall || 'interrupted' : null
@@ -569,7 +607,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             durationMs: 0,
           }
         }
-        const gateOk = ver.ok && (lean ? lean.ok : true)
+        // A child that never finished its turn cannot have produced verified
+        // work, even if the verifier happens to pass on an untouched tree. Only a
+        // completed turn counts as evidence; everything else is a failed attempt.
+        const gateOk = ver.ok && (lean ? lean.ok : true) && outcomeKind === 'ok'
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
         const patch = await makePatch({ dir: wtPath, outFile: join(view.dir, 'artifacts', `r${n}a${i}.patch`), base: base ?? 'HEAD' }).catch(() => null)
         const score = scoreAttempt({
@@ -606,6 +647,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           usageEstimated: spend.estimated === true,
           costUsd: spend.usd,
           error: runRes.error,
+          failureKind: outcomeKind,
+          model: runRes.model ?? null,
+          modelsTried: runRes.modelsTried ?? null,
+          modelSwitch: runRes.modelSwitch ?? null,
+          retried,
         }
         try {
           updateLease(view.dir, attemptId, {
@@ -633,7 +679,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           log(`attempt ${attemptId}: board or lease update failed:`, err?.message ?? err)
         }
       } catch (err) {
-        record = { ...record, durationMs: Date.now() - startedAt, error: String(err?.message ?? err) }
+        record = { ...record, durationMs: Date.now() - startedAt, failureKind: 'crash', error: String(err?.message ?? err) }
         log(`attempt ${attemptId} failed:`, record.error)
         try {
           updateLease(view.dir, attemptId, { state: 'failed', reason: record.error, endedAt: Date.now() })

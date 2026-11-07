@@ -19,7 +19,17 @@ export function writeJsonAtomic(path, value) {
 
 export function appendJsonl(path, obj) {
   mkdirSync(dirname(path), { recursive: true })
-  appendFileSync(path, `${JSON.stringify(obj)}\n`)
+  // A killed writer leaves a partial last line. Appending straight onto it would
+  // fuse the new record to the fragment and lose both, so make the file end with
+  // a newline first.
+  let prefix = ''
+  try {
+    const text = readFileSync(path, 'utf8')
+    if (text.length > 0 && !text.endsWith('\n')) prefix = '\n'
+  } catch {
+    /* new file */
+  }
+  appendFileSync(path, `${prefix}${JSON.stringify(obj)}\n`)
 }
 
 /** Parse JSONL defensively: a torn last line is skipped, not fatal. */
