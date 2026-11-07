@@ -21,6 +21,7 @@ import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
+import { planCacheKey, cachedPlan, rememberPlan } from './recon-reuse.js'
 import { estimatedRoundCost } from './triangle.js'
 
 /**
@@ -152,10 +153,20 @@ export function preMapAgentNodes(chain) {
  * commit) and can never fail the round. Every outcome — including a throw, a
  * timeout, an empty or error reply — is recorded as `node.finished` and the
  * round continues with whatever findings were usable.
+ *
+ * A plan is not evidence: no attempt, promotion or score depends on it, so a
+ * plan whose inputs (base commit, chain version, task, node prompt) are
+ * unchanged is reused instead of re-derived. The reused node is still on the
+ * record — with `reused: true` and `durationMs: 0` — and its text still reaches
+ * the workers; the moment the workspace HEAD moves the key changes and the
+ * cheapest possible invalidation re-plans the task.
  */
 async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, log }) {
   const findings = []
   const nodes = preMapAgentNodes(chain)
+  // One tree, one base commit: every node in this round is planned against the
+  // same worktree branch point, so read it once for all of them.
+  const base = nodes.length ? await headCommit(state.workspace).catch(() => null) : null
   for (const node of nodes) {
     const id = String(node.id)
     const startedAt = Date.now()
@@ -165,14 +176,31 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       role: node.role ?? null,
       round,
       ok: false,
+      reused: false,
+      base,
       durationMs: 0,
       sessionId: null,
       stopReason: null,
       error: null,
       summary: '',
     }
+    const key = planCacheKey({ base, chain, task, node, objective: state.objective, prior: findings })
+    const cached = key ? cachedPlan(view.dir, key) : null
+    if (cached !== null) {
+      record.ok = true
+      record.reused = true
+      record.stopReason = 'reused'
+      record.durationMs = 0
+      record.summary = tailOf(cached, 400)
+      // The plan is the point of the node: workers must still receive it.
+      findings.push({ id, role: node.role ?? null, text: cached })
+      runtime.append(view, 'node.finished', record, 'system')
+      log(`round ${round}: chain node ${id} reused the plan for ${String(base).slice(0, 12)}`)
+      continue
+    }
     const wtPath = join(runtime.home, 'worktrees', state.id, `recon-${id}`)
     const branch = `loom/${state.id}/recon-${id}`
+    let planText = ''
     try {
       // Inspect the base commit in isolation: an agent that ignores "do not
       // edit" must not dirty the workspace the next promotion lands in.
@@ -193,10 +221,13 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       const res = await dispatcher.run(brief, {
         cwd: wtPath,
         timeoutMs: config.session.attemptTimeoutMs,
-        label: `loom:${state.id}:r${round}:${id}`,
+        // The node id alone does not say what kind of dispatch this was; the
+        // "plan" marker does, and it is what a label is for.
+        label: `loom:${state.id}:r${round}:plan:${id}`,
         model: config.models.worker || null,
       })
       const text = String(res?.text ?? '').trim()
+      planText = text
       record.sessionId = res?.sessionId ?? null
       record.stopReason = res?.stopReason ?? null
       record.error = res?.error ?? null
@@ -213,6 +244,9 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       log(`round ${round}: chain node ${id} failed:`, record.error)
     }
     record.durationMs = Date.now() - startedAt
+    // Only a usable plan is worth remembering: caching a failure would make the
+    // next round reuse the failure instead of trying again.
+    if (record.ok && planText) rememberPlan(view.dir, key, planText)
     runtime.append(view, 'node.finished', record, 'system')
     await removeWorktree({ repo: state.workspace, dir: wtPath }).catch(() => {})
   }
