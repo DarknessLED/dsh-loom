@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import process from 'node:process'
 import { StringDecoder } from 'node:string_decoder'
@@ -127,6 +128,34 @@ function parseMetrics(stdout, specs) {
   return metrics
 }
 
+const SCRIPT_FILE = /\.(?:cjs|mjs|js)$/i
+const SHELL_SYNTAX = /[\s"'`&|<>;^()]/
+
+/**
+ * A task may name a JS file directly as its acceptance command
+ * (`{ cmd: 'holdout-slow.cjs' }`). A shell cannot execute such a file: on
+ * Windows `cmd.exe` reports success without running it — a candidate would look
+ * verified for the wrong reason — and on POSIX it is not executable at all.
+ * When the command is exactly one existing script path, run it with the
+ * interpreter that is already running the harness. Anything carrying shell
+ * syntax (quotes, spaces, operators) is left to the shell untouched, so
+ * `node test.mjs` and pipelines keep working.
+ * @param {string} command
+ * @param {string} cwd
+ * @returns {string}
+ */
+function resolveScriptCommand(command, cwd) {
+  const trimmed = command.trim()
+  if (!SCRIPT_FILE.test(trimmed) || SHELL_SYNTAX.test(trimmed)) return command
+  try {
+    const file = resolve(cwd, trimmed)
+    if (!statSync(file).isFile()) return command
+    return `"${process.execPath}" "${file}"`
+  } catch {
+    return command
+  }
+}
+
 /**
  * @param {{cmd: string, cwd?: string, timeoutMs?: number,
  *          metrics?: Record<string, {pattern: string, group?: number}>}} spec
@@ -169,7 +198,7 @@ export async function runVerifier(spec, opts = {}) {
   let signal = null
   let timedOut = false
 
-  const child = spawn(command, {
+  const child = spawn(resolveScriptCommand(command, cwd), {
     shell: true,
     cwd,
     env,
