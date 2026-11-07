@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
 import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
@@ -626,6 +627,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           ...record,
           verifierOk: gateOk,
           exitCode: ver.exitCode,
+          verifySignature: verifierSignature(ver),
           lean,
           timedOut: ver.timedOut || runRes.timedOut,
           abandoned,
@@ -971,6 +973,38 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       'system',
     )
 
+    // A runtime that only records events (a bare embedder) leaves `state.rounds`
+    // empty, which would make every round compute n = 1 and the ledger read like
+    // one round repeated. Project the round on the normal path too — a folding
+    // append makes this a merge-by-n no-op.
+    projectRound(view.state, {
+      n,
+      taskId: task.id,
+      status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain',
+      score,
+      promoted: promote === true,
+      attempts,
+    })
+
+    // Three rounds in a row whose patches changed while the verifier said exactly
+    // the same thing is the signature of an unreachable gate, not of a hard task:
+    // the agent keeps producing diffs and the gate never learns anything. Ask a
+    // human once and keep the campaign running — this is a report, not a stop.
+    const stuckOn = !Array.isArray(config.checkpoint?.on) || config.checkpoint.on.includes('stuck')
+    const stuck = stuckOn ? repeatedStuckSignature(view.state?.rounds, task.id) : null
+    if (stuck && !stuckAlreadyRaised(view.state, task.id, stuck.signature)) {
+      raise('stuck', {
+        message: `task ${task.id} produced a patch in each of its last ${stuck.rounds.length} rounds and the verifier failed identically every time; the gate looks unreachable`,
+        taskId: task.id,
+        signature: stuck.signature,
+        rounds: stuck.rounds,
+      })
+      // Remember it on the round as well: a non-folding runtime never materializes
+      // `state.checkpoints`, and the next identical round must stay quiet too.
+      const current = (view.state?.rounds || []).find((r) => Number(r?.n) === Number(n))
+      if (current) current.stuckSignature = stuck.signature
+    }
+
     // A holdout rejection is the most valuable failure of a round: the patch
     // passed everything the worker could see and broke the task it could not.
     // Written only as a round status it vanishes, so surface it on the same
@@ -1087,6 +1121,80 @@ function holdoutTasks(state) {
     out.push(task)
   }
   return out
+}
+
+/**
+ * A short, stable fingerprint of what the verifier said.
+ *
+ * The gate is "unreachable" when the code keeps changing and the verdict does
+ * not. Only the outcome contract is hashed — exit code plus the tail of stderr —
+ * so timings, durations and other per-run noise cannot masquerade as progress.
+ */
+function verifierSignature(ver) {
+  if (!ver) return null
+  const exit = ver.exitCode === null || ver.exitCode === undefined ? 'none' : String(ver.exitCode)
+  const stderr = String(ver.stderr || '').replace(/\r\n/g, '\n').trim()
+  const tail = stderr.split('\n').slice(-20).join('\n')
+  return createHash('sha1').update(`${exit}\n${tail}`).digest('hex').slice(0, 12)
+}
+
+/**
+ * The one signature shared by a round's patched-but-failing attempts, or null.
+ *
+ * A round with no patch is not evidence of a trap (the agent may have done
+ * nothing), and a round whose attempts failed in different ways is work in
+ * progress: both are deliberately not a stuck candidate.
+ */
+function stuckSignature(round) {
+  const attempts = Array.isArray(round?.attempts) ? round.attempts : []
+  const signatures = new Set()
+  let patchedFailure = false
+  for (const a of attempts) {
+    if (!a || a.screenedOut || a.abandoned) continue
+    if (a.verifierOk === true) continue
+    if (!(Number(a.patchBytes) > 0)) continue
+    if (typeof a.verifySignature !== 'string' || !a.verifySignature) continue
+    patchedFailure = true
+    signatures.add(a.verifySignature)
+  }
+  return patchedFailure && signatures.size === 1 ? [...signatures][0] : null
+}
+
+/**
+ * Detect the same failure repeated across the last `window` rounds of a task.
+ *
+ * "Consecutive" is counted over the task's own appearances: a campaign rotates
+ * over several tasks, so two rounds on this task are consecutive even when
+ * other tasks ran in between. Any round in the window that does not carry the
+ * same signature breaks the streak.
+ *
+ * @returns {{signature: string, rounds: number[]} | null}
+ */
+function repeatedStuckSignature(rounds, taskId, window = 3) {
+  const onTask = (Array.isArray(rounds) ? rounds : []).filter((r) => r && r.taskId === taskId)
+  if (onTask.length < window) return null
+  const tail = onTask.slice(-window)
+  const signatures = tail.map((r) => stuckSignature(r))
+  if (signatures.some((s) => !s)) return null
+  if (new Set(signatures).size !== 1) return null
+  return {
+    signature: signatures[0],
+    rounds: tail.map((r) => Number(r.n)).filter((n) => Number.isFinite(n)),
+  }
+}
+
+/** True when this task + signature has already been reported to a human. */
+function stuckAlreadyRaised(state, taskId, signature) {
+  const checkpoints = Array.isArray(state?.checkpoints) ? state.checkpoints : []
+  if (
+    checkpoints.some(
+      (c) => c && c.kind === 'stuck' && c.payload?.taskId === taskId && c.payload?.signature === signature,
+    )
+  ) {
+    return true
+  }
+  const rounds = Array.isArray(state?.rounds) ? state.rounds : []
+  return rounds.some((r) => r && r.taskId === taskId && r.stuckSignature === signature)
 }
 
 /**
