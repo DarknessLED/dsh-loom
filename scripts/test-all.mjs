@@ -56,6 +56,8 @@ const standing = [
   'tests/tri4/verifier-key.test.mjs',
   'tests/tri4/cost-truth.test.mjs',
   'tests/tri4/plan-delta.test.mjs',
+  // a standing problem is one question, not one per tick
+  'tests/setup/no-workspace-spam.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
