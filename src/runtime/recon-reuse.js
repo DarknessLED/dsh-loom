@@ -41,12 +41,16 @@ function writeCache(dir, cache) {
 }
 
 /**
- * Identify the plan: which tree it describes, for which task, from which node,
- * with which earlier findings in hand.
+ * Identify the plan: which task, from which node, with which earlier findings
+ * in hand.
  *
- * `base` is the workspace HEAD a worktree is branched from. Without one (not a
- * git repo, git failed) the plan cannot be invalidated, so there is no key and
- * the caller must plan for real — a missing commit is never "same as last time".
+ * `base` is deliberately *not* part of the identity. A plan describes the files
+ * it names; a commit that touches none of them moves the base without moving
+ * the subject, and re-paying the planner for it is the cost this module exists
+ * to avoid. The base is stored on the entry instead, so the caller can measure
+ * the delta between the tree the plan saw and the tree it is about to be used
+ * on (see `planFiles`). Without a base (not a git repo, git failed) there is no
+ * delta to measure, so there is no key and the caller must plan for real.
  *
  * @param {{base: string|null, chain: object, task: object, node: object, objective?: string,
  *          prior?: Array<{id: string, text: string}>}} input
@@ -56,7 +60,6 @@ export function planCacheKey({ base, chain, task, node, objective, prior = [] } 
   if (typeof base !== 'string' || base === '') return null
   return sha1(
     JSON.stringify([
-      base,
       String(objective ?? ''),
       String(chain?.name ?? ''),
       Number(chain?.version) || 0,
@@ -73,17 +76,57 @@ export function planCacheKey({ base, chain, task, node, objective, prior = [] } 
 }
 
 /**
- * The plan an earlier round stored for this key, or null.
+ * The tracked paths a plan names, as whole tokens.
+ *
+ * A plan is prose, so "mentions keep.txt" has to mean the exact path, not the
+ * tail of `docs/keep.txt`: the character before and after an occurrence must
+ * not be a path character. `trackedPaths` bounds the search to files that
+ * exist, which keeps a plan from "naming" an arbitrary word with a dot in it.
+ *
+ * @param {string} planText
+ * @param {string[]} trackedPaths
+ * @returns {string[]}
+ */
+export function planFiles(planText, trackedPaths) {
+  const text = typeof planText === 'string' ? planText : ''
+  if (text.trim() === '' || !Array.isArray(trackedPaths)) return []
+  const isPathChar = (ch) => /[A-Za-z0-9_.\-/]/.test(ch)
+  const out = []
+  for (const path of trackedPaths) {
+    if (typeof path !== 'string' || path === '' || out.includes(path)) continue
+    let from = 0
+    while (true) {
+      const at = text.indexOf(path, from)
+      if (at < 0) break
+      const before = at > 0 ? text[at - 1] : ''
+      const after = text[at + path.length] ?? ''
+      if ((before === '' || !isPathChar(before)) && (after === '' || !isPathChar(after))) {
+        out.push(path)
+        break
+      }
+      from = at + 1
+    }
+  }
+  return out
+}
+
+/**
+ * The cache entry an earlier round stored for this key, or null.
  * @param {string} dir campaign directory (where the cache lives)
  * @param {string} key from planCacheKey()
- * @returns {string|null}
+ * @returns {{plan: string, base: string|null, files: string[]}|null}
  */
-export function cachedPlan(dir, key) {
+export function cachedPlanEntry(dir, key) {
   if (typeof key !== 'string' || key === '') return null
   const entry = readCache(dir)[key]
   if (!entry || typeof entry !== 'object') return null
   const plan = entry.plan
-  return typeof plan === 'string' && plan.trim() !== '' ? plan : null
+  if (typeof plan !== 'string' || plan.trim() === '') return null
+  return {
+    plan,
+    base: typeof entry.base === 'string' && entry.base !== '' ? entry.base : null,
+    files: Array.isArray(entry.files) ? entry.files.filter((f) => typeof f === 'string' && f !== '') : [],
+  }
 }
 
 /**
@@ -91,11 +134,17 @@ export function cachedPlan(dir, key) {
  * @param {string} dir campaign directory (where the cache lives)
  * @param {string} key from planCacheKey()
  * @param {string} plan the full plan text handed to the workers
+ * @param {{base?: string|null, files?: string[]}} [meta] the tree it describes
  */
-export function rememberPlan(dir, key, plan) {
+export function rememberPlan(dir, key, plan, { base = null, files = [] } = {}) {
   if (typeof key !== 'string' || key === '') return
   if (typeof plan !== 'string' || plan.trim() === '') return
   const cache = readCache(dir)
-  cache[key] = { plan, at: Date.now() }
+  cache[key] = {
+    plan,
+    at: Date.now(),
+    base: typeof base === 'string' && base !== '' ? base : null,
+    files: Array.isArray(files) ? files.filter((f) => typeof f === 'string' && f !== '') : [],
+  }
   writeCache(dir, cache)
 }

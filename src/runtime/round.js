@@ -2,7 +2,16 @@ import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
-import { createWorktree, removeWorktree, diffStat, headCommit, rollbackWorkspace, commitWorkspace } from '../exec/worktree.js'
+import {
+  createWorktree,
+  removeWorktree,
+  diffStat,
+  headCommit,
+  rollbackWorkspace,
+  commitWorkspace,
+  changedFiles,
+  trackedFiles,
+} from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { campaignUsage, usageOfSession } from './cost.js'
@@ -21,7 +30,7 @@ import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
-import { planCacheKey, cachedPlan, rememberPlan } from './recon-reuse.js'
+import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost } from './triangle.js'
 
@@ -168,11 +177,14 @@ export function preMapAgentNodes(chain) {
  * round continues with whatever findings were usable.
  *
  * A plan is not evidence: no attempt, promotion or score depends on it, so a
- * plan whose inputs (base commit, chain version, task, node prompt) are
- * unchanged is reused instead of re-derived. The reused node is still on the
- * record — with `reused: true` and `durationMs: 0` — and its text still reaches
- * the workers; the moment the workspace HEAD moves the key changes and the
- * cheapest possible invalidation re-plans the task.
+ * plan whose inputs (chain version, task, node prompt, prior findings) are
+ * unchanged is reused instead of re-derived. The base commit is *not* an input:
+ * a plan describes the files it names, and a commit that touches none of them
+ * moves the base without moving the subject. Such a reuse is recorded with
+ * `reused: true`, `planBasis: 'delta'` and `durationMs: 0`; an identical base is
+ * `planBasis: 'same'`. Any overlap with a named file, an empty file list, or a
+ * delta that cannot be computed falls back to a real planning call, because a
+ * stale plan is worse than an expensive one.
  */
 async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, log }) {
   const findings = []
@@ -190,6 +202,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       round,
       ok: false,
       reused: false,
+      planBasis: null,
       base,
       durationMs: 0,
       sessionId: null,
@@ -198,17 +211,33 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       summary: '',
     }
     const key = planCacheKey({ base, chain, task, node, objective: state.objective, prior: findings })
-    const cached = key ? cachedPlan(view.dir, key) : null
-    if (cached !== null) {
+    const entry = key ? cachedPlanEntry(view.dir, key) : null
+    // A plan stays valid while the files it names have not moved. The same base
+    // is the same tree by construction; otherwise measure the delta from the
+    // tree the plan saw and reuse only on a known, thoroughly disjoint answer.
+    // No diff, no named files, or any overlap: plan for real.
+    let planBasis = null
+    if (entry) {
+      if (entry.base === base) planBasis = 'same'
+      else {
+        const changed = await changedFiles(state.workspace, entry.base, base).catch(() => null)
+        const named = entry.files
+        if (changed !== null && named.length > 0 && !named.some((file) => changed.includes(file))) {
+          planBasis = 'delta'
+        }
+      }
+    }
+    if (planBasis) {
       record.ok = true
       record.reused = true
+      record.planBasis = planBasis
       record.stopReason = 'reused'
       record.durationMs = 0
-      record.summary = tailOf(cached, 400)
+      record.summary = tailOf(entry.plan, 400)
       // The plan is the point of the node: workers must still receive it.
-      findings.push({ id, role: node.role ?? null, text: cached })
+      findings.push({ id, role: node.role ?? null, text: entry.plan })
       runtime.append(view, 'node.finished', record, 'system')
-      log(`round ${round}: chain node ${id} reused the plan for ${String(base).slice(0, 12)}`)
+      log(`round ${round}: chain node ${id} reused the plan (${planBasis}) for ${String(base).slice(0, 12)}`)
       continue
     }
     const wtPath = join(runtime.home, 'worktrees', state.id, `recon-${id}`)
@@ -258,8 +287,12 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
     }
     record.durationMs = Date.now() - startedAt
     // Only a usable plan is worth remembering: caching a failure would make the
-    // next round reuse the failure instead of trying again.
-    if (record.ok && planText) rememberPlan(view.dir, key, planText)
+    // next round reuse the failure instead of trying again. The tree it saw is
+    // part of the entry so a later round can tell whether it still applies.
+    if (record.ok && planText) {
+      const files = planFiles(planText, await trackedFiles(state.workspace))
+      rememberPlan(view.dir, key, planText, { base, files })
+    }
     runtime.append(view, 'node.finished', record, 'system')
     await removeWorktree({ repo: state.workspace, dir: wtPath }).catch(() => {})
   }

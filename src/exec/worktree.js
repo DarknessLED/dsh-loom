@@ -295,6 +295,48 @@ export async function removeWorktree({ repo, dir } = {}) {
 }
 
 /**
+ * Paths that changed between two commits.
+ *
+ * Used to decide whether a cached plan still describes the tree it is about to
+ * be applied to: an empty intersection with the files the plan names means the
+ * plan's subject did not move. Returns null when git cannot answer — the caller
+ * must treat "unknown" as "re-plan", never as "unchanged".
+ *
+ * @param {string} repo
+ * @param {string|null} from
+ * @param {string|null} to
+ * @returns {Promise<string[]|null>}
+ */
+export async function changedFiles(repo, from, to) {
+  if (typeof repo !== 'string' || repo === '') return null
+  if (typeof from !== 'string' || from === '') return null
+  if (typeof to !== 'string' || to === '') return null
+  const result = await runGit(repo, ['diff', '--name-only', `${from}..${to}`])
+  if (result.code !== 0) return null
+  return String(result.stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+/**
+ * The repository's tracked files, used to bound which words in a prose plan are
+ * paths. An unreadable list is an empty list: the caller then cannot identify
+ * the plan's subject and will plan again.
+ * @param {string} repo
+ * @returns {Promise<string[]>}
+ */
+export async function trackedFiles(repo) {
+  if (typeof repo !== 'string' || repo === '') return []
+  const result = await runGit(repo, ['ls-files'])
+  if (result.code !== 0) return []
+  return String(result.stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+/**
  * Aggregate `git diff --numstat HEAD` (tracked changes only).
  * @param {{dir: string}} options
  * @returns {Promise<{files: number, insertions: number, deletions: number, filesChanged: string[]}>}
