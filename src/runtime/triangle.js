@@ -51,17 +51,19 @@ export function estimatedRoundCost(rounds) {
 }
 
 /**
- * @param {Array<object>} rounds folded rounds (`durationMs`, `attemptMs`,
- *   `verifierMs`, `tokens`, `costUsd`, `status`, `promoted`)
+ * @param {Array<object>} rounds folded rounds (`durationMs`, `planMs`,
+ *   `attemptMs`, `verifierMs`, `tokens`, `costUsd`, `status`, `promoted`)
  */
 export function campaignTriangle(rounds) {
   const list = Array.isArray(rounds) ? rounds.filter((r) => r && typeof r === 'object') : []
   let durationMs = 0
+  let planMs = 0
   let attemptMs = 0
   let verifierMs = 0
   let tokens = 0
   let usd = 0
   let timed = 0
+  let planned = 0
   let measuredTokens = 0
   let promoted = 0
   let noGain = 0
@@ -71,6 +73,15 @@ export function campaignTriangle(rounds) {
     if (wall > 0) {
       durationMs += wall
       timed += 1
+    }
+    // Planning is only a measurement when a round actually reported it; older
+    // ledgers carry no planMs and must stay unknown rather than becoming zero.
+    if (r.planMs !== null && r.planMs !== undefined) {
+      const p = Number(r.planMs)
+      if (Number.isFinite(p)) {
+        planMs += Math.max(0, p)
+        planned += 1
+      }
     }
     attemptMs += num(r.attemptMs)
     verifierMs += num(r.verifierMs)
@@ -85,16 +96,21 @@ export function campaignTriangle(rounds) {
       if (r.status === 'no-gain') noGain += 1
     }
   }
+  // Planning: a campaign whose rounds never reported `planMs` has not measured
+  // it (null); a campaign that reported zero planned nothing (0 is a fact).
+  const planningMs = planned > 0 ? planMs : null
   return {
     rounds: finished,
     timedRounds: timed,
     // efficiency
     durationMs,
+    planMs: planningMs,
     attemptMs,
     verifierMs,
     secondsPerRound: timed > 0 ? durationMs / timed / 1000 : null,
     parallelFactor: ratio(attemptMs, durationMs),
     verifierShare: ratio(verifierMs, durationMs),
+    planShare: planningMs === null ? null : ratio(planningMs, durationMs),
     // quality
     promotionRate: ratio(promoted, finished),
     noGainRate: ratio(noGain, finished),

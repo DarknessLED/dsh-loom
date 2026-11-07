@@ -393,8 +393,14 @@ export function tokensOf(spend, brief, text) {
  * the candidates used, how much the verifiers used, and what the models cost.
  * `attemptMs` above `durationMs` means the round ran in parallel; `verifierMs`
  * that rivals it means the gate, not the agent, is the bottleneck.
+ *
+ * `planMs` is the wall time spent in the nodes that run before the candidates.
+ * It is passed in because only the caller sees those nodes: without it, planning
+ * hides inside `durationMs` and a reader cannot tell a slow agent from a slow
+ * reconnaissance step. Defaulting to 0 keeps a round with no planned nodes a
+ * measurement ("this round planned nothing") rather than an unknown.
  */
-export function roundStats(attempts, startedAt, verifierRuns, verifierMs) {
+export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs = 0) {
   let attemptMs = 0
   let tokens = 0
   let costUsd = 0
@@ -405,6 +411,7 @@ export function roundStats(attempts, startedAt, verifierRuns, verifierMs) {
   }
   return {
     durationMs: Math.max(0, Date.now() - startedAt),
+    planMs: Math.max(0, Number(planMs) || 0),
     attemptCount: Array.isArray(attempts) ? attempts.length : 0,
     attemptMs,
     verifierRuns,
@@ -543,6 +550,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const roundStartedAt = Date.now()
   let verifierRuns = 0
   let verifierMs = 0
+  // Wall time spent in the pre-map nodes (planning). Kept separate from the
+  // round clock so `planMs` + candidate time + verifier time is legible.
+  let planMs = 0
 
   const attempts = []
   const board = boardPath(view.dir, n)
@@ -560,6 +570,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
     // A chain without one dispatches exactly as it always did.
+    const planNodes = preMapAgentNodes(chain)
+    const planStartedAt = Date.now()
     const planFindings = await runPreMapNodes({
       runtime,
       view,
@@ -571,6 +583,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       round: n,
       log,
     })
+    // A chain with no pre-map node planned nothing — a real 0, not 1ms of clock
+    // noise from taking the two timestamps. A reused plan also costs 0.
+    if (planNodes.length) planMs = Math.max(0, Date.now() - planStartedAt)
     if (screening) {
       const results = []
       for (const p of plan) {
@@ -935,7 +950,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'round.finished',
-        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
         'system',
       )
       // A folding runtime already materialized the round above; one that only
@@ -1157,7 +1172,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
       'system',
     )
 
@@ -1236,7 +1251,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs) },
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs) },
       'system',
     )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })
