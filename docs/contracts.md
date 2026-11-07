@@ -85,6 +85,7 @@
 - `src/runtime/exposure.js` — 决定本轮哪个候选看到经验：只暴露一个且按回合轮换，保证同一轮存在真正的对照组。
 - `src/runtime/guard-reuse.js` — 守卫复用：当 autopilot 的 guard 命令作为独立子句逐字出现在任务的 verify 命令里时，验证器跑的就是同一件证据，于是从交给验证器的命令中删掉该子句，晋升后不再重复 spawn，只在 `autopilot.applied` 记 `guard:'reused-verifier'` 并照常提交；guard 不是同一命令时仍恰好运行一次。
 - `src/runtime/halving.js` — 轮内 successive halving：先用廉价的 screen 验证器淘汰一半候选，再只为幸存者付真实尝试成本。
+- `src/runtime/hold.js` — 人工「暂缓」的到期时刻：读取 `config.checkpoint.holdMs`（缺省 6 小时），非法或非正值回落默认，保证暂缓永远指向未来而不是偷偷变成立即回答。
 - `src/runtime/ids.js` — 检查点 id 生成：时间戳加定宽单调计数器，保证同一毫秒内多次 raise 也不碰撞。
 - `src/runtime/lease.js` — 尝试租约：记录「本该在跑」的尝试，崩溃重启时对账，并按 TTL 清扫陈旧租约。
 - `src/runtime/notify.js` — 检查点通知：只在该决策时唤醒主会话一次；静默时段写 `checkpoint.deferred` 并由 tick 补发，且永不重复投递。

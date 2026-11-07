@@ -175,6 +175,14 @@ function apply(s, ev) {
       if (c) Object.assign(c, { status: 'answered', answer: d.answer, by: ev.actor, answeredAt: ev.t })
       break
     }
+    case 'checkpoint.held': {
+      // A hold postpones without closing: status stays `open`, and the latest
+      // deferral is folded onto the checkpoint so the queue can rank it as
+      // postponed instead of as work waiting right now.
+      const c = s.checkpoints.find((x) => x.id === (d.checkpoint ?? d.id))
+      if (c && c.status === 'open') Object.assign(c, { held: { until: d.until ?? null, by: ev.actor ?? null, at: ev.t } })
+      break
+    }
     case 'note.added':
       s.notes.push({ text: d.text, by: ev.actor, at: ev.t })
       break

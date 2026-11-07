@@ -2,6 +2,7 @@ import { svc } from '../core/services.js'
 import { campaignQuality } from '../runtime/quality.js'
 import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
+import { holdUntil } from '../runtime/hold.js'
 import { activeChain } from '../runtime/round.js'
 
 /**
@@ -109,6 +110,9 @@ function campaignRow(view, now, campaignId) {
       kind: c.kind,
       at: c.at ?? null,
       payload: c.payload ?? null,
+      // A checkpoint a human postponed stays open; the client needs the instant
+      // to show it as deferred instead of as work that is waiting right now.
+      held: c.held ?? null,
     })),
     lastRound: last
       ? {
@@ -187,7 +191,7 @@ async function readBody(req) {
 }
 
 /** Apply one panel action through the same event appends the tools use. */
-export function panelAction({ runtime }, body) {
+export function panelAction({ runtime, config }, body) {
   const action = String(body.action ?? '')
 
   // The master switch is not campaign state, so it is decided before any
@@ -219,6 +223,13 @@ export function panelAction({ runtime }, body) {
     const open = view.state.checkpoints.filter((c) => c.status === 'open')
     const target = checkpoint ? open.find((c) => c.id === checkpoint) : open[open.length - 1]
     if (!target) throw new Error('no open checkpoint')
+    if (decision === 'hold') {
+      // 暂缓 postpones the question; it must not answer it. Same event as the
+      // tool door, so both doors mean the same thing by the same word.
+      const until = holdUntil(config)
+      runtime.append(view, 'checkpoint.held', { checkpoint: target.id, until }, 'human:panel')
+      return { ok: true, deferred: true, answered: target.id, until, campaigns: panelState({ runtime }).campaigns }
+    }
     runtime.append(
       view,
       'checkpoint.answered',

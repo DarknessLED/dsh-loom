@@ -17,6 +17,7 @@ import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine
 import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
+import { holdUntil } from '../runtime/hold.js'
 import { nextCheckpointId } from '../runtime/ids.js'
 import { campaignQuality, qualityLine } from '../runtime/quality.js'
 import { reviewQueue } from '../runtime/review.js'
@@ -430,7 +431,7 @@ export function registerTools(ctx, { runtime, config }) {
       properties: {
         id: ID,
         checkpoint: { type: 'string', description: 'Checkpoint id' },
-        decision: { type: 'string', enum: ['approve', 'reject', 'stop', 'continue'] },
+        decision: { type: 'string', enum: ['approve', 'reject', 'hold', 'stop', 'continue'] },
         note: { type: 'string' },
       },
       required: ['decision'],
@@ -445,6 +446,24 @@ export function registerTools(ctx, { runtime, config }) {
       const open = view.state.checkpoints.filter((c) => c.status === 'open')
       const target = args.checkpoint ? open.find((c) => c.id === args.checkpoint) : open[open.length - 1]
       if (!target) throw new Error('no open checkpoint to answer')
+
+      if (args.decision === 'hold') {
+        // Holding postpones the question; it is not an answer. The checkpoint
+        // stays open and the ledger records when it is worth reading again, so
+        // the queue can show it as deferred instead of destructuring it.
+        const until = holdUntil(config)
+        runtime.append(view, 'checkpoint.held', { checkpoint: target.id, until }, 'human')
+        return {
+          deferred: true,
+          answered: target.id,
+          until,
+          decision: 'hold',
+          applied: false,
+          landed: null,
+          reverted: null,
+          status: view.state.status,
+        }
+      }
 
       if (args.decision === 'approve' && target.kind === 'chain' && target.payload?.chainVersion != null) {
         runtime.append(view, 'chain.activated', { version: Number(target.payload.chainVersion) }, 'human')

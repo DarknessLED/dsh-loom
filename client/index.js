@@ -522,6 +522,14 @@ window.__ModuleLoader__.load({
           // No `at` means the wait is unknown; borrowing the campaign's age
           // would make a fresh question look stale (and vice versa).
           var at = typeof cp.at === 'number' && isFinite(cp.at) ? cp.at : null
+          // A human hold postpones the question without answering it. It is
+          // only a postponement until it expires: after `until` the question is
+          // live again and must rank like any other.
+          var heldUntil =
+            cp.held && typeof cp.held === 'object' && typeof cp.held.until === 'number' && isFinite(cp.held.until)
+              ? cp.held.until
+              : null
+          var deferred = heldUntil !== null && heldUntil > now
           out.push({
             campaign: c.id,
             id: cp.id,
@@ -537,12 +545,23 @@ window.__ModuleLoader__.load({
             // row carries the same explanation the campaign tree shows.
             help: checkpointHelpText(cp.kind),
             waitMs: at === null ? null : Math.max(0, now - at),
+            // A postponed row says so, and says when it is worth reading again;
+            // it stays in the queue so it is not silently forgotten.
+            deferred: deferred,
+            deferUntil: deferred ? heldUntil : null,
             actions: verbs,
           })
         }
       }
       out.sort(function (a, b) {
-        return riskOf(a.risk) - riskOf(b.risk) || (a.campaign < b.campaign ? -1 : a.campaign > b.campaign ? 1 : 0) || (a.id < b.id ? -1 : 1)
+        // Risk still decides first; among equally risky rows, work that is
+        // actually waiting outranks work a human already postponed.
+        return (
+          riskOf(a.risk) - riskOf(b.risk) ||
+          (a.deferred ? 1 : 0) - (b.deferred ? 1 : 0) ||
+          (a.campaign < b.campaign ? -1 : a.campaign > b.campaign ? 1 : 0) ||
+          (a.id < b.id ? -1 : 1)
+        )
       })
       return out
     }
@@ -1355,6 +1374,19 @@ window.__ModuleLoader__.load({
                       assessed
                         ? null
                         : h('span', { className: 'loom-chip quiet', style: { marginLeft: 6 } }, '未评估'),
+                      // A held row is still in the queue on purpose, but it says
+                      // so: 暂缓 postponed it, it did not answer it.
+                      q.deferred
+                        ? h(
+                            'span',
+                            {
+                              className: 'loom-chip quiet',
+                              style: { marginLeft: 6 },
+                              title: '已暂缓至 ' + new Date(q.deferUntil).toLocaleString('zh-CN'),
+                            },
+                            '已暂缓',
+                          )
+                        : null,
                     ),
                     h(
                       'button',

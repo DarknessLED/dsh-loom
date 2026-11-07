@@ -1,3 +1,6 @@
+/** A "hold" postpones a checkpoint this long before it resurfaces. */
+export const DEFAULT_HOLD_MS = 6 * 60 * 60_000
+
 export const DEFAULT_CONFIG = {
   /** Ticker period. The engine is cheap when idle; this bounds reaction latency. */
   tickMs: 20_000,
@@ -16,6 +19,8 @@ export const DEFAULT_CONFIG = {
     /** "HH:MM-HH:MM" local quiet window; checkpoints are batched until it ends. */
     quietHours: null,
     batch: true,
+    /** How long a human "hold" postpones a checkpoint before it resurfaces. */
+    holdMs: DEFAULT_HOLD_MS,
   },
   /**
    * Master switch for the background loop. `enabled` is only the *initial*
