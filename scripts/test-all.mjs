@@ -64,6 +64,9 @@ const standing = [
   // a checkpoint row says what happened and what ignoring it costs, in its
   // own line and in the row's title, not only on hover
   'tests/ui/checkpoint-help.test.mjs',
+  // 暂缓 must postpone in both doors, and a token budget must be a cap
+  'tests/ui/snooze.test.mjs',
+  'tests/tri8/token-cap.test.mjs',
   // the queue says how many are waiting and where each risk came from, and a
   // sparkline tells an unscored round apart from one that scored zero
   'tests/ui/queue-total.test.mjs',
