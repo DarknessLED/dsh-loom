@@ -21,6 +21,7 @@ import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
+import { estimatedRoundCost } from './triangle.js'
 
 /**
  * Best score this campaign has already seen on one task, or null.
@@ -401,17 +402,34 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // summing would double-count a healthy ledger.
   const recordedSpend = campaignUsage(state.rounds).usd
   const spentUsd = Math.max(Number(state.budget.spentUsd) || 0, recordedSpend)
-  if (spentUsd >= state.budget.usd) {
+  // Preflight: money already spent is not the whole question. A campaign at 90%
+  // of its cap used to dispatch another round and blow straight through it. The
+  // best available predictor of the next round is this campaign's own measured
+  // mean (0 when it has never measured one — an empty ledger must not invent a
+  // cost and block the first round).
+  const capUsd = Number(state.budget.usd)
+  const estimatedUsd = estimatedRoundCost(state.rounds)
+  const projectedUsd = Math.round((spentUsd + estimatedUsd) * 1e6) / 1e6
+  const exhausted = spentUsd >= capUsd
+  const unaffordable = estimatedUsd > 0 && Number.isFinite(capUsd) && projectedUsd > capUsd + 1e-9
+  if (exhausted || unaffordable) {
     // Close the round out explicitly before stopping the campaign: a round that
     // silently vanishes leaves the ledger ambiguous about why no work started.
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'budget', score: null, promoted: false, spentUsd },
+      { n, status: 'budget', score: null, promoted: false, spentUsd, estimatedUsd, projectedUsd },
       'system',
     )
     runtime.append(view, 'campaign.status', { status: 'converged', reason: 'cost budget exhausted' }, 'system')
-    raise('budget', { message: `spend $${spentUsd.toFixed(4)} reached cap $${state.budget.usd}` })
+    raise('budget', {
+      message: exhausted
+        ? `spend $${spentUsd.toFixed(4)} reached cap $${state.budget.usd}`
+        : `spend $${spentUsd.toFixed(4)} + estimated round $${estimatedUsd.toFixed(4)} would cross cap $${state.budget.usd}`,
+      spentUsd,
+      estimatedUsd,
+      projectedUsd,
+    })
     return
   }
   const tasks = state.evalset.tasks.filter((t) => !state.evalset.holdout.includes(t.id))

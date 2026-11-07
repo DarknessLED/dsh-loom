@@ -22,6 +22,35 @@ function ratio(a, b) {
 }
 
 /**
+ * What one more round is likely to cost in this campaign, from its own ledger.
+ *
+ * The only honest predictor of the next round is what earlier rounds actually
+ * cost: the mean `costUsd` over rounds that recorded one. Rounds with no
+ * measurement (`null`/`undefined`/non-finite) are excluded rather than counted
+ * as zero — averaging them in would quietly underwrite a budget preflight with
+ * rounds that never reported a price. No measured round at all yields 0, which
+ * the caller must read as "unknown, do not block": an empty ledger is not
+ * evidence that the next round is free.
+ *
+ * @param {Array<object>} rounds folded rounds carrying `costUsd`
+ * @returns {number} mean measured round cost in USD, 0 when unmeasured
+ */
+export function estimatedRoundCost(rounds) {
+  const list = Array.isArray(rounds) ? rounds : []
+  let sum = 0
+  let measured = 0
+  for (const r of list) {
+    if (!r || typeof r !== 'object') continue
+    if (r.costUsd === null || r.costUsd === undefined) continue
+    const cost = Number(r.costUsd)
+    if (!Number.isFinite(cost)) continue
+    sum += cost
+    measured += 1
+  }
+  return measured > 0 ? Math.round((sum / measured) * 1e6) / 1e6 : 0
+}
+
+/**
  * @param {Array<object>} rounds folded rounds (`durationMs`, `attemptMs`,
  *   `verifierMs`, `tokens`, `costUsd`, `status`, `promoted`)
  */
