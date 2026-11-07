@@ -22,6 +22,7 @@ import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { planCacheKey, cachedPlan, rememberPlan } from './recon-reuse.js'
+import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost } from './triangle.js'
 
 /**
@@ -485,6 +486,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     return
   }
   const acceptance = acceptanceVerifier({ task, chain })
+  // A campaign may make the autopilot guard the tail of its own verify command.
+  // The verifier then produces exactly the verdict the guard would reproduce, so
+  // the guard clause is not spawned a second time after the patch lands. The
+  // clause is also removed from the command the verifier is handed — that is
+  // what makes the reuse real rather than a second run under a different name.
+  const verifyGuard = state.autopilot?.enabled === true && state.autopilot.guard ? String(state.autopilot.guard) : null
+  const guardReusedByVerifier = Boolean(verifyGuard && acceptance.spec && guardIsPartOf(acceptance.spec.cmd, verifyGuard))
+  const acceptanceSpec = guardReusedByVerifier
+    ? { ...acceptance.spec, cmd: stripGuardClause(acceptance.spec.cmd, verifyGuard) }
+    : acceptance.spec
+  // The brief still names the whole acceptance command: the guard is part of the
+  // criteria the worker must satisfy, even when the loop does not spawn it twice.
   const verifyCmd = acceptance.spec?.cmd || 'echo no-verifier && exit 1'
   const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
   // Which attempt gets the lessons rotates with the round, so the control is
@@ -684,13 +697,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // tasks that state no acceptance command. With neither, the attempt has
         // no proof and must fail closed instead of throwing.
         const verifierCwd = acceptance.source === 'chain' && acceptance.cwd ? resolve(wtPath, acceptance.cwd) : wtPath
-        const verified = acceptance.spec
+        const verified = acceptanceSpec
           ? await verifyOnce({
               dir: view.dir,
               patchFile: patch?.path ?? null,
-              keySuffix: `${acceptance.spec.cmd}\n${acceptance.spec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
+              keySuffix: `${acceptanceSpec.cmd}\n${acceptanceSpec.cwd ?? ''}\n${config.verify.timeoutMs ?? ''}`,
               cwd: verifierCwd,
-              run: () => runVerifier(acceptance.spec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs }),
+              run: () => runVerifier(acceptanceSpec, { cwd: verifierCwd, timeoutMs: config.verify.timeoutMs }),
             })
           : {
               reused: false,
@@ -1062,7 +1075,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           })
         } else {
           const guard = state.autopilot?.guard && state.autopilot.enabled ? state.autopilot.guard : null
-          const checked = guard
+          // The accepted verify command already carried this exact command, so
+          // the verdict that promoted the patch is also the guard's verdict.
+          const reusedGuard = Boolean(guard && acceptance.spec && guardIsPartOf(acceptance.spec.cmd, guard))
+          const checked = guard && !reusedGuard
             ? await runVerifier({ cmd: guard }, { cwd: workspace }).catch((err) => ({ ok: false, stderr: String(err?.message ?? err) }))
             : { ok: true }
           if (!checked.ok) {
@@ -1077,7 +1093,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             // Commit the promotion immediately: the next round branches off HEAD,
             // and leaving it dirty is what makes the following apply conflict.
             const landed = await commitWorkspace(workspace, `loom ${state.id} round ${n}: promote ${best.id} (score ${score})`)
-            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard, commit: landed.sha, committed: landed.committed === true, at: Date.now() }, 'system')
+            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard: reusedGuard ? 'reused-verifier' : guard, commit: landed.sha, committed: landed.committed === true, at: Date.now() }, 'system')
           }
         }
       } else {
