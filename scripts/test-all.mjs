@@ -67,6 +67,8 @@ const standing = [
   // 暂缓 must postpone in both doors, and a token budget must be a cap
   'tests/ui/snooze.test.mjs',
   'tests/tri8/token-cap.test.mjs',
+  // a one-shot winner must stop the siblings it made redundant
+  'tests/tri9/early-abort.test.mjs',
   // the queue says how many are waiting and where each risk came from, and a
   // sparkline tells an unscored round apart from one that scored zero
   'tests/ui/queue-total.test.mjs',
