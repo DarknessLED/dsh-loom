@@ -30,6 +30,10 @@ const standing = [
   // the loop must not be able to un-solve a task it already solved.
   'tests/self11/spend-estimate.test.mjs',
   'tests/self11/docs-coverage.test.mjs',
+  // the adversarial specs the loop solved are pins too: an unreachable gate or a
+  // panel that 500s must not come back.
+  'tests/chaos2/panel-degrade.test.mjs',
+  'tests/chaos2/exhausted-round.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
