@@ -61,6 +61,10 @@ const standing = [
   // the queue tells you how long it has waited, and a hit is reachable by keyboard
   'tests/ui/pending-queue.test.mjs',
   'tests/ui/keyboard-hit.test.mjs',
+  // colours come from one palette, and parallelism is measured against the
+  // window candidates actually had
+  'tests/ui/tones.test.mjs',
+  'tests/tri5/plan-aware.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

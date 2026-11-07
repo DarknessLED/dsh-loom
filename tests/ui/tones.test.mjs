@@ -24,7 +24,7 @@ const ok = (name) => {
 
 const here = dirname(fileURLToPath(import.meta.url))
 const source = readFileSync(join(here, '..', '..', 'client', 'index.js'), 'utf8')
-const panel = loadPanel()
+const panel = await loadPanel()
 
 {
   const tones = panel.TONES
