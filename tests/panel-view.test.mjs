@@ -502,9 +502,20 @@ test('the card draws the strip, the trend and the meters its pure functions comp
 // needs a human (else the one that is running) starts open, and the grid grows
 // more columns only when the host gives it the room.
 
+test('a pending checkpoint is counted, not read as an array', () => {
+  const { openCount } = loadClient().__panel
+  assert.equal(openCount({ open: 2, openCheckpoints: [{}, {}] }), 2, 'the host count is authoritative when it is a number')
+  assert.equal(openCount({ openCheckpoints: [{}, {}, {}] }), 3, 'an array of checkpoints is counted, not coerced')
+  assert.equal(openCount({ openCheckpoints: [] }), 0, 'an empty array is zero, not NaN')
+  assert.equal(openCount({ openCheckpoints: 3 }), 3, 'a number in that slot is still a number')
+  assert.equal(openCount({ checkpoints: [{}] }), 1, 'the older field still counts')
+  assert.equal(openCount({}), 0)
+  assert.equal(openCount(null), 0)
+})
+
 test('only the campaign that wants attention starts open', () => {
   const source = readFileSync(clientPath, 'utf8')
-  assert.match(source, /c\.openCheckpoints > 0/, 'a blocked campaign is the one worth opening')
+  assert.match(source, /openCount\(c\) > 0/, 'a blocked campaign is the one worth opening -- counted, not coerced')
   assert.match(source, /c\.status === 'running'/, 'otherwise the moving one is')
   assert.match(source, /if \(chosen === true\) return true/, 'an explicit collapse wins')
   assert.match(source, /if \(chosen === false\) return false/, 'an explicit expansion wins too -- otherwise 全展开 does nothing')

@@ -397,6 +397,24 @@ window.__ModuleLoader__.load({
     }
 
     var RISK_ORDER = { high: 0, normal: 1, low: 2 }
+    /**
+     * How many checkpoints are waiting on this campaign.
+     *
+     * The host sends both `open` (a number, for the badge) and `openCheckpoints`
+     * (the rows themselves). Reading the array as a count is the bug this
+     * function exists to prevent: `Number([])` is 0 and `Number([{}])` is NaN, so
+     * a campaign with a real question pending rendered no badge at all and was
+     * never the one opened by default.
+     */
+    function openCount(c) {
+      if (!c) return 0
+      if (typeof c.open === 'number' && Number.isFinite(c.open)) return c.open
+      if (Array.isArray(c.openCheckpoints)) return c.openCheckpoints.filter(Boolean).length
+      if (Array.isArray(c.checkpoints)) return c.checkpoints.length
+      var n = Number(c.openCheckpoints)
+      return Number.isFinite(n) && n > 0 ? n : 0
+    }
+
     function riskOf(value) {
       return RISK_ORDER[value] === undefined ? 9 : RISK_ORDER[value]
     }
@@ -1072,7 +1090,7 @@ window.__ModuleLoader__.load({
         var attention = null
         if (data && data.campaigns) {
           var waiting = data.campaigns.filter(function (c) {
-            return c && !c.error && c.openCheckpoints > 0
+            return c && !c.error && openCount(c) > 0
           })[0]
           var moving = data.campaigns.filter(function (c) {
             return c && !c.error && c.status === 'running'
@@ -1308,7 +1326,7 @@ window.__ModuleLoader__.load({
           // One line per idle campaign: what it is, where it stands, and whether
           // it wants something from the reader. Everything else is one click
           // away, and that click is the whole card.
-          var openCp = Number(c.openCheckpoints) || 0
+          var openCp = openCount(c)
           return h(
             'div',
             { className: 'loom-camp folded' },
@@ -1588,6 +1606,7 @@ window.__ModuleLoader__.load({
       qualityLabel: qualityLabel,
       kindLabel: kindLabel,
       checkpointLabel: checkpointLabel,
+      openCount: openCount,
       nodeLabel: nodeLabel,
       riskLabel: riskLabel,
       treeOf: treeOf,
