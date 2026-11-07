@@ -120,6 +120,88 @@ check('age renders coarse buckets in Chinese units', () => {
   assert.equal(age('nope'), '')
 })
 
+// The card is the integration point: the pure functions decide the line, and
+// this proves the component actually mounts what they compute, in the browser
+// half of the bundle, with no browser.
+check('a campaign card mounts the trend, the triangle and the meters', () => {
+  const { Card } = captured.module.__panel
+  const CampaignCard = Card(fakeReact)
+  const tree = CampaignCard({
+    c: {
+      id: 'loom-x',
+      status: 'running',
+      objective: '让三角可测',
+      rounds: 4,
+      spendUsd: 0.2,
+      budget: { usd: 1, rounds: 12, spentUsd: 0.2, roundsUsed: 4, minutes: 240 },
+      triangle: {
+        rounds: 4,
+        timedRounds: 4,
+        durationMs: 384_000,
+        secondsPerRound: 96,
+        parallelFactor: 2,
+        verifierShare: 0.4,
+        tokens: 9_000,
+        tokensPerRound: 2_250,
+        usd: 0.2,
+        promotionRate: 0.5,
+        usdPerPromotion: 0.1,
+        measured: true,
+      },
+      trend: [{ n: 4, status: 'promoted', score: 0.9 }],
+      quality: { rounds: 4, promotions: 2, verdict: 'healthy' },
+      ageMs: 60_000,
+    },
+    live: [],
+    busy: null,
+    act: () => {},
+    onToggle: () => {},
+    folded: false,
+    confirming: null,
+    setConfirming: () => {},
+  })
+  const classes = new Set()
+  const titles = []
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      node.forEach(walk)
+      return
+    }
+    if (node.props && node.props.className) classes.add(String(node.props.className))
+    if (node.props && node.props.title) titles.push(String(node.props.title))
+    ;(node.children || []).forEach(walk)
+  }
+  walk(tree)
+  assert.ok(classes.has('loom-tri'), 'the five-figure line is on the card')
+  assert.ok(classes.has('loom-spark'), 'the round trend is on the card')
+  assert.ok(classes.has('loom-meter'), 'the budget meters are on the card')
+  assert.ok(titles.some((t) => t.includes('第 4 轮')), 'a bar carries its round in the tooltip')
+  assert.ok(titles.some((t) => t.includes('已花')), 'a meter spells its budget out')
+})
+
+check('triangle chips are dashes when the host measured nothing', () => {
+  const { triangleChips } = captured.module.__panel
+  assert.deepEqual(
+    triangleChips({
+      triangle: { measured: true, secondsPerRound: null, parallelFactor: null, verifierShare: null, tokens: 0, usdPerPromotion: null },
+    }).map((c) => c.label),
+    ['—秒/轮', '并行 ×—', '验证器 —', '— tok', '—/晋升'],
+  )
+  assert.deepEqual(triangleChips({ triangle: { measured: false } }).map((c) => c.label), ['未测量'])
+})
+
+check('budget meters clamp and never overflow their track', () => {
+  const { budgetMeters } = captured.module.__panel
+  const meters = budgetMeters({
+    rounds: 9,
+    budget: { rounds: 6, roundsUsed: 9, usd: 1, spentUsd: 2, minutes: 60 },
+    triangle: { durationMs: 7_200_000, measured: true },
+  })
+  assert.deepEqual(meters.map((m) => m.pct), [100, 100, 100])
+  assert.deepEqual(meters.map((m) => m.over), [true, true, true])
+})
+
 // WCAG relative luminance, so the dot colours are held to a readable floor on
 // both canvases instead of being frozen at whatever hex we happen to ship.
 function lum(hex) {

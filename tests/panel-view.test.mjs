@@ -202,8 +202,12 @@ test('campaign figures keep the same order on every row', () => {
     incumbent: { score: 0.9 },
     lessons: 2,
     holdout: 0,
+    tasks: 3,
   })
-  assert.deepEqual(meta, ['1 轮', '$0.02', '链 v1', '最佳 0.9', '2 条知识'])
+  // The rounds and the money moved into the meters and the chain version into
+  // the chain line, so the row is only the artefacts a reader looks up.
+  assert.deepEqual(meta, ['最佳 0.9', '2 条知识', '3 任务'])
+  assert.deepEqual(client.__panel.campaignMeta({ rounds: 2 }), [], 'nothing known, nothing claimed')
 })
 
 test('attempt chips carry the verifier verdict, never a guess', () => {
@@ -236,6 +240,8 @@ test('the palette is monochrome ink, and colour is reserved for 6px dots', () =>
   assert.match(css, /cubic-bezier\(\.25,\.46,\.45,\.94\)/, 'and its easing, not a spring')
   assert.ok(!/box-shadow:(?!.*var\(--loom-ok\)|.*var\(--loom-warn\))/.test(css), 'no card shadows')
   assert.ok(css.includes('prefers-reduced-motion'), 'motion can be switched off')
+  assert.match(css, /\.loom-spark \.pt\[data-tone="ok"\]\{background:var\(--loom-ok\)\}/, 'the trend borrows the state palette, it does not invent one')
+  assert.match(css, /\.loom-tri\{[^}]*font-family:var\(--loom-mono\)/, 'five figures are mono so the decimals line up')
 })
 
 test('the ink base is measured from the host, and a hostile document cannot kill the panel', () => {
@@ -348,4 +354,142 @@ test('every tree row carries its depth and whether it is the last sibling', () =
     ],
     'the last child of every branch stops the rail',
   )
+})
+
+// The triangle is the strip the panel was missing: how long a round takes, how
+// much of it runs in parallel, what the verifier eats, the tokens burnt and the
+// price of a promotion. Four of the five are nullable by design — `measured:
+// false` is a fact the host reports, not a bug — so the dashes are pinned as
+// hard as the numbers.
+test('the triangle is five figures on one line, each explaining itself', () => {
+  const { triangleChips } = loadClient().__panel
+  const chips = triangleChips({
+    triangle: {
+      rounds: 7,
+      timedRounds: 7,
+      durationMs: 672_000,
+      secondsPerRound: 96,
+      parallelFactor: 2.34,
+      verifierShare: 0.38,
+      tokens: 18_432,
+      tokensPerRound: 2_633,
+      usd: 0.41,
+      promotionRate: 5 / 7,
+      usdPerPromotion: 0.082,
+      measured: true,
+    },
+  })
+  assert.deepEqual(chips.map((c) => c.key), ['speed', 'parallel', 'verifier', 'tokens', 'promotion'], 'one fixed order, like the meta row')
+  assert.deepEqual(chips.map((c) => c.label), ['96秒/轮', '并行 ×2.3', '验证器 38%', '18.4k tok', '$0.08/晋升'])
+  assert.match(chips[0].title, /96 秒/, 'the title spells the number out instead of abbreviating it')
+  assert.match(chips[0].title, /7\/7 轮/, 'and admits how many rounds were actually timed')
+  assert.match(chips[1].title, /2\.34/, 'the factor is rounded on screen, not in the tooltip')
+  assert.match(chips[3].title, /18432 token/, 'token counts are exact in the title, compact on the line')
+  assert.match(chips[4].title, /每次晋升 \$0\.08/)
+})
+
+test('an unmeasured leg is a dash, never a zero', () => {
+  const { triangleChips } = loadClient().__panel
+  const chips = triangleChips({
+    triangle: {
+      rounds: 0,
+      timedRounds: 0,
+      secondsPerRound: null,
+      parallelFactor: null,
+      verifierShare: null,
+      tokens: 0,
+      usd: 0,
+      tokensPerRound: null,
+      usdPerPromotion: null,
+      promotionRate: null,
+      measured: true,
+    },
+  })
+  assert.deepEqual(chips.map((c) => c.label), ['—秒/轮', '并行 ×—', '验证器 —', '— tok', '—/晋升'])
+  assert.ok(
+    !chips.some((c) => /(^|[^\d])0([^\d]|$)/.test(c.label)),
+    'a zero here would claim the loop measured nothing, which is the opposite of having no measurement',
+  )
+  assert.match(chips[4].title, /还没有晋升/, 'and the title says why there is no price yet')
+})
+
+test('measured:false is one quiet chip, not five dashes', () => {
+  const { triangleChips } = loadClient().__panel
+  const quiet = triangleChips({ triangle: { measured: false, rounds: 0, tokens: 0, usd: 0 } })
+  assert.equal(quiet.length, 1, 'one statement of absence beats five')
+  assert.equal(quiet[0].key, 'unmeasured')
+  assert.equal(quiet[0].label, '未测量')
+  assert.equal(quiet[0].quiet, true, 'it renders as a quiet chip, not as data')
+  assert.equal(triangleChips({})[0].key, 'unmeasured', 'a campaign without a triangle says so just as plainly')
+})
+
+test('the trend is the last eight rounds: height by score, colour by verdict', () => {
+  const { sparkOf } = loadClient().__panel
+  const rounds = []
+  for (let n = 1; n <= 10; n += 1) {
+    rounds.push({ n, status: n % 3 === 0 ? 'no-gain' : 'promoted', score: n / 10 })
+  }
+  const spark = sparkOf({ trend: rounds })
+  assert.equal(spark.count, 8, 'the window is a glance, not a ledger')
+  assert.equal(spark.bars[0].n, 3, 'the oldest rounds fall off the left')
+  assert.equal(spark.bars[7].n, 10)
+  assert.equal(spark.bars[7].px, 13, 'the best round of the window is the tallest bar')
+  assert.ok(spark.bars[0].px < spark.bars[7].px, 'height is the score, so a worse round is shorter')
+  assert.deepEqual(
+    spark.bars.map((b) => b.tone),
+    ['warn', 'ok', 'ok', 'warn', 'ok', 'ok', 'warn', 'ok'],
+    'a no-gain round is the warm accent; a promoted one is the ok accent',
+  )
+})
+
+test('a bar says which round it was, what happened and the score', () => {
+  const { sparkOf } = loadClient().__panel
+  const spark = sparkOf({ lastRound: { n: 6, status: 'promoted', score: 0.94 } })
+  assert.equal(spark.count, 1, 'the host ships one round today; the trend shows one bar and invents none')
+  assert.equal(spark.bars[0].title, '第 6 轮 已晋升 0.94')
+  const bare = sparkOf({ lastRound: { n: 8, status: 'running' } })
+  assert.equal(bare.bars[0].title, '第 8 轮 未计分', 'a missing score is admitted, not rounded to zero')
+  const crash = sparkOf({ trend: [{ n: 9, status: 'crashed', score: 0.1 }] })
+  assert.equal(crash.bars[0].tone, 'bad', 'a crashed round is the bad accent, not the idle one')
+})
+
+test('a campaign with no rounds has no trend, and that is not an error', () => {
+  const { sparkOf } = loadClient().__panel
+  assert.deepEqual(sparkOf({ rounds: 0 }).bars, [])
+  assert.equal(sparkOf({}).count, 0)
+  assert.deepEqual(sparkOf(null).bars, [], 'a broken campaign still renders')
+})
+
+test('the meters clamp at 100% and admit when a budget is spent', () => {
+  const { budgetMeters } = loadClient().__panel
+  const meters = budgetMeters({
+    rounds: 20,
+    spendUsd: 0.5,
+    budget: { usd: 1, rounds: 12, spentUsd: 1.2, roundsUsed: 20, minutes: 240 },
+    triangle: { durationMs: 600_000, measured: true },
+  })
+  assert.deepEqual(meters.map((m) => m.key), ['rounds', 'spend', 'time'], 'the same three meters on every campaign')
+  assert.deepEqual(meters.map((m) => m.label), ['轮数', '花费', '时间'])
+  assert.deepEqual(meters.map((m) => m.text), ['20/12', '$1.20/$1.00', '10/240 分'], 'the number is right aligned in mono')
+  assert.deepEqual(meters.map((m) => m.pct), [100, 100, 4], 'a fill never leaves its 2px track')
+  assert.deepEqual(meters.map((m) => m.tone), ['bad', 'bad', 'ok'])
+  assert.deepEqual(meters.map((m) => m.over), [true, true, false], 'over budget is a fact, not a clipped picture')
+})
+
+test('a budget that was never set is a dash, not a full meter', () => {
+  const { budgetMeters } = loadClient().__panel
+  const bare = budgetMeters({ rounds: 3 })
+  assert.deepEqual(bare.map((m) => m.text), ['3/—', '$0/—', '—/—'])
+  assert.deepEqual(bare.map((m) => m.pct), [0, 0, 0], 'no cap must not read as 100%')
+  assert.match(bare[2].title, /未测量/, 'an unmeasured duration says so')
+  assert.doesNotThrow(() => budgetMeters(null))
+})
+
+test('the card draws the strip, the trend and the meters its pure functions compute', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /var tri = triangleChips\(c\)/, 'the card asks the tested function, it does not re-derive the line')
+  assert.match(source, /h\('div', \{ className: 'loom-vitals' \}, sparkNode, metersNode\)/)
+  assert.match(source, /className: 'loom-tri'/)
+  assert.match(source, /className: 'loom-meter'/)
+  assert.ok(!/'loom-ev'/.test(source), 'the old evidence line is gone, not left half rendered')
 })

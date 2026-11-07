@@ -74,7 +74,7 @@ window.__ModuleLoader__.load({
       // every flex row in a 320px sidebar needs its wandering child to be
       // allowed to shrink: `min-width:auto` is what turns an ellipsis into a
       // horizontal scrollbar.
-      '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-ev,.loom-cp-head{min-width:0}',
+      '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-tri,.loom-vitals,.loom-cp-head{min-width:0}',
       // header
       '.loom-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--loom-line)}',
       '.loom-mark{font-family:var(--loom-mono);font-size:11px;font-weight:500;letter-spacing:.14em;white-space:nowrap}',
@@ -110,7 +110,7 @@ window.__ModuleLoader__.load({
       // sections
       '.loom-sec{border-bottom:1px solid var(--loom-line)}',
       '.loom-sec:last-child{border-bottom:0}',
-      '.loom-sec-head{display:flex;align-items:center;gap:6px;padding:9px 12px 5px;',
+      '.loom-sec-head{display:flex;align-items:center;gap:6px;padding:10px 12px 4px;',
       ' font-size:10px;letter-spacing:.08em;color:var(--loom-quiet)}',
       '.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);letter-spacing:0;color:var(--loom-quiet)}',
       // rows
@@ -121,7 +121,7 @@ window.__ModuleLoader__.load({
       ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-row .txt b{font-weight:500;color:var(--loom-ink)}',
       // campaign block
-      '.loom-camp{padding:10px 12px 11px;border-top:1px solid var(--loom-line)}',
+      '.loom-camp{padding:11px 12px 12px;border-top:1px solid var(--loom-line)}',
       '.loom-camp:first-of-type{border-top:0}',
       '.loom-camp:hover{background:color-mix(in srgb,var(--loom-base) 2.5%,transparent)}',
       '.loom-titlerow{display:flex;align-items:baseline;gap:7px}',
@@ -129,13 +129,45 @@ window.__ModuleLoader__.load({
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-state{font-size:10px;letter-spacing:.02em;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);white-space:nowrap}',
-      '.loom-obj{margin-top:4px;font-size:11.5px;line-height:1.45;color:var(--loom-soft);',
+      '.loom-obj{margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--loom-soft);',
       ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
-      '.loom-meta{margin-top:5px;font-family:var(--loom-mono);font-size:10px;letter-spacing:.01em;color:var(--loom-faint);',
+      '.loom-meta{margin-top:4px;font-family:var(--loom-mono);font-size:10px;letter-spacing:.01em;color:var(--loom-faint);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-chain{margin-top:3px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-ev{margin-top:4px;display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet)}',
+      // ---- the measured triangle, the trend, the budget --------------------
+      // One line of five figures, then one line of structure. The line ellipsises
+      // instead of wrapping: a wrapped row of dashes reads as a broken table, and
+      // every segment carries its own title so the clipped text still explains
+      // itself on hover.
+      '.loom-tri{margin-top:5px;display:block;min-width:0;font-family:var(--loom-mono);',
+      ' font-size:9.5px;letter-spacing:.01em;line-height:1.5;color:var(--loom-quiet);',
+      ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.loom-tri .seg{color:var(--loom-soft)}',
+      '.loom-tri .sep{padding:0 4px;color:var(--loom-line2)}',
+      '.loom-tri .loom-chip{margin-left:0}',
+      // the vitals row: the last rounds on the left, the budget on the right,
+      // both sitting on one baseline so a glance compares them.
+      '.loom-vitals{margin-top:6px;display:flex;align-items:flex-end;gap:10px;min-width:0}',
+      '.loom-spark{display:flex;align-items:flex-end;gap:2px;height:16px;flex:0 0 auto;padding-bottom:1px}',
+      '.loom-spark .pt{display:block;width:4px;min-height:2px;border-radius:1px;background:var(--loom-faint);',
+      ' transition:background 150ms var(--loom-ease)}',
+      '.loom-spark .pt[data-tone="ok"]{background:var(--loom-ok)}',
+      '.loom-spark .pt[data-tone="warn"]{background:var(--loom-warn)}',
+      '.loom-spark .pt[data-tone="bad"]{background:var(--loom-bad)}',
+      '.loom-spark .pt[data-tone="idle"]{background:var(--loom-faint)}',
+      '.loom-meters{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}',
+      '.loom-meter{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0}',
+      '.loom-meter .k{font-size:9px;line-height:1;letter-spacing:.04em;color:var(--loom-faint);white-space:nowrap}',
+      '.loom-meter .bar{display:block;height:2px;border-radius:1px;background:var(--loom-line);overflow:hidden}',
+      '.loom-meter .fill{display:block;height:100%;border-radius:1px;background:var(--loom-ok);',
+      ' transition:width 150ms var(--loom-ease)}',
+      '.loom-meter[data-tone="warn"] .fill{background:var(--loom-warn)}',
+      '.loom-meter[data-tone="bad"] .fill{background:var(--loom-bad)}',
+      '.loom-meter .num{justify-self:end;font-family:var(--loom-mono);font-size:9px;line-height:1;',
+      ' color:var(--loom-soft);white-space:nowrap}',
+      // every figure a poll can change is tabular, so the column does not twitch
+      '.loom-metric b,.loom-age,.loom-tri,.loom-meter .num,.loom-node .v{font-variant-numeric:tabular-nums}',
       // ---- the tree ----
       // one hairline rail runs down the depth-1 nodes and every node but the
       // last elbows onto it; deeper levels indent and keep a quieter dot. No
@@ -176,6 +208,9 @@ window.__ModuleLoader__.load({
       '.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 32%,transparent)}',
       '.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 32%,transparent)}',
       '.loom-chip.live{color:var(--loom-ok)}',
+      // a chip that reports an absence: no fill, a hairline, no accent — it is
+      // a state of the data, not a state of the loop.
+      '.loom-chip.quiet{background:transparent;border-color:var(--loom-line);color:var(--loom-faint);letter-spacing:.06em}',
       // knowledge
       '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 12px 2px 31px;font-size:11.5px;color:var(--loom-soft)}',
       '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -435,17 +470,233 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The figures a reader compares between campaigns, in a fixed order so the
-     * same number sits in the same place on every row.
+     * What is left once the budget meters own the rounds and the money and the
+     * chain line owns the version: the artefacts a reader looks up.
      */
     function campaignMeta(c) {
       var out = []
-      out.push(num(c.rounds) + ' 轮')
-      out.push(money(c.spendUsd))
-      if (c.chainVersion !== null && c.chainVersion !== undefined) out.push('链 v' + c.chainVersion)
       if (c.incumbent && c.incumbent.score !== null && c.incumbent.score !== undefined) out.push('最佳 ' + c.incumbent.score)
       if (c.lessons) out.push(num(c.lessons) + ' 条知识')
       if (c.holdout) out.push(num(c.holdout) + ' 留出')
+      if (c.tasks) out.push(num(c.tasks) + ' 任务')
+      return out
+    }
+
+    // ---- the triangle, the trend, the budget -------------------------------
+    //
+    // The three things a reader compares between campaigns. The host measures
+    // them (`src/runtime/triangle.js`); this half only formats. A missing
+    // number is a dash, never a zero: "not measured" and "cost nothing" are
+    // different claims, and a panel that conflates them lies quietly.
+
+    var SPARK_ROUNDS = 8
+    var SPARK_PX = 13
+
+    function amount(value) {
+      return typeof value === 'number' && isFinite(value) ? value : null
+    }
+
+    function fmtSeconds(value) {
+      var s = amount(value)
+      if (s === null || s <= 0) return '—'
+      return s >= 10 ? String(Math.round(s)) : String(Math.round(s * 10) / 10)
+    }
+
+    function fmtFactor(value) {
+      var f = amount(value)
+      if (f === null || f <= 0) return '—'
+      return f >= 1 ? f.toFixed(1) : f.toFixed(2)
+    }
+
+    function fmtPercent(value) {
+      var f = amount(value)
+      return f === null ? '—' : String(Math.round(f * 100)) + '%'
+    }
+
+    function fmtTokens(value) {
+      var n = amount(value)
+      if (n === null || n <= 0) return '—'
+      if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M'
+      if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + 'k'
+      return String(Math.round(n))
+    }
+
+    /**
+     * The five figures of the triangle as one mono line. `measured === false`
+     * is a claim by the host that it looked and found nothing to measure — that
+     * is one quiet chip, not five dashes pretending to be data.
+     */
+    function triangleChips(c) {
+      var t = (c && c.triangle) || null
+      if (!t || t.measured === false) {
+        return [{
+          key: 'unmeasured',
+          label: '未测量',
+          quiet: true,
+          title: t ? '这一战役没有记录耗时和 token，三角未测量（不是 0）' : '宿主还没有送来三角数据',
+        }]
+      }
+      var speed = amount(t.secondsPerRound)
+      var factor = amount(t.parallelFactor)
+      var share = amount(t.verifierShare)
+      var tokens = amount(t.tokens)
+      var perPromo = amount(t.usdPerPromotion)
+      var timed = num(t.timedRounds)
+      var total = num(t.rounds)
+      var perRound = amount(t.tokensPerRound)
+      var chips = [{
+        key: 'speed',
+        label: fmtSeconds(speed) + '秒/轮',
+        title: speed === null
+          ? '没有记录墙钟，算不出每轮秒数'
+          : '平均每轮 ' + fmtSeconds(speed) + ' 秒（' + timed + '/' + total + ' 轮记录了墙钟）',
+      }, {
+        key: 'parallel',
+        label: '并行 ×' + fmtFactor(factor),
+        title: factor === null
+          ? '没有墙钟或候选耗时，并行度未知'
+          : '候选累计耗时 ÷ 墙钟 = ' + factor.toFixed(2) + '（1.0 是串行，2.0 是两个候选并行）',
+      }, {
+        key: 'verifier',
+        label: '验证器 ' + fmtPercent(share),
+        title: share === null
+          ? '验证器耗时未记录'
+          : '验证器占用墙钟 ' + fmtPercent(share),
+      }, {
+        key: 'tokens',
+        label: fmtTokens(tokens) + ' tok',
+        title: tokens === null || tokens <= 0
+          ? 'token 未计量：宿主没有回报用量'
+          : '累计 ' + Math.round(tokens) + ' token' + (perRound === null ? '' : '，每轮 ' + fmtTokens(perRound)),
+      }, {
+        key: 'promotion',
+        label: (perPromo === null ? '—' : money(perPromo)) + '/晋升',
+        title: perPromo === null
+          ? '还没有晋升，算不出每次晋升的成本'
+          : '每次晋升 ' + money(perPromo) + '（共 ' + money(t.usd) + '，晋升率 ' + fmtPercent(t.promotionRate) + '）',
+      }]
+      return chips
+    }
+
+    // The host ships the last round only; `trend` is the forward-compatible
+    // shape a full history will arrive in, so the sparkline already knows how
+    // to read it.
+    function trendOf(c) {
+      if (!c) return null
+      var lists = [c.trend, c.roundHistory]
+      for (var i = 0; i < lists.length; i += 1) {
+        if (Array.isArray(lists[i])) return lists[i]
+      }
+      if (Array.isArray(c.rounds)) return c.rounds
+      return null
+    }
+
+    function sparkTone(r) {
+      if (!r) return 'idle'
+      if (r.promoted === true || r.status === 'promoted') return 'ok'
+      if (r.status === 'no-gain') return 'warn'
+      if (r.status === 'holdout-failed' || r.status === 'crashed' || r.status === 'failed') return 'bad'
+      return 'idle'
+    }
+
+    function barTitle(r, score) {
+      var head = '第 ' + r.n + ' 轮'
+      var status = roundStatusLabel(r)
+      if (status) head += ' ' + status
+      return head + ' ' + (score === null ? '未计分' : score)
+    }
+
+    /**
+     * The last eight rounds as bars: height is the score against the best of
+     * the window, colour is the verdict. No rounds is an empty sparkline, not
+     * an error — a campaign one minute old has nothing to trend yet.
+     */
+    function sparkOf(c) {
+      var list = trendOf(c)
+      if (!list && c && c.lastRound && c.lastRound.n !== null && c.lastRound.n !== undefined) list = [c.lastRound]
+      var rounds = (list || []).filter(function (r) {
+        return r && r.n !== null && r.n !== undefined
+      }).slice(-SPARK_ROUNDS)
+      var scores = rounds.map(function (r) {
+        return amount(r.score)
+      })
+      var max = 0
+      for (var i = 0; i < scores.length; i += 1) {
+        if (scores[i] !== null && scores[i] > max) max = scores[i]
+      }
+      if (max <= 0) max = 1
+      var bars = rounds.map(function (r, index) {
+        var score = scores[index]
+        var share = score === null || score <= 0 ? 0 : Math.min(1, score / max)
+        return {
+          key: 'r' + r.n,
+          n: r.n,
+          score: score,
+          px: 2 + Math.round(share * (SPARK_PX - 2)),
+          tone: sparkTone(r),
+          title: barTitle(r, score),
+        }
+      })
+      return { bars: bars, max: max, count: bars.length }
+    }
+
+    function meterOf(key, label, used, cap, text, title) {
+      var u = amount(used)
+      var limit = amount(cap)
+      var pct = limit === null || limit <= 0 || u === null ? 0 : Math.min(100, Math.max(0, (u / limit) * 100))
+      var over = limit !== null && limit > 0 && u !== null && u > limit
+      var full = limit !== null && limit > 0 && u !== null && u >= limit
+      return {
+        key: key,
+        label: label,
+        used: u,
+        cap: limit,
+        pct: Math.round(pct),
+        over: over,
+        tone: full ? 'bad' : pct >= 75 ? 'warn' : 'ok',
+        text: text,
+        title: title,
+      }
+    }
+
+    /**
+     * Three thin meters: rounds, money, wall-clock. The numbers sit right
+     * aligned in mono so the columns line up across campaigns; the fill is
+     * clamped at 100% because a meter that overflows its own track is a
+     * picture of a bug, not of a budget.
+     */
+    function budgetMeters(c) {
+      var b = (c && c.budget) || null
+      var t = (c && c.triangle) || null
+      var out = []
+
+      var roundsUsed = b && amount(b.roundsUsed) !== null ? amount(b.roundsUsed) : num(c && c.rounds)
+      var roundsCap = b ? amount(b.rounds) : null
+      var roundsText = String(roundsUsed) + '/' + (roundsCap === null || roundsCap <= 0 ? '—' : roundsCap)
+      out.push(meterOf('rounds', '轮数', roundsUsed, roundsCap, roundsText,
+        roundsCap === null || roundsCap <= 0
+          ? '这场战役没有轮数上限（已用 ' + roundsUsed + ' 轮）'
+          : '已用 ' + roundsUsed + ' / 上限 ' + roundsCap + ' 轮'))
+
+      var spent = b && amount(b.spentUsd) !== null ? amount(b.spentUsd) : num(c && c.spendUsd)
+      var usdCap = b ? amount(b.usd) : null
+      out.push(meterOf('spend', '花费', spent, usdCap,
+        money(spent) + '/' + (usdCap === null || usdCap <= 0 ? '—' : money(usdCap)),
+        usdCap === null || usdCap <= 0
+          ? '这场战役没有美元上限（已花 ' + money(spent) + '）'
+          : '已花 ' + money(spent) + ' / 上限 ' + money(usdCap)))
+
+      var mins = t && t.measured !== false && amount(t.durationMs) !== null ? Math.round(amount(t.durationMs) / 60000) : null
+      var minCap = b ? amount(b.minutes) : null
+      var capText = minCap === null || minCap <= 0 ? '—' : minCap + ' 分'
+      out.push(meterOf('time', '时间', mins, minCap,
+        (mins === null ? '—' : mins) + '/' + capText,
+        mins === null
+          ? '轮内耗时未测量（不是 0）'
+          : minCap === null || minCap <= 0
+            ? '轮内耗时 ' + mins + ' 分，没有时间上限'
+            : '轮内耗时 ' + mins + ' 分 / 上限 ' + minCap + ' 分'))
+
       return out
     }
 
@@ -981,6 +1232,67 @@ window.__ModuleLoader__.load({
           )
         }
 
+        var tri = triangleChips(c)
+        var spark = sparkOf(c)
+        var meters = budgetMeters(c)
+
+        var triKids = []
+        tri.forEach(function (chip, i) {
+          if (i > 0) triKids.push(h('span', { key: 's' + i, className: 'sep' }, '·'))
+          triKids.push(
+            chip.quiet
+              ? h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)
+              : h('span', { key: chip.key, className: 'seg', title: chip.title }, chip.label),
+          )
+        })
+
+        // A bar's height is its score against the best round of the window;
+        // the colour is the verdict. Hover tells the round, result and score.
+        var sparkNode = spark.count > 0
+          ? h(
+            'div',
+            { className: 'loom-spark', title: '最近 ' + spark.count + ' 轮：柱高按分数、柱色按结果' },
+            spark.bars.map(function (bar) {
+              return h('span', {
+                key: bar.key,
+                className: 'pt',
+                'data-tone': bar.tone,
+                title: bar.title,
+                style: { height: bar.px + 'px' },
+              })
+            }),
+          )
+          : null
+
+        var metersNode = h(
+          'div',
+          { className: 'loom-meters' },
+          meters.map(function (m) {
+            return h(
+              'div',
+              { key: m.key, className: 'loom-meter', 'data-tone': m.tone, title: m.title },
+              h('span', { className: 'k' }, m.label),
+              h('span', { className: 'bar' }, h('span', { className: 'fill', style: { width: m.pct + '%' } })),
+              h('span', { className: 'num' }, m.text),
+            )
+          }),
+        )
+
+        var qualityText = c.quality
+          ? qualityLabel(c.quality.verdict) + ' · ' + num(c.quality.promotions) + '/' + num(c.quality.rounds) + ' 晋升 · '
+          : ''
+
+        var metaLine = h(
+          'div',
+          { className: 'loom-meta', title: qualityText + meta.join(' · ') },
+          c.quality ? h('span', {
+            className: 'loom-dot',
+            style: { color: qualityTone(c.quality.verdict), marginRight: 4, verticalAlign: 'middle' },
+          }) : null,
+          qualityText,
+          meta.join(' · '),
+        )
+
         var rows = flattenTree(treeOf(c, live), 1, [])
 
         var treeRows = rows.map(function (row) {
@@ -1042,21 +1354,10 @@ window.__ModuleLoader__.load({
             { onClick: function () { props.onToggle(c.id) }, style: { cursor: 'pointer' } },
             head,
             h('div', { className: 'loom-obj' }, text(c.objective, '未记录目标')),
-            h('div', { className: 'loom-meta' }, meta.join(' · ')),
+            h('div', { className: 'loom-vitals' }, sparkNode, metersNode),
+            h('div', { className: 'loom-tri', title: tri.map(function (chip) { return chip.title }).join(' · ') }, triKids),
+            metaLine,
             when(chain, h('div', { className: 'loom-chain', title: chain }, chain)),
-            when(
-              c.quality,
-              h(
-                'div',
-                { className: 'loom-ev' },
-                h('span', { className: 'loom-dot', style: { color: qualityTone(c.quality.verdict) } }),
-                h('span', null, qualityLabel(c.quality.verdict)),
-                h('span', null, '· ' + c.quality.promotions + '/' + c.quality.rounds + ' 晋升'),
-                c.quality.avgRoundMs === null || c.quality.avgRoundMs === undefined
-                  ? null
-                  : h('span', null, '· ' + Math.round(c.quality.avgRoundMs / 1000) + ' 秒/轮'),
-              ),
-            ),
           ),
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
           h(
@@ -1180,6 +1481,9 @@ window.__ModuleLoader__.load({
       knowledge: knowledge,
       chainPath: chainPath,
       campaignMeta: campaignMeta,
+      triangleChips: triangleChips,
+      sparkOf: sparkOf,
+      budgetMeters: budgetMeters,
       attemptChips: attemptChips,
       liveOf: liveOf,
       riskTone: riskTone,

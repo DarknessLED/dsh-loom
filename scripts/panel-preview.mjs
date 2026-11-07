@@ -86,6 +86,7 @@ function html(node) {
   if (props.title) attrs.push(`title="${escape(props.title)}"`)
   if (props['data-depth']) attrs.push(`data-depth="${escape(props['data-depth'])}"`)
   if (props['data-last']) attrs.push(`data-last="${escape(props['data-last'])}"`)
+  if (props['data-tone']) attrs.push(`data-tone="${escape(props['data-tone'])}"`)
   if (props.style) attrs.push(`style="${styleOf(props.style)}"`)
   if (props.disabled) attrs.push('disabled')
   const tag = type === 'code' ? 'code' : type === 'button' ? 'button' : type === 'span' ? 'span' : type === 'b' ? 'b' : 'div'
@@ -121,6 +122,35 @@ const payload = {
       ],
       openCheckpoints: [{ id: 'cp-9f21', kind: 'gate', payload: { verdict: 'improved', delta: 0.12 } }],
       reviews: [{ id: 'cp-9f21', kind: 'gate', risk: 'normal', summary: 'promote r7a2 (score 0.94, Δ0.12)' }],
+      // measured by the host (src/runtime/triangle.js); the panel only formats
+      triangle: {
+        rounds: 7,
+        timedRounds: 7,
+        durationMs: 672_000,
+        attemptMs: 1_545_600,
+        verifierMs: 255_360,
+        secondsPerRound: 96,
+        parallelFactor: 2.3,
+        verifierShare: 0.38,
+        promotionRate: 5 / 7,
+        noGainRate: 2 / 7,
+        attemptsPerRound: 2.1,
+        tokens: 18_432,
+        usd: 0.41,
+        tokensPerRound: 2_633,
+        usdPerPromotion: 0.082,
+        measured: true,
+      },
+      budget: { usd: 1, rounds: 12, spentUsd: 0.41, roundsUsed: 7, minutes: 240 },
+      trend: [
+        { n: 1, status: 'no-gain', score: 0.62 },
+        { n: 2, status: 'promoted', score: 0.71 },
+        { n: 3, status: 'no-gain', score: 0.66 },
+        { n: 4, status: 'promoted', score: 0.8 },
+        { n: 5, status: 'holdout-failed', score: 0.83 },
+        { n: 6, status: 'promoted', score: 0.9 },
+        { n: 7, status: 'promoted', score: 0.94 },
+      ],
       lastRound: {
         n: 7,
         status: 'promoted',
@@ -150,6 +180,35 @@ const payload = {
       lessonsTop: [{ id: 'l4', claim: 'wrap every per-campaign read, not just the loop', kind: 'fact', score: 0.2 }],
       openCheckpoints: [],
       reviews: [],
+      triangle: {
+        rounds: 6,
+        timedRounds: 6,
+        durationMs: 858_000,
+        attemptMs: 1_372_800,
+        verifierMs: 446_160,
+        secondsPerRound: 143,
+        parallelFactor: 1.6,
+        verifierShare: 0.52,
+        promotionRate: 2 / 6,
+        noGainRate: 3 / 6,
+        attemptsPerRound: 1.6,
+        tokens: 9_120,
+        usd: 0.29,
+        tokensPerRound: 1_520,
+        usdPerPromotion: 0.145,
+        measured: true,
+      },
+      // six of six rounds and two thirds of the money already gone: the meters
+      // have to read as spent, not as a third of an abstract bar
+      budget: { usd: 1, rounds: 6, spentUsd: 0.29, roundsUsed: 6, minutes: 240 },
+      trend: [
+        { n: 1, status: 'no-gain', score: 0.5 },
+        { n: 2, status: 'promoted', score: 0.6 },
+        { n: 3, status: 'no-gain', score: 0.55 },
+        { n: 4, status: 'no-gain', score: 0.58 },
+        { n: 5, status: 'crashed', score: 0.4 },
+        { n: 6, status: 'promoted', score: 1 },
+      ],
       lastRound: { attempts: [{ id: 'r6a1', score: 1, verifierOk: true }] },
     },
     {
@@ -170,6 +229,94 @@ const payload = {
         { id: 'l6', claim: 'a verifier that always fails is a gate nobody can reach', kind: 'hazard', score: 0.35 },
         { id: 'l7', claim: 'raise one checkpoint per stuck signature, not one per round', kind: 'recipe', score: 0.1 },
       ],
+      openCheckpoints: [],
+      reviews: [],
+      triangle: {
+        rounds: 11,
+        timedRounds: 11,
+        durationMs: 1_452_000,
+        attemptMs: 2_758_800,
+        verifierMs: 638_880,
+        secondsPerRound: 132,
+        parallelFactor: 1.9,
+        verifierShare: 0.44,
+        promotionRate: 4 / 11,
+        noGainRate: 5 / 11,
+        attemptsPerRound: 1.9,
+        tokens: 22_000,
+        usd: 0.66,
+        tokensPerRound: 2_000,
+        usdPerPromotion: 0.165,
+        measured: true,
+      },
+      // eleven rounds, so the sparkline shows the last eight — the window is
+      // fixed on purpose: a sidebar is a glance, not a chart
+      budget: { usd: 1, rounds: 12, spentUsd: 0.66, roundsUsed: 11, minutes: 240 },
+      trend: [
+        { n: 1, status: 'no-gain', score: 0.55 },
+        { n: 2, status: 'promoted', score: 0.62 },
+        { n: 3, status: 'no-gain', score: 0.6 },
+        { n: 4, status: 'promoted', score: 0.7 },
+        { n: 5, status: 'no-gain', score: 0.68 },
+        { n: 6, status: 'promoted', score: 0.75 },
+        { n: 7, status: 'no-gain', score: 0.72 },
+        { n: 8, status: 'promoted', score: 0.8 },
+        { n: 9, status: 'no-gain', score: 0.78 },
+        { n: 10, status: 'promoted', score: 0.85 },
+        { n: 11, status: 'promoted', score: 0.9 },
+      ],
+    },
+    {
+      // the honest absence: the loop ran, the host recorded no wall-clock and
+      // no tokens, so the strip says 未测量 instead of inventing five zeros
+      id: 'loom-triangle',
+      status: 'running',
+      rounds: 2,
+      spendUsd: 0,
+      open: 0,
+      lessons: 0,
+      quarantined: 0,
+      ageMs: 8_000,
+      objective: 'a campaign that ran before the triangle existed: two rounds, no wall-clock, no token accounting',
+      chainVersion: 3,
+      chain: { version: 3, nodes: [{ type: 'agent' }, { type: 'human' }] },
+      budget: { usd: 25, rounds: 24, spentUsd: 0, roundsUsed: 2, minutes: 240 },
+      triangle: {
+        rounds: 2,
+        timedRounds: 0,
+        durationMs: 0,
+        attemptMs: 0,
+        verifierMs: 0,
+        secondsPerRound: null,
+        parallelFactor: null,
+        verifierShare: null,
+        promotionRate: null,
+        noGainRate: null,
+        attemptsPerRound: null,
+        tokens: 0,
+        usd: 0,
+        tokensPerRound: null,
+        usdPerPromotion: null,
+        measured: false,
+      },
+      trend: [{ n: 1, status: 'no-gain' }, { n: 2, status: 'running' }],
+      openCheckpoints: [],
+      reviews: [],
+      lastRound: { n: 2, status: 'running', attempts: [{ id: 'r2a1', score: null, verifierOk: false }] },
+    },
+    {
+      // nothing has run yet: no sparkline, meters at zero. The empty trend is
+      // the correct picture of a new campaign, not an error to be hidden
+      id: 'loom-fresh',
+      status: 'planning',
+      rounds: 0,
+      spendUsd: 0,
+      open: 0,
+      lessons: 0,
+      quarantined: 0,
+      ageMs: 3_000,
+      objective: '还没跑过一轮：面板应该显示空趋势和零预算，而不是把空数组当成错误',
+      budget: { usd: 5, rounds: 12, spentUsd: 0, roundsUsed: 0, minutes: 240 },
       openCheckpoints: [],
       reviews: [],
     },
@@ -200,6 +347,8 @@ const pendingPayload = {
     },
     payload.campaigns[1],
     payload.campaigns[2],
+    payload.campaigns[3],
+    payload.campaigns[4],
   ],
 }
 
@@ -219,7 +368,11 @@ const page = `<!DOCTYPE html>
 <style>
   html,body{margin:0;padding:0;background:#101113;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   .wrap{display:flex;gap:0;align-items:stretch;min-height:100vh}
-  .canvas{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+  /* the worst two widths the sidebar is asked to live in: nothing may overflow
+     at 320, and 400 is the comfortable case the design is read at */
+  .canvas{display:flex;flex-direction:column}
+  .dark{flex:0 0 320px;width:320px}
+  .light{flex:0 0 400px;width:400px}
   .label{font:10px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
   .slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   .dark{background:#08090a;color:#f7f8f8}
