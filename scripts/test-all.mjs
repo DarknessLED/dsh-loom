@@ -43,6 +43,8 @@ const standing = [
   // byte-identical patch must not re-spawn the verifier, and a round the budget
   // cannot afford must not be dispatched.
   'tests/tri/verifier-reuse.test.mjs',
+  'tests/tri2/recon-reuse.test.mjs',
+  'tests/tri2/guard-reuse.test.mjs',
   'tests/tri/budget-preflight.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))

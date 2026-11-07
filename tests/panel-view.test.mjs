@@ -493,3 +493,44 @@ test('the card draws the strip, the trend and the meters its pure functions comp
   assert.match(source, /className: 'loom-meter'/)
   assert.ok(!/'loom-ev'/.test(source), 'the old evidence line is gone, not left half rendered')
 })
+
+// ---- folding and grid --------------------------------------------------
+//
+// A sidebar panel that opens every campaign is one tall column: the reader has
+// to scroll past five closed histories to reach the one that is waiting on
+// them. So idle campaigns collapse to a single line, only the campaign that
+// needs a human (else the one that is running) starts open, and the grid grows
+// more columns only when the host gives it the room.
+
+test('only the campaign that wants attention starts open', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /c\.openCheckpoints > 0/, 'a blocked campaign is the one worth opening')
+  assert.match(source, /c\.status === 'running'/, 'otherwise the moving one is')
+  assert.match(source, /if \(chosen === true\) return true/, 'an explicit collapse wins')
+  assert.match(source, /if \(chosen === false\) return false/, 'an explicit expansion wins too -- otherwise 全展开 does nothing')
+  assert.match(source, /return c\.id !== attention/, 'the default is "only attention is open"')
+})
+
+test('a folded campaign is one line that still says what it wants', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /className: 'loom-camp folded'/, 'the folded branch is its own element')
+  assert.match(source, /openCp > 0 \? h\('span', \{ className: 'loom-flag'/, 'a waiting campaign carries a flag')
+  assert.match(source, /meta\.slice\(0, 3\)\.join\(' · '\)/, 'three facts, not the whole meta line')
+  assert.match(source, /className: 'loom-caret' \}, '›'/, 'and it looks expandable')
+})
+
+test('the grid only grows columns when the host gives it room', () => {
+  const { CSS } = loadClient().__panel
+  assert.match(CSS, /\.loom-cards\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(296px,1fr\)\)/,
+    'campaigns flow into as many columns as fit, without a viewport media query')
+  assert.match(CSS, /\.loom-kgrid\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(164px,1fr\)\)/,
+    'knowledge claims are packed, not stacked one per line')
+  assert.ok(!/@media \(min-width/.test(CSS), 'container width is what decides, not the window width')
+})
+
+test('a fold-all control exists because five clicks is not a layout', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /anyOpen \? '全收起' : '全展开'/, 'one button states the action it will take')
+  assert.match(source, /foldAll\(anyOpen\)/, 'and it applies to every campaign')
+  assert.match(source, /if \(c\) next\[c\.id\] = collapse/, 'including the folds the reader never touched')
+})

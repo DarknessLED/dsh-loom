@@ -84,18 +84,35 @@ const AUDIT = `
     return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
   }
   function ratio(fg, bg) {
-    var f = over(norm(fg), norm(bg)), b = norm(bg);
-    var l1 = lum(f), l2 = lum(b), hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    // bg may arrive as a flat colour or as an already-composited stack (an array);
+    // text on a translucent card has to be measured against what the eye sees.
+    var B = bg && bg.length === 4 ? bg : norm(bg);
+    var f = over(norm(fg), B);
+    var l1 = lum(f), l2 = lum(B), hi = Math.max(l1, l2), lo = Math.min(l1, l2);
     return (hi + 0.05) / (lo + 0.05);
   }
   function bgOf(el) {
+    // Walk up collecting every translucent surface, then composite them onto the
+    // first opaque one. Stopping at the first non-transparent colour (what this
+    // used to do) measures a 1.5%-tint card as if it were solid ink, which
+    // reports every label inside it as 1.00:1.
+    var layers = [];
+    var base = null;
     var n = el;
     while (n && n !== document.documentElement) {
       var b = getComputedStyle(n).backgroundColor;
-      if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b;
+      var c = b && b !== 'transparent' ? norm(b) : null;
+      if (c && c[3] > 0) {
+        if (c[3] >= 0.999) { base = c; break; }
+        layers.push(c);
+      }
       n = n.parentElement;
     }
-    return getComputedStyle(document.body).backgroundColor;
+    if (!base) base = norm(getComputedStyle(document.body).backgroundColor);
+    if (!base || base[3] < 0.999) base = [1, 1, 1, 1];
+    var out = base;
+    for (var i = layers.length - 1; i >= 0; i--) out = over(layers[i], out);
+    return out;
   }
   function hasOwnText(el) {
     for (var i = 0; i < el.childNodes.length; i++) {
@@ -107,15 +124,25 @@ const AUDIT = `
   var canvases = document.querySelectorAll('.canvas');
   for (var i = 0; i < canvases.length; i++) {
     var cv = canvases[i];
-    var name = cv.classList.contains('dark') ? 'dark' : 'light';
+    var name = (cv.classList.contains('dark') ? 'dark' : 'light') + (cv.classList.contains('wide') ? '-wide' : '');
     var panel = cv.querySelector('.loom');
     var scroller = panel.querySelector('.loom-scroll');
+    // A grid that never grows a second track is a column with extra steps: this
+    // is the number that says whether the wide layout actually uses its room.
+    var tracks = function (sel) {
+      var el = panel.querySelector(sel);
+      if (!el) return 0;
+      var t = getComputedStyle(el).gridTemplateColumns;
+      return t && t !== 'none' ? t.split(' ').filter(function (x) { return x.length > 0 }).length : 0;
+    };
     out.canvases.push({
       name: name,
       panelWidth: Math.round(panel.getBoundingClientRect().width),
       scroller: Math.round(scroller.clientHeight) + '/' + Math.round(scroller.scrollHeight),
       scrolls: scroller.scrollHeight > scroller.clientHeight + 1,
       hScroll: panel.scrollWidth > panel.clientWidth + 1 || scroller.scrollWidth > scroller.clientWidth + 1,
+      cardColumns: tracks('.loom-cards'),
+      knowledgeColumns: tracks('.loom-kgrid'),
       dividers: cv.querySelectorAll('.loom-head, .loom-metrics, .loom-row, .loom-camp, .loom-foot').length
     });
     var all = panel.querySelectorAll('*');
@@ -154,7 +181,7 @@ const AUDIT = `
       if (pick) out.fonts[wanted[kw]] = getComputedStyle(pick).fontFamily.split(',')[0].replace(/"/g, '');
     }
   }
-  out.truncatedPerCanvas = Math.round(out.truncated / 2);
+  out.truncatedPerCanvas = Math.round(out.truncated / canvases.length);
   var pre = document.createElement('pre');
   pre.id = 'loom-audit';
   pre.textContent = JSON.stringify(out);
@@ -187,8 +214,9 @@ const data = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').repl
 
 for (const c of data.canvases) {
   console.log(
-    `${c.name.padEnd(5)}  ${c.panelWidth}px wide · scroller ${c.scroller}px${c.scrolls ? ' (scrolls)' : ' (fits)'} · ` +
-      `${c.hScroll ? 'HORIZONTAL OVERFLOW' : 'no h-overflow'} · ${c.dividers} hairlines`,
+    `${c.name.padEnd(10)} ${String(c.panelWidth).padStart(3)}px wide · scroller ${c.scroller}px${c.scrolls ? ' (scrolls)' : ' (fits)'} · ` +
+      `${c.hScroll ? 'HORIZONTAL OVERFLOW' : 'no h-overflow'} · ${c.dividers} hairlines · ` +
+      `${c.cardColumns} card column(s) · ${c.knowledgeColumns} knowledge column(s)`,
   )
 }
 console.log('font: ' + Object.entries(data.fonts).map(([k, v]) => `${k}=${v}`).join(' '))
@@ -199,7 +227,19 @@ const problems = []
 if (data.canvases.some((c) => c.hScroll)) problems.push('a canvas scrolls horizontally')
 if (data.clipped.length) problems.push('unclipped overflow: ' + data.clipped.slice(0, 6).join(', '))
 if (data.contrast.length) problems.push('contrast below floor:\n  ' + data.contrast.slice(0, 10).join('\n  '))
-if (data.shadows > 2) problems.push(`too many shadows (${data.shadows})`)
+if (data.shadows > data.canvases.length) problems.push(`too many shadows (${data.shadows} across ${data.canvases.length} canvases)`)
+for (const c of data.canvases) {
+  // Room given must be used, and room not given must not be faked.
+  if (c.panelWidth >= 640 && c.cardColumns < 2) {
+    problems.push(`${c.name} is ${c.panelWidth}px wide but still stacks campaigns in one column`)
+  }
+  if (c.panelWidth < 360 && c.cardColumns > 1) {
+    problems.push(`${c.name} is only ${c.panelWidth}px wide but squeezes campaigns into ${c.cardColumns} columns`)
+  }
+  if (c.panelWidth >= 380 && c.knowledgeColumns < 2) {
+    problems.push(`${c.name} has room for two knowledge columns but renders ${c.knowledgeColumns}`)
+  }
+}
 
 if (problems.length) {
   console.error('\nFAIL\n- ' + problems.join('\n- '))

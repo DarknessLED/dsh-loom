@@ -368,11 +368,13 @@ const page = `<!DOCTYPE html>
 <style>
   html,body{margin:0;padding:0;background:#101113;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   .wrap{display:flex;gap:0;align-items:stretch;min-height:100vh}
-  /* the worst two widths the sidebar is asked to live in: nothing may overflow
-     at 320, and 400 is the comfortable case the design is read at */
+  /* the widths the sidebar is asked to live in: 320 is the cramped case,
+     400 is comfortable, 720 is what the same component must do when the host
+     gives it half a window -- the grids are supposed to fill that extra room */
   .canvas{display:flex;flex-direction:column}
   .dark{flex:0 0 320px;width:320px}
   .light{flex:0 0 400px;width:400px}
+  .wide{flex:0 0 720px;width:720px}
   .label{font:10px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
   .slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   .dark{background:#08090a;color:#f7f8f8}
@@ -381,15 +383,19 @@ const page = `<!DOCTYPE html>
      a static page has to state it, and these are the same two inks */
   .dark .loom{--loom-ink-base:#f7f8f8}
   .light .loom{--loom-ink-base:#08090a}
+  .wide{background:#08090a;color:#f7f8f8;border-left:1px solid #23262b}
+  .wide .loom{--loom-ink-base:#f7f8f8}
   .dark .label{color:#62666d}
   .light .label{color:#8a8f98}
+  .wide .label{color:#62666d}
 ${CSS}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="canvas dark"><div class="label">dark · #08090a</div><div class="slot">${panelHtml}</div></div>
-  <div class="canvas light"><div class="label">light · #ffffff</div><div class="slot">${panelHtml}</div></div>
+  <div class="canvas dark"><div class="label">dark · #08090a · 320px</div><div class="slot">${panelHtml}</div></div>
+  <div class="canvas light"><div class="label">light · #ffffff · 400px</div><div class="slot">${panelHtml}</div></div>
+  <div class="canvas dark wide"><div class="label">dark · 720px · the same component, more room</div><div class="slot">${panelHtml}</div></div>
 </div>
 </body>
 </html>

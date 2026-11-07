@@ -120,11 +120,32 @@ window.__ModuleLoader__.load({
       '.loom-row .txt{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-soft);',
       ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-row .txt b{font-weight:500;color:var(--loom-ink)}',
-      // campaign block
-      '.loom-camp{padding:11px 12px 12px;border-top:1px solid var(--loom-line)}',
-      '.loom-camp:first-of-type{border-top:0}',
+      // campaign blocks: a responsive grid, so a wide panel spends its width on
+      // more campaigns instead of stretching one column of text. Cards hold the
+      // grid track (`minmax(0,1fr)` children are what actually prevents the
+      // overflow), and only the campaign that needs a decision is opened.
+      '.loom-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(296px,1fr));',
+      ' gap:8px;align-items:start;min-width:0}',
+      // knowledge is short claims, not prose: pack them into as many columns as
+      // the panel has room for instead of one tall list of dim text
+      '.loom-kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));',
+      ' gap:1px 10px;padding:0 12px 2px;min-width:0}',
+      '.loom-camp{padding:9px 11px 10px;border:1px solid var(--loom-line);border-radius:6px;min-width:0;',
+      ' background:color-mix(in srgb,var(--loom-base) 1.5%,transparent)}',
+      '.loom-camp.folded{padding:0}',
+      '.loom-camp .loom-hit{display:flex;align-items:center;gap:6px;padding:7px 9px;min-width:0;cursor:pointer;',
+      ' border-radius:5px;transition:background 150ms var(--loom-ease)}',
+      '.loom-camp .loom-hit:hover{background:var(--loom-hover)}',
+      '.loom-camp:not(.folded) .loom-hit{padding:0 0 2px}',
+      '.loom-camp .loom-caret{margin-left:auto;flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;',
+      ' color:var(--loom-faint);line-height:1}',
+      '.loom-camp .loom-flag{flex:0 0 auto;font-family:var(--loom-mono);font-size:9px;letter-spacing:.04em;',
+      ' padding:1px 4px;border-radius:3px;color:var(--loom-warn);',
+      ' background:color-mix(in srgb,var(--loom-warn) 14%,transparent)}',
+      '.loom-camp .loom-brief{flex:1 1 auto;min-width:0;font-family:var(--loom-mono);font-size:10px;',
+      ' color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-camp:hover{background:color-mix(in srgb,var(--loom-base) 2.5%,transparent)}',
-      '.loom-titlerow{display:flex;align-items:baseline;gap:7px}',
+      '.loom-titlerow{display:flex;align-items:baseline;gap:7px;min-width:0}',
       '.loom-name{font-family:var(--loom-mono);font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-state{font-size:10px;letter-spacing:.02em;color:var(--loom-quiet);white-space:nowrap}',
@@ -212,7 +233,7 @@ window.__ModuleLoader__.load({
       // a state of the data, not a state of the loop.
       '.loom-chip.quiet{background:transparent;border-color:var(--loom-line);color:var(--loom-faint);letter-spacing:.06em}',
       // knowledge
-      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 12px 2px 31px;font-size:11.5px;color:var(--loom-soft)}',
+      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11.5px;color:var(--loom-soft);min-width:0}',
       '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
@@ -1044,6 +1065,43 @@ window.__ModuleLoader__.load({
         var queue = pending(data)
         var tree = knowledge(data)
 
+        // Which campaign is worth opening by default: the one that is waiting on
+        // a human, else the one that is moving. Everything else stays a single
+        // line -- a panel that opens every campaign forces the reader to scroll
+        // past detail they did not ask for.
+        var attention = null
+        if (data && data.campaigns) {
+          var waiting = data.campaigns.filter(function (c) {
+            return c && !c.error && c.openCheckpoints > 0
+          })[0]
+          var moving = data.campaigns.filter(function (c) {
+            return c && !c.error && c.status === 'running'
+          })[0]
+          attention = (waiting || moving || {}).id || null
+        }
+        var isFolded = function (c) {
+          var chosen = folded[c.id]
+          if (chosen === true) return true
+          if (chosen === false) return false
+          return c.id !== attention
+        }
+        var anyOpen = Boolean(data && data.campaigns && data.campaigns.some(function (c) {
+          return c && !c.error && !isFolded(c)
+        }))
+        var foldAll = function (collapse) {
+          setFolded(function (prev) {
+            var next = {}
+            for (var key in prev) next[key] = prev[key]
+            if (data && data.campaigns) {
+              data.campaigns.forEach(function (c) {
+                if (c) next[c.id] = collapse
+              })
+            }
+            writeCollapsed(next)
+            return next
+          })
+        }
+
         var pendingBlock =
           queue.length === 0
             ? null
@@ -1117,18 +1175,22 @@ window.__ModuleLoader__.load({
                     'div',
                     { key: g.kind },
                     h('div', { className: 'loom-kind' }, g.label + ' · ' + g.total),
-                    g.items.map(function (item) {
-                      return h(
-                        'div',
-                        { key: item.campaign + ':' + item.id, className: 'loom-lesson', title: text(item.claim, item.id) },
-                        h('span', { className: 'claim' }, text(item.claim, item.id)),
-                        h(
-                          'span',
-                          { className: 'score', style: { color: item.score > 0 ? '#3d8a58' : item.score < 0 ? '#c05a4a' : undefined } },
-                          (item.score > 0 ? '+' : '') + item.score,
-                        ),
-                      )
-                    }),
+                    h(
+                      'div',
+                      { className: 'loom-kgrid' },
+                      g.items.map(function (item) {
+                        return h(
+                          'div',
+                          { key: item.campaign + ':' + item.id, className: 'loom-lesson', title: text(item.claim, item.id) },
+                          h('span', { className: 'claim' }, text(item.claim, item.id)),
+                          h(
+                            'span',
+                            { className: 'score', style: { color: item.score > 0 ? '#3d8a58' : item.score < 0 ? '#c05a4a' : undefined } },
+                            (item.score > 0 ? '+' : '') + item.score,
+                          ),
+                        )
+                      }),
+                    ),
                   )
                 }),
               )
@@ -1159,28 +1221,45 @@ window.__ModuleLoader__.load({
               h('span', { className: 'n' }, String(data.campaigns.filter(function (c) {
                 return c && !c.error
               }).length)),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'loom-btn bare',
+                  style: { marginLeft: 'auto', fontSize: '9.5px' },
+                  title: anyOpen ? '把所有战役收成一行' : '展开所有战役',
+                  onClick: function () {
+                    foldAll(anyOpen)
+                  },
+                },
+                anyOpen ? '全收起' : '全展开',
+              ),
             ),
-            data.campaigns.map(function (c) {
-              if (c && c.error) {
-                return h(
-                  'div',
-                  { key: c.id, className: 'loom-broken' },
-                  h('b', null, c.id),
-                  h('span', null, c.error),
-                )
-              }
-              return h(CardView, {
-                key: c.id,
-                c: c,
-                live: liveOf(data, c.id),
-                busy: box.busy,
-                act: act,
-                folded: folded[c.id] === true,
-                onToggle: toggle,
-                confirming: confirming,
-                setConfirming: setConfirming,
-              })
-            }),
+            h(
+              'div',
+              { className: 'loom-cards' },
+              data.campaigns.map(function (c) {
+                if (c && c.error) {
+                  return h(
+                    'div',
+                    { key: c.id, className: 'loom-broken' },
+                    h('b', null, c.id),
+                    h('span', null, c.error),
+                  )
+                }
+                return h(CardView, {
+                  key: c.id,
+                  c: c,
+                  live: liveOf(data, c.id),
+                  busy: box.busy,
+                  act: act,
+                  folded: isFolded(c),
+                  onToggle: toggle,
+                  confirming: confirming,
+                  setConfirming: setConfirming,
+                })
+              }),
+            ),
           )
         }
 
@@ -1221,14 +1300,28 @@ window.__ModuleLoader__.load({
           h('span', { className: 'loom-dot', style: { color: statusTone(c.status), marginBottom: 1 } }),
           h('span', { className: 'loom-name', title: c.id }, c.id),
           h('span', { className: 'loom-state' }, statusLabel(c.status)),
-          h('span', { className: 'loom-age', title: age(c.ageMs) ? '最近活动 ' + age(c.ageMs) + '前' : '' }, folded ? '' : age(c.ageMs))
+          h('span', { className: 'loom-age', title: age(c.ageMs) ? '最近活动 ' + age(c.ageMs) + '前' : '' }, folded ? '' : age(c.ageMs)),
+          folded ? null : h('span', { className: 'loom-caret' }, '⌄'),
         )
 
         if (folded) {
+          // One line per idle campaign: what it is, where it stands, and whether
+          // it wants something from the reader. Everything else is one click
+          // away, and that click is the whole card.
+          var openCp = Number(c.openCheckpoints) || 0
           return h(
             'div',
-            { className: 'loom-camp', onClick: function () { props.onToggle(c.id) }, style: { cursor: 'pointer' } },
-            head,
+            { className: 'loom-camp folded' },
+            h(
+              'div',
+              { className: 'loom-hit', onClick: function () { props.onToggle(c.id) }, role: 'button', tabIndex: 0 },
+              h('span', { className: 'loom-dot', style: { color: statusTone(c.status) } }),
+              h('span', { className: 'loom-name', title: c.id }, c.id),
+              h('span', { className: 'loom-state' }, statusLabel(c.status)),
+              openCp > 0 ? h('span', { className: 'loom-flag', title: openCp + ' 个检查点等你处理' }, '待 ' + openCp) : null,
+              h('span', { className: 'loom-brief', title: meta.join(' · ') }, meta.slice(0, 3).join(' · ')),
+              h('span', { className: 'loom-caret' }, '›'),
+            ),
           )
         }
 
