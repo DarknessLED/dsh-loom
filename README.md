@@ -262,7 +262,7 @@ research/             三份调研报告（DSH 插件 API / Gear / Open Dream-RS
 | 腿 | 由什么回答 |
 |---|---|
 | 质量 | `promotionRate`、`noGainRate`、`attemptsPerRound`（口径不变，方便和历史比） |
-| 效率 | `secondsPerRound`、`parallelFactor = Σ候选耗时 / 轮墙钟`、`verifierShare`，以及每个 `verifier.finished` 的 exit code 与耗时 |
+| 效率 | `secondsPerRound`、`parallelFactor = Σ候选耗时 / 轮墙钟`、`planAwareFactor = Σ候选耗时 / attemptWindowMs`（`attemptWindowMs` = 轮墙钟 − 规划 − 留出集门）、`verifierShare`，以及每个 `verifier.finished` 的 exit code 与耗时 |
 | 成本 | `tokens`（有 usage 用实测，没有则按 `(简报 + 回包)/4` 估）、`usd`、`tokensPerRound`、`usdPerPromotion` |
 
 `src/runtime/triangle.js` 的 `campaignTriangle(rounds)` 是唯一口径：面板、`scripts/loom-metrics.mjs`、报告都调它，避免「三处各算一遍」。**未测量的腿返回 `null` 而不是 0** —— 「没测」和「免费」是两件事，混起来正是之前 `spend` 恒 `$0.00` 却没人发现的原因。
@@ -272,4 +272,8 @@ research/             三份调研报告（DSH 插件 API / Gear / Open Dream-RS
 循环自己提的第一个效率改动（第 1 轮晋升，提交 `2e63f39`）：候选补丁改为**在验证之前**生成，于是 `src/runtime/verifier-reuse.js` 能用补丁字节做键；两个候选产出逐字节相同的补丁时，第二个继承前一次的裁决（`verifier.finished{reused:true, durationMs:0}`、`exitCode` 照抄），只有真正 spawn 才计入 `verifierRuns`，所以一回合的「验证器跑了 1 次」仍然是诚实的。
 
 第二个（`budget-preflight`）：在**派发之前**用本战役已测量回合的平均成本估算这一轮，`spent + estimate` 越过 USD 上限就不派发 —— 回合以 `status:"budget"` 收尾、挂一个 `budget` 检查点，而不是把钱花完再报 `no-gain`。
+
+第三个（`plan-share`）：`round.finished.planMs` 把规划节点单独量出来，于是「候选等了多久」和「候选跑了多久」第一次能分开看。第四个（`plan-delta`）：base 变了但计划点名的文件没变时，复用上一轮的计划（`node.finished{id:'recon', reused:true, planBasis:'delta', durationMs:0}`）。
+
+第五个（`attempt-window` / `holdout-split`，提交 `6d73e31`、`67f68a9`）：并行因子原来除以**整轮墙钟**，而留出集门是候选跑完之后才付的时间 —— 于是一轮 4 秒候选、2 秒规划、3 秒留出集的回合被读成 0.57、「串行」。现在 `attemptWindowMs = max(0, 轮墙钟 − 规划 − 留出集门)`，`planAwareFactor` 除它；窗口为 0 返回 `null`（不制造因子），未计时的回合沿用旧回退。留出集自己也开始记账：`round.finished` 带 `holdoutMs` / `holdoutRuns`，通过与失败都记 —— 失败的门最容易被当成「候选不够好」，其实是时间被记到了错的账上。
 

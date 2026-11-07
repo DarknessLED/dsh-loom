@@ -69,6 +69,9 @@ const standing = [
   // window candidates actually had
   'tests/ui/tones.test.mjs',
   'tests/tri5/plan-aware.test.mjs',
+  // the holdout gate is timed instead of being charged to the candidates
+  'tests/tri6/attempt-window.test.mjs',
+  'tests/tri6/holdout-split.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
