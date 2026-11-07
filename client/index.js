@@ -424,7 +424,12 @@ window.__ModuleLoader__.load({
      * A checkpoint is the loop asking a question; hiding it one campaign card
      * down is how a person misses the one that mattered.
      */
-    function pending(data) {
+    function pending(data, opts) {
+      // A checkpoint's wait is its own: the campaign may have run for hours, but
+      // the question on the table may have been asked a minute ago. `now` is
+      // injectable so the queue can be read as of a fixed instant.
+      var now = opts && typeof opts.now === 'number' && isFinite(opts.now) ? opts.now : Date.now()
+      var verbs = ['approve', 'reject', 'snooze']
       var out = []
       var rows = (data && data.campaigns) || []
       for (var i = 0; i < rows.length; i += 1) {
@@ -441,13 +446,17 @@ window.__ModuleLoader__.load({
               break
             }
           }
+          // No `at` means the wait is unknown; borrowing the campaign's age
+          // would make a fresh question look stale (and vice versa).
+          var at = typeof cp.at === 'number' && isFinite(cp.at) ? cp.at : null
           out.push({
             campaign: c.id,
             id: cp.id,
             kind: cp.kind,
             risk: review ? review.risk : 'normal',
             summary: review ? review.summary : '',
-            ageMs: c.ageMs === null || c.ageMs === undefined ? null : c.ageMs,
+            waitMs: at === null ? null : Math.max(0, now - at),
+            actions: verbs,
           })
         }
       }
