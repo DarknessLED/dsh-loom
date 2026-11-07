@@ -215,17 +215,34 @@ function contrast(a, b) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
 }
 
-check('statusTone maps statuses to colours', () => {
-  const { statusTone } = captured.module.__panel
+check('every tone clears the contrast floor on both canvases', () => {
+  const panel = captured.module.__panel
+  const { statusTone, qualityTone, riskTone } = panel
+  // A tone may be a literal or a custom-property name; either way the value it
+  // resolves to is the one a reader sees, so that is what gets measured.
+  const palette = {}
+  for (const key of ['ok', 'warn', 'bad', 'idle']) {
+    const hit = new RegExp('--loom-' + key + ':(#[0-9a-fA-F]{6})').exec(panel.CSS || '')
+    if (hit) palette[key] = hit[1]
+  }
+  const resolve = (tone) => {
+    const named = /^var\(--loom-([a-z]+)\)$/.exec(tone)
+    return named ? palette[named[1]] : tone
+  }
   // Mid-tone, low-saturation hues: the reference keeps colour to 6px dots, and
-  // a dot has to read on #08090A and on white with the same value.
-  assert.equal(statusTone('running'), '#3d8a58')
-  assert.equal(statusTone('paused'), '#8f7a33')
-  assert.equal(statusTone('failed'), '#c05a4a')
-  assert.equal(statusTone('whatever'), '#7a7f87')
-  // one value per hue, so the same dot reads on the dark canvas and on white
-  const { qualityTone, riskTone } = captured.module.__panel
-  for (const hex of [statusTone('running'), statusTone('paused'), statusTone('failed'), statusTone('idle'), qualityTone('healthy'), qualityTone('regressing'), riskTone('high')]) {
+  // one value per hue has to read on #08090A and on white.
+  const tones = [
+    statusTone('running'),
+    statusTone('paused'),
+    statusTone('failed'),
+    statusTone('idle'),
+    qualityTone('healthy'),
+    qualityTone('regressing'),
+    riskTone('high'),
+  ]
+  for (const tone of tones) {
+    const hex = resolve(tone)
+    assert.ok(/^#[0-9a-fA-F]{6}$/.test(String(hex)), 'tone resolves to a colour: ' + tone)
     assert.ok(contrast(hex, '#08090a') >= 3.8, hex + ' on dark')
     assert.ok(contrast(hex, '#ffffff') >= 3.8, hex + ' on white')
   }
