@@ -135,9 +135,18 @@ export function panelState({ runtime }) {
   } catch {
     lean = null
   }
+  // The switch is global, so it is read defensively: a panel that cannot tell
+  // whether the loop is on must still render the campaigns it can see.
+  let rsi = { enabled: true, at: null, by: 'config' }
+  try {
+    if (typeof runtime.switchState === 'function') rsi = runtime.switchState()
+  } catch {
+    /* keep the configured default rather than take the panel down */
+  }
   return {
     campaigns: rows,
     live,
+    rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },
     lean: lean ? { available: lean.available === true, versions: lean.versions ?? null } : null,
     now,
@@ -157,10 +166,20 @@ async function readBody(req) {
 
 /** Apply one panel action through the same event appends the tools use. */
 export function panelAction({ runtime }, body) {
+  const action = String(body.action ?? '')
+
+  // The master switch is not campaign state, so it is decided before any
+  // campaign is resolved: a panel with zero campaigns must still be able to
+  // turn the loop off.
+  if (action === 'enable' || action === 'disable') {
+    if (typeof runtime.setEnabled !== 'function') throw new Error('this runtime cannot switch the loop')
+    const record = runtime.setEnabled(action === 'enable', { by: 'human:panel', reason: body.reason ?? null })
+    return { ok: true, rsi: { enabled: record.enabled, at: record.at, by: record.by }, campaigns: panelState({ runtime }).campaigns }
+  }
+
   const id = String(body.campaign ?? '')
   if (!id) throw new Error('campaign is required')
   const view = runtime.get(id)
-  const action = String(body.action ?? '')
 
   if (action === 'pause' || action === 'resume' || action === 'stop') {
     if (!runtime.ensureOwner()) throw new Error('another window is driving the loop')

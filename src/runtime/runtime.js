@@ -13,6 +13,7 @@ import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
 import { sweepLeases } from './lease.js'
 import { planRecovery, repairWorkspace } from './recovery.js'
+import { readSwitch, writeSwitch } from './switch.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 
@@ -256,7 +257,11 @@ export class Runtime {
     )
     const hidden = all.length - shown.length
     if (hidden > 0) rows.push(`(+${hidden} more campaign(s) — see rsi_dashboard)`)
-    return ['Active RSI campaigns (managed by dsh-loom; the loop runs in child sessions while you are idle):', ...rows.map((r) => `- ${r}`)].join('\n')
+    const sw = this.switchState()
+    const head = sw.enabled
+      ? 'Active RSI campaigns (managed by dsh-loom; the loop runs in child sessions while you are idle):'
+      : `RSI loop is OFF${sw.at ? ` (switched ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')} by ${sw.by})` : ''} — nothing is dispatched until rsi_control {action:"enable"}; campaign history is untouched.`
+    return [head, ...rows.map((r) => `- ${r}`)].join('\n')
   }
 
   /**
@@ -270,6 +275,25 @@ export class Runtime {
     } catch {
       return { owner: null, mine: this.owner, alive: false, fresh: false }
     }
+  }
+
+  /**
+   * The master switch. It is deliberately *not* campaign state: turning the loop
+   * off must leave every ledger byte-for-byte intact, so no seq moves and nothing
+   * has to be re-read or re-summarised when it comes back on.
+   */
+  switchState() {
+    return readSwitch(this.home, this.config.rsi?.enabled !== false)
+  }
+
+  enabled() {
+    return this.switchState().enabled
+  }
+
+  setEnabled(enabled, { by = 'human', reason = null } = {}) {
+    const record = writeSwitch(this.home, { enabled: enabled !== false, by, reason })
+    this.log(`RSI loop ${record.enabled ? 'enabled' : 'disabled'} by ${record.by}${record.reason ? ` (${record.reason})` : ''}`)
+    return record
   }
 
   /**
@@ -317,6 +341,12 @@ export class Runtime {
           this.flushAll()
           return
         }
+      }
+      // The switch stops dispatch, not the plugin: views stay fresh and every
+      // tool keeps working, but no campaign event is written while it is off.
+      if (!this.enabled()) {
+        this.flushAll()
+        return
       }
       this.watchdog.check()
       const max = Math.max(1, Number(this.config.session?.maxConcurrent) || 1)
@@ -453,6 +483,41 @@ export class Runtime {
     done
       .catch((err) => this.log(`round for ${view.id} failed:`, err?.stack ?? err))
       .finally(() => this.inflight.delete(view.id))
+  }
+
+  /**
+   * Run exactly one round, right now. Deliberately independent of the master
+   * switch: the switch governs the *automatic* loop, while an operator asking
+   * for one round is an explicit act — and the cheapest way to keep using child
+   * sessions while the loop itself is off.
+   */
+  async runOnce(id) {
+    const view = this.get(id)
+    if (this.inflight.has(view.id)) throw new Error(`campaign ${view.id} already has a round in flight`)
+    if (this.allTasksSolved(view.state)) {
+      return { id: view.id, status: 'done', reason: 'all-tasks-solved', round: null }
+    }
+    const before = (view.state.rounds || []).length
+    this.inflight.add(view.id)
+    try {
+      const dispatcher = this.dispatcherFor(view)
+      const notify = this.config.checkpoint?.notify === false
+        ? null
+        : (kind, payload) => notifyCheckpoint(this.ctx, { view, kind, payload, config: this.config, log: this.log })
+      const out = await runRound({ runtime: this, view, config: this.config, dispatcher, log: this.log, notify })
+      const rounds = view.state.rounds || []
+      const last = rounds[rounds.length - 1] || null
+      return {
+        id: view.id,
+        status: out?.status ?? last?.status ?? 'unknown',
+        round: out?.round ?? last?.n ?? null,
+        score: last?.score ?? null,
+        promoted: last?.promoted === true,
+        newRounds: rounds.length - before,
+      }
+    } finally {
+      this.inflight.delete(view.id)
+    }
   }
 
   dispatcherFor(view) {

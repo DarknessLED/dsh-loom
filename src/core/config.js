@@ -17,6 +17,13 @@ export const DEFAULT_CONFIG = {
     quietHours: null,
     batch: true,
   },
+  /**
+   * Master switch for the background loop. `enabled` is only the *initial*
+   * answer: once the operator flips it (rsi_control enable|disable, or the
+   * panel), the flip is stored next to the ledgers and wins on the next start.
+   * Switching it never writes to a campaign log, so history keeps its seq.
+   */
+  rsi: { enabled: true },
   models: {
     worker: null,
     meta: null,
@@ -90,6 +97,7 @@ export function normalizeConfig(raw) {
     budget: { ...DEFAULT_CONFIG.budget, ...(c.budget || {}) },
     gate: { ...DEFAULT_CONFIG.gate, ...(c.gate || {}) },
     checkpoint: { ...DEFAULT_CONFIG.checkpoint, ...(c.checkpoint || {}) },
+    rsi: { ...DEFAULT_CONFIG.rsi, ...(c.rsi || {}) },
     models: {
       ...DEFAULT_CONFIG.models,
       ...(c.models || {}),

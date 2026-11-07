@@ -34,7 +34,7 @@ RSI 想要的是另一种形态：
 | 检查点唤醒：`sessionController.prompt(mode:"queue")` 投递到发起战役的会话 | ✅ |
 | 成本核算：汇总子会话 `assistant/message.usage`，按可配置单价折 USD，双预算闸门 | ✅ |
 | 系统提示注入：主 agent 空闲也能在系统提示里看到各战役状态 | ✅ |
-| 工具面：`rsi_start` / `rsi_status` / `rsi_control` / `rsi_chain` / `rsi_evalset` / `rsi_decide` / `rsi_report` / `rsi_lean` / `rsi_replay` / `rsi_dashboard` | ✅ |
+| 工具面：`rsi_start` / `rsi_status` / `rsi_control`（含全局开关） / `rsi_run` / `rsi_chain` / `rsi_evalset` / `rsi_decide` / `rsi_report` / `rsi_lean` / `rsi_replay` / `rsi_dashboard` | ✅ |
 | **监管地基**：每次尝试写租约（租约 + 会话事件水位）、看门狗写掉僵死尝试、崩溃重启对账 | ✅ M2 |
 | **结构化交接**：worker 输入是编译过的简报（≤6000 字符），输出强制 `AttemptReport` schema；不传 transcript | ✅ M2 |
 | **同级交流**：同轮候选共享一块有界黑板（障碍/发现），最多 5 条、每轮结束按上限剪枝 | ✅ M2 |
@@ -96,6 +96,20 @@ rsi_control(action:"start")
 - 人回 `rsi_decide(decision:"approve")` → 插件把补丁 `git apply` 进工作区；`reject` 则继续下一轮；`stop` 停战役。
 
 随时用 `rsi_status` / `rsi_report` 查看，不会打断循环。
+
+### 总开关（随时开关循环）
+
+循环有一个全局开关，**不写进任何战役日志**——翻转只改 `~/.dsh/loom/switch.json`，另在 `switch.jsonl` 留一行审计。因此：
+
+```
+rsi_control(action:"disable", reason:"今晚不跑")   # 立即停止派发
+rsi_control(action:"enable")                        # 下次 tick 继续，从原来的轮次接着走
+```
+
+- 关掉后：不再派发新回合，**但所有工具照常可用**（`rsi_status`、`rsi_report`、`rsi_dashboard`、`rsi_decide`、`rsi_lean`…），已挂起的检查点也还在等你处理。
+- 历史不偏移：不追加任何 campaign 事件，`seq` 不动，恢复时不需要重放或重新总结；重启后开关状态从磁盘读回，不依赖任何摘要。
+- 想只花一轮、不重启循环：`rsi_run(id:"...")` —— 手动跑一轮，走完全一样的 worktree / 验证器 / 迁升路径，即使开关是关的。
+- 面板右上角有 `loop on / loop off` 按钮，走同一条 `POST /dsh-loom/state`。
 
 ### 面板
 

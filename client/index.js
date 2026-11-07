@@ -122,11 +122,38 @@ window.__ModuleLoader__.load({
         )
 
         var data = box.data
+        // The switch is the one control that is not about a campaign: it stops
+        // dispatch and nothing else, so it sits in the header and never asks
+        // which campaign it refers to.
+        var rsiOn = !(data && data.rsi && data.rsi.enabled === false)
+        var switchBtn = h(
+          'button',
+          {
+            type: 'button',
+            title: rsiOn
+              ? 'the background loop is running — click to pause it (campaign history is untouched)'
+              : 'the loop is paused — click to let it dispatch again',
+            onClick: function () {
+              act('', rsiOn ? 'disable' : 'enable')
+            },
+            style: {
+              font: 'inherit',
+              fontSize: 11,
+              padding: '2px 8px',
+              cursor: 'pointer',
+              borderRadius: 6,
+              border: '1px solid ' + (rsiOn ? '#2e7d32' : '#8a6d00'),
+              color: rsiOn ? '#2e7d32' : '#8a6d00',
+            },
+          },
+          rsiOn ? 'loop on' : 'loop off',
+        )
         var header = h(
           'div',
           { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px 6px' } },
           h('div', { style: { fontWeight: 600, fontSize: 13 } }, 'RSI campaigns'),
           h('div', { style: { flex: 1 } }),
+          switchBtn,
           h(
             'button',
             {

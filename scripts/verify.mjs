@@ -83,8 +83,8 @@ ok(Array.isArray(mod.inject) && mod.inject.includes('tools'), 'injects tools')
 const ctx = makeCtx()
 mod.apply(ctx, { tickMs: 1000 })
 const names = [...ctx.tools.schemas().map((s) => s.name)].sort()
-ok(names.length === 11, `11 tools registered (${names.join(', ')})`, names)
-for (const n of ['rsi_start', 'rsi_status', 'rsi_control', 'rsi_chain', 'rsi_evalset', 'rsi_decide', 'rsi_report', 'rsi_lean', 'rsi_replay', 'rsi_dashboard', 'rsi_export']) {
+ok(names.length === 12, `11 tools registered (${names.join(', ')})`, names)
+for (const n of ['rsi_start', 'rsi_status', 'rsi_control', 'rsi_chain', 'rsi_evalset', 'rsi_decide', 'rsi_report', 'rsi_lean', 'rsi_replay', 'rsi_dashboard', 'rsi_export', 'rsi_run']) {
   ok(names.includes(n), `tool ${n}`)
 }
 for (const n of names) {
@@ -135,6 +135,16 @@ ok(paused.status === 'paused', 'pause works')
 const resumed = await call('rsi_control', { action: 'resume' })
 ok(resumed.status === 'running', 'resume works')
 
+// The master switch: global, persistent, and invisible to campaign history.
+const evBeforeSwitch = readFileSync(join(home, 'campaigns', started.campaign, 'events.jsonl'), 'utf8')
+const off = await call('rsi_control', { action: 'disable', reason: 'verify' })
+ok(off.rsi.enabled === false, 'disable turns the loop off', JSON.stringify(off.rsi))
+const evAfterSwitch = readFileSync(join(home, 'campaigns', started.campaign, 'events.jsonl'), 'utf8')
+ok(evBeforeSwitch === evAfterSwitch, 'flipping the switch appends no campaign event')
+ok(existsSync(join(home, 'switch.json')), 'the switch is stored next to the ledgers')
+const backOn = await call('rsi_control', { action: 'enable' })
+ok(backOn.rsi.enabled === true, 'enable turns it back on')
+
 const report = await call('rsi_report', { limit: 3 })
 ok(typeof report === 'string' && report.includes('RSI campaign'), 'report renders text')
 
@@ -175,7 +185,7 @@ ok(threw, 'holdout ids must exist in tasks')
 // the loop, and the older one stands by instead of both dispatching.
 const ctx2 = makeCtx()
 mod.apply(ctx2, {})
-ok(ctx2.tools.schemas().length === 11, 'second instance still registers every tool')
+ok(ctx2.tools.schemas().length === 12, 'second instance still registers every tool')
 const claimAfterSecond = JSON.parse(readFileSync(join(home, 'lock'), 'utf8'))
 ok(claimAfterSecond.instance !== undefined, 'second instance claimed the loop')
 ok(claimAfterSecond.pid === process.pid, 'claim records the owning pid')
@@ -186,7 +196,7 @@ ok(!existsSync(join(home, 'lock')), 'dispose releases lock')
 
 const ctx3 = makeCtx()
 mod.apply(ctx3, {})
-ok(ctx3.tools.schemas().length === 11, 'lock re-acquirable after dispose')
+ok(ctx3.tools.schemas().length === 12, 'lock re-acquirable after dispose')
 ctx3.disposeAll()
 
 // --- M2: crash recovery ------------------------------------------------------

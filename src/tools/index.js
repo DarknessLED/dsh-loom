@@ -167,17 +167,22 @@ export function registerTools(ctx, { runtime, config }) {
   defs.push({
     name: 'rsi_control',
     description:
-      'Control a campaign: pause, resume, stop, change budget, add a constraint, add a note. ' +
+      'Control a campaign or the loop itself: enable/disable the RSI loop (global master switch, survives restarts, ' +
+      'never rewrites campaign history), pause, resume, stop a campaign, change budget, add a constraint or a note. ' +
       'Constraints are binding instructions for every future round (they are injected into worker prompts).',
     parameters: {
       type: 'object',
       properties: {
         id: ID,
-        action: { type: 'string', enum: ['pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot'] },
+        action: {
+          type: 'string',
+          enum: ['enable', 'disable', 'pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot'],
+          description: 'enable/disable: the global loop switch (no campaign required).',
+        },
         usd: { type: 'number', description: 'action=budget: new USD cap' },
         rounds: { type: 'integer', description: 'action=budget: new round cap' },
         text: { type: 'string', description: 'action=constraint|note: the text' },
-        reason: { type: 'string', description: 'action=stop: why' },
+        reason: { type: 'string', description: 'action=stop|enable|disable: why' },
         enabled: { type: 'boolean', description: 'action=autopilot: apply verified patches without waiting for a human.' },
         guard: {
           type: 'string',
@@ -191,9 +196,20 @@ export function registerTools(ctx, { runtime, config }) {
     isConcurrencySafe: () => false,
     timeoutMs: 15_000,
     async execute(args = {}) {
+      const action = String(args.action)
+      // The switch is checked before ownership on purpose: an operator must be
+      // able to stop a runaway loop from a window that does not drive it.
+      if (action === 'enable' || action === 'disable') {
+        const record = runtime.setEnabled(action === 'enable', { by: 'human', reason: args.reason ?? null })
+        return {
+          rsi: { enabled: record.enabled, at: record.at, by: record.by, reason: record.reason },
+          note: record.enabled
+            ? 'loop enabled — the next tick dispatches again; campaign history was not touched'
+            : 'loop disabled — nothing will be dispatched; every tool keeps working and history is untouched',
+        }
+      }
       own()
       const view = resolve(runtime, args.id)
-      const action = String(args.action)
       let state
       if (action === 'start') {
         if (view.state.status !== 'planning') throw new Error(`cannot start from ${view.state.status}`)
@@ -210,6 +226,34 @@ export function registerTools(ctx, { runtime, config }) {
         }, 'human')
       }
       return brief(state)
+    },
+  })
+
+  defs.push({
+    name: 'rsi_run',
+    description:
+      'Run exactly one round of a campaign right now, even when the loop switch is off. ' +
+      'Use it to spend one round on a specific campaign without restarting the background loop; ' +
+      'the round still goes through the same worktree, verifier, gate and checkpoint path.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+      },
+      required: ['id'],
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => false,
+    timeoutMs: 1_200_000,
+    async execute(args = {}) {
+      own()
+      const view = resolve(runtime, args.id)
+      if (view.state.status === 'draft' || view.state.status === 'planning') {
+        throw new Error(`campaign ${view.id} is ${view.state.status}: register an evalset and activate a chain first`)
+      }
+      const result = await runtime.runOnce(view.id)
+      return { ...result, switch: runtime.enabled(), next: 'rsi_status for the round; rsi_dashboard for the board' }
     },
   })
 
