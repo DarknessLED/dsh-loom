@@ -47,6 +47,9 @@
     "check": "node --check src/index.js",
     "verify": "node scripts/verify.mjs",
     "e2e": "node scripts/e2e.mjs",
+    "test-all": "node scripts/test-all.mjs",
+    "panel:preview": "node scripts/panel-preview.mjs",
+    "panel:audit": "node scripts/panel-audit.mjs",
     "test": "node tests/gate.test.mjs && node tests/exec.test.mjs && node tests/ledger.test.mjs && node tests/lease.test.mjs && node tests/watchdog.test.mjs && node tests/board.test.mjs && node tests/brief.test.mjs && node tests/host-guard.test.mjs && node tests/select.test.mjs && node tests/knowledge.test.mjs && node tests/lean.test.mjs && node tests/loop.test.mjs && node tests/taskbest.test.mjs && node tests/chain.test.mjs && node tests/imagine.test.mjs && node tests/panel.test.mjs && node tests/panel-client.test.mjs && node tests/patch-untracked.test.mjs && node tests/selector.test.mjs && node tests/autopilot.test.mjs && node scripts/verify.mjs && node scripts/e2e.mjs"
   }
 }

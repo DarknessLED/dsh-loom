@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dsh-loom sidebar panel — preview</title>
+<style>
+  html,body{margin:0;padding:0;background:#101113;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{display:flex;gap:0;align-items:stretch;min-height:100vh}
+  .canvas{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+  .label{font:10px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
+  .slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .dark{background:#08090a;color:#f7f8f8}
+  .light{background:#ffffff;color:#08090a;border-left:1px solid #e5e7eb}
+  /* the component pins this at mount from the host theme's computed colour;
+     a static page has to state it, and these are the same two inks */
+  .dark .loom{--loom-ink-base:#f7f8f8}
+  .light .loom{--loom-ink-base:#08090a}
+  .dark .label{color:#62666d}
+  .light .label{color:#8a8f98}
+.loom{
+ --loom-ink:currentColor;
+ --loom-base:var(--loom-ink-base,currentColor);
+ --loom-soft:rgba(127,127,127,1);--loom-soft:color-mix(in srgb,var(--loom-base) 78%,transparent);
+ --loom-quiet:rgba(127,127,127,.8);--loom-quiet:color-mix(in srgb,var(--loom-base) 68%,transparent);
+ --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 50%,transparent);
+ --loom-line:rgba(127,127,127,.18);--loom-line:color-mix(in srgb,var(--loom-base) 11%,transparent);
+ --loom-line2:rgba(127,127,127,.3);--loom-line2:color-mix(in srgb,var(--loom-base) 20%,transparent);
+ --loom-wash:rgba(127,127,127,.06);--loom-wash:color-mix(in srgb,var(--loom-base) 4%,transparent);
+ --loom-hover:rgba(127,127,127,.1);--loom-hover:color-mix(in srgb,var(--loom-base) 7%,transparent);
+ --loom-ok:#3d8a58;--loom-warn:#8f7a33;--loom-bad:#c05a4a;--loom-idle:#7a7f87;
+ --loom-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+ --loom-ease:cubic-bezier(.25,.46,.45,.94);
+ display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;font-size:13px;line-height:1.45;
+ color:var(--loom-ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+.loom *{box-sizing:border-box}
+.loom code,.loom .m{font-family:var(--loom-mono);font-variant-numeric:tabular-nums}
+.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-ev,.loom-cp-head{min-width:0}
+.loom-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--loom-line)}
+.loom-mark{font-family:var(--loom-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.loom-spacer{flex:1 1 auto;min-width:4px}
+.loom-btn{appearance:none;background:transparent;border:1px solid var(--loom-line);color:var(--loom-soft);
+ font-family:inherit;font-size:11px;font-weight:400;line-height:1;padding:4px 7px;border-radius:4px;cursor:pointer;
+ transition:background 150ms var(--loom-ease),color 150ms var(--loom-ease),border-color 150ms var(--loom-ease);white-space:nowrap}
+.loom-btn:hover{background:var(--loom-hover);color:var(--loom-ink);border-color:var(--loom-line2)}
+.loom-btn:active{transform:translateY(.5px)}
+.loom-btn:focus-visible{outline:1px solid var(--loom-soft);outline-offset:1px}
+.loom-btn[disabled]{opacity:.38;cursor:default;transform:none}
+.loom-btn.bare{border-color:transparent;padding:4px 5px}
+.loom-btn.bare:hover{background:var(--loom-hover);border-color:transparent}
+.loom-btn.danger:hover{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 45%,transparent)}
+.loom-switch{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;padding:4px 2px;
+ font-family:var(--loom-mono);font-size:11px;letter-spacing:.02em;color:var(--loom-soft);cursor:pointer;
+ transition:color 150ms var(--loom-ease)}
+.loom-switch:hover{color:var(--loom-ink)}
+.loom-switch:focus-visible{outline:1px solid var(--loom-soft);outline-offset:2px}
+.loom-dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;flex:0 0 auto}
+.loom-dot.on{color:var(--loom-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-ok) 14%,transparent)}
+.loom-dot.off{color:var(--loom-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-warn) 14%,transparent)}
+.loom-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-bottom:1px solid var(--loom-line)}
+.loom-metric{padding:7px 8px 8px;border-right:1px solid var(--loom-line);min-width:0}
+.loom-metric:last-child{border-right:0}
+.loom-metric b{display:block;font-family:var(--loom-mono);font-size:13px;font-weight:500;line-height:1.1;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-metric span{display:block;margin-top:2px;font-size:9px;line-height:1;letter-spacing:.08em;
+ text-transform:uppercase;color:var(--loom-quiet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-metric.hot b{color:var(--loom-warn)}
+.loom-sec{border-bottom:1px solid var(--loom-line)}
+.loom-sec:last-child{border-bottom:0}
+.loom-sec-head{display:flex;align-items:center;gap:6px;padding:9px 12px 5px;
+ font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--loom-quiet)}
+.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);letter-spacing:0;color:var(--loom-quiet)}
+.loom-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--loom-line);
+ transition:background 150ms var(--loom-ease)}
+.loom-row:hover{background:var(--loom-hover)}
+.loom-row .txt{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-soft);
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loom-row .txt b{font-weight:500;color:var(--loom-ink)}
+.loom-camp{padding:10px 12px 11px;border-top:1px solid var(--loom-line)}
+.loom-camp:first-of-type{border-top:0}
+.loom-camp:hover{background:color-mix(in srgb,currentColor 2.5%,transparent)}
+.loom-titlerow{display:flex;align-items:baseline;gap:7px}
+.loom-name{font-size:13px;font-weight:500;line-height:1.2;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-state{font-family:var(--loom-mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--loom-quiet)}
+.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);white-space:nowrap}
+.loom-obj{margin-top:4px;font-size:11.5px;line-height:1.45;color:var(--loom-soft);
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.loom-meta{margin-top:5px;font-family:var(--loom-mono);font-size:10px;letter-spacing:.01em;color:var(--loom-faint);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-chain{margin-top:3px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-ev{margin-top:4px;display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet)}
+.loom-chips{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.loom-chip{font-family:var(--loom-mono);font-size:10px;line-height:1;padding:3px 5px;border-radius:4px;
+ background:var(--loom-wash);border:1px solid transparent;color:var(--loom-soft);white-space:nowrap}
+.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 32%,transparent)}
+.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 32%,transparent)}
+.loom-chip.live{color:var(--loom-ok)}
+.loom-acts{margin-top:8px;display:flex;align-items:center;gap:2px}
+.loom-acts .sep{width:1px;height:12px;background:var(--loom-line);margin:0 4px}
+.loom-cp{margin-top:8px;padding:7px 8px;border:1px solid var(--loom-line2);border-radius:6px;background:var(--loom-wash)}
+.loom-cp-head{display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;
+ letter-spacing:.03em;color:var(--loom-quiet);justify-content:space-between}
+.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.04em;text-transform:uppercase}
+.loom-cp-body{margin-top:3px;font-size:11px;line-height:1.45;color:var(--loom-soft)}
+.loom-cp-acts{margin-top:6px;display:flex;gap:4px}
+.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 12px;font-size:11.5px;color:var(--loom-soft)}
+.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}
+.loom-kind{padding:2px 12px 1px;font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.1em;
+ text-transform:uppercase;color:var(--loom-quiet)}
+.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;
+ scrollbar-width:thin}
+.loom-foot{display:flex;align-items:center;gap:6px;padding:7px 12px;border-top:1px solid var(--loom-line);
+ font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--loom-soft)}
+.loom-foot .sep{margin-left:auto}
+.loom-empty{padding:14px 12px 16px;font-size:11.5px;line-height:1.6;color:var(--loom-quiet)}
+.loom-empty code{font-size:11px;color:var(--loom-soft)}
+.loom-err{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-bad);word-break:break-word}
+.loom-loading{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-faint)}
+.loom-broken{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-top:1px solid var(--loom-line);
+ font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}
+.loom-broken b{font-weight:500;color:var(--loom-soft)}
+@media (max-width:320px){.loom-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+.loom-metric:nth-child(3n){border-right:0}}
+@media (prefers-reduced-motion:reduce){.loom *{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="canvas dark"><div class="label">dark · #08090a</div><div class="slot"><div class="loom" style="height:100%"><div class="loom-head"><span class="loom-mark">RSI</span><span class="loom-spacer"></span><button class="loom-switch" title="loop is dispatching — stop it here; campaign history is untouched"><span class="loom-dot on"></span><span>on</span></button><button class="loom-btn bare" title="reload from ~/.dsh/loom">↻</button></div><div class="loom-metrics"><div class="loom-metric"><b>3</b><span>campaigns</span></div><div class="loom-metric"><b>1</b><span>live</span></div><div class="loom-metric"><b>24</b><span>rounds</span></div><div class="loom-metric hot"><b>3</b><span>pending</span></div><div class="loom-metric"><b>$1.36</b><span>spend</span></div><div class="loom-metric"><b>18</b><span>lessons</span></div></div><div class="loom-scroll" style="overflow-y:auto"><div class="loom-sec"><div class="loom-sec-head">waiting on you<span class="n">3</span></div><div class="loom-row"><span class="loom-dot" style="color:#c05a4a"></span><span class="txt" title="same verifier signature for 3 rounds — the gate cannot be reached"><b>loom-self15</b> · stuck — same verifier signature for 3 rounds — the gate cannot be reached</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div><div class="loom-row"><span class="loom-dot" style="color:#8f7a33"></span><span class="txt" title="promote r7a2 (score 0.94, Δ0.12)"><b>loom-self15</b> · gate — promote r7a2 (score 0.94, Δ0.12)</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div><div class="loom-row"><span class="loom-dot" style="color:#8f7a33"></span><span class="txt" title="holdout regressed by 0.04"><b>loom-self15</b> · holdout — holdout regressed by 0.04</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div></div><div class="loom-sec"><div class="loom-sec-head">campaigns<span class="n">3</span></div><div></div><div></div><div></div></div><div class="loom-sec"><div class="loom-sec-head">knowledge<span class="n">18 active · 3 held</span></div><div><div class="loom-kind">fact · 3</div><div class="loom-lesson" title="a child that died mid-turn can still pass the verifier on an unchanged tree"><span class="claim">a child that died mid-turn can still pass the verifier on an unchanged tree</span><span class="score" style="color:#3d8a58">+0.7</span></div><div class="loom-lesson" title="holdout tasks must rotate, or exposure becomes the lesson"><span class="claim">holdout tasks must rotate, or exposure becomes the lesson</span><span class="score" style="color:#3d8a58">+0.4</span></div><div class="loom-lesson" title="wrap every per-campaign read, not just the loop"><span class="claim">wrap every per-campaign read, not just the loop</span><span class="score" style="color:#3d8a58">+0.2</span></div></div><div><div class="loom-kind">hazard · 2</div><div class="loom-lesson" title="`autopilot.applied` without a commit is not a landing"><span class="claim">`autopilot.applied` without a commit is not a landing</span><span class="score" style="color:#3d8a58">+0.5</span></div><div class="loom-lesson" title="a verifier that always fails is a gate nobody can reach"><span class="claim">a verifier that always fails is a gate nobody can reach</span><span class="score" style="color:#3d8a58">+0.35</span></div></div><div><div class="loom-kind">recipe · 2</div><div class="loom-lesson" title="regenerate the brief at half length once the context blows"><span class="claim">regenerate the brief at half length once the context blows</span><span class="score" style="color:#3d8a58">+0.3</span></div><div class="loom-lesson" title="raise one checkpoint per stuck signature, not one per round"><span class="claim">raise one checkpoint per stuck signature, not one per round</span><span class="score" style="color:#3d8a58">+0.1</span></div></div></div></div><div class="loom-foot"><span>this window drives</span><span class="sep">lean ok</span></div></div></div></div>
+  <div class="canvas light"><div class="label">light · #ffffff</div><div class="slot"><div class="loom" style="height:100%"><div class="loom-head"><span class="loom-mark">RSI</span><span class="loom-spacer"></span><button class="loom-switch" title="loop is dispatching — stop it here; campaign history is untouched"><span class="loom-dot on"></span><span>on</span></button><button class="loom-btn bare" title="reload from ~/.dsh/loom">↻</button></div><div class="loom-metrics"><div class="loom-metric"><b>3</b><span>campaigns</span></div><div class="loom-metric"><b>1</b><span>live</span></div><div class="loom-metric"><b>24</b><span>rounds</span></div><div class="loom-metric hot"><b>3</b><span>pending</span></div><div class="loom-metric"><b>$1.36</b><span>spend</span></div><div class="loom-metric"><b>18</b><span>lessons</span></div></div><div class="loom-scroll" style="overflow-y:auto"><div class="loom-sec"><div class="loom-sec-head">waiting on you<span class="n">3</span></div><div class="loom-row"><span class="loom-dot" style="color:#c05a4a"></span><span class="txt" title="same verifier signature for 3 rounds — the gate cannot be reached"><b>loom-self15</b> · stuck — same verifier signature for 3 rounds — the gate cannot be reached</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div><div class="loom-row"><span class="loom-dot" style="color:#8f7a33"></span><span class="txt" title="promote r7a2 (score 0.94, Δ0.12)"><b>loom-self15</b> · gate — promote r7a2 (score 0.94, Δ0.12)</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div><div class="loom-row"><span class="loom-dot" style="color:#8f7a33"></span><span class="txt" title="holdout regressed by 0.04"><b>loom-self15</b> · holdout — holdout regressed by 0.04</span><button class="loom-btn bare" title="accept this checkpoint and let the round land">approve</button><button class="loom-btn bare danger" title="reject — this needs a second click">reject</button></div></div><div class="loom-sec"><div class="loom-sec-head">campaigns<span class="n">3</span></div><div></div><div></div><div></div></div><div class="loom-sec"><div class="loom-sec-head">knowledge<span class="n">18 active · 3 held</span></div><div><div class="loom-kind">fact · 3</div><div class="loom-lesson" title="a child that died mid-turn can still pass the verifier on an unchanged tree"><span class="claim">a child that died mid-turn can still pass the verifier on an unchanged tree</span><span class="score" style="color:#3d8a58">+0.7</span></div><div class="loom-lesson" title="holdout tasks must rotate, or exposure becomes the lesson"><span class="claim">holdout tasks must rotate, or exposure becomes the lesson</span><span class="score" style="color:#3d8a58">+0.4</span></div><div class="loom-lesson" title="wrap every per-campaign read, not just the loop"><span class="claim">wrap every per-campaign read, not just the loop</span><span class="score" style="color:#3d8a58">+0.2</span></div></div><div><div class="loom-kind">hazard · 2</div><div class="loom-lesson" title="`autopilot.applied` without a commit is not a landing"><span class="claim">`autopilot.applied` without a commit is not a landing</span><span class="score" style="color:#3d8a58">+0.5</span></div><div class="loom-lesson" title="a verifier that always fails is a gate nobody can reach"><span class="claim">a verifier that always fails is a gate nobody can reach</span><span class="score" style="color:#3d8a58">+0.35</span></div></div><div><div class="loom-kind">recipe · 2</div><div class="loom-lesson" title="regenerate the brief at half length once the context blows"><span class="claim">regenerate the brief at half length once the context blows</span><span class="score" style="color:#3d8a58">+0.3</span></div><div class="loom-lesson" title="raise one checkpoint per stuck signature, not one per round"><span class="claim">raise one checkpoint per stuck signature, not one per round</span><span class="score" style="color:#3d8a58">+0.1</span></div></div></div></div><div class="loom-foot"><span>this window drives</span><span class="sep">lean ok</span></div></div></div></div>
+</div>
+</body>
+</html>

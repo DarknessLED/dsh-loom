@@ -109,20 +109,44 @@ check('money formats small amounts with more digits', () => {
 
 check('age renders coarse buckets', () => {
   const { age } = captured.module.__panel
-  assert.equal(age(5_000), '5s ago')
-  assert.equal(age(90_000), '2m ago')
-  assert.equal(age(3_600_000 * 3), '3h ago')
-  assert.equal(age(86_400_000 * 2), '2d ago')
+  // The figure sits right-aligned in a mono token, so it drops "ago": the
+  // label it sits next to ("running", "done") already frames it as elapsed
+  // time, and the tooltip spells the sentence out.
+  assert.equal(age(5_000), '5s')
+  assert.equal(age(90_000), '2m')
+  assert.equal(age(3_600_000 * 3), '3h')
+  assert.equal(age(86_400_000 * 2), '2d')
   assert.equal(age(-1), '')
   assert.equal(age('nope'), '')
 })
 
+// WCAG relative luminance, so the dot colours are held to a readable floor on
+// both canvases instead of being frozen at whatever hex we happen to ship.
+function lum(hex) {
+  const ch = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+}
+function contrast(a, b) {
+  const [x, y] = [lum(a), lum(b)]
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
 check('statusTone maps statuses to colours', () => {
   const { statusTone } = captured.module.__panel
-  assert.equal(statusTone('running'), '#2e7d32')
-  assert.equal(statusTone('paused'), '#8a6d00')
-  assert.equal(statusTone('failed'), '#b3261e')
-  assert.equal(statusTone('whatever'), '#555')
+  // Mid-tone, low-saturation hues: the reference keeps colour to 6px dots, and
+  // a dot has to read on #08090A and on white with the same value.
+  assert.equal(statusTone('running'), '#3d8a58')
+  assert.equal(statusTone('paused'), '#8f7a33')
+  assert.equal(statusTone('failed'), '#c05a4a')
+  assert.equal(statusTone('whatever'), '#7a7f87')
+  // one value per hue, so the same dot reads on the dark canvas and on white
+  const { qualityTone, riskTone } = captured.module.__panel
+  for (const hex of [statusTone('running'), statusTone('paused'), statusTone('failed'), statusTone('idle'), qualityTone('healthy'), qualityTone('regressing'), riskTone('high')]) {
+    assert.ok(contrast(hex, '#08090a') >= 3.8, hex + ' on dark')
+    assert.ok(contrast(hex, '#ffffff') >= 3.8, hex + ' on white')
+  }
 })
 
 if (failures.length > 0) {

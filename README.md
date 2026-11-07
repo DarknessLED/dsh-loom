@@ -130,6 +130,23 @@ rsi_control(action:"enable")                        # 下次 tick 继续，从�
 
 只有中间那栏滚动，开关与概览永远在视野里。数据全部来自同一条 `GET /dsh-loom/state`，与 `rsi_dashboard` / `rsi_report` 同源（面板不读战役文件，也不自己派发回合）。
 
+#### 视觉规范从哪里来
+
+面板视觉按 **OpenDesign（opendesign.cc）的 Linear pack** 重做，不是凭感觉配色。取用的真实 tokens：画布 `#08090A`、墨色 `#F7F8F8`、发丝线 `11%`、圆角 `4/6px`、动效 `150ms cubic-bezier(.25,.46,.45,.94)`、数字与 id 一律 mono + `tabular-nums`、颜色只留给 6px 状态点；禁用清单（亮渐变、多层阴影、高饱和主色、圆润玩味形状）在 `tests/panel-view.test.mjs` 里是断言，不是建议。
+
+**浅色/深色不用两套主题**：所有层级色都是 `color-mix(in srgb, var(--loom-base) N%, transparent)`，`--loom-base` 在挂载时由 `paintInk()` 从宿主主题的 `getComputedStyle` 读出真实墨色并钉住（每 5 秒轮询时重钉一次，读者切主题无需刷新）。**不要改回 `currentColor`**：子标签继承的是父级半透明色，再混一次 alpha 会相乘（`0.68 × 0.5 → 0.29`），9.5px 的字会掉到 1.8:1 —— 这个坑被 chaos 后的对比度审计抓到过。
+
+#### 两条可复跑的验证命令
+
+没有视觉能力不等于只能自称好看，所以面板有两条机械验证：
+
+| 命令 | 做什么 |
+| --- | --- |
+| `npm run panel:preview` | 用 React 四函数 shim 重放 `client/index.js` 的真实组件，生成 `docs/panel-preview.html`（深色 + 浅色两块画布并排） |
+| `npm run panel:audit` | 用 headless Chrome 打开那份预览，量横向溢出/滚动高度/发丝线条数/阴影数，逐个元素算 WCAG 对比度（含 alpha 合成），并读出关键的 6 个选择器是否真的落在 mono 字体上；**任一缺陷即非零退出** |
+
+审计抓出过三个真缺陷：`.loom-name/.loom-meta` 缺 `min-width:0` 导致横向滚动条、`color-mix` 结果被 Chrome 序列化成 `color(srgb … .62)`（0–1 浮点，按 0–255 解析会让对比度恒算成 1.0x）、以及上面那条嵌套 alpha 相乘。改完 `npm run panel:audit` 输出 `OK — every canvas reads, nothing overflows, contrast clears the floor.`；对应的不变量也进了单测（`tests/panel-client.test.mjs` 用 WCAG 公式钉住状态点色值，`tests/panel-view.test.mjs` 钉住「不许混 currentColor」与 `paintInk` 的降级行为）。
+
 ### Lean 4
 
 本机已装 Lean 4.35.0（elan 在 `~/.elan`，toolchain 在 `~/.elan/toolchains/leanprover--lean4---v4.35.0`）。用 `rsi_lean(action:"probe")` 确认。

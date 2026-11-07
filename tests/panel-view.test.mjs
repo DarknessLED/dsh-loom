@@ -154,3 +154,122 @@ test('the scrolling region keeps the switch and totals in place', () => {
   assert.match(source, /overflowY: 'auto'/, 'the middle column scrolls')
   assert.match(source, /height: '100%'/, 'the panel fills its slot so the middle column has a height')
 })
+
+// ---- the design system, pinned ----------------------------------------
+//
+// The panel is grounded in the Linear pack from OpenDesign (opendesign.cc):
+// monochrome ink at fixed opacities, hairline dividers instead of cards,
+// mono for anything numeric, one 4px rhythm, 150ms motion, no gradients.
+// These assertions exist because every one of those rules is the kind of
+// thing that quietly erodes: someone adds "just a soft shadow" and the
+// dashboard reads like a demo again.
+
+test('the strip is six figures in a fixed order, pending flagged when non-zero', () => {
+  const client = loadClient()
+  const figs = client.__panel.metrics(payload)
+  assert.deepEqual(
+    figs.map((f) => f.label),
+    ['campaigns', 'live', 'rounds', 'pending', 'spend', 'lessons'],
+  )
+  assert.equal(figs[0].value, '2', 'the unreadable campaign is not counted')
+  assert.equal(figs[1].value, '1')
+  assert.equal(figs[3].value, '2')
+  assert.equal(figs[3].hot, true, 'pending work is the one figure allowed to raise its voice')
+  assert.equal(figs[4].value, '$0.50')
+  const quiet = client.__panel.metrics({ campaigns: [{ id: 'x', open: 0 }] })
+  assert.equal(quiet[3].hot, false)
+})
+
+test('the chain reads as one thread, ids included and nothing invented', () => {
+  const client = loadClient()
+  assert.equal(
+    client.__panel.chainPath({ version: 2, nodes: [{ type: 'agent' }, { type: 'map' }, { type: 'verifier', name: 'tests' }, { type: 'human' }] }),
+    'chain v2 · agent → map → verifier/tests → human',
+  )
+  assert.equal(client.__panel.chainPath(null), '', 'a campaign without a chain says nothing')
+  assert.equal(client.__panel.chainPath({ nodes: [] }), 'chain v?', 'an unknown version is admitted, not faked')
+})
+
+test('campaign figures keep the same order on every row', () => {
+  const client = loadClient()
+  const meta = client.__panel.campaignMeta({
+    rounds: 1,
+    spendUsd: 0.02,
+    chainVersion: 1,
+    incumbent: { score: 0.9 },
+    lessons: 2,
+    holdout: 0,
+  })
+  assert.deepEqual(meta, ['1 round', '$0.02', 'chain v1', 'best 0.9', '2 lessons'])
+})
+
+test('attempt chips carry the verifier verdict, never a guess', () => {
+  const client = loadClient()
+  const chips = client.__panel.attemptChips({
+    attempts: [
+      { id: 'r1a1', score: 1, verifierOk: true },
+      { id: 'r1a2', score: 0, verifierOk: false, abandoned: 'stalled' },
+      { id: 'r1a3', score: null, verifierOk: false, screenedOut: true },
+    ],
+  })
+  assert.deepEqual(
+    chips.map((c) => [c.key, c.tone]),
+    [['r1a1', 'ok'], ['r1a2', 'bad'], ['r1a3', 'bad']],
+  )
+  assert.equal(chips[1].label, 'r1a2 0 stalled')
+  assert.equal(chips[2].label, 'r1a3 — screened')
+  assert.deepEqual(client.__panel.attemptChips(undefined), [], 'a campaign that has not run still renders')
+})
+
+test('the palette is monochrome ink, and colour is reserved for 6px dots', () => {
+  const client = loadClient()
+  const css = client.__panel.CSS
+  assert.ok(css.includes('--loom-base:var(--loom-ink-base,currentColor)'), 'tints mix against one pinned opaque ink')
+  assert.ok(!/color-mix\(in srgb,\s*currentColor/.test(css), 'never mix against currentColor: nested labels would multiply the alpha')
+  assert.ok(typeof client.__panel.paintInk === 'function', 'the ink is measured at mount, not guessed')
+  assert.ok(!/linear-gradient|radial-gradient/.test(css), 'no gradients: the reference has none')
+  assert.ok(!/border-radius:\s*(12|16|24)px/.test(css), 'radius stays at 4–6px')
+  assert.match(css, /transition:[^;]*150ms/, 'motion is 150ms, the reference’s micro duration')
+  assert.match(css, /cubic-bezier\(\.25,\.46,\.45,\.94\)/, 'and its easing, not a spring')
+  assert.ok(!/box-shadow:(?!.*var\(--loom-ok\)|.*var\(--loom-warn\))/.test(css), 'no card shadows')
+  assert.ok(css.includes('prefers-reduced-motion'), 'motion can be switched off')
+})
+
+test('the ink base is measured from the host, and a hostile document cannot kill the panel', () => {
+  const { paintInk } = loadClient().__panel
+  const writes = []
+  const root = { style: { setProperty: (k, v) => writes.push([k, v]) } }
+  paintInk({
+    querySelector: (sel) => (sel === '.loom' ? root : null),
+    defaultView: { getComputedStyle: () => ({ color: 'rgb(247, 248, 248)' }) },
+  })
+  assert.deepEqual(writes, [['--loom-ink-base', 'rgb(247, 248, 248)']])
+  // a detached panel, an exception during measurement, and a null document all
+  // have to be survivable: the tint falls back to currentColor on its own
+  assert.doesNotThrow(() => paintInk(null))
+  assert.doesNotThrow(() => paintInk({}))
+  assert.doesNotThrow(() =>
+    paintInk({
+      querySelector: () => {
+        throw new Error('gone')
+      },
+      defaultView: {},
+    }),
+  )
+  assert.doesNotThrow(() => paintInk({ querySelector: () => null, defaultView: {} }))
+})
+
+test('one stylesheet, injected once, from the component not the module', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /window\.__ModuleLoader__\.load\(\{[\s\S]*factory:/, 'the bundle protocol is unchanged')
+  assert.ok(!/^document\./m.test(source), 'the module body must not touch the DOM at load time')
+  assert.match(source, /ensureStyle\(typeof document === 'undefined' \? null : document\)/, 'the style is installed on mount')
+  assert.match(source, /doc\.getElementById\(STYLE_ID\)/, 'and only once per page')
+})
+
+test('a destructive action needs a second click', () => {
+  const source = readFileSync(clientPath, 'utf8')
+  assert.match(source, /armed \? 'sure\?' : 'reject'/, 'reject arms before it fires')
+  assert.match(source, /isArmed \? 'stop\?' : action/, 'stop arms too')
+  assert.match(source, /if \(!armed\) \{\n\s+setConfirming\(key\)/, 'the first click only arms')
+})
