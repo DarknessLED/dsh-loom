@@ -1,8 +1,12 @@
 # dsh-loom — 人在环的可递归自我改进循环（DSH 插件）
 
+**Human-in-the-loop recursive self-improvement for DeepSeek Harness.** Hand the main agent one objective and a budget; dsh-loom turns it into a repeatable work chain (scout → several candidates → mechanical verifier → score → promote) and runs it round after round in child sessions, so the main agent stays idle and available to you. It only wakes you for real decisions — accept a patch, raise the budget, or unstick a loop — and every round lands in an append-only event log you can replay, audit and reproduce.
+
 > 主 agent 保持空闲；一个目标 + 预算 + 工作链在后台子会话里自己迭代；只有需要人判断时才叫醒你。
 
 名字取自「织机」：经线是目标与预算，纬线是每一轮的工作链，人只负责换梭与验收。
+
+![侧栏面板：中文文案 + 战役树](docs/panel-preview.png)
 
 ---
 

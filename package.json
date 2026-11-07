@@ -1,7 +1,7 @@
 {
   "name": "dsh-loom",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Human-in-the-loop recursive self-improvement loop for DeepSeek Harness: the main agent stays idle while an auditable work chain iterates in child sessions.",
   "type": "module",
   "main": "./src/index.js",
@@ -16,7 +16,8 @@
     "src",
     "client",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
@@ -51,5 +52,29 @@
     "panel:preview": "node scripts/panel-preview.mjs",
     "panel:audit": "node scripts/panel-audit.mjs",
     "test": "node tests/gate.test.mjs && node tests/exec.test.mjs && node tests/ledger.test.mjs && node tests/lease.test.mjs && node tests/watchdog.test.mjs && node tests/board.test.mjs && node tests/brief.test.mjs && node tests/host-guard.test.mjs && node tests/select.test.mjs && node tests/knowledge.test.mjs && node tests/lean.test.mjs && node tests/loop.test.mjs && node tests/taskbest.test.mjs && node tests/chain.test.mjs && node tests/imagine.test.mjs && node tests/panel.test.mjs && node tests/panel-client.test.mjs && node tests/patch-untracked.test.mjs && node tests/selector.test.mjs && node tests/autopilot.test.mjs && node scripts/verify.mjs && node scripts/e2e.mjs"
-  }
+  },
+  "license": "MIT",
+  "author": {
+    "name": "DarknessLED"
+  },
+  "homepage": "https://github.com/DarknessLED/dsh-loom",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DarknessLED/dsh-loom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DarknessLED/dsh-loom/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dsh",
+    "rsi",
+    "self-improvement",
+    "recursive-self-improvement",
+    "autonomous-agent",
+    "subagents",
+    "evolution",
+    "human-in-the-loop"
+  ]
 }

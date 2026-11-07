@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # The suite is proven on Windows: child-process timeouts there go through
+    # taskkill /T, and several tests assert on that path.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: git identity for worktree tests
+        run: |
+          git config --global user.email "ci@dsh-loom.local"
+          git config --global user.name "dsh-loom ci"
+
+      - name: suites
+        run: node scripts/test-all.mjs
+
+      - name: end to end
+        run: node scripts/e2e.mjs
+
+      - name: host contract
+        run: node scripts/verify.mjs
