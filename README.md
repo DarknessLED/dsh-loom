@@ -118,15 +118,19 @@ rsi_control(action:"enable")                        # 下次 tick 继续，从�
 
 多开窗口是安全的：每个窗口都注册了全部工具，但只有心跳最新的那个窗口会真正派发回合；旧窗口自动降级为只读观察（工具仍可读，改状态时会提示「another dsh-loom window is driving the loop」）。
 
+面板文案是中文，状态词有固定译名（`running` 运行中、`done` 已完成、`promoted` 已晋升、`no-gain` 未晋升、`healthy/stalled/regressing` 健康/停滞/退步、检查点 `gate` 晋升待审、`stuck` 门不可达、`exhausted` 额度耗尽）；**未知取值原样透出**，不吞、不猜。
+
 面板从上到下是四块，顺序按「谁需要你」排：
 
 | 区块 | 内容 |
 | --- | --- |
-| 顶栏 | `loop on / loop off` 开关、`refresh` |
-| 概览条 | 战役数 / 运行中 / 总轮数 / 花费 / 待处理数 / 知识条数 |
-| 待你处理 | **跨战役**汇总的开放检查点，按风险排序（`high` 红、`normal` 黄），每行可直接 approve / reject |
-| 战役卡 | 每张卡：状态、目标、轮数/花费/链版本/最佳分/知识条数/holdout、**证据质量**（healthy / stalled / regressing、晋升率、平均每轮秒数）、`chain v1: agent → map → verifier → human`、上一轮各候选的分数与状态、该战役的检查点与 pause/resume/stop |
-| 知识 | 按 `fact / hazard / recipe` 分组的活跃知识，按累计收益排序，显示 claim 与收益值；隔离条数单列 |
+| 顶栏 | `循环 开 / 循环 关` 开关、`↻` 刷新 |
+| 概览条 | 战役 / 运行中 / 轮数 / 待处理 / 花费 / 知识 |
+| 待你处理 | **跨战役**汇总的开放检查点，按风险排序（高风险靠前），每行可直接 批准 / 驳回 / 暂缓 |
+| 战役（树） | 每个战役一株树：`第 N 轮`（子节点是这一轮的每个候选，带分数与「已筛除 / 已放弃」）、`待审`（子节点是开放检查点，行内 批准/驳回/暂缓）、`进行中`（子节点是活尝试，带静默秒数）、`知识`（子节点是前三条知识，kind + claim + 收益）。树干那一行是概览：状态、目标、轮数/花费/链版本/最佳分/知识条数/留出、证据质量（健康/停滞/退步 · 晋升率 · 秒/轮）、链条 `链 v1 · 执行 → 并行 → 验证 → 人审` |
+| 知识 | 按 `事实 / 风险 / 做法` 分组，按累计收益排序，显示 claim 与收益值；隔离条数单列 |
+
+**树是画出来的，不是排出来的**：没有 SVG，也没有字符画 —— 每个节点是一个块，`data-depth` 决定缩进，`::before` 在分支行画一条 1px 竖轨、`::after` 画一条 9px 肘线，`data-last="1"` 的分支把竖轨截到肘线高度，于是视觉上就是一棵树（与智能体编队插件同一个画法：一条竖轨 + 每行一条肘线）。状态点只画在**分支**上（轮/待审/进行中），子节点不画点 —— 300px 宽里三十多个点只是噪音。
 
 只有中间那栏滚动，开关与概览永远在视野里。数据全部来自同一条 `GET /dsh-loom/state`，与 `rsi_dashboard` / `rsi_report` 同源（面板不读战役文件，也不自己派发回合）。
 
@@ -145,7 +149,7 @@ rsi_control(action:"enable")                        # 下次 tick 继续，从�
 | `npm run panel:preview` | 用 React 四函数 shim 重放 `client/index.js` 的真实组件，生成 `docs/panel-preview.html`（深色 + 浅色两块画布并排） |
 | `npm run panel:audit` | 用 headless Chrome 打开那份预览，量横向溢出/滚动高度/发丝线条数/阴影数，逐个元素算 WCAG 对比度（含 alpha 合成），并读出关键的 6 个选择器是否真的落在 mono 字体上；**任一缺陷即非零退出** |
 
-审计抓出过三个真缺陷：`.loom-name/.loom-meta` 缺 `min-width:0` 导致横向滚动条、`color-mix` 结果被 Chrome 序列化成 `color(srgb … .62)`（0–1 浮点，按 0–255 解析会让对比度恒算成 1.0x）、以及上面那条嵌套 alpha 相乘。改完 `npm run panel:audit` 输出 `OK — every canvas reads, nothing overflows, contrast clears the floor.`；对应的不变量也进了单测（`tests/panel-client.test.mjs` 用 WCAG 公式钉住状态点色值，`tests/panel-view.test.mjs` 钉住「不许混 currentColor」与 `paintInk` 的降级行为）。
+审计抓出过四个真缺陷：`.loom-name/.loom-meta` 缺 `min-width:0` 导致横向滚动条、`color-mix` 结果被 Chrome 序列化成 `color(srgb … .62)`（0–1 浮点，按 0–255 解析会让对比度恒算成 1.0x）、上面那条嵌套 alpha 相乘，以及**预览脚本自己的渲染错误**：它把函数类型的组件节点当 `<div>` 序列化，于是「预览」里根本没有战役卡 —— 审计一度在测一页空壳。现在 `html()` 遇到函数型节点会像 React 一样调用它（`html(type(props))`），预览从 19KB 变成 34KB，9 条发丝线、34 个状态点才真的出现在审计里。改完 `npm run panel:audit` 输出 `OK — every canvas reads, nothing overflows, contrast clears the floor.`；对应的不变量也进了单测（`tests/panel-client.test.mjs` 用 WCAG 公式钉住状态点色值，`tests/panel-view.test.mjs` 钉住「不许混 currentColor」、`paintInk` 的降级行为、以及 `treeLines` 的树形）。
 
 ### Lean 4
 

@@ -73,9 +73,19 @@ function html(node) {
   if (typeof node === 'string' || typeof node === 'number') return escape(node)
   if (Array.isArray(node)) return node.map(html).join('')
   const { type, props, children } = node
+  // A component, not a tag: React would call it, so the preview must too. This
+  // used to be the bug that made the preview emptier than the real panel — the
+  // campaign body is rendered by a component, so serialising it as a <div>
+  // measured a page with no campaigns on it.
+  if (typeof type === 'function') {
+    const kids = children.length === 0 ? undefined : children.length === 1 ? children[0] : children
+    return html(type({ ...props, children: kids }))
+  }
   const attrs = []
   if (props.className) attrs.push(`class="${escape(props.className)}"`)
   if (props.title) attrs.push(`title="${escape(props.title)}"`)
+  if (props['data-depth']) attrs.push(`data-depth="${escape(props['data-depth'])}"`)
+  if (props['data-last']) attrs.push(`data-last="${escape(props['data-last'])}"`)
   if (props.style) attrs.push(`style="${styleOf(props.style)}"`)
   if (props.disabled) attrs.push('disabled')
   const tag = type === 'code' ? 'code' : type === 'button' ? 'button' : type === 'span' ? 'span' : type === 'b' ? 'b' : 'div'
@@ -112,6 +122,10 @@ const payload = {
       openCheckpoints: [{ id: 'cp-9f21', kind: 'gate', payload: { verdict: 'improved', delta: 0.12 } }],
       reviews: [{ id: 'cp-9f21', kind: 'gate', risk: 'normal', summary: 'promote r7a2 (score 0.94, Δ0.12)' }],
       lastRound: {
+        n: 7,
+        status: 'promoted',
+        promoted: true,
+        score: 0.94,
         attempts: [
           { id: 'r7a1', score: 0.88, verifierOk: true },
           { id: 'r7a2', score: 0.94, verifierOk: true },

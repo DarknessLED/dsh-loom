@@ -107,15 +107,15 @@ check('money formats small amounts with more digits', () => {
   assert.equal(money(undefined), '$0')
 })
 
-check('age renders coarse buckets', () => {
+check('age renders coarse buckets in Chinese units', () => {
   const { age } = captured.module.__panel
-  // The figure sits right-aligned in a mono token, so it drops "ago": the
-  // label it sits next to ("running", "done") already frames it as elapsed
-  // time, and the tooltip spells the sentence out.
-  assert.equal(age(5_000), '5s')
-  assert.equal(age(90_000), '2m')
-  assert.equal(age(3_600_000 * 3), '3h')
-  assert.equal(age(86_400_000 * 2), '2d')
+  // The figure sits right-aligned in a mono token, so it drops "ago"/"前": the
+  // label it sits next to (运行中/已完成) already frames it as elapsed time, and
+  // the tooltip spells the sentence out.
+  assert.equal(age(5_000), '5秒')
+  assert.equal(age(90_000), '2分')
+  assert.equal(age(3_600_000 * 3), '3小时')
+  assert.equal(age(86_400_000 * 2), '2天')
   assert.equal(age(-1), '')
   assert.equal(age('nope'), '')
 })

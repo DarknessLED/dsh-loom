@@ -10,7 +10,7 @@
 // spec CC BY 4.0) — the dashboard idiom real developer tools ship. What that
 // means here, concretely:
 //
-//   · monochrome. `color-mix(in srgb, currentColor N%, transparent)` is the
+//   · monochrome. `color-mix(in srgb, var(--loom-base) N%, transparent)` is the
 //     whole palette, so the panel is ink-on-canvas in a light *and* a dark
 //     theme without a theme switch of its own. Colour appears only as 6px
 //     state dots, mid-tone enough to read on #08090A and on white.
@@ -20,7 +20,15 @@
 //     chain paths — with tabular figures, and the body face for prose.
 //   · one 4px spacing rhythm, labels at 10px/uppercase/.08em.
 //   · motion 150ms cubic-bezier(.25,.46,.45,.94): hover shifts, no springs.
-//   · voice: direct, lower-case button labels, no exclamation marks, no emoji.
+//   · voice: 中文标签、直陈语气、不用感叹号、不用 emoji。
+//
+// The campaign body is a *tree*, not a stack of chips: a campaign is one node,
+// and under it the same three things every round either produces or blocks on
+// — the last round and its candidates, the decisions waiting on a human, the
+// attempts still in flight, and the lessons it has earned — hang off the
+// campaign with hairline rails and elbows (the shape the Agent Teams panel
+// uses for a delegation tree). A person reads a loop by its branches, not by
+// its badges.
 window.__ModuleLoader__.load({
   id: 'dsh-loom',
   factory: (require) => {
@@ -48,7 +56,7 @@ window.__ModuleLoader__.load({
       ' --loom-base:var(--loom-ink-base,currentColor);',
       ' --loom-soft:rgba(127,127,127,1);--loom-soft:color-mix(in srgb,var(--loom-base) 78%,transparent);',
       ' --loom-quiet:rgba(127,127,127,.8);--loom-quiet:color-mix(in srgb,var(--loom-base) 68%,transparent);',
-      ' --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 50%,transparent);',
+      ' --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 52%,transparent);',
       ' --loom-line:rgba(127,127,127,.18);--loom-line:color-mix(in srgb,var(--loom-base) 11%,transparent);',
       ' --loom-line2:rgba(127,127,127,.3);--loom-line2:color-mix(in srgb,var(--loom-base) 20%,transparent);',
       ' --loom-wash:rgba(127,127,127,.06);--loom-wash:color-mix(in srgb,var(--loom-base) 4%,transparent);',
@@ -69,7 +77,7 @@ window.__ModuleLoader__.load({
       '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-ev,.loom-cp-head{min-width:0}',
       // header
       '.loom-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--loom-line)}',
-      '.loom-mark{font-family:var(--loom-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}',
+      '.loom-mark{font-family:var(--loom-mono);font-size:11px;font-weight:500;letter-spacing:.14em;white-space:nowrap}',
       '.loom-spacer{flex:1 1 auto;min-width:4px}',
       '.loom-btn{appearance:none;background:transparent;border:1px solid var(--loom-line);color:var(--loom-soft);',
       ' font-family:inherit;font-size:11px;font-weight:400;line-height:1;padding:4px 7px;border-radius:4px;cursor:pointer;',
@@ -81,7 +89,7 @@ window.__ModuleLoader__.load({
       '.loom-btn.bare{border-color:transparent;padding:4px 5px}',
       '.loom-btn.bare:hover{background:var(--loom-hover);border-color:transparent}',
       '.loom-btn.danger:hover{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 45%,transparent)}',
-      // the loop switch: a dot and two words, not a traffic light
+      // the loop switch: a dot and one word, not a traffic light
       '.loom-switch{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;padding:4px 2px;',
       ' font-family:var(--loom-mono);font-size:11px;letter-spacing:.02em;color:var(--loom-soft);cursor:pointer;',
       ' transition:color 150ms var(--loom-ease)}',
@@ -96,14 +104,14 @@ window.__ModuleLoader__.load({
       '.loom-metric:last-child{border-right:0}',
       '.loom-metric b{display:block;font-family:var(--loom-mono);font-size:13px;font-weight:500;line-height:1.1;',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-metric span{display:block;margin-top:2px;font-size:9px;line-height:1;letter-spacing:.08em;',
-      ' text-transform:uppercase;color:var(--loom-quiet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.loom-metric span{display:block;margin-top:2px;font-size:9px;line-height:1.15;letter-spacing:.06em;',
+      ' color:var(--loom-quiet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-metric.hot b{color:var(--loom-warn)}',
       // sections
       '.loom-sec{border-bottom:1px solid var(--loom-line)}',
       '.loom-sec:last-child{border-bottom:0}',
       '.loom-sec-head{display:flex;align-items:center;gap:6px;padding:9px 12px 5px;',
-      ' font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--loom-quiet)}',
+      ' font-size:10px;letter-spacing:.08em;color:var(--loom-quiet)}',
       '.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);letter-spacing:0;color:var(--loom-quiet)}',
       // rows
       '.loom-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--loom-line);',
@@ -117,8 +125,9 @@ window.__ModuleLoader__.load({
       '.loom-camp:first-of-type{border-top:0}',
       '.loom-camp:hover{background:color-mix(in srgb,var(--loom-base) 2.5%,transparent)}',
       '.loom-titlerow{display:flex;align-items:baseline;gap:7px}',
-      '.loom-name{font-size:13px;font-weight:500;line-height:1.2;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-state{font-family:var(--loom-mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--loom-quiet)}',
+      '.loom-name{font-family:var(--loom-mono);font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;',
+      ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.loom-state{font-size:10px;letter-spacing:.02em;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);white-space:nowrap}',
       '.loom-obj{margin-top:4px;font-size:11.5px;line-height:1.45;color:var(--loom-soft);',
       ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
@@ -127,37 +136,61 @@ window.__ModuleLoader__.load({
       '.loom-chain{margin-top:3px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-ev{margin-top:4px;display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet)}',
+      // ---- the tree ----
+      // one hairline rail runs down the depth-1 nodes and every node but the
+      // last elbows onto it; deeper levels indent and keep a quieter dot. No
+      // SVG: the shape is structure, not decoration, so it is one pseudo
+      // element per row.
+      '.loom-tree{margin-top:7px;position:relative}',
+      '.loom-node{position:relative;display:flex;align-items:baseline;gap:6px;min-width:0;',
+      ' padding:3px 0 3px 18px;transition:background 150ms var(--loom-ease)}',
+      '.loom-node:hover{background:var(--loom-hover)}',
+      '.loom-node[data-depth="1"]:before{content:"";position:absolute;left:6px;top:0;bottom:0;width:1px;',
+      ' background:var(--loom-line)}',
+      '.loom-node[data-depth="1"]:after{content:"";position:absolute;left:6px;top:11px;width:9px;height:1px;',
+      ' background:var(--loom-line)}',
+      '.loom-node[data-depth="1"][data-last="1"]:before{bottom:auto;height:11px}',
+      '.loom-node[data-depth="2"]{padding-left:31px}',
+      '.loom-node[data-depth="2"]:before{content:"";position:absolute;left:19px;top:11px;width:7px;height:1px;',
+      ' background:var(--loom-line)}',
+      '.loom-node[data-depth="3"]{padding-left:43px}',
+      '.loom-node .k{flex:0 0 auto;font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.04em;color:var(--loom-quiet)}',
+      '.loom-node .t{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-soft);',
+      ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.loom-node .t.mono{font-family:var(--loom-mono);font-size:10.5px}',
+      '.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
+      '.loom-node .acts{flex:0 0 auto;display:flex;gap:2px}',
+      '.loom-node .acts .loom-btn{font-size:10.5px;padding:2px 5px}',
+      // checkpoint block: a hairline ledger entry inside the tree
+      '.loom-cp{margin:0;padding:5px 0 6px}',
+      '.loom-cp-head{display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;',
+      ' letter-spacing:.03em;color:var(--loom-quiet);justify-content:space-between}',
+      '.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.04em}',
+      '.loom-cp-body{margin-top:3px;font-size:11px;line-height:1.45;color:var(--loom-soft)}',
+      '.loom-cp-acts{margin-top:5px;display:flex;gap:4px}',
+      '.loom-acts{margin-top:8px;display:flex;align-items:center;gap:2px}',
+      '.loom-acts .sep{width:1px;height:12px;background:var(--loom-line);margin:0 4px}',
       '.loom-chips{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}',
       '.loom-chip{font-family:var(--loom-mono);font-size:10px;line-height:1;padding:3px 5px;border-radius:4px;',
       ' background:var(--loom-wash);border:1px solid transparent;color:var(--loom-soft);white-space:nowrap}',
       '.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 32%,transparent)}',
       '.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 32%,transparent)}',
       '.loom-chip.live{color:var(--loom-ok)}',
-      '.loom-acts{margin-top:8px;display:flex;align-items:center;gap:2px}',
-      '.loom-acts .sep{width:1px;height:12px;background:var(--loom-line);margin:0 4px}',
-      // checkpoint block: hairline ledger entry, not a warning banner
-      '.loom-cp{margin-top:8px;padding:7px 8px;border:1px solid var(--loom-line2);border-radius:6px;background:var(--loom-wash)}',
-      '.loom-cp-head{display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;',
-      ' letter-spacing:.03em;color:var(--loom-quiet);justify-content:space-between}',
-      '.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.04em;text-transform:uppercase}',
-      '.loom-cp-body{margin-top:3px;font-size:11px;line-height:1.45;color:var(--loom-soft)}',
-      '.loom-cp-acts{margin-top:6px;display:flex;gap:4px}',
       // knowledge
-      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 12px;font-size:11.5px;color:var(--loom-soft)}',
+      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 12px 2px 31px;font-size:11.5px;color:var(--loom-soft)}',
       '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
-      '.loom-kind{padding:2px 12px 1px;font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.1em;',
-      ' text-transform:uppercase;color:var(--loom-quiet)}',
+      '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
       // shell
       '.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;',
       ' scrollbar-width:thin}',
       '.loom-foot{display:flex;align-items:center;gap:6px;padding:7px 12px;border-top:1px solid var(--loom-line);',
-      ' font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--loom-soft)}',
+      ' font-size:9.5px;letter-spacing:.04em;color:var(--loom-soft)}',
       '.loom-foot .sep{margin-left:auto}',
       '.loom-empty{padding:14px 12px 16px;font-size:11.5px;line-height:1.6;color:var(--loom-quiet)}',
       '.loom-empty code{font-size:11px;color:var(--loom-soft)}',
       '.loom-err{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-bad);word-break:break-word}',
-      '.loom-loading{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-faint)}',
+      '.loom-loading{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
       '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-top:1px solid var(--loom-line);',
       ' font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
       '.loom-broken b{font-weight:500;color:var(--loom-soft)}',
@@ -204,12 +237,12 @@ window.__ModuleLoader__.load({
     function age(ms) {
       if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return ''
       var s = Math.round(ms / 1000)
-      if (s < 60) return s + 's'
+      if (s < 60) return s + '秒'
       var m = Math.round(s / 60)
-      if (m < 60) return m + 'm'
+      if (m < 60) return m + '分'
       var h = Math.round(m / 60)
-      if (h < 48) return h + 'h'
-      return Math.round(h / 24) + 'd'
+      if (h < 48) return h + '小时'
+      return Math.round(h / 24) + '天'
     }
 
     function statusTone(status) {
@@ -224,6 +257,38 @@ window.__ModuleLoader__.load({
       if (verdict === 'stalled') return '#8f7a33'
       if (verdict === 'regressing') return '#c05a4a'
       return '#7a7f87'
+    }
+
+    // ---- 词表 ---------------------------------------------------------------
+    //
+    // The host speaks English in its event log (and should: the ledger is the
+    // durable artifact), so the panel is the one place that translates. Every
+    // label goes through these maps, which also means an unknown value shows
+    // through verbatim instead of disappearing.
+    var STATE_ZH = { running: '运行中', paused: '已暂停', stopped: '已停止', done: '已完成', planning: '规划中', failed: '已失败', error: '出错' }
+    var QUALITY_ZH = { healthy: '健康', stalled: '停滞', regressing: '退步' }
+    var KIND_ZH = { fact: '事实', hazard: '风险', recipe: '做法' }
+    var CP_ZH = { gate: '晋升待审', anomaly: '异常', plateau: '平台期', holdout: '留出集', stuck: '门不可达', exhausted: '额度耗尽', budget: '预算', human: '人工确认' }
+    var NODE_ZH = { agent: '执行', map: '并行', verifier: '验证', human: '人审', judge: '评判', collect: '收集' }
+    var RISK_ZH = { high: '高', normal: '中', low: '低' }
+
+    function statusLabel(v) {
+      return STATE_ZH[v] || v || ''
+    }
+    function qualityLabel(v) {
+      return QUALITY_ZH[v] || v || ''
+    }
+    function kindLabel(v) {
+      return KIND_ZH[v] || v || ''
+    }
+    function checkpointLabel(v) {
+      return CP_ZH[v] || v || ''
+    }
+    function nodeLabel(v) {
+      return NODE_ZH[v] || v || ''
+    }
+    function riskLabel(v) {
+      return RISK_ZH[v] || v || ''
     }
 
     function when(cond, node) {
@@ -266,12 +331,12 @@ window.__ModuleLoader__.load({
     function metrics(data) {
       var o = overview(data)
       return [
-        { key: 'campaigns', label: 'campaigns', value: String(o.campaigns) },
-        { key: 'running', label: 'live', value: String(o.running) },
-        { key: 'rounds', label: 'rounds', value: String(o.rounds) },
-        { key: 'pending', label: 'pending', value: String(o.open), hot: o.open > 0 },
-        { key: 'spend', label: 'spend', value: money(o.spend) },
-        { key: 'lessons', label: 'lessons', value: String(o.lessons) },
+        { key: 'campaigns', label: '战役', value: String(o.campaigns) },
+        { key: 'running', label: '运行中', value: String(o.running) },
+        { key: 'rounds', label: '轮数', value: String(o.rounds) },
+        { key: 'pending', label: '待处理', value: String(o.open), hot: o.open > 0 },
+        { key: 'spend', label: '花费', value: money(o.spend) },
+        { key: 'lessons', label: '知识', value: String(o.lessons) },
       ]
     }
 
@@ -345,7 +410,7 @@ window.__ModuleLoader__.load({
         var items = groups[key].sort(function (a, b) {
           return b.score - a.score || (a.id < b.id ? -1 : 1)
         })
-        if (items.length) kinds.push({ kind: key, items: items.slice(0, 4), total: items.length })
+        if (items.length) kinds.push({ kind: key, label: kindLabel(key), items: items.slice(0, 4), total: items.length })
       }
       return { active: active, quarantined: quarantined, kinds: kinds }
     }
@@ -353,17 +418,20 @@ window.__ModuleLoader__.load({
     /** The chain as a single readable thread: the shape of this loop's work. */
     function chainPath(chain) {
       if (!chain) return ''
+      var version = chain.version === null || chain.version === undefined ? '?' : String(chain.version)
       var nodes = chain.nodes || []
       var body = nodes
         .map(function (n) {
-          return n && n.name ? n.type + '/' + n.name : n && n.type ? n.type : ''
+          if (!n) return ''
+          var head = nodeLabel(n.type)
+          if (!n.type && !n.name) return ''
+          return n && n.name ? head + '/' + n.name : head
         })
         .filter(function (s) {
           return s.length > 0
         })
         .join(' → ')
-      var version = chain.version === null || chain.version === undefined ? '?' : String(chain.version)
-      return body ? 'chain v' + version + ' · ' + body : 'chain v' + version
+      return body ? '链 v' + version + ' · ' + body : '链 v' + version
     }
 
     /**
@@ -372,12 +440,12 @@ window.__ModuleLoader__.load({
      */
     function campaignMeta(c) {
       var out = []
-      out.push(num(c.rounds) + ' round' + (num(c.rounds) === 1 ? '' : 's'))
+      out.push(num(c.rounds) + ' 轮')
       out.push(money(c.spendUsd))
-      if (c.chainVersion !== null && c.chainVersion !== undefined) out.push('chain v' + c.chainVersion)
-      if (c.incumbent && c.incumbent.score !== null && c.incumbent.score !== undefined) out.push('best ' + c.incumbent.score)
-      if (c.lessons) out.push(num(c.lessons) + ' lesson' + (num(c.lessons) === 1 ? '' : 's'))
-      if (c.holdout) out.push(num(c.holdout) + ' holdout')
+      if (c.chainVersion !== null && c.chainVersion !== undefined) out.push('链 v' + c.chainVersion)
+      if (c.incumbent && c.incumbent.score !== null && c.incumbent.score !== undefined) out.push('最佳 ' + c.incumbent.score)
+      if (c.lessons) out.push(num(c.lessons) + ' 条知识')
+      if (c.holdout) out.push(num(c.holdout) + ' 留出')
       return out
     }
 
@@ -386,8 +454,8 @@ window.__ModuleLoader__.load({
       var attempts = (lastRound && lastRound.attempts) || []
       return attempts.map(function (a) {
         var label = String(a.id) + ' ' + (a.score === null || a.score === undefined ? '—' : a.score)
-        if (a.screenedOut) label += ' screened'
-        if (a.abandoned) label += ' ' + a.abandoned
+        if (a.screenedOut) label += ' 已筛除'
+        if (a.abandoned) label += ' 已放弃'
         return { key: String(a.id), label: label, tone: a.verifierOk ? 'ok' : 'bad' }
       })
     }
@@ -403,6 +471,161 @@ window.__ModuleLoader__.load({
       if (risk === 'high') return '#c05a4a'
       if (risk === 'low') return '#7a7f87'
       return '#8f7a33'
+    }
+
+    // ---- the tree ----------------------------------------------------------
+    //
+    // `treeOf` turns one campaign's payload into the branches a reader walks:
+    // 最近一轮 (and the candidates that lost), 待审 (the decisions that block
+    // it), 进行中 (what is running right now), 知识 (what it has learned).
+    // `flattenTree` gives every node its depth and whether it is the last of
+    // its siblings, which is all the CSS needs to draw rails and elbows.
+    // Both are pure, so the shape of the panel is testable without React.
+
+    var ROUND_ZH = { promoted: '已晋升', 'no-gain': '未晋升', 'holdout-failed': '留出集未过', exhausted: '额度耗尽', interrupted: '中断', crashed: '崩溃', screened: '已筛除' }
+
+    function roundStatusLabel(lr) {
+      if (!lr) return ''
+      if (lr.status && ROUND_ZH[lr.status]) return ROUND_ZH[lr.status]
+      if (lr.promoted) return '已晋升'
+      if (lr.score !== null && lr.score !== undefined) return '未晋升'
+      return ''
+    }
+
+    function lastRoundNode(c) {
+      var lr = c.lastRound
+      if (!lr || lr.n === null || lr.n === undefined) return null
+      var attempts = lr.attempts || []
+      var kids = attempts.map(function (a) {
+        var score = a.score === null || a.score === undefined ? '—' : a.score
+        var notes = []
+        if (a.screenedOut) notes.push('已筛除')
+        if (a.abandoned) notes.push('已放弃')
+        return {
+          key: 'a-' + a.id,
+          label: String(a.id),
+          meta: score + (notes.length ? ' · ' + notes.join(' · ') : ''),
+          tone: a.verifierOk ? '#3d8a58' : '#c05a4a',
+          mono: true,
+        }
+      })
+      return {
+        key: 'round',
+        label: '第 ' + lr.n + ' 轮',
+        meta: [roundStatusLabel(lr), lr.score === null || lr.score === undefined ? '' : String(lr.score)].filter(Boolean).join(' · '),
+        tone: lr.promoted ? '#3d8a58' : '#8f7a33',
+        children: kids,
+      }
+    }
+
+    function waitingNode(c) {
+      var cps = c.openCheckpoints || []
+      if (!cps.length) return null
+      return {
+        key: 'wait',
+        label: '待审',
+        meta: String(cps.length),
+        tone: '#8f7a33',
+        children: cps.map(function (cp) {
+          var payload = cp.payload || {}
+          var detail = []
+          if (payload.verdict) detail.push(String(payload.verdict))
+          if (payload.delta !== undefined) detail.push('Δ' + payload.delta)
+          if (payload.taskId) detail.push(String(payload.taskId))
+          return {
+            key: 'cp-' + cp.id,
+            kind: checkpointLabel(cp.kind),
+            label: cp.id,
+            meta: detail.join(' · '),
+            mono: true,
+            actions: [
+              { label: '批准', title: '接受这个检查点，让这一轮落地', action: 'decide', decision: 'approve', checkpoint: cp.id },
+              { label: '驳回', title: '驳回；再点一次确认', action: 'decide', decision: 'reject', checkpoint: cp.id, danger: true, confirm: true },
+              { label: '暂缓', title: '先放着，稍后再定', action: 'decide', decision: 'hold', checkpoint: cp.id },
+            ],
+          }
+        }),
+      }
+    }
+
+    function liveNode(c, live) {
+      if (!live || !live.length) return null
+      return {
+        key: 'live',
+        label: '进行中',
+        meta: String(live.length),
+        tone: '#3d8a58',
+        children: live.map(function (a) {
+          var idle = typeof a.idleMs === 'number' ? ' · 静默 ' + Math.round(a.idleMs / 1000) + ' 秒' : ''
+          return { key: 'live-' + a.attemptId, label: String(a.attemptId), meta: '运行中' + idle, mono: true, tone: '#3d8a58' }
+        }),
+      }
+    }
+
+    function lessonsNode(c) {
+      var top = c.lessonsTop || []
+      if (!top.length) return null
+      return {
+        key: 'lessons',
+        label: '知识',
+        meta: String(num(c.lessons)),
+        children: top.slice(0, 3).map(function (l) {
+          return {
+            key: 'l-' + l.id,
+            kind: kindLabel(l.kind),
+            label: text(l.claim, l.id),
+            meta: (num(l.score) > 0 ? '+' : '') + num(l.score),
+            mono: false,
+          }
+        }),
+      }
+    }
+
+    function treeOf(c, live) {
+      var nodes = []
+      var round = lastRoundNode(c)
+      if (round) nodes.push(round)
+      var waiting = waitingNode(c)
+      if (waiting) nodes.push(waiting)
+      var flying = liveNode(c, live)
+      if (flying) nodes.push(flying)
+      var learned = lessonsNode(c)
+      if (learned) nodes.push(learned)
+      return nodes
+    }
+
+    function flattenTree(nodes, depth, out) {
+      var list = nodes || []
+      var rows = out || []
+      for (var i = 0; i < list.length; i += 1) {
+        var node = list[i]
+        if (!node) continue
+        var row = {
+          key: node.key,
+          depth: depth,
+          last: i === list.length - 1,
+          label: node.label,
+          kind: node.kind || '',
+          meta: node.meta || '',
+          tone: node.tone || '',
+          mono: node.mono === true,
+          actions: node.actions || [],
+        }
+        rows.push(row)
+        if (node.children && node.children.length) flattenTree(node.children, depth + 1, rows)
+      }
+      return rows
+    }
+
+    /** The tree as text: what a test asserts and what a reader would draw. */
+    function treeLines(nodes) {
+      return flattenTree(nodes, 1, []).map(function (row) {
+        var marks = []
+        for (var i = 1; i < row.depth; i += 1) marks.push('  ')
+        var mark = row.last ? '└─ ' : '├─ '
+        var head = (row.kind ? row.kind + ' ' : '') + row.label
+        return marks.join('') + mark + head + (row.meta ? '  ' + row.meta : '')
+      })
     }
 
     function readCollapsed() {
@@ -526,15 +749,13 @@ window.__ModuleLoader__.load({
           {
             type: 'button',
             className: 'loom-switch',
-            title: rsiOn
-              ? 'loop is dispatching — stop it here; campaign history is untouched'
-              : 'loop is stopped — no round is dispatched until you turn it back on',
+            title: rsiOn ? '循环正在派发；点这里停掉，战役历史不受影响' : '循环已停；在你打开之前不会派发任何一轮',
             onClick: function () {
               act('', rsiOn ? 'disable' : 'enable')
             },
           },
           h('span', { className: 'loom-dot ' + (rsiOn ? 'on' : 'off') }),
-          h('span', null, rsiOn ? 'on' : 'off'),
+          h('span', null, rsiOn ? '循环 开' : '循环 关'),
         )
         var header = h(
           'div',
@@ -547,8 +768,8 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               className: 'loom-btn bare',
-              title: 'reload from ~/.dsh/loom',
-              'aria-label': 'refresh',
+              title: '重新读取 ~/.dsh/loom',
+              'aria-label': '刷新',
               onClick: load,
             },
             '↻',
@@ -578,7 +799,7 @@ window.__ModuleLoader__.load({
             : h(
                 'div',
                 { className: 'loom-sec' },
-                h('div', { className: 'loom-sec-head' }, 'waiting on you', h('span', { className: 'n' }, String(queue.length))),
+                h('div', { className: 'loom-sec-head' }, '待你处理', h('span', { className: 'n' }, String(queue.length))),
                 queue.map(function (q) {
                   var key = q.campaign + ':' + q.id
                   var busyKey = q.campaign + ':decide'
@@ -589,9 +810,9 @@ window.__ModuleLoader__.load({
                     h('span', { className: 'loom-dot', style: { color: riskTone(q.risk) } }),
                     h(
                       'span',
-                      { className: 'txt', title: q.summary || q.kind },
+                      { className: 'txt', title: q.summary || checkpointLabel(q.kind) },
                       h('b', null, q.campaign),
-                      ' · ' + q.kind + (q.summary ? ' — ' + q.summary : ''),
+                      ' · ' + checkpointLabel(q.kind) + (q.summary ? ' — ' + q.summary : ''),
                     ),
                     h(
                       'button',
@@ -599,12 +820,12 @@ window.__ModuleLoader__.load({
                         type: 'button',
                         className: 'loom-btn bare',
                         disabled: box.busy === busyKey,
-                        title: 'accept this checkpoint and let the round land',
+                        title: '接受这个检查点，让这一轮落地',
                         onClick: function () {
                           act(q.campaign, 'decide', 'approve', q.id)
                         },
                       },
-                      'approve',
+                      '批准',
                     ),
                     h(
                       'button',
@@ -612,7 +833,7 @@ window.__ModuleLoader__.load({
                         type: 'button',
                         className: 'loom-btn bare danger',
                         disabled: box.busy === busyKey,
-                        title: armed ? 'click again to reject' : 'reject — this needs a second click',
+                        title: armed ? '再点一次即驳回' : '驳回 — 需要再点一次确认',
                         onClick: function () {
                           if (!armed) {
                             setConfirming(key)
@@ -622,7 +843,7 @@ window.__ModuleLoader__.load({
                           act(q.campaign, 'decide', 'reject', q.id)
                         },
                       },
-                      armed ? 'sure?' : 'reject',
+                      armed ? '确定?' : '驳回',
                     ),
                   )
                 }),
@@ -637,14 +858,14 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { className: 'loom-sec-head' },
-                  'knowledge',
-                  h('span', { className: 'n' }, tree.active + ' active' + (tree.quarantined ? ' · ' + tree.quarantined + ' held' : '')),
+                  '知识',
+                  h('span', { className: 'n' }, tree.active + ' 有效' + (tree.quarantined ? ' · ' + tree.quarantined + ' 隔离' : '')),
                 ),
                 tree.kinds.map(function (g) {
                   return h(
                     'div',
                     { key: g.kind },
-                    h('div', { className: 'loom-kind' }, g.kind + ' · ' + g.total),
+                    h('div', { className: 'loom-kind' }, g.label + ' · ' + g.total),
                     g.items.map(function (item) {
                       return h(
                         'div',
@@ -663,18 +884,18 @@ window.__ModuleLoader__.load({
 
         var body
         if (box.loading) {
-          body = h('div', { className: 'loom-loading' }, 'reading ~/.dsh/loom…')
+          body = h('div', { className: 'loom-loading' }, '正在读取 ~/.dsh/loom…')
         } else if (box.error) {
           body = h('div', { className: 'loom-err' }, box.error)
         } else if (!data || !data.campaigns || data.campaigns.length === 0) {
           body = h(
             'div',
             { className: 'loom-empty' },
-            'No campaigns.',
+            '还没有战役。',
             h('br'),
-            'Ask the agent for ',
+            '让 agent 调 ',
             h('code', null, 'rsi_start'),
-            ' with an objective and a workspace; the loop does the rest.',
+            '，给它一个目标和一个工作区，其余交给循环。',
           )
         } else {
           body = h(
@@ -683,7 +904,7 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'loom-sec-head' },
-              'campaigns',
+              '战役',
               h('span', { className: 'n' }, String(data.campaigns.filter(function (c) {
                 return c && !c.error
               }).length)),
@@ -715,8 +936,8 @@ window.__ModuleLoader__.load({
         var footer = h(
           'div',
           { className: 'loom-foot' },
-          h('span', null, data && data.ownership && data.ownership.mine === false ? 'driven by another window' : 'this window drives'),
-          data && data.lean ? h('span', { className: 'sep' }, 'lean ' + (data.lean.available ? 'ok' : 'missing')) : null,
+          h('span', null, data && data.ownership && data.ownership.mine === false ? '由另一个窗口驱动' : '本窗口驱动'),
+          data && data.lean ? h('span', { className: 'sep' }, 'Lean ' + (data.lean.available ? '就绪' : '未安装')) : null,
         )
 
         // The header, the figures and the footer stay put; only the middle
@@ -740,7 +961,6 @@ window.__ModuleLoader__.load({
         var folded = props.folded === true
         var live = props.live || []
         var meta = campaignMeta(c)
-        var chips = attemptChips(c.lastRound)
         var chain = chainPath(c.chain)
         var armed = props.confirming === c.id + ':stop'
 
@@ -749,8 +969,8 @@ window.__ModuleLoader__.load({
           { className: 'loom-titlerow' },
           h('span', { className: 'loom-dot', style: { color: statusTone(c.status), marginBottom: 1 } }),
           h('span', { className: 'loom-name', title: c.id }, c.id),
-          h('span', { className: 'loom-state' }, c.status),
-          h('span', { className: 'loom-age', title: age(c.ageMs) ? 'last activity ' + age(c.ageMs) + ' ago' : '' }, folded ? '' : age(c.ageMs))
+          h('span', { className: 'loom-state' }, statusLabel(c.status)),
+          h('span', { className: 'loom-age', title: age(c.ageMs) ? '最近活动 ' + age(c.ageMs) + '前' : '' }, folded ? '' : age(c.ageMs))
         )
 
         if (folded) {
@@ -761,45 +981,56 @@ window.__ModuleLoader__.load({
           )
         }
 
-        var checkpoints = (c.openCheckpoints || []).map(function (cp) {
-          var verdict = cp.payload && cp.payload.verdict ? String(cp.payload.verdict) : ''
-          var delta = cp.payload && cp.payload.delta !== undefined ? ' Δ' + cp.payload.delta : ''
-          var key = c.id + ':' + cp.id
+        var rows = flattenTree(treeOf(c, live), 1, [])
+
+        var treeRows = rows.map(function (row) {
+          var parts = []
+          // a dot marks a *branch*, not every leaf: thirty dots in a 300px
+          // column is noise, four is a legend.
+          if (row.tone && row.depth === 1) parts.push(h('span', { className: 'loom-dot', key: 'd', style: { color: row.tone, marginRight: 2 } }))
+          if (row.kind) parts.push(h('span', { className: 'k', key: 'k' }, row.kind))
+          parts.push(h('span', { className: 't' + (row.mono ? ' mono' : ''), key: 't', title: row.label }, row.label))
+          if (row.meta) parts.push(h('span', { className: 'v', key: 'v' }, row.meta))
+          if (row.actions && row.actions.length) {
+            parts.push(
+              h(
+                'span',
+                { className: 'acts', key: 'a' },
+                row.actions.map(function (action) {
+                  var armKey = c.id + ':' + row.key + ':' + action.decision
+                  var isArmed = props.confirming === armKey
+                  var label = isArmed ? action.label + '?' : action.label
+                  return h(
+                    'button',
+                    {
+                      key: action.decision || action.label,
+                      type: 'button',
+                      className: 'loom-btn' + (action.danger ? ' danger' : ''),
+                      disabled: busy === c.id + ':decide',
+                      title: isArmed ? '再点一次确认' : action.title,
+                      onClick: function () {
+                        if (action.confirm && !isArmed) {
+                          props.setConfirming(armKey)
+                          return
+                        }
+                        props.act(c.id, action.action, action.decision, action.checkpoint)
+                      },
+                    },
+                    label,
+                  )
+                }),
+              ),
+            )
+          }
           return h(
             'div',
-            { key: cp.id, className: 'loom-cp' },
-            h(
-              'div',
-              { className: 'loom-cp-head' },
-              h('b', null, cp.kind),
-              h('span', null, (verdict || cp.id) + delta),
-            ),
-            h(
-              'div',
-              { className: 'loom-cp-acts' },
-              ['approve', 'reject', 'hold'].map(function (decision) {
-                var armKey = key + ':' + decision
-                var needs = decision === 'reject' || decision === 'hold'
-                var isArmed = props.confirming === armKey
-                return h(
-                  'button',
-                  {
-                    key: decision,
-                    type: 'button',
-                    className: 'loom-btn' + (needs ? ' danger' : ''),
-                    disabled: busy === c.id + ':decide',
-                    onClick: function () {
-                      if (needs && !isArmed) {
-                        props.setConfirming(armKey)
-                        return
-                      }
-                      props.act(c.id, 'decide', decision, cp.id)
-                    },
-                  },
-                  isArmed ? decision + '?' : decision,
-                )
-              }),
-            ),
+            {
+              key: row.key,
+              className: 'loom-node',
+              'data-depth': String(row.depth),
+              'data-last': row.last ? '1' : '0',
+            },
+            parts,
           )
         })
 
@@ -810,7 +1041,7 @@ window.__ModuleLoader__.load({
             'div',
             { onClick: function () { props.onToggle(c.id) }, style: { cursor: 'pointer' } },
             head,
-            h('div', { className: 'loom-obj' }, text(c.objective, 'no objective recorded')),
+            h('div', { className: 'loom-obj' }, text(c.objective, '未记录目标')),
             h('div', { className: 'loom-meta' }, meta.join(' · ')),
             when(chain, h('div', { className: 'loom-chain', title: chain }, chain)),
             when(
@@ -819,77 +1050,69 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'loom-ev' },
                 h('span', { className: 'loom-dot', style: { color: qualityTone(c.quality.verdict) } }),
-                h('span', null, c.quality.verdict),
-                h('span', null, '· ' + c.quality.promotions + '/' + c.quality.rounds + ' promoted'),
+                h('span', null, qualityLabel(c.quality.verdict)),
+                h('span', null, '· ' + c.quality.promotions + '/' + c.quality.rounds + ' 晋升'),
                 c.quality.avgRoundMs === null || c.quality.avgRoundMs === undefined
                   ? null
-                  : h('span', null, '· ' + Math.round(c.quality.avgRoundMs / 1000) + 's/round'),
-              ),
-            ),
-            when(
-              live.length > 0,
-              h(
-                'div',
-                { className: 'loom-chips' },
-                live.map(function (a) {
-                  return h(
-                    'span',
-                    { key: a.attemptId, className: 'loom-chip live', title: 'in flight' },
-                    a.attemptId + (typeof a.idleMs === 'number' ? ' ' + Math.round(a.idleMs / 1000) + 's' : ''),
-                  )
-                }),
-              ),
-            ),
-            when(
-              chips.length > 0,
-              h(
-                'div',
-                { className: 'loom-chips' },
-                chips.map(function (chip) {
-                  return h('span', { key: chip.key, className: 'loom-chip ' + chip.tone }, chip.label)
-                }),
+                  : h('span', null, '· ' + Math.round(c.quality.avgRoundMs / 1000) + ' 秒/轮'),
               ),
             ),
           ),
-          checkpoints,
+          when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
           h(
             'div',
             { className: 'loom-acts' },
-            ['pause', 'resume', 'stop'].map(function (action) {
-              var key = c.id + ':' + action
-              var destructive = action === 'stop'
-              var isArmed = destructive && armed
-              return h(
-                'button',
-                {
-                  key: action,
-                  type: 'button',
-                  className: 'loom-btn bare' + (destructive ? ' danger' : ''),
-                  disabled: busy === c.id + ':' + action || busy === c.id + ':stop',
-                  title: isArmed ? 'click again to stop this campaign' : action + ' ' + c.id,
-                  onClick: function () {
-                    if (destructive && !isArmed) {
-                      props.setConfirming(key)
-                      return
-                    }
-                    props.act(c.id, action)
-                  },
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'loom-btn bare',
+                title: '暂停这一战役',
+                disabled: busy === c.id + ':pause',
+                onClick: function () { props.act(c.id, 'pause') },
+              },
+              busy === c.id + ':pause' ? '…' : '暂停',
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'loom-btn bare',
+                title: '继续这一战役',
+                disabled: busy === c.id + ':resume',
+                onClick: function () { props.act(c.id, 'resume') },
+              },
+              busy === c.id + ':resume' ? '…' : '继续',
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'loom-btn bare danger',
+                title: armed ? '再点一次即停止这一战役' : '停止 ' + c.id,
+                disabled: busy === c.id + ':stop',
+                onClick: function () {
+                  if (!armed) {
+                    props.setConfirming(c.id + ':stop')
+                    return
+                  }
+                  props.act(c.id, 'stop')
                 },
-                busy === c.id + ':' + action ? '…' : isArmed ? 'stop?' : action,
-              )
-            }),
+              },
+              busy === c.id + ':stop' ? '…' : armed ? '停止?' : '停止',
+            ),
             h('span', { className: 'sep' }),
             h(
               'button',
               {
                 type: 'button',
                 className: 'loom-btn bare',
-                title: 'refold this campaign',
+                title: '收起这一战役',
                 onClick: function () {
                   props.onToggle(c.id)
                 },
               },
-              'fold',
+              '收起',
             ),
           ),
         )
@@ -929,9 +1152,11 @@ window.__ModuleLoader__.load({
                 strokeWidth: 1.4,
                 'aria-hidden': 'true',
               },
-              react.createElement('path', { d: 'M8 1.5a6.5 6.5 0 1 1-6.5 6.5' }),
-              react.createElement('path', { d: 'M8 4.5V8l2.5 1.5' }),
-              react.createElement('path', { d: 'M1.5 8 3 6.5M1.5 8 3 9.5' }),
+              react.createElement('path', { d: 'M3 3.2h10M3 3.2v4.2h3.6M3 7.4v4.2h3.6M10.4 3.2v4.2h2.6' }),
+              react.createElement('circle', { cx: 2.6, cy: 12.8, r: 1.1 }),
+              react.createElement('circle', { cx: 2.6, cy: 8.6, r: 1.1 }),
+              react.createElement('circle', { cx: 2.6, cy: 4.2, r: 0 }),
+              react.createElement('path', { d: 'M6.6 12.1h6.6M6.6 8h6.6' }),
             )
           })
         })
@@ -962,6 +1187,18 @@ window.__ModuleLoader__.load({
       ensureStyle: ensureStyle,
       CSS: CSS,
       STYLE_ID: STYLE_ID,
+      statusLabel: statusLabel,
+      qualityLabel: qualityLabel,
+      kindLabel: kindLabel,
+      checkpointLabel: checkpointLabel,
+      nodeLabel: nodeLabel,
+      riskLabel: riskLabel,
+      treeOf: treeOf,
+      flattenTree: flattenTree,
+      treeLines: treeLines,
+      STATE_ZH: STATE_ZH,
+      CP_ZH: CP_ZH,
+      NODE_ZH: NODE_ZH,
     }
     return module.exports
   },

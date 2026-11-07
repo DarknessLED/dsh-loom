@@ -169,7 +169,8 @@ test('the strip is six figures in a fixed order, pending flagged when non-zero',
   const figs = client.__panel.metrics(payload)
   assert.deepEqual(
     figs.map((f) => f.label),
-    ['campaigns', 'live', 'rounds', 'pending', 'spend', 'lessons'],
+    ['战役', '运行中', '轮数', '待处理', '花费', '知识'],
+    'the six labels are Chinese: the people reading this panel read Chinese',
   )
   assert.equal(figs[0].value, '2', 'the unreadable campaign is not counted')
   assert.equal(figs[1].value, '1')
@@ -180,14 +181,16 @@ test('the strip is six figures in a fixed order, pending flagged when non-zero',
   assert.equal(quiet[3].hot, false)
 })
 
-test('the chain reads as one thread, ids included and nothing invented', () => {
+test('the chain reads as one thread, node kinds translated, names kept verbatim', () => {
   const client = loadClient()
   assert.equal(
     client.__panel.chainPath({ version: 2, nodes: [{ type: 'agent' }, { type: 'map' }, { type: 'verifier', name: 'tests' }, { type: 'human' }] }),
-    'chain v2 · agent → map → verifier/tests → human',
+    '链 v2 · 执行 → 并行 → 验证/tests → 人审',
+    'the kind is translated; the node name is an id and stays as it is',
   )
   assert.equal(client.__panel.chainPath(null), '', 'a campaign without a chain says nothing')
-  assert.equal(client.__panel.chainPath({ nodes: [] }), 'chain v?', 'an unknown version is admitted, not faked')
+  assert.equal(client.__panel.chainPath({ nodes: [] }), '链 v?', 'an unknown version is admitted, not faked')
+  assert.equal(client.__panel.chainPath({ version: 1, nodes: [{ type: 'custom' }] }), '链 v1 · custom', 'an unknown kind shows through')
 })
 
 test('campaign figures keep the same order on every row', () => {
@@ -200,7 +203,7 @@ test('campaign figures keep the same order on every row', () => {
     lessons: 2,
     holdout: 0,
   })
-  assert.deepEqual(meta, ['1 round', '$0.02', 'chain v1', 'best 0.9', '2 lessons'])
+  assert.deepEqual(meta, ['1 轮', '$0.02', '链 v1', '最佳 0.9', '2 条知识'])
 })
 
 test('attempt chips carry the verifier verdict, never a guess', () => {
@@ -216,8 +219,8 @@ test('attempt chips carry the verifier verdict, never a guess', () => {
     chips.map((c) => [c.key, c.tone]),
     [['r1a1', 'ok'], ['r1a2', 'bad'], ['r1a3', 'bad']],
   )
-  assert.equal(chips[1].label, 'r1a2 0 stalled')
-  assert.equal(chips[2].label, 'r1a3 — screened')
+  assert.equal(chips[1].label, 'r1a2 0 已放弃')
+  assert.equal(chips[2].label, 'r1a3 — 已筛除')
   assert.deepEqual(client.__panel.attemptChips(undefined), [], 'a campaign that has not run still renders')
 })
 
@@ -269,7 +272,80 @@ test('one stylesheet, injected once, from the component not the module', () => {
 
 test('a destructive action needs a second click', () => {
   const source = readFileSync(clientPath, 'utf8')
-  assert.match(source, /armed \? 'sure\?' : 'reject'/, 'reject arms before it fires')
-  assert.match(source, /isArmed \? 'stop\?' : action/, 'stop arms too')
-  assert.match(source, /if \(!armed\) \{\n\s+setConfirming\(key\)/, 'the first click only arms')
+  assert.match(source, /armed \? '确定\?' : '驳回'/, 'reject arms before it fires')
+  assert.match(source, /armed \? '停止\?' : '停止'/, 'stop arms too')
+  assert.match(source, /if \(action\.confirm && !isArmed\)/, 'a tree action with confirm only arms on the first click')
+  assert.match(source, /if \(!armed\) \{\s+setConfirming\(key\)/, 'the first click only arms')
+})
+
+// The campaign body is a tree, like the Agent Teams panel's delegation tree:
+// a campaign is the root, and its round, its blocked decisions, its live
+// attempts and its lessons hang off it as branches. These assertions pin the
+// shape, because "it renders something" is exactly what a flat chip list also
+// does.
+test('the tree hangs the round, the decisions, the live attempts and the lessons off the campaign', () => {
+  const client = loadClient()
+  const nodes = client.__panel.treeOf(
+    {
+      id: 'loom-x',
+      lessons: 3,
+      lessonsTop: [
+        { id: 'l1', claim: '测试文件不能被改', kind: 'hazard', score: 0.4 },
+        { id: 'l2', claim: '先跑小验证', kind: 'fact', score: 0.2 },
+      ],
+      lastRound: { n: 6, score: 1, promoted: true, attempts: [{ id: 'r6a1', score: 1, verifierOk: true }] },
+      openCheckpoints: [{ id: 'cp-1', kind: 'gate', payload: { verdict: 'promote', delta: 0.2 } }],
+    },
+    [{ attemptId: 'r7a1', idleMs: 12_000 }],
+  )
+  const lines = client.__panel.treeLines(nodes)
+  assert.deepEqual(lines, [
+    '├─ 第 6 轮  已晋升 · 1',
+    '  └─ r6a1  1',
+    '├─ 待审  1',
+    '  └─ 晋升待审 cp-1  promote · Δ0.2',
+    '├─ 进行中  1',
+    '  └─ r7a1  运行中 · 静默 12 秒',
+    '└─ 知识  3',
+    '  ├─ 风险 测试文件不能被改  +0.4',
+    '  └─ 事实 先跑小验证  +0.2',
+  ])
+})
+
+test('a quiet campaign draws an honest empty tree, and unknown words show through', () => {
+  const client = loadClient()
+  assert.deepEqual(client.__panel.treeOf({ id: 'fresh' }, []), [], 'nothing happened yet, so nothing is invented')
+  const nodes = client.__panel.treeOf(
+    { lastRound: { n: 1, attempts: [{ id: 'r1a1', score: 0.5, verifierOk: false, screenedOut: true }] }, openCheckpoints: [{ id: 'cp-9', kind: 'brand-new' }] },
+    [],
+  )
+  const lines = client.__panel.treeLines(nodes)
+  assert.equal(lines[1], '  └─ r1a1  0.5 · 已筛除', 'the losing candidate keeps its verdict')
+  assert.equal(lines[3], '  └─ brand-new cp-9', 'an unknown checkpoint kind is not swallowed')
+  assert.equal(client.__panel.checkpointLabel('stuck'), '门不可达')
+  assert.equal(client.__panel.statusLabel('paused'), '已暂停')
+  assert.equal(client.__panel.qualityLabel('regressing'), '退步')
+  assert.equal(client.__panel.nodeLabel('human'), '人审')
+})
+
+test('every tree row carries its depth and whether it is the last sibling', () => {
+  const client = loadClient()
+  const rows = client.__panel.flattenTree(
+    [
+      { key: 'a', label: 'A', children: [{ key: 'a1', label: 'A1' }, { key: 'a2', label: 'A2' }] },
+      { key: 'b', label: 'B' },
+    ],
+    1,
+    [],
+  )
+  assert.deepEqual(
+    rows.map((r) => [r.key, r.depth, r.last]),
+    [
+      ['a', 1, false],
+      ['a1', 2, false],
+      ['a2', 2, true],
+      ['b', 1, true],
+    ],
+    'the last child of every branch stops the rail',
+  )
 })
