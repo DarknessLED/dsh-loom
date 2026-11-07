@@ -58,6 +58,7 @@ function summarise(id, events) {
   let wallMs = 0
   let verifierMs = 0
   let roundAttemptMs = 0
+  let measuredVerifierRuns = 0
   let roundTokens = 0
   let roundUsd = 0
 
@@ -79,7 +80,8 @@ function summarise(id, events) {
         break
       }
       case 'verifier.finished':
-        verifierRuns++
+        // A reused verdict costs nothing and is not a second run.
+        if (d.reused !== true) verifierRuns++
         break
       case 'round.started':
         rounds.push({ n: d.n, taskId: d.taskId, startedAt: at, status: 'running' })
@@ -111,10 +113,17 @@ function summarise(id, events) {
       wallMs += wall
       timedRounds++
     }
+    // Only instrumented rounds (round.finished carrying durationMs) also carry
+    // the verifier and attempt legs. Summing those across rounds that never
+    // measured them would divide verifier seconds by wall time they never
+    // reported, so the verifier would look like it stopped running when it is
+    // simply unrecorded — hence the measured/rounds coverage on the report.
+    if (!measured) continue
     verifierMs += Number(r.verifierMs) || 0
     roundAttemptMs += Number(r.attemptMs) || 0
     roundTokens += Number(r.tokens) || 0
     roundUsd += Number(r.usd) || 0
+    measuredVerifierRuns += Number(r.verifierRuns) || 0
   }
   // The round's own sum is authoritative when it exists: it also counts attempts
   // that never reached `attempt.finished` (screened out, crashed bookkeeping).
@@ -131,10 +140,11 @@ function summarise(id, events) {
     promoted,
     noGain,
     attempts,
-    verifierRuns,
+    verifierRuns: measuredVerifierRuns || verifierRuns,
     wallMs,
     attemptMs,
     verifierMs,
+    measuredAttemptMs: roundAttemptMs,
     tokens,
     usd,
     timedRounds,
@@ -174,12 +184,13 @@ const total = rows.reduce(
     verifierRuns: a.verifierRuns + r.verifierRuns,
     wallMs: a.wallMs + r.wallMs,
     attemptMs: a.attemptMs + r.attemptMs,
+    measuredAttemptMs: a.measuredAttemptMs + r.measuredAttemptMs,
     verifierMs: a.verifierMs + r.verifierMs,
     tokens: a.tokens + r.tokens,
     usd: a.usd + r.usd,
     timedRounds: a.timedRounds + r.timedRounds,
   }),
-  { campaigns: 0, rounds: 0, promoted: 0, noGain: 0, attempts: 0, verifierRuns: 0, wallMs: 0, attemptMs: 0, verifierMs: 0, tokens: 0, usd: 0, timedRounds: 0 },
+  { campaigns: 0, rounds: 0, promoted: 0, noGain: 0, attempts: 0, verifierRuns: 0, wallMs: 0, attemptMs: 0, measuredAttemptMs: 0, verifierMs: 0, tokens: 0, usd: 0, timedRounds: 0 },
 )
 
 const headline = {
@@ -191,9 +202,11 @@ const headline = {
   promotionRate: total.rounds ? total.promoted / total.rounds : null,
   noGainRate: total.rounds ? total.noGain / total.rounds : null,
   secondsPerRound: total.timedRounds ? total.wallMs / total.timedRounds / 1000 : null,
-  parallelFactor: total.wallMs ? total.attemptMs / total.wallMs : null,
+  parallelFactor: total.wallMs ? total.measuredAttemptMs / total.wallMs : null,
   verifierShare: total.wallMs ? total.verifierMs / total.wallMs : null,
-  verifierRunsPerRound: total.rounds ? total.verifierRuns / total.rounds : null,
+  verifierRunsPerRound: total.timedRounds ? total.verifierRuns / total.timedRounds : null,
+  measuredOf: `${total.timedRounds}/${total.rounds}`,
+  measuredRounds: total.timedRounds,
   tokens: total.tokens,
   usd: total.usd,
 }
@@ -220,6 +233,7 @@ for (const r of rows.slice(0, 15)) {
 console.log('')
 console.log('TRIANGLE')
 console.log(`  quality     promotion ${fmt(headline.promotionRate * 100, 0)}%   no-gain ${fmt(headline.noGainRate * 100, 0)}%   attempts/round ${fmt(headline.attemptedPerRound, 2)}`)
-console.log(`  efficiency  ${fmt(headline.secondsPerRound)} s/round   parallel factor ${fmt(headline.parallelFactor, 2)}   verifier runs/round ${fmt(headline.verifierRunsPerRound, 2)}   verifier share of wall ${fmt(headline.verifierShare === null ? null : headline.verifierShare * 100, 0)}%`)
-console.log(`  cost        ${headline.tokens} tokens   $${fmt(headline.usd, 4)}   (per round: ${fmt(headline.rounds ? headline.tokens / headline.rounds : null, 0)} tokens)`)
+console.log(`  efficiency  ${fmt(headline.secondsPerRound)} s/round   parallel factor ${fmt(headline.parallelFactor, 2)}   verifier runs/round ${fmt(headline.verifierRunsPerRound, 2)} (measured ${headline.measuredOf})   verifier share of wall ${fmt(headline.verifierShare === null ? null : headline.verifierShare * 100, 0)}%`)
+console.log(`  cost        ${headline.tokens} tokens   $${fmt(headline.usd, 4)}   (per measured round: ${fmt(headline.measuredRounds ? headline.tokens / headline.measuredRounds : null, 0)} tokens)`)
 if (!headline.tokens) console.log('              no token accounting in these logs — the cost leg is unmeasured, not zero')
+else if (!headline.usd) console.log('              tokens are counted but not priced here — $0.00 means unpriced, not free')
