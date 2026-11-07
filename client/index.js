@@ -467,6 +467,33 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The props that make a campaign row a real button: focusable, announced as
+     * expanded/collapsed, and operable with Enter or Space. Pure, so the keyboard
+     * contract can be pinned without a browser. `onToggle` is optional (a row
+     * that is only a label must still be safe to press) and receives the
+     * campaign id, like the click it replaces.
+     */
+    function hitProps(c, expanded, onToggle) {
+      function fire() {
+        if (typeof onToggle === 'function') onToggle(c && c.id)
+      }
+      return {
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': expanded === true,
+        onClick: fire,
+        onKeyDown: function (e) {
+          var key = e && e.key
+          // Only the two keys that activate a button; everything else (typing,
+          // Tab, arrows) belongs to the page and must not be consumed.
+          if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return
+          if (typeof e.preventDefault === 'function') e.preventDefault()
+          fire()
+        },
+      }
+    }
+
+    /**
      * The knowledge tree, as the loop actually uses it: what it learned, where
      * from, and how much that lesson has earned or cost. Grouped by kind,
      * because "hazard" and "recipe" are read differently.
@@ -1336,12 +1363,14 @@ window.__ModuleLoader__.load({
           // it wants something from the reader. Everything else is one click
           // away, and that click is the whole card.
           var openCp = openCount(c)
+          var hit = hitProps(c, false, props.onToggle)
+          hit.className = 'loom-hit'
           return h(
             'div',
             { className: 'loom-camp folded' },
             h(
               'div',
-              { className: 'loom-hit', onClick: function () { props.onToggle(c.id) }, role: 'button', tabIndex: 0 },
+              hit,
               h('span', { className: 'loom-dot', style: { color: statusTone(c.status) } }),
               h('span', { className: 'loom-name', title: c.id }, c.id),
               h('span', { className: 'loom-state' }, statusLabel(c.status)),
@@ -1598,6 +1627,7 @@ window.__ModuleLoader__.load({
       overview: overview,
       metrics: metrics,
       pending: pending,
+      hitProps: hitProps,
       knowledge: knowledge,
       chainPath: chainPath,
       campaignMeta: campaignMeta,
