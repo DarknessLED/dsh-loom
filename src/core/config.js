@@ -52,6 +52,12 @@ export const DEFAULT_CONFIG = {
     preset: null,
     /** Per-attempt wall clock cap. */
     attemptTimeoutMs: 20 * 60_000,
+    /**
+     * Wall clock cap for the planning dispatch. Planning reads a few files and
+     * names what will change; inheriting the attempt deadline let a wandering
+     * planner burn twenty minutes in the round's most expensive call.
+     */
+    planTimeoutMs: 4 * 60_000,
     /** Rounds running at the same time across all campaigns. */
     maxConcurrent: 2,
     /** No new session events for this long => the attempt is written off. */

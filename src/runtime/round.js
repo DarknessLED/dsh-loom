@@ -197,6 +197,10 @@ export function preMapAgentNodes(chain) {
  */
 async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, log }) {
   const findings = []
+  // A timed-out planner is not a plan. The round still runs, but it records
+  // that it did so without reconnaissance instead of pretending the empty
+  // findings were a considered answer.
+  let planTimedOut = false
   const nodes = preMapAgentNodes(chain)
   // One tree, one base commit: every node in this round is planned against the
   // same worktree branch point, so read it once for all of them.
@@ -216,6 +220,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       durationMs: 0,
       sessionId: null,
       stopReason: null,
+      timedOut: false,
       error: null,
       summary: '',
     }
@@ -271,7 +276,10 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       })
       const res = await dispatcher.run(brief, {
         cwd: wtPath,
-        timeoutMs: config.session.attemptTimeoutMs,
+        // Planning is bounded work and gets its own, shorter deadline; attempts
+        // keep the per-attempt cap. Fall back to the default so a hand-built
+        // config (an embedder, a test) does not silently inherit the long one.
+        timeoutMs: config.session.planTimeoutMs ?? 240_000,
         // The node id alone does not say what kind of dispatch this was; the
         // "plan" marker does, and it is what a label is for.
         label: `loom:${state.id}:r${round}:plan:${id}`,
@@ -281,8 +289,13 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       planText = text
       record.sessionId = res?.sessionId ?? null
       record.stopReason = res?.stopReason ?? null
+      // The dispatcher reports a real timeout as `timedOut: true` (with
+      // stopReason 'aborted'); a fake or a future dispatcher may say
+      // 'timedOut' directly. Either spelling means the same thing here.
+      record.timedOut = res?.timedOut === true || res?.stopReason === 'timedOut'
       record.error = res?.error ?? null
-      record.ok = res?.stopReason !== 'error' && !res?.timedOut && !res?.error && text.length > 0
+      record.ok = !record.timedOut && res?.stopReason !== 'error' && !res?.error && text.length > 0
+      if (record.timedOut) planTimedOut = true
       record.summary = tailOf(text, 400)
       if (record.ok) findings.push({ id, role: node.role ?? null, text })
       else {
@@ -305,7 +318,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
     runtime.append(view, 'node.finished', record, 'system')
     await removeWorktree({ repo: state.workspace, dir: wtPath }).catch(() => {})
   }
-  return findings
+  return { findings, planTimedOut }
 }
 
 function lastFailure(state) {
@@ -579,6 +592,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         status: 'budget',
         score: null,
         promoted: false,
+        // Planning never began: nothing was skipped, so the flag is a real false.
+        planTimedOut: false,
         reason: hitTokens ? 'tokens' : 'usd',
         spentUsd,
         estimatedUsd,
@@ -698,6 +713,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // Wall time spent in the pre-map nodes (planning). Kept separate from the
   // round clock so `planMs` + candidate time + verifier time is legible.
   let planMs = 0
+  // True only when this round's planner hit its own deadline. It travels on
+  // `round.finished` so "planned nothing" is distinguishable from "planned well".
+  let planTimedOut = false
 
   const attempts = []
   const board = boardPath(view.dir, n)
@@ -721,7 +739,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // A chain without one dispatches exactly as it always did.
     const planNodes = preMapAgentNodes(chain)
     const planStartedAt = Date.now()
-    const planFindings = await runPreMapNodes({
+    const planResult = await runPreMapNodes({
       runtime,
       view,
       state,
@@ -732,6 +750,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       round: n,
       log,
     })
+    const planFindings = planResult.findings
+    planTimedOut = planResult.planTimedOut
     // A chain with no pre-map node planned nothing — a real 0, not 1ms of clock
     // noise from taking the two timestamps. A reused plan also costs 0.
     if (planNodes.length) planMs = Math.max(0, Date.now() - planStartedAt)
@@ -1173,7 +1193,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       runtime.append(
         view,
         'round.finished',
-        { n, status: 'exhausted', score: 0, promoted: false, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
+        { n, status: 'exhausted', score: 0, promoted: false, planTimedOut, models, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
         'system',
       )
       // A folding runtime already materialized the round above; one that only
@@ -1406,7 +1426,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -1485,7 +1505,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(
       view,
       'round.finished',
-      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
+      { n, status: 'error', score: null, error: String(err?.message ?? err), promoted: false, planTimedOut, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source) },
       'system',
     )
     raise('anomaly', { message: 'round crashed', detail: String(err?.stack ?? err) })
