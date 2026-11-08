@@ -10,6 +10,9 @@
 
 ![侧栏面板：中文文案 + 战役树](docs/panel-preview.png)
 
+> **0.2.0（2026-11-09）**：循环开始给自己记账——每轮的时间/成本/验证摊薄都有真数字，验证器与计划可复用，`planMode: 'auto'` 会按战绩关掉规划，campaign 能自带 policy（不用重启就能 A/B），`rsi_run` 可手动跑一轮，总开关随时停派发，provider 静默死亡会自动重建父会话重试，面板改成中文 + 战役树。变更清单见 [CHANGELOG.md](CHANGELOG.md)，发版说明见 [RELEASE-0.2.0.md](RELEASE-0.2.0.md)。
+
+
 ---
 
 ## 1. 它解决什么问题
@@ -57,8 +60,8 @@ RSI 想要的是另一种形态：
 | **多窗口安全**：任何新窗口都能拿到全部工具；循环所有权按心跳最新者持有，旧窗口自动降级为只读观察，不会两个窗口同时派发 | ✅ M7 |
 | **对抗加固（chaos）**：子会话死掉 / 模型额度用尽换模型 / 上下文爆掉缩小简报重试一次 / ledger 漂移（重复 seq、乱序、torn 尾行）/ 重启后撤回「记了落地但没提交」的假成功 | ✅ M8 |
 
-测试：`scripts/verify.mjs` 87 项、`tests/panel.test.mjs` 49 项、`tests/panel-client.test.mjs` 9 项、`tests/gate.test.mjs` 78 项、`tests/exec.test.mjs` 53 项、`tests/lease.test.mjs` 21 项、`tests/watchdog.test.mjs` 31 项、`tests/board.test.mjs` 64 项、`tests/brief.test.mjs` 96 项、`tests/select.test.mjs` 72 项、`tests/knowledge.test.mjs` 63 项、`tests/lean.test.mjs` 78 项、`tests/loop.test.mjs` 45 项、`tests/chain.test.mjs` 30 项、`tests/imagine.test.mjs` 23 项、**712 条单元断言**；`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent；含两轮知识投放、一次 4→2 连续减半、一次 L2 策略晋升把门锁死）。
-另有对抗套件 `tests/chaos/*`（13 项：子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复）与 `tests/chaos2/recover-idempotent`（3 项回归钉），全部并入 `scripts/test-all.mjs`（30 套件）。
+测试：`scripts/verify.mjs` 110 项、`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent），以及 **`scripts/test-all.mjs` 的 97 个套件 / 126 个规格文件**——包含 712 条原始单元断言、`tests/chaos/*` 的对抗套件（子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复、视图漂移）、`tests/self*/` `tests/tri*/` `tests/balance/*` `tests/ui/*` `tests/dag*/*` 这批由循环自己写代码通过、随后钉进 standing 的规格。
+
 
 ---
 

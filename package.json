@@ -1,6 +1,6 @@
 {
   "name": "dsh-loom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "description": "Human-in-the-loop recursive self-improvement loop for DeepSeek Harness: the main agent stays idle while an auditable work chain iterates in child sessions.",
   "type": "module",
