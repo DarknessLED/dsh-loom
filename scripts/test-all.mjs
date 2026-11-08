@@ -122,6 +122,9 @@ const standing = [
   // a narrow sidebar keeps only the three cells that carry the answer:
   'tests/balance/plan-mode.test.mjs',
   'tests/ui/metrics-priority.test.mjs',
+  // a campaign can carry its own policy, and a stuck round explains itself first:
+  'tests/balance/policy-override.test.mjs',
+  'tests/ui/tree-fail-first.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
