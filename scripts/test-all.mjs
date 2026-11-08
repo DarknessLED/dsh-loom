@@ -117,6 +117,7 @@ const standing = [
   // the second candidate is an option priced by its tail, and the panel draws the
   // round as one band instead of five chips:
   'tests/balance/second-candidate.test.mjs',
+  'tests/balance/second-candidate.test.mjs', "tests/balance/second-candidate-gate.test.mjs",
   'tests/ui/node-band.test.mjs',
   // the planner can be switched off per policy and says which mode it ran in, and
   // a narrow sidebar keeps only the three cells that carry the answer:
