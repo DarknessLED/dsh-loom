@@ -103,6 +103,9 @@ const standing = [
   // a plan node has an identity, and a node whose round ends unfinished is lost -
   // once a promotion lands this it must not be able to delete the guard:
   'tests/dag1/node-identity.test.mjs',
+  // which holdout a round tests is a function of ids, and the ledger says which
+  // partition ran from which pool:
+  'tests/dag4/holdout-partition.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
