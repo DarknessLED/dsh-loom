@@ -1056,8 +1056,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           plan: planFindings,
         })
         let retried = null
+        // Decide the deadline once, before the child is dispatched, and write the
+        // same value on the lease, the `attempt.deadline` event and (below) the
+        // finished record. An attempt that is interrupted then leaves behind the
+        // minute it was owed to end by instead of a window reconstructed later.
         const timeoutMs = config.session.attemptTimeoutMs
-        writeLease(view.dir, { attemptId, round: n, deadline: Date.now() + timeoutMs })
+        const deadlineAt = Date.now() + timeoutMs
+        record = { ...record, timeoutMs, deadlineAt }
+        runtime.append(view, 'attempt.deadline', { round: n, attemptId, timeoutMs, deadlineAt }, 'system')
+        writeLease(view.dir, { attemptId, round: n, deadline: deadlineAt })
         // Every session this attempt starts is registered here, because the
         // abort hook is the only lever a sibling has on a running candidate.
         const startedHook = ({ sessionId, abort, deadline }) => {
