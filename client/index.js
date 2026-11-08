@@ -273,6 +273,12 @@ window.__ModuleLoader__.load({
       '.loom-empty{padding:14px 12px 16px;font-size:11.5px;line-height:1.6;color:var(--loom-quiet)}',
       '.loom-empty code{font-size:11px;color:var(--loom-soft)}',
       '.loom-err{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-bad);word-break:break-word}',
+      // the failure explains itself in three layers: a Chinese title, what it
+      // does and does not mean, then the raw message in a quieter tone so it
+      // stays available without being the headline
+      '.loom-err b{display:block;margin-bottom:4px;font-family:inherit;font-size:11.5px;letter-spacing:.04em}',
+      '.loom-err .hint{font-family:inherit;font-size:11px;line-height:1.55;color:var(--loom-soft);margin-bottom:6px}',
+      '.loom-err .detail{margin-top:7px;font-size:10px;color:var(--loom-quiet);word-break:break-all}',
       '.loom-loading{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
       '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-top:1px solid var(--loom-line);',
       ' font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
@@ -537,6 +543,65 @@ window.__ModuleLoader__.load({
 
     function riskOf(value) {
       return RISK_ORDER[value] === undefined ? 9 : RISK_ORDER[value]
+    }
+
+    /**
+     * What to say when the state fetch itself failed.
+     *
+     * The panel is a reader, not the loop: an HTTP 500 on this one request says
+     * nothing about whether rounds are still running. Printing the raw error
+     * (usually an English "Failed to fetch") left the reader unable to tell a
+     * dead panel from a dead campaign, so the title and the hint carry that
+     * distinction and the raw message stays visible underneath for debugging.
+     * `retry` is optional; without one the panel offers no action it cannot
+     * honour rather than a button that does nothing.
+     */
+    function errorState(error, opts) {
+      var retry = opts && typeof opts.retry === 'function' ? opts.retry : null
+      var detail = ''
+      if (error) {
+        if (typeof error === 'string') detail = error
+        else if (typeof error.message === 'string') detail = error.message
+        else detail = String(error)
+      }
+      return {
+        title: '读取失败',
+        hint: '循环仍在运行 —— 读不到的是这个面板，不是战役。它会自动重试；也可以点“重试”立刻再读一次。',
+        detail: detail,
+        action: retry ? { label: '重试', onClick: retry } : null,
+      }
+    }
+
+    // A campaign in any other state is still work in progress (or broken in a
+    // way the panel renders as a card), so only these may count as settled.
+    var FINISHED = { done: true, stopped: true, failed: true, error: true }
+
+    /**
+     * The one message that stands in for the campaign list — or null.
+     *
+     * "no campaign yet" and "every campaign finished" used to be the same
+     * sentence, which read as a lie once the loop had run. Neither may replace
+     * live work: running/paused/planning campaigns and a checkpoint waiting on
+     * a human are both reasons to say nothing here and render the rows.
+     */
+    function emptyState(data) {
+      var rows = data && Array.isArray(data.campaigns) ? data.campaigns : []
+      if (!rows.length) {
+        return {
+          title: '还没有战役',
+          hint: '让 agent 调 rsi_start，给它一个目标和一个工作区，其余交给循环。',
+        }
+      }
+      for (var i = 0; i < rows.length; i += 1) {
+        var c = rows[i]
+        if (!c) continue
+        if (!FINISHED[c.status]) return null
+        if (openCount(c) > 0) return null
+      }
+      return {
+        title: '都处理完了',
+        hint: '每个战役都已结束，也没有待处理的检查点。调用 rsi_start 可以开一个新的。',
+      }
     }
 
     /**
@@ -1548,18 +1613,31 @@ window.__ModuleLoader__.load({
         if (box.loading) {
           body = h('div', { className: 'loom-loading' }, '正在读取 ~/.dsh/loom…')
         } else if (box.error) {
-          body = h('div', { className: 'loom-err' }, box.error)
-        } else if (!data || !data.campaigns || data.campaigns.length === 0) {
+          // Retry is this panel's own reload: a failed read is not a failed
+          // loop, so the reader is told so and offered the one action that can
+          // actually change the answer.
+          var failure = errorState(box.error, { retry: load })
           body = h(
             'div',
-            { className: 'loom-empty' },
-            '还没有战役。',
-            h('br'),
-            '让 agent 调 ',
-            h('code', null, 'rsi_start'),
-            '，给它一个目标和一个工作区，其余交给循环。',
+            { className: 'loom-err', role: 'alert' },
+            h('b', null, failure.title),
+            h('div', { className: 'hint' }, failure.hint),
+            failure.action
+              ? h(
+                  'button',
+                  { type: 'button', className: 'loom-btn', onClick: failure.action.onClick },
+                  failure.action.label,
+                )
+              : null,
+            failure.detail ? h('div', { className: 'detail', title: '原始错误信息' }, failure.detail) : null,
           )
+        } else if (!data || !data.campaigns || data.campaigns.length === 0) {
+          var none = emptyState(data)
+          body = h('div', { className: 'loom-empty' }, h('b', null, none.title), h('br'), none.hint)
         } else {
+          // A settled ledger still shows its campaigns: the note says the loop
+          // has nothing in flight, the cards below are the history it left.
+          var settled = emptyState(data)
           body = h(
             'div',
             { className: 'loom-sec' },
@@ -1584,6 +1662,7 @@ window.__ModuleLoader__.load({
                 anyOpen ? '全收起' : '全展开',
               ),
             ),
+            settled ? h('div', { className: 'loom-empty' }, h('b', null, settled.title), h('br'), settled.hint) : null,
             h(
               'div',
               { className: 'loom-cards' },
@@ -1954,6 +2033,8 @@ window.__ModuleLoader__.load({
       checkpointHelp: checkpointHelp,
       checkpointHelpText: checkpointHelpText,
       openCount: openCount,
+      errorState: errorState,
+      emptyState: emptyState,
       nodeLabel: nodeLabel,
       riskLabel: riskLabel,
       treeOf: treeOf,

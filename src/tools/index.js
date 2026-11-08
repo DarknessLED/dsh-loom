@@ -51,6 +51,48 @@ function brief(s) {
   }
 }
 
+// The readable half of an attempt. `report`, `stdoutTail` and `agentTail` are
+// what make a real `rsi_status` tens of kilobytes, and an agent reading the
+// status cannot use a raw transcript; `detail:'full'` is the opt-in for the
+// caller who genuinely needs the whole record.
+const ATTEMPT_FIELDS = ['id', 'score', 'verifierOk', 'failureKind', 'abandoned', 'durationMs']
+const ATTEMPT_FAT = ['report', 'stdoutTail', 'agentTail']
+
+function compactAttempt(attempt) {
+  if (!attempt || typeof attempt !== 'object') return attempt
+  const out = {}
+  for (const key of ATTEMPT_FIELDS) {
+    if (key in attempt) out[key] = attempt[key]
+  }
+  return out
+}
+
+function compactNode(value) {
+  if (Array.isArray(value)) return value.map(compactNode)
+  if (!value || typeof value !== 'object') return value
+  const out = {}
+  for (const key of Object.keys(value)) {
+    if (ATTEMPT_FAT.includes(key)) continue
+    // Rounds carry their attempts under this name at whatever depth the status
+    // reaches, so reduce them where they are rather than shipping transcripts.
+    if (key === 'attempts' && Array.isArray(value[key])) out[key] = value[key].map(compactAttempt)
+    else out[key] = compactNode(value[key])
+  }
+  return out
+}
+
+/**
+ * Reduce a status to what a reader can act on, without losing the round shape.
+ *
+ * The default is the compact view — `rsi_status` is documented as cheap, and a
+ * last round with three attempts' reports is not. `detail:'full'` returns the
+ * input untouched: the reduction is never the only copy of the data.
+ */
+export function compactStatus(status, { detail } = {}) {
+  if (detail === 'full') return status
+  return compactNode(status)
+}
+
 export function registerTools(ctx, { runtime, config }) {
   const defs = []
 
@@ -158,14 +200,14 @@ export function registerTools(ctx, { runtime, config }) {
       // Rank the open decisions so the most dangerous one is read first; the
       // status view already carries the checkpoints, so no extra ledger read.
       const pending = reviewQueue(runtime.status(id))
-      return {
+      return compactStatus({
         ...runtime.status(id),
         live: runtime.liveAttempts(),
         pendingReviews: pending,
         reviewLines: pending.map(
           (r) => `[${r.risk}] ${r.id} (${r.kind}) — ${r.summary} → ${r.recommendation}`,
         ),
-      }
+      })
     },
   })
 
