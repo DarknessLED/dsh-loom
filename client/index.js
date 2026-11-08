@@ -283,8 +283,14 @@ window.__ModuleLoader__.load({
       '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-top:1px solid var(--loom-line);',
       ' font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
       '.loom-broken b{font-weight:500;color:var(--loom-soft)}',
-      '@media (max-width:320px){.loom-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}',
-      '.loom-metric:nth-child(3n){border-right:0}}',
+      // The strip narrows by dropping cells rather than shrinking all six: the
+      // payload already named the three that answer "is it running / is it
+      // stuck / what did it cost", so at 360px and below the rest is hidden
+      // instead of squeezed into an unreadable 38px row.
+      '@media (max-width:360px){.loom-metrics{display:flex}',
+      '.loom-metric{flex:1 1 0}',
+      '.loom-metric:not(.is-primary){display:none}',
+      '.loom-metric:last-child{border-right:0}}',
       '@media (prefers-reduced-motion:reduce){.loom *{transition:none!important}}',
     ].join('\n')
 
@@ -507,18 +513,25 @@ window.__ModuleLoader__.load({
      * The ruled strip under the header: six figures, in the order a person
      * checks them — is anything running, is anything stuck on me, is it
      * costing anything, has it learned anything.
+     *
+     * `primary` names the cells that survive when the sidebar is too narrow for
+     * six (max-width:360px, see CSS). It is a property of the payload, not a
+     * stylesheet trick, so the decision can be asserted: running and spend are
+     * always the headline, while pending only earns width when something is
+     * actually waiting — a strip that shows "0 waiting" is answering a question
+     * nobody asked.
      */
     function metrics(data) {
       var o = overview(data)
       return [
-        { key: 'campaigns', label: '战役', value: String(o.campaigns) },
-        { key: 'running', label: '运行中', value: String(o.running) },
-        { key: 'rounds', label: '轮数', value: String(o.rounds) },
-        { key: 'pending', label: '待处理', value: String(o.open), hot: o.open > 0 },
+        { key: 'campaigns', label: '战役', value: String(o.campaigns), primary: false },
+        { key: 'running', label: '运行中', value: String(o.running), primary: true },
+        { key: 'rounds', label: '轮数', value: String(o.rounds), primary: false },
+        { key: 'pending', label: '待处理', value: String(o.open), hot: o.open > 0, primary: o.open > 0 },
         // Zero measured campaigns is "unpriced", not "$0": a total over no
         // measurements is not a measurement.
-        { key: 'spend', label: '花费', value: o.priced === 0 ? '未定价' : money(o.spend) },
-        { key: 'lessons', label: '知识', value: String(o.lessons) },
+        { key: 'spend', label: '花费', value: o.priced === 0 ? '未定价' : money(o.spend), primary: true },
+        { key: 'lessons', label: '知识', value: String(o.lessons), primary: false },
       ]
     }
 
@@ -1607,7 +1620,7 @@ window.__ModuleLoader__.load({
           figs.map(function (m) {
             return h(
               'div',
-              { key: m.key, className: 'loom-metric' + (m.hot ? ' hot' : '') },
+              { key: m.key, className: 'loom-metric' + (m.hot ? ' hot' : '') + (m.primary ? ' is-primary' : '') },
               h('b', null, m.value),
               h('span', null, m.label),
             )
