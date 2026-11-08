@@ -207,6 +207,11 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
   // it may run on its own model: `models.meta` when set, otherwise the worker
   // model exactly as before. Candidates below never consult `meta`.
   const planModel = config.models.meta || config.models.worker || null
+  // Planning is bounded work and gets its own, shorter deadline; attempts keep
+  // the per-attempt cap. Fall back to the default so a hand-built config (an
+  // embedder, a test) does not silently inherit the long one. The same value is
+  // written on `node.started` so a recovered node knows what window it had.
+  const planTimeoutMs = config.session.planTimeoutMs ?? 240_000
   const nodes = preMapAgentNodes(chain)
   // One tree, one base commit: every node in this round is planned against the
   // same worktree branch point, so read it once for all of them.
@@ -219,6 +224,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       type: 'agent',
       role: node.role ?? null,
       round,
+      attempt: 1,
       ok: false,
       reused: false,
       planBasis: null,
@@ -267,6 +273,15 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
     const branch = `loom/${state.id}/recon-${id}`
     let planText = ''
     try {
+      // Name the node before the work starts. Without this a node that takes the
+      // host down leaves nothing but a missing finish; with it the folded state
+      // can mark the instance lost and say which one it was.
+      runtime.append(
+        view,
+        'node.started',
+        { id, type: 'agent', role: node.role ?? null, round, attempt: 1, at: startedAt, base, deadlineMs: planTimeoutMs },
+        'system',
+      )
       // Inspect the base commit in isolation: an agent that ignores "do not
       // edit" must not dirty the workspace the next promotion lands in.
       await createWorktree({ repo: state.workspace, dir: wtPath, branch })
@@ -285,10 +300,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       })
       const res = await dispatcher.run(brief, {
         cwd: wtPath,
-        // Planning is bounded work and gets its own, shorter deadline; attempts
-        // keep the per-attempt cap. Fall back to the default so a hand-built
-        // config (an embedder, a test) does not silently inherit the long one.
-        timeoutMs: config.session.planTimeoutMs ?? 240_000,
+        timeoutMs: planTimeoutMs,
         // The node id alone does not say what kind of dispatch this was; the
         // "plan" marker does, and it is what a label is for.
         label: `loom:${state.id}:r${round}:plan:${id}`,

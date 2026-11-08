@@ -13,6 +13,13 @@ export function emptyState(id = null) {
     chain: { activeVersion: null, versions: [] },
     evalset: { tasks: [], holdout: [] },
     rounds: [],
+    /**
+     * Plan nodes, one row per (round, id, attempt). A round is a bucket of
+     * wall-clock, not an addressable unit of work: this is what lets a reader
+     * attribute time to the node that spent it, and what makes a node that
+     * never reported visible as `lost` instead of silently absent.
+     */
+    nodes: [],
     candidates: [],
     checkpoints: [],
     notes: [],
@@ -109,6 +116,37 @@ function apply(s, ev) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }
+      // A node still running when its round closes never reported. Marking it
+      // `lost` is a fact about the log, not a verdict about the work: it must
+      // never stay `running` forever and must never be folded into success.
+      for (const node of s.nodes) {
+        if (node.round === d.n && node.status === 'running') node.status = 'lost'
+      }
+      break
+    }
+    case 'node.started': {
+      // The identity is written before the dispatch, so a crash between start
+      // and finish leaves a name behind instead of only a missing round.
+      const row = nodeRow(s.nodes, d)
+      row.type = d.type ?? row.type ?? 'agent'
+      row.role = d.role ?? row.role ?? null
+      row.status = 'running'
+      row.at = d.at ?? row.at ?? null
+      if (d.base !== undefined) row.base = d.base
+      break
+    }
+    case 'node.finished': {
+      // A finished node without a start still folds: older ledgers and reused
+      // plans only ever wrote this event, and their time must not vanish.
+      const row = nodeRow(s.nodes, d)
+      row.type = d.type ?? row.type ?? 'agent'
+      row.role = d.role ?? row.role ?? null
+      row.status = d.ok === false ? 'failed' : 'done'
+      row.durationMs = Number.isFinite(Number(d.durationMs)) ? Number(d.durationMs) : null
+      row.endedAt = d.at ?? ev.t ?? null
+      if (d.reused === true) row.reused = true
+      if (d.planBasis) row.planBasis = d.planBasis
+      if (d.sessionId !== undefined) row.sessionId = d.sessionId
       break
     }
     case 'attempt.finished': {
@@ -255,6 +293,25 @@ function apply(s, ev) {
 
 export function round6(x) {
   return Math.round(x * 1e6) / 1e6
+}
+
+/**
+ * Find or create the row for one node instance.
+ *
+ * An instance is `(round, id, attempt)`: a node may legitimately run more than
+ * once in a round, and an id reused in a later round is a different instance.
+ * Older records carry no `attempt`, so it defaults to the first one.
+ */
+function nodeRow(nodes, d) {
+  const round = Number.isFinite(Number(d.round)) ? Number(d.round) : null
+  const attempt = Number.isFinite(Number(d.attempt)) ? Number(d.attempt) : 1
+  const id = d.id ?? d.nodeId ?? null
+  let row = nodes.find((n) => n.id === id && n.round === round && (n.attempt ?? 1) === attempt)
+  if (!row) {
+    row = { id, type: 'agent', role: null, round, attempt, status: null, at: null, durationMs: null }
+    nodes.push(row)
+  }
+  return row
 }
 
 export function snapshot(s) {

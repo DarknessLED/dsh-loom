@@ -202,6 +202,8 @@ export async function runRound({runtime, view, config, dispatcher, log}): Promis
 
 事件序列：`round.started` → 每个 attempt 一次 `attempt.finished` → `candidate.proposed` →（可选）`gate.evaluated` → `artifact.promoted` → `round.finished`。
 
+map 之前的 agent 节点是可寻址的工作实例：派发前先写 `node.started{id,type,role,round,attempt,at,base,deadlineMs}`，结束后写 `node.finished{id,round,attempt,ok,durationMs,…}`，`reduce` 把它们折进 `state.nodes`；`round.finished` 落地时仍为 `running` 的节点折成 `lost`（只投影事实，不伪造成功）。没有 `node.*` 事件的旧账本折叠结果不变。
+
 ---
 
 ## 8. Lean 门（M4）
