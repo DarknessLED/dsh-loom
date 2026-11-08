@@ -539,7 +539,12 @@ export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs
  */
 export async function runRound({ runtime, view, config, dispatcher, log, notify = null }) {
   const state = view.state
-  const n = state.rounds.length + 1
+  // The round number is ledger identity, and the holdout rotation is a function
+  // of it: derive the next one from the highest number already projected, not
+  // from the array length. An embedder that re-projects a round (or folds one
+  // twice) would otherwise make the length overcount and skip a number, which
+  // would silently re-point every later holdout pick.
+  const n = state.rounds.reduce((max, r) => Math.max(max, Number(r?.n) || 0), 0) + 1
   // L2: the promoted loop policy overrides the plugin defaults for this campaign.
   const policy = effectivePolicy({ state, config })
   const chain = activeChain(state)
@@ -1326,26 +1331,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // as pure candidate work, and the loop looks slower than it is.
     let holdoutMs = 0
     let holdoutRuns = 0
-    // One holdout per round, round-robin. Running the whole pool every round
-    // turns the holdout into a second spec the loop can quietly learn: today's
-    // promotion was gated on exactly the tests it was measured against, round
-    // after round. The index counts *distinct prior round numbers* rather than
-    // `state.rounds.length`: the reducer already holds the current round
-    // (`round.started`), and an embedder may re-project one, so a length is off
-    // by one in exactly the paths that matter while `n` itself can skip
-    // (budget rounds never create a round). Distinct `n < this n` is stable in
-    // both: 0 prior rounds picks the first, each new round advances the pool.
+    // One holdout per round, round-robin over stable ids (see `holdoutPick`).
+    // Running the whole pool every round turns the holdout into a second spec
+    // the loop can quietly learn: today's promotion was gated on exactly the
+    // tests it was measured against, round after round. The pick is a function
+    // of the sorted pool and the round number, not of declaration order or of
+    // how many prior rounds this projection happens to hold: reordering the
+    // holdouts cannot silently change which partition a given round tests.
     const heldOut = holdoutTasks(state)
-    const priorRounds = new Set()
-    for (const round of state.rounds || []) {
-      const prior = Number(round?.n)
-      if (Number.isFinite(prior) && prior < n) priorRounds.add(prior)
-    }
-    const holdoutPick = heldOut.length ? heldOut[priorRounds.size % heldOut.length] : null
+    const holdout = holdoutPick(heldOut.map((t) => String(t.id)), n)
+    const holdoutTask = holdout ? heldOut.find((t) => String(t.id) === holdout.id) ?? null : null
     // `round.finished` names the task that actually ran: the status alone would
     // say `holdout-failed` without saying which pool entry caught the patch.
-    const holdoutId = holdoutPick ? String(holdoutPick.id) : null
-    if (holdoutPick) {
+    const holdoutId = holdout?.id ?? null
+    if (holdoutTask) {
       const holdoutStartedAt = Date.now()
       checks.holdout = true
       if (!best?.worktree || best.screenedOut) {
@@ -1355,11 +1354,21 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           detail: 'the winning candidate had no worktree in which to run the holdout',
         })
       } else {
+        // Write the choice down before the verifier runs: this is the event the
+        // folded state needs to answer which partition a past round tested and
+        // from which pool. Emitted only when the gate actually runs, so the
+        // recorded `covered` set is what ran, not what was merely selected.
+        runtime.append(
+          view,
+          'holdout.selected',
+          { round: n, id: holdoutId, pool: holdout.pool, poolSha: holdoutPoolSha(holdout.pool) },
+          'system',
+        )
         let result
         // Counted before the attempt so a verifier that throws is still a run.
         holdoutRuns += 1
         try {
-          result = await runVerifier(holdoutPick.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
+          result = await runVerifier(holdoutTask.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
         } catch (err) {
           result = { ok: false, stderr: String(err?.message ?? err) }
         }
@@ -1599,6 +1608,46 @@ function patchTouchesTests(patchPath) {
     if (paths.some(touchesTests)) return true
   }
   return false
+}
+
+/**
+ * Pick the holdout partition a round tests.
+ *
+ * The choice is a pure function of the stable ids in the pool and the round
+ * number: sort first, so declaration order cannot change the answer, then rotate
+ * with the round. `(round - 1) % size` means round 1 tests the first sorted id
+ * and the pool wraps (round `size + 1` is the first again). An empty or missing
+ * pool is a measured "no holdout", not an exception and not a pick.
+ *
+ * @param {Array<string|number|{id: unknown}>|null|undefined} pool
+ * @param {number} round
+ * @returns {{id: string, index: number, poolSize: number, pool: string[]}|null}
+ */
+export function holdoutPick(pool, round) {
+  const ids = Array.isArray(pool)
+    ? [
+        ...new Set(
+          pool
+            .map((entry) => (entry && typeof entry === 'object' ? entry.id : entry))
+            .filter((id) => id !== null && id !== undefined && String(id) !== '')
+            .map(String),
+        ),
+      ].sort()
+    : []
+  if (ids.length === 0) return null
+  const r = Number(round)
+  const n = Number.isFinite(r) ? Math.max(1, Math.floor(r)) : 1
+  const index = (n - 1) % ids.length
+  return { id: ids[index], index, poolSize: ids.length, pool: ids }
+}
+
+/**
+ * A short identity for a holdout pool, so a ledger written under one pool and
+ * replayed under another cannot look unchanged. Sorted ids mean declaration
+ * order does not move the hash either.
+ */
+function holdoutPoolSha(ids) {
+  return createHash('sha1').update(ids.join('\n')).digest('hex').slice(0, 12)
 }
 
 /**

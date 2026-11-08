@@ -12,6 +12,13 @@ export function emptyState(id = null) {
     budget: { usd: 5, rounds: 12, spentUsd: 0, roundsUsed: 0, minutes: 240 },
     chain: { activeVersion: null, versions: [] },
     evalset: { tasks: [], holdout: [] },
+    /**
+     * Which holdout partition actually ran, and from which pool. A holdout
+     * choice is only auditable if the ledger keeps the pool it was drawn from
+     * (with an identity for that pool): `covered` is what ran, not what was
+     * planned, and `picks` keeps the per-round answer.
+     */
+    holdout: { pool: [], covered: [], lastId: null, poolSha: null, picks: [] },
     rounds: [],
     /**
      * Plan nodes, one row per (round, id, attempt). A round is a bucket of
@@ -100,6 +107,21 @@ function apply(s, ev) {
       s.evalset.tasks = d.tasks
       s.evalset.holdout = d.holdout || []
       break
+    case 'holdout.selected': {
+      const h = s.holdout
+      const round = Number.isFinite(Number(d.round)) ? Number(d.round) : null
+      const id = d.id == null ? null : String(d.id)
+      const poolSha = d.poolSha == null ? null : String(d.poolSha)
+      if (Array.isArray(d.pool)) h.pool = d.pool.map(String)
+      if (id) {
+        h.lastId = id
+        // What ran, not what was planned: the same partition twice is one entry.
+        if (!h.covered.includes(id)) h.covered.push(id)
+      }
+      if (poolSha) h.poolSha = poolSha
+      h.picks = h.picks.filter((p) => p.round !== round).concat({ round, id, poolSha })
+      break
+    }
     case 'round.started':
       s.rounds.push({ n: d.n, at: ev.t, attempts: [], status: 'running', score: null, taskId: d.taskId ?? null, chainVersion: d.chainVersion ?? null })
       s.budget.roundsUsed += 1
