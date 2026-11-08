@@ -92,6 +92,7 @@ const standing = [
   // once solved these are pins, so a promotion cannot delete the guard.
   'tests/ui/error-state.test.mjs',
   'tests/tri10/status-compact.test.mjs',
+  'tests/tri11/plan-timeout.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

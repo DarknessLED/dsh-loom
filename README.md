@@ -113,6 +113,23 @@ rsi_control(action:"start")
 
 随时用 `rsi_status` / `rsi_report` 查看，不会打断循环。
 
+### 写规格之前，先证明它可通
+
+一条过不了的规格和一道难题，在循环眼里长得一模一样：它照样派候选、照样被验证器打回、照样烧预算。我自己踩过两次——第一次把断言写成了不存在的 `done(n,'msg')` 调用，第二次让 `'\\n'` 穿过三层引号变成字面量反斜杠 n，各白烧了两轮（约 45 分钟）。
+
+```
+node scripts/spec-reachability.mjs \
+  --spec tests/tri11/holdout-rotation.test.mjs \
+  --patch ~/.dsh/loom/campaigns/<id>/artifacts/r3a1.patch
+```
+
+它在临时目录里克隆 HEAD、覆盖上工作树的 `tests/`，然后要求两件事同时成立：
+
+1. **不带补丁时必须失败**（否则这条规格没断言任何新东西，通过了也不能说明问题被解决）；
+2. **带上补丁时必须通过**（否则这条规格根本不可能被满足，循环只是在替一个 bug 打工）。
+
+任一不成立即非零退出。缓存里的补丁就够用——战役的 `artifacts/` 里一直有。
+
 ### 总开关（随时开关循环）
 
 循环有一个全局开关，**不写进任何战役日志**——翻转只改 `~/.dsh/loom/switch.json`，另在 `switch.jsonl` 留一行审计。因此：
