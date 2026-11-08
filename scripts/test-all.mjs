@@ -114,6 +114,10 @@ const standing = [
   // a round whose attempts all died to a plugin re-apply is interrupted, not a
   // measured zero:
   'tests/lifecycle/dispose-recovery.test.mjs',
+  // the second candidate is an option priced by its tail, and the panel draws the
+  // round as one band instead of five chips:
+  'tests/balance/second-candidate.test.mjs',
+  'tests/ui/node-band.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
