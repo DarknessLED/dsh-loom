@@ -22,7 +22,7 @@ import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
-import { adaptiveCandidateMode } from './candidates.js'
+import { adaptiveCandidateMode, secondCandidateGate } from './candidates.js'
 import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
@@ -805,7 +805,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // The brief still names the whole acceptance command: the guard is part of the
   // criteria the worker must satisfy, even when the loop does not spawn it twice.
   const verifyCmd = acceptance.spec?.cmd || 'echo no-verifier && exit 1'
-  const candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
+  let candidates = Math.max(1, Math.min(4, Number(policy.candidates ?? chain.params?.candidates) || 1))
   // Sampling a second candidate cannot beat a first one that already scores
   // 1.0, so `cascade` buys the next opinion only while the result leaves room
   // to improve. Read from the config directly, not from `effectivePolicy`:
@@ -818,7 +818,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // mattered; otherwise `parallel`. The source travels on `round.finished` so an
   // inferred mode is never passed off as something the operator configured.
   const configuredMode = config.loopPolicy?.candidateMode
-  const candidateModeSource =
+  let candidateModeSource =
     configuredMode === 'cascade' || configuredMode === 'parallel'
       ? 'config'
       : config.loopPolicy?.autoCandidateMode === true
@@ -830,6 +830,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       : candidateModeSource === 'auto'
         ? adaptiveCandidateMode(state.rounds)
         : 'parallel'
+  // A priced hedge, not a habit: when the campaign's own record says a second
+  // opinion is not worth its tail, plan one candidate and name the evidence that
+  // decided it. `secondCandidate: 'always'` is an instruction and is never
+  // overruled by statistics; a record that cannot price the hedge leaves the
+  // configured count untouched. `cascade` already buys the next opinion only
+  // when the first leaves room, so pricing it again would double-charge.
+  const secondCandidatePreference = config.loopPolicy?.secondCandidate
+  let secondCandidate = null
+  if (candidateMode === 'parallel' && secondCandidatePreference !== 'always') {
+    const priced = secondCandidateGate(state.rounds)
+    if (priced) {
+      secondCandidate = priced
+      if (!priced.admit) {
+        candidates = 1
+        candidateModeSource = 'evidence'
+      }
+    }
+  }
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).
   const exposed = exposeIndexes(candidates, n)
@@ -877,7 +895,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // the task. Counted separately from skippedCandidates: they were dispatched,
   // and their records carry the evidence they had produced up to the stop.
   let abortedCandidates = 0
-  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates, abortedCandidates, planMode })
+  const modeRecord = () => ({
+    candidateMode,
+    candidateModeSource,
+    candidatesPlanned: candidates,
+    skippedCandidates,
+    abortedCandidates,
+    planMode,
+    ...(secondCandidate ? { secondCandidate } : {}),
+  })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.

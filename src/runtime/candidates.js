@@ -80,6 +80,68 @@ export function admitSecondCandidate(input = {}) {
 }
 
 /**
+ * Price the second candidate from a campaign's own record.
+ *
+ * `admitSecondCandidate` only knows how to price an opinion it is given; this
+ * function is what turns `state.rounds` into that price, so a round can consult
+ * its own history instead of re-buying an opinion the record already refused.
+ *
+ * The inference is deliberately conservative:
+ *
+ * - Only rounds that measured their own wall clock (`durationMs`) *and* sampled
+ *   at least two candidates can say anything about a second opinion. A ledger
+ *   that recorded an outcome but no time is not a price, and no relevant history
+ *   at all is not evidence that sampling is wasted: both read as `null`, which
+ *   the caller must treat as "keep the configured count".
+ * - `p` is the promotion rate with a Beta(1,1) prior, so a two-round perfect
+ *   streak reads as 0.75 instead of certainty. A short sample must not look like
+ *   a proof.
+ * - `roundMs` is the mean wall time of those rounds.
+ * - `tailMs` is what the second opinion adds beyond the first: per round, the
+ *   gap between the slowest attempt and the median one. When attempts carry no
+ *   timing, the candidate window (`durationMs - planMs`) shared over the
+ *   candidates bought is the best price the ledger supports.
+ *
+ * @param {Array<object>} rounds campaign history, oldest first
+ * @param {{window?: number}} [options] how many recent rounds to price over
+ * @returns {{admit: boolean, ev: number|null, reason: string, p: number, roundMs: number, tailMs: number, rounds: number}|null}
+ *   `null` means the record cannot price the hedge, so the configured count stands.
+ */
+export function secondCandidateGate(rounds, { window = 10 } = {}) {
+  const history = Array.isArray(rounds) ? rounds : []
+  const size = Math.max(1, Math.floor(Number(window) || 10))
+  const measured = history.slice(-size).filter((round) => {
+    const attempts = Array.isArray(round?.attempts) ? round.attempts : []
+    const durationMs = measure(round?.durationMs)
+    return attempts.length >= 2 && durationMs !== null && durationMs > 0
+  })
+  // Absence of a measurable record is not evidence that the hedge is worthless.
+  if (!measured.length) return null
+  const promoted = measured.filter(
+    (round) => round?.promoted === true || round?.landed === true || round?.status === 'promoted',
+  ).length
+  const p = (promoted + 1) / (measured.length + 2)
+  const roundMs = measured.reduce((sum, round) => sum + measure(round.durationMs), 0) / measured.length
+  const tails = measured.map((round) => {
+    const attempts = Array.isArray(round.attempts) ? round.attempts : []
+    const durations = attempts
+      .map((attempt) => measure(attempt?.durationMs))
+      .filter((duration) => duration !== null && duration >= 0)
+    if (durations.length >= 2) {
+      const sorted = [...durations].sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
+      return Math.max(0, sorted[sorted.length - 1] - median)
+    }
+    const duration = measure(round.durationMs)
+    const plan = measure(round.planMs) ?? 0
+    return Math.max(0, duration - plan) / Math.max(1, attempts.length)
+  })
+  const tailMs = tails.reduce((sum, tail) => sum + tail, 0) / tails.length
+  const verdict = admitSecondCandidate({ p, roundMs, tailMs })
+  return { ...verdict, p, roundMs, tailMs, rounds: measured.length }
+}
+
+/**
  * How many candidates the next round should buy.
  *
  * Sampling two candidates is insurance: it pays when the second opinion can
