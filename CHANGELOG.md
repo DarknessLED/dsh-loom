@@ -71,6 +71,15 @@ was promoted only after the guard suite passed.
   diagnostic, instantly, rebuilds the parent agent and retries once.
 - Snooze (`hold`) really holds; quiet hours defer and flush; setup questions
   are raised once, not once per tick; checkpoint ids are unique per millisecond.
+- **`rsi_start` can take the whole set-up**: pass `tasks` (and `holdout`) and
+  `auto:true`, and one call registers the eval set, activates the template
+  chain, arms autopilot and starts. Without `auto` it deliberately stops at
+  `planning` so a human can read the chain first; a task without a verifier is
+  refused by name before anything is written.
+- **`doctor({workspace, home, runtime, config})`** answers "is this machine set
+  up?": git repo, clean worktree, node version, writable home, loop ownership.
+  A check that throws becomes a failed check with the error text — the report is
+  most useful exactly when things are broken.
 
 ### Panel
 
@@ -86,7 +95,7 @@ was promoted only after the guard suite passed.
 
 ### Meta
 
-- 97 suites, 126 spec files, 118 commits since 0.1.0 — and four incidents where
+- 99 suites, 131 spec files, 130+ commits since 0.1.0 — and four incidents where
   **the spec was wrong, not the code**. They are documented, and
   `scripts/spec-reachability.mjs` now checks a spec three ways: it must fail on
   HEAD, pass with a reference patch, and fail again once that patch is removed.
