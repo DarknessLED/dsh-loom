@@ -100,6 +100,9 @@ const standing = [
   // anomaly raised while applying a promotion) must not strand the round as open:
   'tests/ui/knowledge-single-source.test.mjs',
   'tests/landing-target.test.mjs',
+  // a plan node has an identity, and a node whose round ends unfinished is lost -
+  // once a promotion lands this it must not be able to delete the guard:
+  'tests/dag1/node-identity.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
