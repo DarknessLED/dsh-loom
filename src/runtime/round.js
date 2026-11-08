@@ -1554,6 +1554,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
+    // A verified attempt that changed nothing is not evidence of new work, but it IS
+    // evidence the task is satisfied (an earlier landing already covered it). Applying
+    // an empty patch fails in git apply, so record it as a no-op landing instead.
+    // Decided before the holdout gate: a tree that has not changed since the
+    // verifier passed has nothing new for a second opinion to check.
+    checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
     // Holdout tasks are excluded from selection, so passing the visible verifier
     // proves less than it looks: a patch can special-case that task and break the
     // one held back. Run the holdout here, inside the winning candidate's
@@ -1579,10 +1585,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const heldOut = holdoutTasks(state)
     const holdout = holdoutPick(heldOut.map((t) => String(t.id)), n)
     const holdoutTask = holdout ? heldOut.find((t) => String(t.id) === holdout.id) ?? null : null
+    // A candidate that verified with no captured diff but reports changed files
+    // is a capture problem, not a completed no-op: the bytes it meant to change
+    // are unproven, so the holdout still applies. Only a candidate that reports
+    // no work at all has nothing left for a second opinion to check.
+    const claimedWork = Array.isArray(best?.report?.changed) && best.report.changed.length > 0
+    const skipHoldout = checks.noop && !claimedWork
     // `round.finished` names the task that actually ran: the status alone would
     // say `holdout-failed` without saying which pool entry caught the patch.
-    const holdoutId = holdout?.id ?? null
-    if (holdoutTask) {
+    // A skipped no-op names nothing because nothing ran.
+    const holdoutId = skipHoldout ? null : holdout?.id ?? null
+    if (skipHoldout) {
+      // The candidate verified without moving the tree, so the holdout would run
+      // the same command against the same bytes the verifier just approved: a
+      // second identical verdict at full gate cost. Say it was unnecessary
+      // instead of paying for it; the no-op still lands through the normal path.
+      // With no holdout task at all there was nothing to skip: keep 'skipped'.
+      checks.holdout = holdoutTask ? 'skipped-noop' : 'skipped'
+    } else if (holdoutTask) {
       const holdoutStartedAt = Date.now()
       checks.holdout = true
       if (!best?.worktree || best.screenedOut) {
@@ -1619,10 +1639,6 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
       holdoutMs = Math.max(0, Date.now() - holdoutStartedAt)
     }
-    // A verified attempt that changed nothing is not evidence of new work, but it IS
-    // evidence the task is satisfied (an earlier landing already covered it). Applying
-    // an empty patch fails in git apply, so record it as a no-op landing instead.
-    checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
     const basePass = checks.verifierOk && checks.testsClean && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
     const promote = basePass && checks.holdout !== false
     const rejectedByHoldout = basePass && checks.holdout === false
@@ -1716,7 +1732,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -1897,12 +1913,20 @@ function holdoutPoolSha(ids) {
 function holdoutTasks(state) {
   const all = Array.isArray(state.evalset?.tasks) ? state.evalset.tasks : []
   const holdout = Array.isArray(state.evalset?.holdout) ? state.evalset.holdout : []
+  // A campaign may register its whole-suite verifier once as `evalset.suite` and
+  // name it in the holdout list ("suite = test-all") instead of duplicating it
+  // into the task list. It is a fallback only: an id present in `tasks` wins.
+  const suite = state.evalset?.suite
+  const suiteId = suite?.id != null ? String(suite.id) : 'suite'
   const out = []
   const seen = new Set()
   for (const entry of holdout) {
     const id = typeof entry === 'string' ? entry : entry?.id != null ? String(entry.id) : null
     if (!id || seen.has(id)) continue
-    const task = all.find((t) => t && String(t.id) === id) || (typeof entry === 'object' && entry?.verify?.cmd ? entry : null)
+    const task =
+      all.find((t) => t && String(t.id) === id) ||
+      (typeof entry === 'object' && entry?.verify?.cmd ? entry : null) ||
+      (id === suiteId && suite?.verify?.cmd ? suite : null)
     if (!task?.verify?.cmd) continue
     seen.add(id)
     out.push(task)

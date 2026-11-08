@@ -137,7 +137,7 @@ function apply(s, ev) {
         // `planMode`/`planTimedOut` travel too: `planMode: 'auto'` reads the
         // last two rounds' planTimedOut, so a projected state that dropped it
         // would make every round look like it had planned successfully.
-        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planMode', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates']) {
+        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }
