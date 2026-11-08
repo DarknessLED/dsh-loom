@@ -1344,6 +1344,24 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // A round that did not promote opens the tree with the answer to "why",
+    // before the round number: the number is what the reader already knows, the
+    // verdict is what they came for. A promoted round, or a round with nothing
+    // to say about itself, grows no such branch - the panel must not cry wolf.
+    function whyNode(c) {
+      var lr = c && c.lastRound
+      if (!lr || lr.n === null || lr.n === undefined || lr.promoted) return null
+      var status = roundStatusLabel(lr)
+      if (!status || status === '已晋升') return null
+      return {
+        key: 'why',
+        label: '为什么' + status,
+        meta: ['第 ' + lr.n + ' 轮', lr.score === null || lr.score === undefined ? '' : String(lr.score)].filter(Boolean).join(' · '),
+        tone: TONES.warn,
+        lead: true,
+      }
+    }
+
     function waitingNode(c) {
       var cps = c.openCheckpoints || []
       if (!cps.length) return null
@@ -1417,6 +1435,8 @@ window.__ModuleLoader__.load({
 
     function treeOf(c, live, corpus) {
       var nodes = []
+      var why = whyNode(c)
+      if (why) nodes.push(why)
       var round = lastRoundNode(c)
       if (round) nodes.push(round)
       var waiting = waitingNode(c)
@@ -1444,6 +1464,7 @@ window.__ModuleLoader__.load({
           help: node.help || '',
           tone: node.tone || '',
           mono: node.mono === true,
+          lead: node.lead === true,
           actions: node.actions || [],
         }
         rows.push(row)
@@ -1454,10 +1475,17 @@ window.__ModuleLoader__.load({
 
     /** The tree as text: what a test asserts and what a reader would draw. */
     function treeLines(nodes) {
-      return flattenTree(nodes, 1, []).map(function (row) {
+      var list = nodes || []
+      var rows = flattenTree(list, 1, [])
+      // An elbow says where a row sits among its siblings. The tree's answer
+      // ("why" lead) is a headline rather than a sibling, and a tree with only
+      // one branch has nothing to sit beside, so neither draws one.
+      var solo = list.length === 1
+      return rows.map(function (row, index) {
         var marks = []
         for (var i = 1; i < row.depth; i += 1) marks.push('  ')
-        var mark = row.last ? '└─ ' : '├─ '
+        var bare = index === 0 && (row.lead === true || solo)
+        var mark = bare ? '' : row.last ? '└─ ' : '├─ '
         var head = (row.kind ? row.kind + ' ' : '') + row.label
         return marks.join('') + mark + head + (row.meta ? '  ' + row.meta : '')
       })
