@@ -122,7 +122,7 @@ const standing = [
   'tests/ui/node-band.test.mjs', "tests/ui/node-band-render.test.mjs",
   // the planner can be switched off per policy and says which mode it ran in, and
   // a narrow sidebar keeps only the three cells that carry the answer:
-  'tests/balance/plan-mode.test.mjs', "tests/defaults/opinionated.test.mjs", "tests/dag2/deadline.test.mjs", "tests/balance/late-success.test.mjs", "tests/balance/hedge-stats.test.mjs", "tests/ui/policy-visible.test.mjs", "tests/balance/plan-mode-evidence.test.mjs",
+  'tests/balance/plan-mode.test.mjs', "tests/balance/holdout-noop.test.mjs", "tests/defaults/opinionated.test.mjs", "tests/dag2/deadline.test.mjs", "tests/balance/late-success.test.mjs", "tests/balance/hedge-stats.test.mjs", "tests/ui/policy-visible.test.mjs", "tests/balance/plan-mode-evidence.test.mjs",
   'tests/ui/metrics-priority.test.mjs',
   // a campaign can carry its own policy, and a stuck round explains itself first:
   'tests/balance/policy-override.test.mjs',
