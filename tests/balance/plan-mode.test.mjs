@@ -148,13 +148,20 @@ const ok = (name) => {
 }
 
 // 3. 'auto' stops paying for a planner that keeps timing out - the loop should not
-//    keep buying a step that has twice produced nothing.
+//    keep buying a step that has twice produced nothing. A timeout on a round that
+//    then lost is not evidence: plan-mode-evidence.test.mjs tightened this to
+//    "two timeouts in a row on rounds that WON", so the fixture follows it.
 {
   const timedOut = [
     { n: 1, status: 'promoted', planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
-    { n: 2, status: 'no-gain', planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
+    { n: 2, status: 'promoted', planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
   ]
   assert.equal(planModeFor(timedOut, { planMode: 'auto' }), 'off', 'two timeouts in a row turn the planner off')
+  assert.equal(
+    planModeFor([{ n: 1, status: 'promoted', planTimedOut: true }, { n: 2, status: 'no-gain', planTimedOut: true }], { planMode: 'auto' }),
+    'full',
+    'a timed-out round that lost proves nothing about the planner',
+  )
   assert.equal(planModeFor([{ n: 1, status: 'promoted', planTimedOut: false, planMode: 'full' }], { planMode: 'auto' }), 'full')
   assert.equal(planModeFor([], { planMode: 'auto' }), 'full', 'no history is not a reason to skip')
   assert.equal(planModeFor(timedOut, { planMode: 'off' }), 'off', 'an explicit policy wins')
