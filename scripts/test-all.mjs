@@ -94,6 +94,7 @@ const standing = [
   'tests/tri10/status-compact.test.mjs',
   'tests/tri11/plan-timeout.test.mjs',
   'tests/tri11/holdout-rotation.test.mjs',
+  'tests/tri13/plan-model.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
