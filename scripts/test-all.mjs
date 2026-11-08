@@ -106,6 +106,9 @@ const standing = [
   // which holdout a round tests is a function of ids, and the ledger says which
   // partition ran from which pool:
   'tests/dag4/holdout-partition.test.mjs',
+  // a child that dies in a second saying nothing is a broken parent, not a failed
+  // task: rebuild once, retry, and never record a null reason:
+  'tests/lifecycle/dispatch-recovery.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

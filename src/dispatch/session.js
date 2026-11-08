@@ -105,6 +105,16 @@ export class Dispatcher {
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
       res = await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })
+      // A child that dies in under three seconds without saying anything is not a
+      // failed task, it is a broken parent: after a host restart the cached agent
+      // can still be addressable while every child it spawns errors immediately.
+      // Rebuild once and retry before charging the round for an infrastructure bug.
+      if (res?.infra && !this.infraRetried) {
+        this.infraRetried = true
+        this.log(`child died instantly with no diagnostic (${res.error}); rebuilding the parent and retrying once`)
+        await this.rebuildParent()
+        res = { ...(await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })), infraRetry: true }
+      }
       tried.push(current ?? 'default')
       const kind = classifyResult(res)
       const last = i === chain.length - 1
@@ -128,9 +138,24 @@ export class Dispatcher {
     }
   }
 
+  /** Forgetting the parent forces the next dispatch to resolve or create a live one. */
+  async rebuildParent() {
+    const previous = this.owned
+    this.owned = null
+    this.parentSessionId = null
+    if (previous) {
+      try {
+        await previous.dispose?.()
+      } catch (err) {
+        this.log('parent dispose failed:', err?.message ?? err)
+      }
+    }
+  }
+
   /** One child session, one model, no retry. */
   async #one(prompt, { cwd, timeoutMs, label, model, onStart }) {
     const subagents = svc(this.ctx, 'subagents')
+    const startedAt = Date.now()
     const parent = await this.ensureParent()
     const controller = new AbortController()
     const agentOptions = {}
@@ -214,13 +239,23 @@ export class Dispatcher {
     if (timedOut) {
       return { sessionId: childId, text: '', structured: null, stopReason: 'aborted', timedOut: true, error: `attempt exceeded ${timeoutMs}ms` }
     }
+    const elapsedMs = Date.now() - startedAt
+    const stopReason = outcome?.stopReason ?? 'error'
+    const diagnostic = outcome?.diagnostic ?? null
+    // An error with nothing to say, delivered fast, is the signature of a dead
+    // parent rather than a task that went wrong. Say so explicitly - a null
+    // diagnostic in the ledger is unreadable evidence.
+    const silent = stopReason === 'error' && !diagnostic
+    const infra = silent && elapsedMs < 3000
     return {
       sessionId: childId,
       text: textOf(outcome?.output),
       structured: outcome?.structured ?? null,
-      stopReason: outcome?.stopReason ?? 'error',
+      stopReason,
       timedOut: false,
-      error: outcome?.diagnostic ?? null,
+      error: silent ? 'child session ended in error with no diagnostic (parent or provider unavailable)' : diagnostic,
+      elapsedMs,
+      infra,
     }
   }
 
