@@ -3,7 +3,7 @@ import { campaignQuality } from '../runtime/quality.js'
 import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
-import { activeChain } from '../runtime/round.js'
+import { activeChain, policyFor } from '../runtime/round.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -55,7 +55,7 @@ export function nodesFor(state, opts = {}) {
     .slice(0, limit)
 }
 
-function campaignRow(view, now, campaignId) {
+function campaignRow(view, now, campaignId, config) {
   const s = view.state
   const open = openCheckpointsOf(s)
   // The panel ships the same ranked queue rsi_status prints, so the riskiest
@@ -103,6 +103,16 @@ function campaignRow(view, now, campaignId) {
         chainVersion: a.chainVersion ?? null,
       }))
     : []
+  // The knob a campaign actually turned is the one a reader must see, so this
+  // is the resolved policy (campaign override over loader config over default)
+  // and not the config the next round would inherit. A bad override is named in
+  // `rejected` instead of being shown as if it were in force.
+  let loop = null
+  try {
+    loop = policyFor({ config, campaign: s })
+  } catch {
+    loop = null
+  }
   return {
     // The row is keyed by the id the runtime listed; in production that is the
     // state id, but the route must not rename a campaign it was asked about.
@@ -119,6 +129,9 @@ function campaignRow(view, now, campaignId) {
       ? { round: s.incumbent.round ?? null, score: s.incumbent.score ?? null }
       : null,
     policy: s.policy?.status ? { status: s.policy.status, version: s.policy.version } : null,
+    // What runs, not just what was written down: `policy` above is the record,
+    // `loop` is the merged knobs with the source of each value.
+    loop,
     tasks: Array.isArray(s.evalset?.tasks) ? s.evalset.tasks.length : 0,
     holdout: Array.isArray(s.evalset?.holdout) ? s.evalset.holdout.length : 0,
     lessons: lessons.length,
@@ -158,14 +171,14 @@ function campaignRow(view, now, campaignId) {
   }
 }
 
-export function panelState({ runtime }) {
+export function panelState({ runtime, config } = {}) {
   const now = Date.now()
   const ids = runtime.listCampaigns()
   const rows = []
   for (const id of ids) {
     try {
       const view = typeof runtime.get === 'function' ? runtime.get(id) : runtime.open(id)
-      rows.push(campaignRow(view, now, id))
+      rows.push(campaignRow(view, now, id, config))
     } catch (err) {
       rows.push({ id, error: String(err?.message ?? err) })
     }
@@ -230,7 +243,7 @@ export function panelAction({ runtime, config }, body) {
   if (action === 'enable' || action === 'disable') {
     if (typeof runtime.setEnabled !== 'function') throw new Error('this runtime cannot switch the loop')
     const record = runtime.setEnabled(action === 'enable', { by: 'human:panel', reason: body.reason ?? null })
-    return { ok: true, rsi: { enabled: record.enabled, at: record.at, by: record.by }, campaigns: panelState({ runtime }).campaigns }
+    return { ok: true, rsi: { enabled: record.enabled, at: record.at, by: record.by }, campaigns: panelState({ runtime, config }).campaigns }
   }
 
   const id = String(body.campaign ?? '')
@@ -240,7 +253,7 @@ export function panelAction({ runtime, config }, body) {
   if (action === 'pause' || action === 'resume' || action === 'stop') {
     if (!runtime.ensureOwner()) throw new Error('another window is driving the loop')
     runtime.control(id, action, {}, 'human:panel')
-    return { ok: true, campaigns: panelState({ runtime }).campaigns }
+    return { ok: true, campaigns: panelState({ runtime, config }).campaigns }
   }
 
   if (action === 'decide') {
@@ -258,7 +271,7 @@ export function panelAction({ runtime, config }, body) {
       // tool door, so both doors mean the same thing by the same word.
       const until = holdUntil(config)
       runtime.append(view, 'checkpoint.held', { checkpoint: target.id, until }, 'human:panel')
-      return { ok: true, deferred: true, answered: target.id, until, campaigns: panelState({ runtime }).campaigns }
+      return { ok: true, deferred: true, answered: target.id, until, campaigns: panelState({ runtime, config }).campaigns }
     }
     runtime.append(
       view,
@@ -269,7 +282,7 @@ export function panelAction({ runtime, config }, body) {
     if (decision === 'stop') {
       runtime.append(view, 'campaign.status', { status: 'stopped' }, 'human:panel')
     }
-    return { ok: true, campaigns: panelState({ runtime }).campaigns }
+    return { ok: true, campaigns: panelState({ runtime, config }).campaigns }
   }
 
   throw new Error(`unknown action: ${action}`)
