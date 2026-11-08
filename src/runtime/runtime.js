@@ -16,6 +16,7 @@ import { planRecovery, repairWorkspace } from './recovery.js'
 import { readSwitch, writeSwitch } from './switch.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
+import { validatePolicyOverride } from '../loop/policy.js'
 
 const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'done', 'stopped']
 
@@ -166,6 +167,22 @@ export class Runtime {
     return state
   }
 
+  /**
+   * Record this campaign's own policy override.
+   *
+   * Validation happens before the append: a rejected override must leave the
+   * log byte-for-byte unchanged, otherwise a typo would look like an
+   * experiment that ran. Exactly one `campaign.policy` event goes into *that*
+   * campaign's log — a policy is the campaign's term, not a global switch — and
+   * the accepted object is returned so the operator sees what was recorded.
+   */
+  setPolicy(id, policy, actor = 'human') {
+    const v = this.get(id)
+    const accepted = validatePolicyOverride(policy)
+    this.append(v, 'campaign.policy', { policy: accepted }, actor)
+    return { id: v.id, policy: accepted }
+  }
+
   status(id) {
     const v = this.get(id)
     const s = v.state
@@ -216,6 +233,8 @@ export class Runtime {
       case 'note':
         if (!payload.text) throw new Error('note requires text')
         return this.append(v, 'note.added', { text: payload.text }, actor)
+      case 'policy':
+        return this.setPolicy(id, payload.policy, actor)
       case 'autopilot':
         if (typeof payload.enabled !== 'boolean') throw new Error('autopilot requires enabled: boolean')
         return this.append(

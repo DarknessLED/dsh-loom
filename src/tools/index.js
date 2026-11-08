@@ -241,8 +241,8 @@ export function registerTools(ctx, { runtime, config }) {
         id: ID,
         action: {
           type: 'string',
-          enum: ['enable', 'disable', 'pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot'],
-          description: 'enable/disable: the global loop switch (no campaign required).',
+          enum: ['enable', 'disable', 'pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot', 'policy'],
+          description: 'enable/disable: the global loop switch (no campaign required). policy: record this campaign\'s own policy override.',
         },
         usd: { type: 'number', description: 'action=budget: new USD cap' },
         tokens: { type: 'number', description: 'action=budget: new token cap (what the provider actually meters)' },
@@ -250,6 +250,12 @@ export function registerTools(ctx, { runtime, config }) {
         text: { type: 'string', description: 'action=constraint|note: the text' },
         reason: { type: 'string', description: 'action=stop|enable|disable: why' },
         enabled: { type: 'boolean', description: 'action=autopilot: apply verified patches without waiting for a human.' },
+        policy: {
+          type: 'object',
+          description:
+            'action=policy: the campaign policy override, e.g. {"planMode":"off"} or {"minGain":0.2}. ' +
+            'Unknown keys or values are refused before anything is written.',
+        },
         guard: {
           type: 'string',
           description: 'action=autopilot: command run in the workspace after each applied patch; a non-zero exit rolls the patch back.',
@@ -287,6 +293,14 @@ export function registerTools(ctx, { runtime, config }) {
         // was interrupted, so nothing is silently rewritten.
         const aborted = runtime.abortCampaign ? runtime.abortCampaign(view.id) : 0
         if (aborted) runtime.append(view, 'campaign.aborted', { attempts: aborted }, 'human')
+      } else if (action === 'policy') {
+        // This action records the campaign's own terms; it returns the accepted
+        // override, not a state snapshot, because the lifecycle did not move.
+        const out = runtime.control(view.id, 'policy', { policy: args.policy }, 'human')
+        return {
+          ...out,
+          note: 'recorded as one campaign.policy event; the next round runs under it (reopen reads it back off the log)',
+        }
       } else {
         state = runtime.control(view.id, action, {
           usd: args.usd,

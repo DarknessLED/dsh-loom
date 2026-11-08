@@ -29,6 +29,53 @@ function num(x, fallback) {
   return Number.isFinite(n) ? n : fallback
 }
 
+/**
+ * The keys an operator may set on one campaign, and what counts as a value.
+ *
+ * This is deliberately a whitelist: a campaign's log is the evidence that "this
+ * campaign ran under different terms", so a key the loop cannot honour is a
+ * refused experiment, not a note beside one. `planModeFor`/`policyFor` in
+ * runtime/round.js are the readers; this table must stay in step with them.
+ */
+const OVERRIDE_RULES = {
+  planMode: { valid: (v) => PLAN_MODES.includes(v), why: PLAN_MODES.join(' | ') },
+  candidateMode: { valid: (v) => v === 'cascade' || v === 'parallel', why: 'cascade | parallel' },
+  minGain: { valid: (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1, why: 'number in [0, 1]' },
+  holdoutSlack: { valid: (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1, why: 'number in [0, 1]' },
+  candidates: { valid: (v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 4, why: 'integer in [1, 4]' },
+  knowledge: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
+  halving: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
+}
+
+const NUMERIC_OVERRIDES = new Set(['minGain', 'holdoutSlack'])
+
+/**
+ * Validate a campaign's own policy override, before anything is written.
+ *
+ * Returns the accepted object (numbers normalised) or throws an error that
+ * names the offending key. Nothing is coerced silently: `planMode:'sometimes'`
+ * must fail loudly, because an experiment that ran with the planner on when the
+ * operator asked for it off is worse than no experiment at all.
+ */
+export function validatePolicyOverride(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('policy override requires an object, e.g. {planMode:"off"}')
+  }
+  const keys = Object.keys(raw)
+  if (!keys.length) throw new Error('policy override requires at least one field')
+  const out = {}
+  for (const key of keys) {
+    const rule = OVERRIDE_RULES[key]
+    if (!rule) throw new Error(`unknown policy key: ${key}`)
+    const value = raw[key]
+    if (!rule.valid(value)) {
+      throw new Error(`invalid policy.${key}: ${JSON.stringify(value)} (expected ${rule.why})`)
+    }
+    out[key] = NUMERIC_OVERRIDES.has(key) ? Number(value) : key === 'candidates' ? Number(value) : value
+  }
+  return out
+}
+
 /** Coerce whatever a tool/model passed into a safe policy object. */
 export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
   const p = raw && typeof raw === 'object' ? raw : {}

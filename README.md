@@ -223,7 +223,7 @@ research/             三份调研报告（DSH 插件 API / Gear / Open Dream-RS
 `campaign.created` `campaign.status` `objective.updated` `constraint.added|removed` `budget.adjusted|spent`
 `chain.proposed|activated` `evalset.registered` `round.started|finished` `attempt.finished|abandoned`
 `candidate.proposed` `gate.evaluated` `artifact.promoted` `checkpoint.raised|answered` `note.added`
-`lesson.added|impact|quarantined` `policy.proposed|promoted`
+`lesson.added|impact|quarantined` `policy.proposed|promoted` `campaign.policy`（战役自己的策略覆盖，由 `rsi_control action:"policy"` 写入）
 
 监管产物（都在战役目录内，可删可重建）：
 - `leases/<attemptId>.json` — 这次尝试「本该在跑」的凭据；`state` ∈ running/done/abandoned/failed。重启时凡是 `running` 一律判为 `abandoned(host-restart)`。

@@ -292,6 +292,12 @@ function apply(s, ev) {
       }
       break
     }
+    case 'campaign.policy':
+      // The campaign's own terms, as `policyFor` reads them: bare keys, merged
+      // over whatever a promoted record already put here. A sibling campaign is
+      // untouched because this only folds the event into its own ledger state.
+      s.policy = { ...(s.policy || {}), ...(d.policy || {}) }
+      break
     case 'policy.proposed':
       s.policy = {
         version: Number(d.version) || 1,
