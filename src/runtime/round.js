@@ -203,6 +203,10 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
   // that it did so without reconnaissance instead of pretending the empty
   // findings were a considered answer.
   let planTimedOut = false
+  // Planning is the one call every round makes before anything can succeed, so
+  // it may run on its own model: `models.meta` when set, otherwise the worker
+  // model exactly as before. Candidates below never consult `meta`.
+  const planModel = config.models.meta || config.models.worker || null
   const nodes = preMapAgentNodes(chain)
   // One tree, one base commit: every node in this round is planned against the
   // same worktree branch point, so read it once for all of them.
@@ -222,6 +226,9 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
       durationMs: 0,
       sessionId: null,
       stopReason: null,
+      // The model this node actually planned with. Null until a dispatch
+      // happens: a reused plan was not planned by anyone in this round.
+      model: null,
       timedOut: false,
       error: null,
       summary: '',
@@ -285,12 +292,16 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
         // The node id alone does not say what kind of dispatch this was; the
         // "plan" marker does, and it is what a label is for.
         label: `loom:${state.id}:r${round}:plan:${id}`,
-        model: config.models.worker || null,
+        model: planModel,
       })
       const text = String(res?.text ?? '').trim()
       planText = text
       record.sessionId = res?.sessionId ?? null
       record.stopReason = res?.stopReason ?? null
+      // Record the model that actually planned. A dispatcher that reports the
+      // model it used is authoritative; otherwise the one we asked for is the
+      // only honest answer.
+      record.model = res?.model ?? planModel
       // The dispatcher reports a real timeout as `timedOut: true` (with
       // stopReason 'aborted'); a fake or a future dispatcher may say
       // 'timedOut' directly. Either spelling means the same thing here.
