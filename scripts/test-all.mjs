@@ -95,6 +95,11 @@ const standing = [
   'tests/tri11/plan-timeout.test.mjs',
   'tests/tri11/holdout-rotation.test.mjs',
   'tests/tri13/plan-model.test.mjs',
+  // knowledge is read the same way in every place that shows it, and an approval
+  // names the round it lands - a checkpoint that knows only its artifact path (an
+  // anomaly raised while applying a promotion) must not strand the round as open:
+  'tests/ui/knowledge-single-source.test.mjs',
+  'tests/landing-target.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

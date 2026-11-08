@@ -19,6 +19,7 @@ import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
 import { holdUntil } from '../runtime/hold.js'
 import { nextCheckpointId } from '../runtime/ids.js'
+import { landingTarget } from '../runtime/round.js'
 import { campaignQuality, qualityLine } from '../runtime/quality.js'
 import { reviewQueue } from '../runtime/review.js'
 
@@ -575,13 +576,13 @@ export function registerTools(ctx, { runtime, config }) {
             )
           }
         }
-        const attemptId = target.payload.attempt ?? target.payload.attemptId ?? null
-        const fromAttempt = /^r(\d+)a/.exec(String(attemptId ?? ''))
-        const round = Number.isFinite(Number(target.payload.round))
-          ? Number(target.payload.round)
-          : fromAttempt
-            ? Number(fromAttempt[1])
-            : null
+        // The checkpoint may not carry a round: an anomaly raised while applying a
+        // promotion knows the artifact path, not the round number. Resolve it from
+        // state (landingTarget) so the reducer can mark this round landed - else the
+        // selector keeps offering a task the campaign already solved.
+        const landing = landingTarget(view.state, target.payload)
+        const round = landing.round
+        const attemptId = landing.attemptId
         const commit = await commitWorkspace(
           view.state.workspace,
           `loom ${view.state.id}: apply approved promotion${round ? ` (round ${round})` : ''}`,

@@ -1733,6 +1733,56 @@ function projectRound(state, round) {
   }
 }
 
+/**
+ * Which round does an approved checkpoint belong to?
+ *
+ * A human approving a promotion must tell the reducer that the round landed, and
+ * the reducer finds the round by `n`. The anomaly checkpoint raised when a patch
+ * cannot be applied carries only the artifact path - the round number lives in
+ * the gate that chose the candidate - so reading `payload.round` alone writes
+ * `round: null`, the round never turns `landed`, and the selector keeps offering
+ * the task it already solved. Resolve it from the state instead: the round the
+ * gate marked as promoted, matched by artifact path when it is present.
+ *
+ * @param {{rounds?: Array<any>}} state
+ * @param {{patch?: string, round?: number|string, attempt?: string, attemptId?: string}} payload
+ * @returns {{round: number|null, attemptId: string|null}}
+ */
+export function landingTarget(state, payload = {}) {
+  const rounds = Array.isArray(state?.rounds) ? state.rounds : []
+  const attemptId = payload.attempt ?? payload.attemptId ?? null
+  const explicit = Number(payload.round)
+  if (Number.isFinite(explicit)) {
+    const known = rounds.find((r) => Number(r?.n) === explicit)
+    return { round: explicit, attemptId: attemptId ?? known?.promotedAttemptId ?? null }
+  }
+  const patch = typeof payload.patch === 'string' ? payload.patch : null
+  // An attempt id carries the round it ran in (`r2a1` is round 2, attempt a1).
+  // That is the cheapest and most reliable source when a human names the attempt.
+  const fromId = /^r(\d+)a/.exec(String(attemptId ?? ''))
+  if (fromId) {
+    const n = Number(fromId[1])
+    const known = rounds.find((r) => Number(r?.n) === n)
+    return { round: n, attemptId: attemptId ?? known?.promotedAttemptId ?? null }
+  }
+  if (patch) {
+    // The artifact path names the attempt; the gate named the round.
+    for (let i = rounds.length - 1; i >= 0; i -= 1) {
+      const r = rounds[i]
+      const chosen = r?.promotedAttemptId ?? null
+      if (chosen && patch.includes(`${chosen}.patch`)) return { round: Number(r.n), attemptId: chosen }
+      const hit = (Array.isArray(r?.attempts) ? r.attempts : []).find((a) => a && a.patch && String(a.patch) === patch)
+      if (hit) return { round: Number(r.n), attemptId: hit.id ?? chosen }
+    }
+  }
+  // Fall back to the most recent round the gate promoted but that never landed.
+  for (let i = rounds.length - 1; i >= 0; i -= 1) {
+    const r = rounds[i]
+    if (r?.promotedAttemptId && r.landed !== true) return { round: Number(r.n), attemptId: r.promotedAttemptId }
+  }
+  return { round: null, attemptId }
+}
+
 export function raiseCheckpoint(runtime, view, kind, payload) {
   const id = nextCheckpointId()
   runtime.append(view, 'checkpoint.raised', { id, kind, payload }, 'system')
