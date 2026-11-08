@@ -119,6 +119,7 @@ const standing = [
   'tests/balance/second-candidate.test.mjs',
   'tests/balance/second-candidate.test.mjs', "tests/balance/second-candidate-gate.test.mjs",
   'tests/ui/node-band.test.mjs',
+  'tests/ui/node-band.test.mjs', "tests/ui/node-band-render.test.mjs",
   // the planner can be switched off per policy and says which mode it ran in, and
   // a narrow sidebar keeps only the three cells that carry the answer:
   'tests/balance/plan-mode.test.mjs',
