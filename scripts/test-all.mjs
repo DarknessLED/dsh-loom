@@ -111,6 +111,9 @@ const standing = [
   'tests/lifecycle/dispatch-recovery.test.mjs',
   // the panel shows node attribution: newest round first, capped, Chinese labels:
   'tests/ui/node-attribution.test.mjs',
+  // a round whose attempts all died to a plugin re-apply is interrupted, not a
+  // measured zero:
+  'tests/lifecycle/dispose-recovery.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
