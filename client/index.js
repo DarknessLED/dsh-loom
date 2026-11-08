@@ -1179,6 +1179,100 @@ window.__ModuleLoader__.load({
       })
     }
 
+    /**
+     * One 8px band for a round: each *measured* node's share of the time.
+     *
+     * Research: `research/ui-refs-2026-11.md` P1. Chips answer "how long did each
+     * node take"; the band answers "where did the round go" in one glance, the way
+     * Grafana strips and GitHub's job bar do.
+     *
+     * The split uses the largest-remainder method so the parts sum to exactly 100
+     * percent: rounding each share on its own is how a bar ends up lying at 99 or
+     * 101, and the width is the argument. A node without a duration is counted in
+     * `unknown` and given no width at all - unknown is not zero seconds. When no
+     * node is measurable the function returns null, so the caller can omit the
+     * element instead of drawing an empty bar.
+     *
+     * @param {{nodes?: Array<object>}} [c] campaign payload with node rows
+     * @returns {{total: number, unknown: number, segments: Array<{key: string, label: string, ms: number, pct: number, tone: string, title: string}>}|null}
+     */
+    function nodeBand(c) {
+      var rows = c && Array.isArray(c.nodes) ? c.nodes : []
+      var measured = []
+      var unknown = 0
+      for (var i = 0; i < rows.length; i += 1) {
+        var n = rows[i]
+        var ms = amount(n && n.durationMs)
+        if (ms !== null && ms > 0) measured.push({ node: n, ms: ms, index: i })
+        else unknown += 1
+      }
+      if (!measured.length) return null
+
+      var total = 0
+      for (var m = 0; m < measured.length; m += 1) total += measured[m].ms
+
+      var shares = measured.map(function (x) {
+        return (x.ms / total) * 100
+      })
+      var pcts = shares.map(function (v) {
+        return Math.floor(v)
+      })
+      var used = 0
+      for (var u = 0; u < pcts.length; u += 1) used += pcts[u]
+
+      // Largest remainder: hand the missing points to the largest fractions first,
+      // ties in reading order, so the ordering never drifts with the sort.
+      var order = shares.map(function (v, idx) {
+        return { idx: idx, rest: v - Math.floor(v) }
+      }).sort(function (a, b) {
+        return b.rest - a.rest || a.idx - b.idx
+      })
+      var left = 100 - used
+      for (var o = 0; o < order.length && left > 0; o += 1) {
+        pcts[order[o].idx] += 1
+        left -= 1
+      }
+      // A 1px sliver must still be visible: no measured part may claim 0 percent.
+      // Take the point from the widest part, never from a segment already at one.
+      if (measured.length <= 100) {
+        for (var q = 0; q < pcts.length; q += 1) {
+          if (pcts[q] > 0) continue
+          var donor = 0
+          for (var d = 1; d < pcts.length; d += 1) if (pcts[d] > pcts[donor]) donor = d
+          if (pcts[donor] <= 1) break
+          pcts[donor] -= 1
+          pcts[q] += 1
+        }
+      }
+
+      var seen = {}
+      var segments = measured.map(function (x, j) {
+        var n = x.node
+        var id = n && n.id !== null && n.id !== undefined ? String(n.id) : 'node'
+        var key = id
+        // A node id repeats across rounds (recon runs every round); keep the keys
+        // unique for React without changing the id a reader can grep.
+        if (seen[key]) key = id + '#' + x.index
+        seen[key] = true
+        var role = n && n.role ? String(n.role) : ''
+        var label = role === 'planner' ? '规划' : role ? nodeLabel(role) : id
+        var lost = n && n.status === 'lost'
+        var took = nodeDuration(x.ms)
+        var title = label + (took ? ' ' + took : '') +
+          (n && n.round !== null && n.round !== undefined ? ' · 第 ' + n.round + ' 轮' : '') +
+          (n && n.status ? ' · ' + n.status : '')
+        return {
+          key: key,
+          label: label,
+          ms: x.ms,
+          pct: pcts[j],
+          tone: lost ? TONES.bad : n && n.status === 'done' ? TONES.ok : TONES.warn,
+          title: title,
+        }
+      })
+      return { total: total, unknown: unknown, segments: segments }
+    }
+
     /** Live attempts of one campaign, newest first, as the ids a person can grep. */
     function liveOf(data, campaign) {
       return ((data && data.live) || []).filter(function (a) {
@@ -2132,6 +2226,7 @@ window.__ModuleLoader__.load({
       budgetMeters: budgetMeters,
       attemptChips: attemptChips,
       nodeChips: nodeChips,
+      nodeBand: nodeBand,
       liveOf: liveOf,
       riskTone: riskTone,
       paintInk: paintInk,
