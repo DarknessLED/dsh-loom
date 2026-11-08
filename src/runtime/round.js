@@ -1118,6 +1118,23 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           })
         }
         if (retried) outcomeKind = runRes.failureKind ?? classifyResult(runRes)
+        // The round decides what counts as finished, not the dispatcher. A child
+        // that wakes up after `deadlineAt` and reports a completed turn has still
+        // missed its budget: promoting it would make the deadline advisory, and a
+        // stuck attempt could come back later and claim the round. Record a late
+        // "ok" as a timeout so the verifier's verdict cannot outrank the clock.
+        // Failures keep their own kind (exhaustion, a crash) instead of being
+        // relabelled after the fact.
+        if (Date.now() > deadlineAt && runRes.timedOut !== true && outcomeKind === 'ok') {
+          outcomeKind = 'timeout'
+          runRes = {
+            ...runRes,
+            timedOut: true,
+            stopReason: 'timedOut',
+            failureKind: 'timeout',
+            error: runRes.error ?? `attempt answered after its ${timeoutMs}ms deadline`,
+          }
+        }
         runtime.unwatchAttempt(attemptId)
         aborts.delete(attemptId)
         const stall = runtime.stallReason(attemptId)

@@ -50,8 +50,8 @@ export const DEFAULT_CONFIG = {
   session: {
     /** Force this agent preset for worker sessions (null = inherit). */
     preset: null,
-    /** Per-attempt wall clock cap. */
-    attemptTimeoutMs: 20 * 60_000,
+    /** Per-attempt wall clock cap. Ten minutes: measured attempts land in 250-700s. */
+    attemptTimeoutMs: 10 * 60_000,
     /**
      * Wall clock cap for the planning dispatch. Planning reads a few files and
      * names what will change; inheriting the attempt deadline let a wandering
