@@ -157,6 +157,40 @@ function resolveScriptCommand(command, cwd) {
 }
 
 /**
+ * cmd.exe consumes every double quote it parses, including quotes that are data
+ * inside a quoted argument. A verifier assembled by interpolation — a
+ * JSON.stringify'd path, a `node -e` snippet — therefore reaches the child with
+ * its string delimiters gone: at best a syntax error, at worst a command that
+ * passes for the wrong reason. Escape the quotes that sit *inside* the last
+ * quoted argument so the CRT hands them back to the child; the outer pair still
+ * groups the argument. Commands whose last quoted argument holds no interior
+ * quote, and every non-Windows host, are returned untouched.
+ * @param {string} command
+ * @returns {string}
+ */
+function escapeNestedQuotes(command) {
+  if (process.platform !== 'win32') return command
+  const close = command.lastIndexOf('"')
+  if (close < 0) return command
+  // The opening quote is the nearest preceding one that starts an argument: at
+  // the beginning of the command or right after whitespace. Quotes that merely
+  // close an earlier argument are not candidates.
+  let open = -1
+  for (let i = close - 1; i >= 0; i -= 1) {
+    if (command[i] !== '"') continue
+    if (i === 0 || /\s/.test(command[i - 1])) {
+      open = i
+      break
+    }
+  }
+  if (open < 0) return command
+  const inner = command.slice(open + 1, close)
+  if (!inner.includes('"')) return command
+  const escaped = inner.replace(/(^|[^\\])"/g, '$1\\"')
+  return `${command.slice(0, open + 1)}${escaped}${command.slice(close)}`
+}
+
+/**
  * @param {{cmd: string, cwd?: string, timeoutMs?: number,
  *          metrics?: Record<string, {pattern: string, group?: number}>}} spec
  * @param {{cwd: string, timeoutMs?: number, env?: Record<string,string>}} opts
@@ -198,7 +232,7 @@ export async function runVerifier(spec, opts = {}) {
   let signal = null
   let timedOut = false
 
-  const child = spawn(resolveScriptCommand(command, cwd), {
+  const child = spawn(escapeNestedQuotes(resolveScriptCommand(command, cwd)), {
     shell: true,
     cwd,
     env,

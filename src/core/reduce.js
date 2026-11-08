@@ -105,7 +105,7 @@ function apply(s, ev) {
         Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t, promoted: d.promoted === true })
         // Triangle accounting travels with the round so a reader never has to
         // re-derive it from attempt timings that older ledgers do not carry.
-        for (const key of ['durationMs', 'planMs', 'holdoutMs', 'holdoutRuns', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates']) {
+        for (const key of ['durationMs', 'planMs', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }

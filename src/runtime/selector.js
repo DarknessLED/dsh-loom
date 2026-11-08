@@ -15,7 +15,10 @@ export function bestScores(rounds) {
     // A task only counts as solved when the work that solved it actually
     // reached the workspace — a 1.0 in a discarded worktree is not progress.
     if (round?.landed !== true) continue
-    for (const attempt of round?.attempts ?? []) {
+    // A projected ledger entry may carry the attempt *count* instead of the
+    // attempts themselves (a summary view, an older ledger), so read it only
+    // when it is the list it claims to be rather than throwing mid-selection.
+    for (const attempt of Array.isArray(round?.attempts) ? round.attempts : []) {
       if (attempt?.screenedOut || attempt?.abandoned) continue
       if (attempt?.verifierOk !== true) continue
       if (!Number.isFinite(attempt?.score)) continue

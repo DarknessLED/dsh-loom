@@ -73,7 +73,9 @@ export function bestPriorScore(rounds, taskId, beforeRound) {
     // rollback); treating that as "task solved" would freeze the campaign on a
     // task the workspace still fails.
     if (r.landed !== true) continue
-    for (const a of r.attempts || []) {
+    // A summary entry may carry the attempt *count* where the ledger carries the
+    // attempts; reading it as a list would throw and take the whole round down.
+    for (const a of Array.isArray(r.attempts) ? r.attempts : []) {
       if (!a || a.screenedOut || a.abandoned) continue
       if (r.promotedAttemptId && a.id !== r.promotedAttemptId) continue
       const s = Number(a.score)
@@ -324,7 +326,9 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
 function lastFailure(state) {
   const prev = state.rounds[state.rounds.length - 1]
   if (!prev) return null
-  const failed = (prev.attempts || []).filter((a) => !a.verifierOk)
+  // A summary entry may carry the attempt count rather than the attempts, so
+  // read it only when it is the list it claims to be.
+  const failed = (Array.isArray(prev.attempts) ? prev.attempts : []).filter((a) => !a.verifierOk)
   if (!failed.length) return null
   const worst = failed[failed.length - 1]
   const detail = worst.reportError || worst.error || worst.stdoutTail || worst.agentTail || ''
@@ -1299,32 +1303,48 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // as pure candidate work, and the loop looks slower than it is.
     let holdoutMs = 0
     let holdoutRuns = 0
+    // One holdout per round, round-robin. Running the whole pool every round
+    // turns the holdout into a second spec the loop can quietly learn: today's
+    // promotion was gated on exactly the tests it was measured against, round
+    // after round. The index counts *distinct prior round numbers* rather than
+    // `state.rounds.length`: the reducer already holds the current round
+    // (`round.started`), and an embedder may re-project one, so a length is off
+    // by one in exactly the paths that matter while `n` itself can skip
+    // (budget rounds never create a round). Distinct `n < this n` is stable in
+    // both: 0 prior rounds picks the first, each new round advances the pool.
     const heldOut = holdoutTasks(state)
-    if (heldOut.length) {
+    const priorRounds = new Set()
+    for (const round of state.rounds || []) {
+      const prior = Number(round?.n)
+      if (Number.isFinite(prior) && prior < n) priorRounds.add(prior)
+    }
+    const holdoutPick = heldOut.length ? heldOut[priorRounds.size % heldOut.length] : null
+    // `round.finished` names the task that actually ran: the status alone would
+    // say `holdout-failed` without saying which pool entry caught the patch.
+    const holdoutId = holdoutPick ? String(holdoutPick.id) : null
+    if (holdoutPick) {
       const holdoutStartedAt = Date.now()
       checks.holdout = true
       if (!best?.worktree || best.screenedOut) {
         checks.holdout = false
         holdoutFailures.push({
-          task: heldOut[0]?.id ?? null,
+          task: holdoutId,
           detail: 'the winning candidate had no worktree in which to run the holdout',
         })
       } else {
-        for (const h of heldOut) {
-          let result
-          // Counted before the attempt so a verifier that throws is still a run.
-          holdoutRuns += 1
-          try {
-            result = await runVerifier(h.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
-          } catch (err) {
-            result = { ok: false, stderr: String(err?.message ?? err) }
-          }
-          if (result.ok !== true) {
-            checks.holdout = false
-            const output = String(result.stderr || result.stdout || '')
-            holdoutFailures.push({ task: String(h.id), detail: output.slice(-400) })
-            log(`holdout task ${h.id} failed in ${best.worktree}: ${output.slice(-400)}`)
-          }
+        let result
+        // Counted before the attempt so a verifier that throws is still a run.
+        holdoutRuns += 1
+        try {
+          result = await runVerifier(holdoutPick.verify, { cwd: best.worktree, timeoutMs: config.verify?.timeoutMs, env: verifierEnv })
+        } catch (err) {
+          result = { ok: false, stderr: String(err?.message ?? err) }
+        }
+        if (result.ok !== true) {
+          checks.holdout = false
+          const output = String(result.stderr || result.stdout || '')
+          holdoutFailures.push({ task: holdoutId, detail: output.slice(-400) })
+          log(`holdout task ${holdoutId} failed in ${best.worktree}: ${output.slice(-400)}`)
         }
       }
       holdoutMs = Math.max(0, Date.now() - holdoutStartedAt)
@@ -1426,7 +1446,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -1693,6 +1713,7 @@ function projectRound(state, round) {
     score: round.score ?? r.score ?? null,
     promoted: round.promoted === true,
     endedAt: Date.now(),
+    ...(round.holdoutId != null ? { holdoutId: round.holdoutId } : {}),
   })
   if (!Array.isArray(r.attempts)) r.attempts = []
   const seen = new Set(r.attempts.map((a) => a?.id))
