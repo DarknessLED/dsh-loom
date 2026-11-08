@@ -776,35 +776,93 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The knowledge tree, as the loop actually uses it: what it learned, where
-     * from, and how much that lesson has earned or cost. Grouped by kind,
-     * because "hazard" and "recipe" are read differently.
+     * The one place that decides which lessons the panel has, and in what order.
+     * Two views read it: the section groups by kind and caps at four (a section
+     * can afford four), and each campaign's tree takes the top three of the
+     * same rows (it sits inside a card). The caps differ on purpose; the order
+     * and the corpus must not. `byCampaign` keeps every lesson, uncapped, so a
+     * projection never has to re-derive what "first" means.
      */
-    function knowledge(data) {
+    function lessonKind(kind) {
+      return kind === 'hazard' || kind === 'recipe' ? kind : 'fact'
+    }
+
+    function knowledgeOf(data) {
       var rows = (data && data.campaigns) || []
       var groups = { fact: [], hazard: [], recipe: [] }
+      var byCampaign = {}
       var active = 0
       var quarantined = 0
+      var rank = 0
       for (var i = 0; i < rows.length; i += 1) {
         var c = rows[i]
+        // A campaign that failed to load has no lessons to show; carrying its
+        // error row into the corpus would invent lessons it never had.
         if (!c || c.error) continue
         active += num(c.lessons)
         quarantined += num(c.quarantined)
         var top = c.lessonsTop || []
+        var pending = []
         for (var j = 0; j < top.length; j += 1) {
-          var l = top[j]
-          var kind = l.kind === 'hazard' || l.kind === 'recipe' ? l.kind : 'fact'
-          groups[kind].push({ campaign: c.id, id: l.id, claim: l.claim, score: num(l.score) })
+          var l = top[j] || {}
+          pending.push({
+            campaign: c.id,
+            id: l.id,
+            claim: l.claim,
+            kind: lessonKind(l.kind),
+            score: num(l.score),
+            at: j,
+          })
         }
+        // Score-descending, and the insertion index is the tiebreak: two
+        // lessons with the same score keep the order the host sent them in,
+        // so every view reads the same "first".
+        pending.sort(function (a, b) {
+          return b.score - a.score || a.at - b.at
+        })
+        var ordered = []
+        for (var k = 0; k < pending.length; k += 1) {
+          var lesson = {
+            campaign: pending[k].campaign,
+            id: pending[k].id,
+            claim: pending[k].claim,
+            kind: pending[k].kind,
+            score: pending[k].score,
+          }
+          ordered.push(lesson)
+          // rank records corpus order across campaigns; the kind groups are a
+          // stable re-sort of the very same rows.
+          groups[lesson.kind].push({ row: lesson, rank: rank })
+          rank += 1
+        }
+        byCampaign[c.id] = ordered
       }
       var kinds = []
       for (var key in groups) {
-        var items = groups[key].sort(function (a, b) {
-          return b.score - a.score || (a.id < b.id ? -1 : 1)
+        var bucket = groups[key]
+        if (!bucket.length) continue
+        bucket.sort(function (a, b) {
+          return b.row.score - a.row.score || a.rank - b.rank
         })
-        if (items.length) kinds.push({ kind: key, label: kindLabel(key), items: items.slice(0, 4), total: items.length })
+        var items = []
+        for (var t = 0; t < bucket.length && t < 4; t += 1) items.push(bucket[t].row)
+        kinds.push({ kind: key, label: kindLabel(key), items: items, total: bucket.length })
       }
-      return { active: active, quarantined: quarantined, kinds: kinds }
+      return { active: active, quarantined: quarantined, kinds: kinds, byCampaign: byCampaign }
+    }
+
+    /**
+     * The section is a projection of the corpus, never a second pass: same
+     * grouping, same order, same objects.
+     */
+    function knowledge(data) {
+      var corpus = knowledgeOf(data)
+      return {
+        active: corpus.active,
+        quarantined: corpus.quarantined,
+        kinds: corpus.kinds,
+        byCampaign: corpus.byCampaign,
+      }
     }
 
     /** The chain as a single readable thread: the shape of this loop's work. */
@@ -1185,14 +1243,21 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function lessonsNode(c) {
-      var top = c.lessonsTop || []
-      if (!top.length) return null
+    function lessonsNode(c, corpus) {
+      if (!c) return null
+      // The tree is the same ordered list, capped at three. Callers that already
+      // have the corpus pass it in; callers that only have the campaign row get
+      // the identical order from the same function.
+      var ordered =
+        (corpus && corpus.byCampaign && corpus.byCampaign[c.id]) ||
+        knowledgeOf({ campaigns: [c] }).byCampaign[c.id] ||
+        []
+      if (!ordered.length) return null
       return {
         key: 'lessons',
         label: '知识',
         meta: String(num(c.lessons)),
-        children: top.slice(0, 3).map(function (l) {
+        children: ordered.slice(0, 3).map(function (l) {
           return {
             key: 'l-' + l.id,
             kind: kindLabel(l.kind),
@@ -1204,7 +1269,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function treeOf(c, live) {
+    function treeOf(c, live, corpus) {
       var nodes = []
       var round = lastRoundNode(c)
       if (round) nodes.push(round)
@@ -1212,7 +1277,7 @@ window.__ModuleLoader__.load({
       if (waiting) nodes.push(waiting)
       var flying = liveNode(c, live)
       if (flying) nodes.push(flying)
-      var learned = lessonsNode(c)
+      var learned = lessonsNode(c, corpus)
       if (learned) nodes.push(learned)
       return nodes
     }
@@ -1678,6 +1743,7 @@ window.__ModuleLoader__.load({
                 return h(CardView, {
                   key: c.id,
                   c: c,
+                  all: tree,
                   live: liveOf(data, c.id),
                   busy: box.busy,
                   act: act,
@@ -1818,7 +1884,7 @@ window.__ModuleLoader__.load({
           meta.join(' · '),
         )
 
-        var rows = flattenTree(treeOf(c, live), 1, [])
+        var rows = flattenTree(treeOf(c, live, props.all), 1, [])
 
         var treeRows = rows.map(function (row) {
           var parts = []
@@ -2014,6 +2080,8 @@ window.__ModuleLoader__.load({
       hitProps: hitProps,
       switchProps: switchProps,
       knowledge: knowledge,
+      knowledgeOf: knowledgeOf,
+      lessonsNode: lessonsNode,
       chainPath: chainPath,
       campaignMeta: campaignMeta,
       triangleChips: triangleChips,
