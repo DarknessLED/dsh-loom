@@ -266,10 +266,24 @@ export function policyFor({ config, campaign } = {}) {
  * Whether a round buys the chain's pre-map planning stage.
  *
  * `'off'` and `'full'` are decided by the policy itself; only `'auto'` reads
- * history, and it stops planning when the planner timed out in each of the
- * previous two rounds. One timeout is a bad day, two in a row is a pattern
- * worth defunding. Missing or short history is not evidence of a timeout, and
- * an unrecognised mode is not a reason to change behaviour, so both plan.
+ * history. A timeout alone is not evidence against planning — the round may
+ * have lost *because* nobody finished the plan, and blaming the plan for a loss
+ * it never got the chance to prevent is exactly how a useful step gets defunded
+ * for the wrong reason. The only rounds that prove planning is not
+ * load-bearing are the ones that won while the planner never finished, so
+ * `'auto'` requires `planTimedOut === true` **and** `promoted === true` in each
+ * of the previous two rounds. One such win is a bad day; two in a row is a
+ * pattern worth defunding.
+ *
+ * A finished plan is not evidence however the round ended, a mixed record
+ * (one win, one loss) is not a pattern, and missing or short history is not
+ * evidence at all: all of those keep planning on. An explicit `'off'`/`'full'`
+ * always wins over the record.
+ *
+ * Rounds recorded before `promoted` existed carry only `status`; without the
+ * field they cannot be judged on wins, so they keep the earlier timeout-only
+ * rule instead of being read as losses. Every round written by `runRound` now
+ * carries `promoted`, so current ledgers always take the win-aware path.
  */
 export function planModeFor(rounds, policy) {
   const mode = policy?.planMode
@@ -278,7 +292,15 @@ export function planModeFor(rounds, policy) {
   const history = Array.isArray(rounds) ? rounds : []
   if (history.length < 2) return 'full'
   const [prev, last] = history.slice(-2)
-  return prev?.planTimedOut === true && last?.planTimedOut === true ? 'off' : 'full'
+  const timedOut = (r) => r?.planTimedOut === true
+  const won = (r) => r?.promoted === true
+  // A ledger that predates `promoted` cannot say whether a timed-out round won;
+  // fall back to the timeout-only rule those records were judged by, rather than
+  // treating "unrecorded" as "lost".
+  if ([prev, last].some((r) => typeof r?.promoted !== 'boolean')) {
+    return timedOut(prev) && timedOut(last) ? 'off' : 'full'
+  }
+  return timedOut(prev) && won(prev) && timedOut(last) && won(last) ? 'off' : 'full'
 }
 
 /**

@@ -124,6 +124,8 @@ export function campaignTriangle(rounds) {
   let promoted = 0
   let noGain = 0
   let finished = 0
+  let hedgeRefused = 0
+  let hedgePlanned = 0
   for (const r of list) {
     const wall = num(r.durationMs)
     if (wall > 0) {
@@ -149,6 +151,20 @@ export function campaignTriangle(rounds) {
       measuredTokens += 1
     }
     usd += num(r.costUsd ?? r.usd)
+    // The second candidate is a decision the round made about itself, so it is
+    // counted per round: a priced refusal (admit false) is a decision not to buy
+    // the hedge, an accepted one is a decision to buy it. A round with no priced
+    // decision is not counted here; it is planned only when it budgeted two
+    // candidates, which includes the one a sibling's win later aborted - the
+    // money was committed either way. A round that decided neither way is left
+    // out of both counts so silence cannot be averaged in as a refusal.
+    const decision = r.secondCandidate
+    if (decision && typeof decision.admit === 'boolean') {
+      if (decision.admit) hedgePlanned += 1
+      else hedgeRefused += 1
+    } else if (num(r.candidatesPlanned) >= 2) {
+      hedgePlanned += 1
+    }
     if (r.status && r.status !== 'running') {
       finished += 1
       if (r.promoted === true) promoted += 1
@@ -169,6 +185,17 @@ export function campaignTriangle(rounds) {
   const parallelFactor = ratio(attemptMs, durationMs)
   const attemptWindowMs =
     timed === 0 || planningMs === null ? null : Math.max(0, durationMs - planningMs - holdoutMs)
+  // Hedging: how much of the campaign's candidate time the first candidate made
+  // unnecessary. Both halves are decisions, so the share is over rounds that
+  // decided, and a campaign that never decided reports null instead of 0% (a
+  // zero would read as "refused every time", which is a different claim).
+  const hedgeDecisions = hedgeRefused + hedgePlanned
+  const hedge = {
+    refused: hedgeRefused,
+    planned: hedgePlanned,
+    refusedShare:
+      hedgeDecisions > 0 ? Math.round((hedgeRefused / hedgeDecisions) * 1000) / 1000 : null,
+  }
   return {
     rounds: finished,
     timedRounds: timed,
@@ -187,6 +214,7 @@ export function campaignTriangle(rounds) {
     // quality
     promotionRate: ratio(promoted, finished),
     noGainRate: ratio(noGain, finished),
+    hedge,
     attemptsPerRound: ratio(
       list.reduce((sum, r) => sum + num(r.attemptCount ?? (Array.isArray(r.attempts) ? r.attempts.length : 0)), 0),
       finished,
