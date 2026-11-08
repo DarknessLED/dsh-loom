@@ -15,7 +15,7 @@ export const DEFAULT_CONFIG = {
     holdoutReuse: 3,
   },
   checkpoint: {
-    on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout', 'stuck'],
+    on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout', 'stuck', 'exhausted'],
     /** "HH:MM-HH:MM" local quiet window; checkpoints are batched until it ends. */
     quietHours: null,
     batch: true,
@@ -107,10 +107,12 @@ export const DEFAULT_CONFIG = {
    * `candidateMode` always outranks the inference.
    *
    * `planMode` decides whether a round buys the chain's pre-map planning stage:
-   * `'full'` (the default) always plans, `'off'` never does, and `'auto'` stops
-   * planning only after the planner timed out in the previous two rounds.
+   * `'auto'` (the default) plans unless the record says otherwise, `'full'`
+   * always plans, `'off'` never does. `'auto'` stops planning only after the
+   * planner timed out on the previous two rounds *and* both of those rounds
+   * were promoted — a timed-out plan in a loss proves nothing about planning.
    */
-  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false, planMode: 'full' },
+  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false, planMode: 'auto' },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }
