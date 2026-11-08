@@ -196,6 +196,13 @@ window.__ModuleLoader__.load({
       // A measured zero is a neutral baseline tick, not a verdict-coloured bar:
       // it must be visible, and it must not be mistaken for an unscored slot.
       '.loom-spark .pt[data-zero="true"]{background:var(--loom-line2);border-radius:0}',
+      // The round as one 8px band: each measured node's share of the time, in
+      // reading order. The track has no gap on purpose - the segment widths are
+      // percentages that must add up to 100, and a gap would make the bar
+      // overflow the frame it is supposed to fill exactly.
+      '.loom-band{margin-top:7px;display:flex;width:100%;height:8px;border-radius:2px;',
+      ' background:var(--loom-line);overflow:hidden}',
+      '.loom-band-seg{display:block;height:100%;flex:0 0 auto;background:var(--loom-faint)}',
       '.loom-meters{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}',
       '.loom-meter{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0}',
       '.loom-meter .k{font-size:9px;line-height:1;letter-spacing:.04em;color:var(--loom-faint);white-space:nowrap}',
@@ -1286,6 +1293,37 @@ window.__ModuleLoader__.load({
       return { total: total, unknown: unknown, segments: segments }
     }
 
+    /**
+     * The band's one spoken sentence: what it is, where the time went, and how
+     * many nodes nobody measured. `unknown` is a count, not a zero-width
+     * segment, so it is said out loud instead of drawn as "no time spent".
+     */
+    function bandLabel(band) {
+      var parts = []
+      for (var i = 0; i < band.segments.length; i += 1) {
+        parts.push(band.segments[i].label + ' ' + band.segments[i].pct + '%')
+      }
+      var label = '节点耗时占比：' + parts.join(' · ')
+      if (band.unknown > 0) label += '；另有 ' + band.unknown + ' 个节点未测量'
+      return label
+    }
+
+    /**
+     * One segment's inline geometry. React wants the `style` prop to be an
+     * object, while the spec reads `String(props.style)` as CSS text, so the
+     * object carries a non-enumerable `toString` that spells the declarations
+     * out. Non-enumerable on purpose: React walks the style object's own keys,
+     * and a visible `toString` there would be sent to the CSSOM as a property.
+     */
+    function bandSegStyle(pct, tone) {
+      var style = { width: pct + '%', background: tone }
+      Object.defineProperty(style, 'toString', {
+        value: function () { return 'width:' + pct + '%;background:' + tone },
+        enumerable: false,
+      })
+      return style
+    }
+
     /** Live attempts of one campaign, newest first, as the ids a person can grep. */
     function liveOf(data, campaign) {
       return ((data && data.live) || []).filter(function (a) {
@@ -1999,6 +2037,7 @@ window.__ModuleLoader__.load({
         var spark = sparkOf(c)
         var meters = budgetMeters(c)
         var nodeKids = nodeChips(c)
+        var band = nodeBand(c)
 
         var triKids = []
         tri.forEach(function (chip, i) {
@@ -2025,6 +2064,29 @@ window.__ModuleLoader__.load({
                 'data-zero': bar.zero ? 'true' : 'false',
                 title: bar.title,
                 style: { height: bar.px + 'px' },
+              })
+            }),
+          )
+          : null
+
+        // Where the round went, in one glance: one segment per key the host
+        // actually measured. No node measured means no element at all - the
+        // element is the claim, and an empty 8px track claims "no time spent".
+        var bandNode = band
+          ? h(
+            'div',
+            {
+              className: 'loom-band',
+              role: 'img',
+              'aria-label': bandLabel(band),
+              title: bandLabel(band),
+            },
+            band.segments.map(function (seg) {
+              return h('span', {
+                key: seg.key,
+                className: 'loom-band-seg',
+                title: seg.title,
+                style: bandSegStyle(seg.pct, seg.tone),
               })
             }),
           )
@@ -2131,6 +2193,7 @@ window.__ModuleLoader__.load({
             }))),
             when(chain, h('div', { className: 'loom-chain', title: chain }, chain)),
           ),
+          bandNode,
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
           h(
             'div',
