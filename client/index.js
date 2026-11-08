@@ -214,8 +214,13 @@ window.__ModuleLoader__.load({
       // SVG: the shape is structure, not decoration, so it is one pseudo
       // element per row.
       '.loom-tree{margin-top:7px;position:relative}',
-      '.loom-node{position:relative;display:flex;align-items:baseline;gap:6px;min-width:0;',
-      ' padding:3px 0 3px 18px;transition:background 150ms var(--loom-ease)}',
+      // A checkpoint row can carry three buttons (approve / reject / snooze) and
+      // a signature-like value; at 320px they do not fit on one line, and a row
+      // that cannot wrap pushes the buttons outside the panel where overflow-x
+      // clips them - visible nowhere and clickable nowhere. So the row wraps, and
+      // the actions keep their own line rather than being squeezed to nothing.
+      '.loom-node{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;min-width:0;',
+      ' row-gap:2px;padding:3px 0 3px 18px;transition:background 150ms var(--loom-ease)}',
       '.loom-node:hover{background:var(--loom-hover)}',
       '.loom-node[data-depth="1"]:before{content:"";position:absolute;left:6px;top:0;bottom:0;width:1px;',
       ' background:var(--loom-line)}',
@@ -231,7 +236,7 @@ window.__ModuleLoader__.load({
       ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-node .t.mono{font-family:var(--loom-mono);font-size:10.5px}',
       '.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
-      '.loom-node .acts{flex:0 0 auto;display:flex;gap:2px}',
+      '.loom-node .acts{flex:0 1 auto;display:flex;flex-wrap:wrap;gap:2px;margin-left:auto;min-width:0}',
       '.loom-node .acts .loom-btn{font-size:10.5px;padding:2px 5px}',
       // 检查点解释换行显示：读者不必 hover 才知道这一行是什么、不管会怎样。
       '.loom-node .help{flex:1 0 100%;font-size:10px;line-height:1.45;color:var(--loom-faint);white-space:normal}',

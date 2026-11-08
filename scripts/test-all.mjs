@@ -43,6 +43,9 @@ const standing = [
   'tests/chaos2/recover-idempotent.test.mjs',
   // the master switch must never move campaign history
   'tests/switch/switch.test.mjs',
+  // the loop control is a switch, and the money is labelled truthfully
+  'tests/ui/a11y.test.mjs',
+  'tests/ui/cost-honest.test.mjs',
   // the triangle's first two solved specs: a second candidate with a
   // byte-identical patch must not re-spawn the verifier, and a round the budget
   // cannot afford must not be dispatched.

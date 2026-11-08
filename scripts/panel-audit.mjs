@@ -120,7 +120,7 @@ const AUDIT = `
     }
     return false;
   }
-  var out = { canvases: [], truncated: 0, clipped: [], contrast: [], shadows: 0, fonts: {}, dots: 0 };
+  var out = { canvases: [], truncated: 0, clipped: [], overright: [], contrast: [], shadows: 0, fonts: {}, dots: 0 };
   var canvases = document.querySelectorAll('.canvas');
   for (var i = 0; i < canvases.length; i++) {
     var cv = canvases[i];
@@ -145,6 +145,23 @@ const AUDIT = `
       knowledgeColumns: tracks('.loom-kgrid'),
       dividers: cv.querySelectorAll('.loom-head, .loom-metrics, .loom-row, .loom-camp, .loom-foot').length
     });
+    // A child that reaches past the panel's right edge is not a scrollbar: the
+    // panel clips it (overflow-x:hidden), so the text or the button simply is not
+    // there any more. scrollWidth cannot see it, which is how three checkpoint
+    // buttons once became invisible at 320px while the audit stayed green.
+    var panelRight = panel.getBoundingClientRect().right;
+    var beyond = [];
+    panel.querySelectorAll('*').forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      var over = Math.round(r.right - panelRight);
+      if (over > 1) beyond.push(over);
+      if (over > 1) {
+        var cls = String(el.className || el.tagName);
+        var txt = (el.textContent || '').trim().slice(0, 20);
+        out.overright.push(name + ' ' + cls + ' +' + over + 'px "' + txt + '"');
+      }
+    });
+    out.canvases[out.canvases.length - 1].overright = beyond.length;
     var all = panel.querySelectorAll('*');
     for (var j = 0; j < all.length; j++) {
       var el = all[j];
@@ -215,7 +232,7 @@ const data = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').repl
 for (const c of data.canvases) {
   console.log(
     `${c.name.padEnd(10)} ${String(c.panelWidth).padStart(3)}px wide · scroller ${c.scroller}px${c.scrolls ? ' (scrolls)' : ' (fits)'} · ` +
-      `${c.hScroll ? 'HORIZONTAL OVERFLOW' : 'no h-overflow'} · ${c.dividers} hairlines · ` +
+      `${c.hScroll ? 'HORIZONTAL OVERFLOW' : 'no h-overflow'} · ${c.overright ? c.overright + ' clipped' : 'nothing clipped'} · ${c.dividers} hairlines · ` +
       `${c.cardColumns} card column(s) · ${c.knowledgeColumns} knowledge column(s)`,
   )
 }
@@ -225,6 +242,7 @@ console.log(`shadows: ${data.shadows} · state dots: ${data.dots} (one shadow ea
 
 const problems = []
 if (data.canvases.some((c) => c.hScroll)) problems.push('a canvas scrolls horizontally')
+if (data.overright.length) problems.push('nodes reach past the panel edge and are clipped away:\n  ' + data.overright.slice(0, 8).join('\n  '))
 if (data.clipped.length) problems.push('unclipped overflow: ' + data.clipped.slice(0, 6).join(', '))
 if (data.contrast.length) problems.push('contrast below floor:\n  ' + data.contrast.slice(0, 10).join('\n  '))
 if (data.shadows > data.canvases.length) problems.push(`too many shadows (${data.shadows} across ${data.canvases.length} canvases)`)
