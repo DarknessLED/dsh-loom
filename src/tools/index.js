@@ -181,7 +181,16 @@ export function registerTools(ctx, { runtime, config }) {
       'Cheap; safe to call often.',
     parameters: {
       type: 'object',
-      properties: { id: ID },
+      properties: {
+        id: ID,
+        detail: {
+          type: 'string',
+          enum: ['compact', 'full'],
+          description:
+            "Default 'compact': each attempt is reduced to id, score, verifierOk, failureKind, abandoned, durationMs. " +
+            "'full' returns the untouched record (reports and tails included) when the transcript itself is the question.",
+        },
+      },
       additionalProperties: false,
     },
     output: output(),
@@ -191,23 +200,31 @@ export function registerTools(ctx, { runtime, config }) {
       const all = runtime.listCampaigns()
       if (!args.id && all.length !== 1) {
         if (!all.length) throw new Error('no campaigns yet — call rsi_start first')
-        return {
-          campaigns: all.map((id) => brief(runtime.get(id).state)),
-          live: runtime.liveAttempts(),
-        }
+        // Same reduction as the single-campaign view: a status is cheap
+        // whichever door it is read through.
+        return compactStatus(
+          {
+            campaigns: all.map((id) => brief(runtime.get(id).state)),
+            live: runtime.liveAttempts(),
+          },
+          { detail: args.detail },
+        )
       }
       const id = args.id ? String(args.id) : all[0]
       // Rank the open decisions so the most dangerous one is read first; the
       // status view already carries the checkpoints, so no extra ledger read.
       const pending = reviewQueue(runtime.status(id))
-      return compactStatus({
-        ...runtime.status(id),
-        live: runtime.liveAttempts(),
-        pendingReviews: pending,
-        reviewLines: pending.map(
-          (r) => `[${r.risk}] ${r.id} (${r.kind}) — ${r.summary} → ${r.recommendation}`,
-        ),
-      })
+      return compactStatus(
+        {
+          ...runtime.status(id),
+          live: runtime.liveAttempts(),
+          pendingReviews: pending,
+          reviewLines: pending.map(
+            (r) => `[${r.risk}] ${r.id} (${r.kind}) — ${r.summary} → ${r.recommendation}`,
+          ),
+        },
+        { detail: args.detail },
+      )
     },
   })
 

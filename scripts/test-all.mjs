@@ -87,6 +87,11 @@ const standing = [
   // and every checkpoint explains itself
   'tests/tri7/adaptive-cascade.test.mjs',
   'tests/ui/checkpoint-help.test.mjs',
+  // a failed read explains itself instead of printing a raw error, a live
+  // campaign is never called "empty", and the status is compact by default:
+  // once solved these are pins, so a promotion cannot delete the guard.
+  'tests/ui/error-state.test.mjs',
+  'tests/tri10/status-compact.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
