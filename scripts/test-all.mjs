@@ -118,6 +118,10 @@ const standing = [
   // round as one band instead of five chips:
   'tests/balance/second-candidate.test.mjs',
   'tests/ui/node-band.test.mjs',
+  // the planner can be switched off per policy and says which mode it ran in, and
+  // a narrow sidebar keeps only the three cells that carry the answer:
+  'tests/balance/plan-mode.test.mjs',
+  'tests/ui/metrics-priority.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))
