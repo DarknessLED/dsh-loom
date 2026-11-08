@@ -212,6 +212,57 @@ function workerNodeId(chain) {
 }
 
 /**
+ * The policy a round actually runs under: the campaign's own override, over the
+ * loader config, over the built-in default.
+ *
+ * A campaign is the experiment, so it must be able to state its own terms
+ * ("this one runs without the planner") in its own log instead of editing the
+ * profile config and restarting the host — that would make every A/B
+ * comparison a different build. `campaign.policy` therefore wins, but only
+ * when the value is one this loop understands: a typo (`planMode: 'sometimes'`)
+ * is a *rejected* override, reported by name, not silently ignored. Silently
+ * accepting it would let a broken experiment pass as a successful one.
+ *
+ * Each value records where it came from (`campaign` / `config` / `default`) so
+ * a reader can tell a deliberate override from an inherited setting.
+ */
+export function policyFor({ config, campaign } = {}) {
+  const loop = config?.loopPolicy && typeof config.loopPolicy === 'object' ? config.loopPolicy : {}
+  const raw = campaign?.policy
+  // A campaign's policy is usually the promoted record (`{status, version,
+  // policy:{...}}`); a bare override (`{planMode:'off'}`) is the same thing
+  // without the bookkeeping, so accept both instead of demanding one shape.
+  const over = raw && typeof raw === 'object' ? (raw.policy && typeof raw.policy === 'object' ? raw.policy : raw) : {}
+  const rejected = []
+  const sources = {}
+  // Unknown values are rejected by name; the field then falls back to the
+  // config (and, when the config has nothing usable either, to the default).
+  const decide = (key, fromCampaign, fromConfig, valid, fallback) => {
+    if (fromCampaign !== undefined && fromCampaign !== null) {
+      if (valid(fromCampaign)) {
+        sources[key] = 'campaign'
+        return fromCampaign
+      }
+      rejected.push(key)
+    }
+    if (fromConfig !== undefined && fromConfig !== null && valid(fromConfig)) {
+      sources[key] = 'config'
+      return fromConfig
+    }
+    sources[key] = 'default'
+    return fallback
+  }
+  const isPlanMode = (v) => v === 'off' || v === 'full' || v === 'auto'
+  const isCandidateMode = (v) => v === 'cascade' || v === 'parallel'
+  const isRatio = (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1
+  const planMode = decide('planMode', over.planMode, loop.planMode, isPlanMode, 'full')
+  const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
+  // `minGain` is a fraction, so a negative or >1 override cannot be a policy.
+  const minGain = Number(decide('minGain', over.minGain, config?.gate?.minGain, isRatio, 0.05))
+  return { planMode, candidateMode, minGain, sources, rejected }
+}
+
+/**
  * Whether a round buys the chain's pre-map planning stage.
  *
  * `'off'` and `'full'` are decided by the policy itself; only `'auto'` reads
@@ -600,8 +651,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // L2: the promoted loop policy overrides the plugin defaults for this campaign.
   const policy = effectivePolicy({ state, config })
   const chain = activeChain(state)
+  // The campaign's own override wins for the decisions it names: a campaign
+  // that says "no planner" in its log must not depend on the loader config.
+  const campaignPolicy = policyFor({ config, campaign: state })
+  if (campaignPolicy.rejected.length) {
+    log(`campaign policy rejected unknown value(s) for ${campaignPolicy.rejected.join(', ')}; the config applies instead`)
+  }
   // Per campaign, per policy: whether this round pays for planning at all.
-  const planMode = planModeFor(state.rounds, policy)
+  const planMode = planModeFor(state.rounds, campaignPolicy)
   const workerId = workerNodeId(chain)
   // Resolve the price table once: every attempt in this round is billed at the
   // same rates, and the finished record must name the table its dollars came
