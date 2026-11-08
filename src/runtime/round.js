@@ -56,6 +56,21 @@ const verifierEnv = {
 const SOLVED_BY_SIBLING = 'solved-by-sibling'
 
 /**
+ * Did this attempt never run because the plugin was re-applied underneath it?
+ *
+ * Applying the bundle again disposes the dispatcher, and every `run()` still in
+ * flight then answers with `dispatcher disposed`. The child never reached its
+ * worktree, so the result measures a host restart, not a patch. Kept narrow on
+ * purpose: a child that really died (`failureKind: 'died'`, any other error) is
+ * still a failed attempt and must keep closing its round as `no-gain`.
+ */
+function lostToDisposal(attempt) {
+  if (!attempt || attempt.screenedOut || attempt.abandoned) return false
+  if (attempt.failureKind !== 'crash') return false
+  return /dispatcher\s+disposed/i.test(String(attempt.error ?? ''))
+}
+
+/**
  * Best score this campaign has already seen on one task, or null.
  *
  * Scores are only comparable inside a single task: a multi-task campaign runs
@@ -68,6 +83,9 @@ export function bestPriorScore(rounds, taskId, beforeRound) {
   let best = null
   for (const r of rounds || []) {
     if (!r || r.taskId !== taskId || Number(r.n) >= Number(beforeRound)) continue
+    // A round interrupted before its attempts ran was never measured. Its
+    // absent score must not enter the gate as a zero the task has to beat.
+    if (r.status === 'interrupted') continue
     // Only work that actually reached the workspace counts. An attempt can score
     // 1.0 inside its own worktree and still be thrown away (empty patch, guard
     // rollback); treating that as "task solved" would freeze the campaign on a
@@ -1247,6 +1265,51 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         attempts: attempts.map((a) => ({ id: a.id, model: a.model ?? null, modelsTried: a.modelsTried ?? [] })),
       })
       return { status: 'exhausted', round: n, score: 0, promoted: false, taskId: task.id, models }
+    }
+    // The host re-applied the plugin while the candidates were in flight, which
+    // disposed the dispatcher: every attempt came back without ever reaching its
+    // worktree. Nothing was tried, so a score here would be a 0 measured on a
+    // patch that never ran, and `no-gain` would turn that non-measurement into
+    // standing evidence against the task. Close the round as interrupted and say
+    // it is worth repeating. A round with at least one attempt that actually ran
+    // (a real child death, a verified failure) is never interrupted this way.
+    const dispatchedAttempts = attempts.filter((a) => !a.screenedOut)
+    if (dispatchedAttempts.length > 0 && dispatchedAttempts.every(lostToDisposal)) {
+      const lostSpend = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
+      if (lostSpend > 0) {
+        runtime.append(view, 'budget.spent', { usd: lostSpend, attempts: attempts.length }, 'system')
+      }
+      runtime.append(
+        view,
+        'round.finished',
+        {
+          n,
+          status: 'interrupted',
+          // The caller must know the round is worth trying again: it measured
+          // nothing about the task, and nothing about it may be written off.
+          retryable: true,
+          // No score at all: 0 is the measurement of a patch that ran and failed.
+          score: null,
+          promoted: false,
+          reason: 'dispatcher-disposed',
+          planTimedOut,
+          ...modeRecord(),
+          ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source),
+        },
+        'system',
+      )
+      // A folding runtime already materialized the round above; a bare embedder
+      // only records events. Project it so both see why the round stopped.
+      projectRound(view.state, {
+        n,
+        taskId: task.id,
+        status: 'interrupted',
+        score: null,
+        promoted: false,
+        attempts,
+      })
+      log(`round ${n}: every attempt was lost to a plugin re-apply (dispatcher disposed); round interrupted, not scored`)
+      return { status: 'interrupted', round: n, retryable: true, score: null, promoted: false, taskId: task.id }
     }
     try {
       pruneNotes(board, { max: 20 })
