@@ -1140,6 +1140,45 @@ window.__ModuleLoader__.load({
       })
     }
 
+    /** How long one node took, in the units the rest of the panel speaks. */
+    function nodeDuration(ms) {
+      var total = amount(ms)
+      if (total === null || total < 0) return ''
+      var secs = Math.floor(total / 1000)
+      if (secs < 60) return secs + '秒'
+      var mins = Math.floor(secs / 60)
+      var rest = secs % 60
+      return rest ? mins + '分' + rest + '秒' : mins + '分'
+    }
+
+    /**
+     * The node rows the host ships as `c.nodes` (newest round first) as chips:
+     * 规划 and how long it took, 丢失 for a node the ledger never saw finish. A
+     * campaign from before node identity has no rows, and gets no chips - the
+     * panel must not invent an attribution it was not given.
+     */
+    function nodeChips(c) {
+      var rows = c && Array.isArray(c.nodes) ? c.nodes : []
+      return rows.map(function (n, i) {
+        var id = n && n.id !== null && n.id !== undefined ? String(n.id) : 'node'
+        var role = n && n.role ? String(n.role) : ''
+        var label = role === 'planner' ? '规划' : role ? nodeLabel(role) : id
+        var lost = n && n.status === 'lost'
+        if (lost) label += ' 丢失'
+        else {
+          var took = nodeDuration(n && n.durationMs)
+          if (took) label += ' ' + took
+        }
+        return {
+          key: id + '@' + (n && n.round !== null && n.round !== undefined ? n.round : '?') + '#' + i,
+          label: label,
+          title: id + (n && n.round !== null && n.round !== undefined ? ' · 第 ' + n.round + ' 轮' : '') +
+            (n && n.status ? ' · ' + n.status : ''),
+          tone: lost ? TONES.bad : n && n.status === 'done' ? TONES.ok : TONES.warn,
+        }
+      })
+    }
+
     /** Live attempts of one campaign, newest first, as the ids a person can grep. */
     function liveOf(data, campaign) {
       return ((data && data.live) || []).filter(function (a) {
@@ -1824,6 +1863,7 @@ window.__ModuleLoader__.load({
         var tri = triangleChips(c)
         var spark = sparkOf(c)
         var meters = budgetMeters(c)
+        var nodeKids = nodeChips(c)
 
         var triKids = []
         tri.forEach(function (chip, i) {
@@ -1951,6 +1991,9 @@ window.__ModuleLoader__.load({
             h('div', { className: 'loom-vitals' }, sparkNode, metersNode),
             h('div', { className: 'loom-tri', title: tri.map(function (chip) { return chip.title }).join(' · ') }, triKids),
             metaLine,
+            when(nodeKids.length > 0, h('div', { className: 'loom-chips' }, nodeKids.map(function (chip) {
+              return h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)
+            }))),
             when(chain, h('div', { className: 'loom-chain', title: chain }, chain)),
           ),
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
@@ -2088,6 +2131,7 @@ window.__ModuleLoader__.load({
       sparkOf: sparkOf,
       budgetMeters: budgetMeters,
       attemptChips: attemptChips,
+      nodeChips: nodeChips,
       liveOf: liveOf,
       riskTone: riskTone,
       paintInk: paintInk,

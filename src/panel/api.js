@@ -28,6 +28,33 @@ function openCheckpointsOf(state) {
   return []
 }
 
+/**
+ * The node rows one campaign's ledger recorded, newest round first.
+ *
+ * A round's wall clock says what was paid; only its nodes say who was paid.
+ * The rows travel to the panel through this one projection so the browser and
+ * any host-side reader attribute time the same way: `{id, role, round, status,
+ * durationMs}`, capped so the panel stays a panel rather than a log viewer.
+ * A ledger written before node identity has no rows, and that is `[]`, not an
+ * invented attribution.
+ */
+export function nodesFor(state, opts = {}) {
+  const rows = Array.isArray(state?.nodes) ? state.nodes : []
+  const asked = Number(opts?.limit)
+  const limit = Number.isFinite(asked) && asked >= 0 ? Math.floor(asked) : 6
+  return rows
+    .filter((n) => n && typeof n === 'object')
+    .map((n) => ({
+      id: n.id ?? null,
+      role: n.role ?? null,
+      round: Number.isFinite(Number(n.round)) ? Number(n.round) : null,
+      status: n.status ?? null,
+      durationMs: Number.isFinite(Number(n.durationMs)) ? Number(n.durationMs) : null,
+    }))
+    .sort((a, b) => (b.round ?? -Infinity) - (a.round ?? -Infinity))
+    .slice(0, limit)
+}
+
 function campaignRow(view, now, campaignId) {
   const s = view.state
   const open = openCheckpointsOf(s)
@@ -123,6 +150,9 @@ function campaignRow(view, now, campaignId) {
           attempts,
         }
       : null,
+    // Who the last rounds paid: the panel can now say a round took 936 seconds
+    // *and* that 160 of them were the planner, instead of only the first half.
+    nodes: nodesFor(s),
     updatedAt: s.updatedAt ?? null,
     ageMs: s.updatedAt ? Math.max(0, now - Date.parse(s.updatedAt)) : null,
   }
