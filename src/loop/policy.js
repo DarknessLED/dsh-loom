@@ -8,7 +8,10 @@
  * re-decided under a different policy without calling a model.
  */
 
-export const POLICY_FIELDS = ['minGain', 'candidates', 'knowledge', 'halving', 'holdoutSlack']
+export const POLICY_FIELDS = ['minGain', 'candidates', 'knowledge', 'halving', 'holdoutSlack', 'planMode']
+
+/** The only modes a planner can run in; anything else is not a mode. */
+const PLAN_MODES = ['off', 'full', 'auto']
 
 export const POLICY_DEFAULTS = {
   minGain: 0.05,
@@ -17,6 +20,8 @@ export const POLICY_DEFAULTS = {
   knowledge: true,
   halving: true,
   holdoutSlack: 0.02,
+  /** 'off' | 'full' | 'auto' — see `planModeFor` in runtime/round.js. */
+  planMode: 'full',
 }
 
 function num(x, fallback) {
@@ -36,6 +41,7 @@ export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
     knowledge: typeof p.knowledge === 'boolean' ? p.knowledge : base.knowledge,
     halving: typeof p.halving === 'boolean' ? p.halving : base.halving,
     holdoutSlack: Math.max(0, Math.min(1, num(p.holdoutSlack, base.holdoutSlack))),
+    planMode: PLAN_MODES.includes(p.planMode) ? p.planMode : base.planMode,
   }
   return out
 }
@@ -52,6 +58,7 @@ export function effectivePolicy({ state, config } = {}) {
       knowledge: config?.knowledge?.enabled,
       halving: config?.halving?.enabled,
       holdoutSlack: config?.gate?.holdoutSlack,
+      planMode: config?.loopPolicy?.planMode,
     },
     POLICY_DEFAULTS,
   )

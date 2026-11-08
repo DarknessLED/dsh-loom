@@ -197,6 +197,40 @@ export function preMapAgentNodes(chain) {
 }
 
 /**
+ * The chain node a candidate implements: the map node's inner node when the
+ * chain declares one, otherwise the last agent node (a chain may list its
+ * worker directly and skip the map). Dispatch labels use it so a reader can
+ * tell a planner from a worker without opening the brief.
+ */
+function workerNodeId(chain) {
+  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  for (const node of nodes) {
+    if (node?.type === 'map' && node.of && typeof node.of === 'object' && node.of.id) return String(node.of.id)
+  }
+  const agents = nodes.filter((node) => node?.type === 'agent' && node?.id)
+  return agents.length ? String(agents[agents.length - 1].id) : 'work'
+}
+
+/**
+ * Whether a round buys the chain's pre-map planning stage.
+ *
+ * `'off'` and `'full'` are decided by the policy itself; only `'auto'` reads
+ * history, and it stops planning when the planner timed out in each of the
+ * previous two rounds. One timeout is a bad day, two in a row is a pattern
+ * worth defunding. Missing or short history is not evidence of a timeout, and
+ * an unrecognised mode is not a reason to change behaviour, so both plan.
+ */
+export function planModeFor(rounds, policy) {
+  const mode = policy?.planMode
+  if (mode === 'off' || mode === 'full') return mode
+  if (mode !== 'auto') return 'full'
+  const history = Array.isArray(rounds) ? rounds : []
+  if (history.length < 2) return 'full'
+  const [prev, last] = history.slice(-2)
+  return prev?.planTimedOut === true && last?.planTimedOut === true ? 'off' : 'full'
+}
+
+/**
  * Run the pre-map agent nodes, one fresh session each, and return their text.
  *
  * A node is a planning step, not an attempt: it never produces a patch, never
@@ -436,7 +470,7 @@ function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, inde
  * tell us which candidates deserve the expensive attempt. Whatever the worker
  * learned in the screen stays in its worktree, so a survivor starts ahead.
  */
-async function screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId, log }) {
+async function screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId, workerId = 'work', log }) {
   const startedAt = Date.now()
   const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
   const branch = `loom/${state.id}/${attemptId}`
@@ -461,7 +495,7 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
     const run = await dispatcher.run(brief, {
       cwd: wtPath,
       timeoutMs,
-      label: `loom:${state.id}:${attemptId}:screen`,
+      label: `loom:${workerId}:${attemptId}:screen`,
       model: config.models.worker || null,
     })
     const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
@@ -566,6 +600,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // L2: the promoted loop policy overrides the plugin defaults for this campaign.
   const policy = effectivePolicy({ state, config })
   const chain = activeChain(state)
+  // Per campaign, per policy: whether this round pays for planning at all.
+  const planMode = planModeFor(state.rounds, policy)
+  const workerId = workerNodeId(chain)
   // Resolve the price table once: every attempt in this round is billed at the
   // same rates, and the finished record must name the table its dollars came
   // from ('default' rates when the campaign configured none).
@@ -644,6 +681,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         promoted: false,
         // Planning never began: nothing was skipped, so the flag is a real false.
         planTimedOut: false,
+        planMode,
         reason: hitTokens ? 'tokens' : 'usd',
         spentUsd,
         estimatedUsd,
@@ -782,33 +820,37 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // the task. Counted separately from skippedCandidates: they were dispatched,
   // and their records carry the evidence they had produced up to the stop.
   let abortedCandidates = 0
-  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates, abortedCandidates })
+  const modeRecord = () => ({ candidateMode, candidateModeSource, candidatesPlanned: candidates, skippedCandidates, abortedCandidates, planMode })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
     // A chain without one dispatches exactly as it always did.
-    const planNodes = preMapAgentNodes(chain)
-    const planStartedAt = Date.now()
-    const planResult = await runPreMapNodes({
-      runtime,
-      view,
-      state,
-      config,
-      dispatcher,
-      task,
-      chain,
-      round: n,
-      log,
-    })
-    const planFindings = planResult.findings
-    planTimedOut = planResult.planTimedOut
-    // A chain with no pre-map node planned nothing — a real 0, not 1ms of clock
-    // noise from taking the two timestamps. A reused plan also costs 0.
-    if (planNodes.length) planMs = Math.max(0, Date.now() - planStartedAt)
+    // Planning is bought per policy. When the mode is 'off' the whole pre-map
+    // stage is skipped — no dispatch, no throwaway worktree, no cache lookup —
+    // and the round records a real 0 ms instead of clock noise.
+    const planNodes = planMode === 'off' ? [] : preMapAgentNodes(chain)
+    let planFindings = []
+    if (planNodes.length) {
+      const planStartedAt = Date.now()
+      const planResult = await runPreMapNodes({
+        runtime,
+        view,
+        state,
+        config,
+        dispatcher,
+        task,
+        chain,
+        round: n,
+        log,
+      })
+      planFindings = planResult.findings
+      planTimedOut = planResult.planTimedOut
+      planMs = Math.max(0, Date.now() - planStartedAt)
+    }
     if (screening) {
       const results = []
       for (const p of plan) {
-        const res = await screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId: p.attemptId, log })
+        const res = await screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId: p.attemptId, workerId, log })
         screenInfo.set(p.attemptId, res)
         results.push({ id: p.attemptId, ok: res.ok, score: res.ok ? 1 : 0 })
       }
@@ -924,7 +966,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         let runRes = await dispatcher.run(brief, {
           cwd: wtPath,
           timeoutMs,
-          label: `loom:${state.id}:r${n}a${i}`,
+          // The label names the chain node the attempt implements; the
+          // campaign already owns this parent, so repeating its id would only
+          // crowd out the part a reader cannot recover from the brief — which
+          // node of the chain produced this dispatch.
+          label: `loom:${workerId}:r${n}a${i}`,
           model: config.models.worker || null,
           onStart: startedHook,
         })
@@ -954,7 +1000,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           runRes = await dispatcher.run(brief, {
             cwd: wtPath,
             timeoutMs,
-            label: `loom:${state.id}:r${n}a${i}:retry`,
+            label: `loom:${workerId}:r${n}a${i}:retry`,
             model: config.models.worker || null,
             onStart: startedHook,
           })

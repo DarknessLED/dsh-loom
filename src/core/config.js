@@ -105,8 +105,12 @@ export const DEFAULT_CONFIG = {
    * sampling in parallel. The default stays false, so a campaign that does not
    * ask for it keeps the historical parallel behaviour. An explicit
    * `candidateMode` always outranks the inference.
+   *
+   * `planMode` decides whether a round buys the chain's pre-map planning stage:
+   * `'full'` (the default) always plans, `'off'` never does, and `'auto'` stops
+   * planning only after the planner timed out in the previous two rounds.
    */
-  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false },
+  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false, planMode: 'full' },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }
