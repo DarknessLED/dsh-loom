@@ -130,8 +130,10 @@ function fold(view, rt, before) {
     id,
     family: 'h',
     prompt: 'held back',
-    // Write the id that actually ran, so the assertion sees the verifier, not a variable.
-    verify: { cmd: `"${process.execPath}" -e "require('fs').appendFileSync(${JSON.stringify(hits)},${JSON.stringify(id + '\\n')});process.exit(0)"` },
+    // Write the id that actually ran, so the assertion sees the verifier, not a
+    // variable. A literal "\n" survives no quoting layer: build the newline in
+    // the child process instead of hoping it survives this one.
+    verify: { cmd: `"${process.execPath}" -e "require('fs').appendFileSync(${JSON.stringify(hits)},${JSON.stringify(id)}+String.fromCharCode(10));process.exit(0)"` },
   }))
   const rt = fakeRuntime(dir)
   const view = makeView(dir, holdouts)
