@@ -153,12 +153,18 @@ const ok = (name) => {
 //    "two timeouts in a row on rounds that WON", so the fixture follows it.
 {
   const timedOut = [
-    { n: 1, status: 'promoted', planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
-    { n: 2, status: 'promoted', planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
+    { n: 1, status: 'promoted', promoted: true, planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
+    { n: 2, status: 'promoted', promoted: true, planTimedOut: true, durationMs: 600, planMs: 240, planMode: 'full' },
   ]
   assert.equal(planModeFor(timedOut, { planMode: 'auto' }), 'off', 'two timeouts in a row turn the planner off')
   assert.equal(
-    planModeFor([{ n: 1, status: 'promoted', planTimedOut: true }, { n: 2, status: 'no-gain', planTimedOut: true }], { planMode: 'auto' }),
+    planModeFor(
+      [
+        { n: 1, status: 'promoted', promoted: true, planTimedOut: true },
+        { n: 2, status: 'no-gain', promoted: false, planTimedOut: true },
+      ],
+      { planMode: 'auto' },
+    ),
     'full',
     'a timed-out round that lost proves nothing about the planner',
   )
