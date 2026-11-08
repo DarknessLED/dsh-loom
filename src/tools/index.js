@@ -40,6 +40,30 @@ function resolve(runtime, id) {
   throw new Error(`multiple campaigns (${all.join(', ')}); pass id`)
 }
 
+/**
+ * Validate an eval set before any event is written.
+ *
+ * `rsi_evalset` and the one-call `rsi_start` path must agree on what a valid
+ * task is, and both must refuse *before* the campaign exists: a half-created
+ * campaign is worse than none. The message names the offending task so the
+ * operator can fix it without scanning the array.
+ */
+function readEvalSet(args) {
+  const tasks = Array.isArray(args.tasks) ? args.tasks : []
+  if (!tasks.length) throw new Error('tasks must be a non-empty array')
+  const ids = new Set()
+  for (const t of tasks) {
+    if (!t?.id || typeof t.prompt !== 'string' || !t.verify?.cmd) {
+      throw new Error(`each task needs id, prompt, verify.cmd (task: ${t?.id || '<missing id>'})`)
+    }
+    if (ids.has(t.id)) throw new Error(`duplicate task id: ${t.id}`)
+    ids.add(t.id)
+  }
+  const holdout = Array.isArray(args.holdout) ? args.holdout.map(String) : []
+  for (const h of holdout) if (!ids.has(h)) throw new Error(`holdout task not in tasks: ${h}`)
+  return { tasks, holdout }
+}
+
 function brief(s) {
   return {
     id: s.id,
@@ -110,9 +134,10 @@ export function registerTools(ctx, { runtime, config }) {
     name: 'rsi_start',
     description:
       'Create or inspect an RSI campaign: an objective plus a budget plus a policy chain. ' +
-      'Creating a campaign makes it "planning"; propose a chain with rsi_chain and an eval set with rsi_evalset, ' +
-      'then arm it with rsi_control(action:"start") and this plugin runs rounds in the background. ' +
-      'The human-in-the-loop main agent stays idle between checkpoints.',
+      'Pass `tasks` to register the eval set in the same call, and `auto:true` to activate the proposed ' +
+      'template chain, arm autopilot and start it — one call is enough to get a campaign running. ' +
+      'Without `auto` it stops at "planning" so a human can read the chain first. ' +
+      'A malformed task is refused by name before anything is written.',
     parameters: {
       type: 'object',
       properties: {
@@ -128,6 +153,20 @@ export function registerTools(ctx, { runtime, config }) {
           enum: Object.keys(TEMPLATES),
           description: 'Optional seed chain template to propose immediately.',
         },
+        tasks: {
+          type: 'array',
+          description: 'Optional eval set to register in the same call: [{id, prompt, verify:{cmd, cwd?, timeoutMs?, metrics?}}].',
+          items: { type: 'object', additionalProperties: true },
+        },
+        holdout: { type: 'array', description: 'Optional task ids reserved for the promotion gate.', items: { type: 'string' } },
+        auto: {
+          type: 'boolean',
+          description: 'Activate the proposed template chain, arm autopilot and start. Requires tasks and template; opt-in.',
+        },
+        guard: {
+          type: 'string',
+          description: 'auto:true: command run in the workspace after each applied patch; a non-zero exit rolls the patch back.',
+        },
         action: { type: 'string', enum: ['create', 'list', 'show'], description: 'Default: create when objective is given, else list.' },
       },
       additionalProperties: false,
@@ -141,6 +180,14 @@ export function registerTools(ctx, { runtime, config }) {
       if (action === 'list') return { campaigns: runtime.listCampaigns().map((id) => brief(runtime.get(id).state)) }
       if (action === 'show') return brief(resolve(runtime, args.id).state)
       if (!args.objective) throw new Error('objective is required')
+      // Validate the whole one-call plan before the first append: refusing after
+      // campaign.created would leave the operator with a half-built campaign.
+      const auto = args.auto === true
+      const tpl = args.template ? templateFor(String(args.template)) : null
+      if (args.template && !tpl) throw new Error(`unknown template: ${args.template}`)
+      const evalSet = args.tasks !== undefined || args.holdout !== undefined ? readEvalSet(args) : null
+      if (auto && !evalSet) throw new Error('auto:true needs tasks: a campaign with no eval set cannot run')
+      if (auto && !tpl) throw new Error('auto:true needs a template: there must be a proposed chain to activate')
       const budget = {}
       if (args.budgetUsd != null) budget.usd = Number(args.budgetUsd)
       if (args.budgetTokens != null) budget.tokens = Number(args.budgetTokens)
@@ -155,22 +202,40 @@ export function registerTools(ctx, { runtime, config }) {
         initiator: currentSessionId(ctx),
       })
       let chain = null
-      if (args.template) {
-        const tpl = templateFor(String(args.template))
-        if (!tpl) throw new Error(`unknown template: ${args.template}`)
+      if (tpl) {
         const spec = { ...JSON.parse(JSON.stringify(tpl)), version: 1 }
         runtime.append(view, 'chain.proposed', { version: 1, spec }, 'agent')
         chain = { version: 1, name: spec.name }
+      }
+      let evalset = null
+      if (evalSet) {
+        runtime.append(view, 'evalset.registered', { tasks: evalSet.tasks, holdout: evalSet.holdout }, 'human')
+        evalset = { tasks: evalSet.tasks.length, holdout: evalSet.holdout.length }
+      }
+      let autopilot = null
+      if (auto) {
+        // The chain must be active before a round can pick it up, and autopilot
+        // before the campaign is running — a tick between those events would see
+        // a running campaign with no hands-off policy or no chain.
+        runtime.append(view, 'chain.activated', { version: 1 }, 'agent')
+        const guard = args.guard == null ? null : String(args.guard)
+        runtime.append(view, 'campaign.autopilot', { enabled: true, guard }, 'human')
+        runtime.append(view, 'campaign.status', { status: 'running' }, 'human')
+        autopilot = { enabled: true, guard }
       }
       return {
         campaign: view.id,
         status: view.state.status,
         chain,
-        next: [
-          'rsi_evalset(action:"register", tasks:[...], holdout:[...])',
-          'rsi_chain(action:"activate", version:1)',
-          'rsi_control(action:"start")',
-        ],
+        evalset,
+        autopilot,
+        next: auto
+          ? ['rsi_status for the board', 'rsi_run(id) to spend exactly one round now']
+          : [
+              'rsi_evalset(action:"register", tasks:[...], holdout:[...])',
+              'rsi_chain(action:"activate", version:1)',
+              'rsi_control(action:"start")',
+            ],
       }
     },
   })
@@ -482,18 +547,7 @@ export function registerTools(ctx, { runtime, config }) {
       if (String(args.action) === 'show') {
         return { tasks: view.state.evalset.tasks, holdout: view.state.evalset.holdout }
       }
-      const tasks = Array.isArray(args.tasks) ? args.tasks : []
-      if (!tasks.length) throw new Error('register needs a non-empty tasks array')
-      const ids = new Set()
-      for (const t of tasks) {
-        if (!t?.id || typeof t.prompt !== 'string' || !t.verify?.cmd) {
-          throw new Error('each task needs id, prompt, verify.cmd')
-        }
-        if (ids.has(t.id)) throw new Error(`duplicate task id: ${t.id}`)
-        ids.add(t.id)
-      }
-      const holdout = Array.isArray(args.holdout) ? args.holdout.map(String) : []
-      for (const h of holdout) if (!ids.has(h)) throw new Error(`holdout task not in tasks: ${h}`)
+      const { tasks, holdout } = readEvalSet(args)
       runtime.append(view, 'evalset.registered', { tasks, holdout }, 'human')
       return { registered: tasks.length, holdout: holdout.length }
     },
