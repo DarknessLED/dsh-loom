@@ -960,9 +960,10 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The five figures of the triangle as one mono line. `measured === false`
-     * is a claim by the host that it looked and found nothing to measure — that
-     * is one quiet chip, not five dashes pretending to be data.
+     * The five figures of the triangle as one mono line, plus the planner when
+     * the host measured one. `measured === false` is a claim by the host that
+     * it looked and found nothing to measure — that is one quiet chip, not five
+     * dashes pretending to be data.
      */
     function triangleChips(c) {
       var t = (c && c.triangle) || null
@@ -1013,6 +1014,34 @@ window.__ModuleLoader__.load({
           ? '还没有晋升，算不出每次晋升的成本'
           : '每次晋升 ' + money(perPromo) + '（共 ' + money(t.usd) + '，晋升率 ' + fmtPercent(t.promotionRate) + '）',
       }]
+      // The planner is the leg most often absent from the strip, but a
+      // campaign whose rounds never reported `planMs` has no measurement to
+      // show — a fake 0% would be a claim the ledger never made. A share of
+      // wall clock is a fact about time, not about the planner's worth, so the
+      // title states what the division was over and that a timeout only means
+      // the bound was hit.
+      var plan = t.planning && typeof t.planning === 'object' ? t.planning : null
+      var planRounds = plan ? num(plan.rounds) : 0
+      if (planRounds > 0) {
+        var planShare = amount(plan.planShare)
+        if (planShare === null) planShare = amount(t.planShare)
+        if (planShare === null) {
+          var planMs = amount(plan.ms)
+          var spanMs = amount(t.durationMs)
+          if (planMs !== null && spanMs !== null && spanMs > 0) planShare = planMs / spanMs
+        }
+        var planTimeouts = num(plan.timedOut)
+        var planLabel = '规划'
+        if (planShare !== null) planLabel += ' ' + fmtPercent(planShare)
+        if (planTimeouts > 0) planLabel += ' · 超时 ' + planTimeouts
+        var planTitle = planShare === null
+          ? '规划节点耗时 ÷ 战役墙钟：这次没有同时记下两者，算不出占比'
+          : '规划节点耗时 ÷ 战役墙钟 = ' + fmtPercent(planShare) + '（' + planRounds + ' 轮记录了规划耗时）'
+        planTitle += planTimeouts > 0
+          ? '；其中 ' + planTimeouts + ' 轮撞到规划时限，规划没有在时限内返回，只影响那几轮的结果'
+          : '；没有一轮撞到规划时限'
+        chips.push({ key: 'planning', label: planLabel, title: planTitle })
+      }
       return chips
     }
 
