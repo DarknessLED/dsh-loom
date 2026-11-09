@@ -151,6 +151,8 @@ const standing = [
   // a stopped attempt whose tree already verifies is salvaged and says so, while a
   // late claim is still just a timeout
   'tests/balance/salvage-timeout.test.mjs',
+  // the tree names a losing round once, not twice
+  'tests/ui-eff/tree-merge.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

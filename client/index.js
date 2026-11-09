@@ -1386,7 +1386,7 @@ window.__ModuleLoader__.load({
     }
 
     function lastRoundNode(c) {
-      var lr = c.lastRound
+      var lr = c && c.lastRound
       if (!lr || lr.n === null || lr.n === undefined) return null
       var attempts = lr.attempts || []
       var kids = attempts.map(function (a) {
@@ -1430,7 +1430,7 @@ window.__ModuleLoader__.load({
     }
 
     function waitingNode(c) {
-      var cps = c.openCheckpoints || []
+      var cps = (c && c.openCheckpoints) || []
       if (!cps.length) return null
       return {
         key: 'wait',
@@ -1502,10 +1502,18 @@ window.__ModuleLoader__.load({
 
     function treeOf(c, live, corpus) {
       var nodes = []
+      // A losing round is named once. The why branch already carries 第 N 轮 and
+      // the score, so drawing the round row below it repeats the same line at
+      // 22.7px apiece (research/ui-eff-2026-11.md P3). When there is a why, it
+      // owns the round and takes its attempts as children.
       var why = whyNode(c)
-      if (why) nodes.push(why)
       var round = lastRoundNode(c)
-      if (round) nodes.push(round)
+      if (why) {
+        if (round && Array.isArray(round.children) && round.children.length) why.children = round.children
+        nodes.push(why)
+      } else if (round) {
+        nodes.push(round)
+      }
       var waiting = waitingNode(c)
       if (waiting) nodes.push(waiting)
       var flying = liveNode(c, live)
