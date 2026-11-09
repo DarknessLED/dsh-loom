@@ -1139,6 +1139,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           })
         }
         if (retried) outcomeKind = runRes.failureKind ?? classifyResult(runRes)
+        // Did the dispatcher stop this child on the clock, or did the child come
+        // back on its own and only then get written off? The distinction decides
+        // whether work already in the worktree may be salvaged below: a stopped
+        // child left its tree behind at the deadline, while a late claim is an
+        // attempt that ignored the budget and must not be rewarded for it.
+        const stoppedByDeadline = runRes.timedOut === true
         // The round decides what counts as finished, not the dispatcher. A child
         // that wakes up after `deadlineAt` and reports a completed turn has still
         // missed its budget: promoting it would make the deadline advisory, and a
@@ -1234,7 +1240,16 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // A child that never finished its turn cannot have produced verified
         // work, even if the verifier happens to pass on an untouched tree. Only a
         // completed turn counts as evidence; everything else is a failed attempt.
-        const gateOk = ver.ok && (lean ? lean.ok : true) && outcomeKind === 'ok'
+        //
+        // One exception, measured rather than assumed: when the dispatcher stopped
+        // the child at its deadline (`stoppedByDeadline`), whatever is in the tree
+        // is the work the budget already bought. Two live rounds threw away 1,203 s
+        // that way — both stopped attempts had left patches that satisfy their own
+        // spec. Refusing them does not enforce the budget (it is spent); it only
+        // guarantees the round pays twice. So a stopped attempt whose tree verifies
+        // is salvaged, and says so, so nothing downstream mistakes it for a clean win.
+        const salvaged = stoppedByDeadline && outcomeKind === 'timeout' && ver.ok === true && (lean ? lean.ok : true)
+        const gateOk = (ver.ok && (lean ? lean.ok : true) && outcomeKind === 'ok') || salvaged
         // A verifier run is a cost centre of its own: it is the part of the round
         // the agent cannot speed up. Record it so the efficiency leg has a number.
         // An abandoned attempt did not run the verifier, so it has no event.
@@ -1301,6 +1316,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           textChars: (runRes.text || '').length,
           error: runRes.error,
           failureKind: outcomeKind,
+          ...(salvaged ? { salvaged: true } : {}),
           model: runRes.model ?? null,
           modelsTried: runRes.modelsTried ?? null,
           modelSwitch: runRes.modelSwitch ?? null,
@@ -1575,6 +1591,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
+    // A win salvaged from a stopped attempt is still a win, but it is not the
+    // same claim as one the child reported: the gate says which it was, so a
+    // reader (and the efficiency leg) can tell "the loop solved this" from "the
+    // loop ran out of clock on work that was already correct".
+    const salvagedCandidates = attempts.filter((a) => a?.salvaged === true).length
+    if (salvagedCandidates > 0) checks.salvaged = best?.salvaged === true
     // A verified attempt that changed nothing is not evidence of new work, but it IS
     // evidence the task is satisfied (an earlier landing already covered it). Applying
     // an empty patch fails in git apply, so record it as a no-op landing instead.
@@ -1753,7 +1775,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 

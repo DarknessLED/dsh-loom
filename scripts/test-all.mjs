@@ -148,6 +148,9 @@ const standing = [
   // silence is silence at any duration: a turn that ended with no reason is not a
   // verdict on the task, and the attempt it destroys costs ten minutes of wall clock
   'tests/lifecycle/silent-slow-error.test.mjs',
+  // a stopped attempt whose tree already verifies is salvaged and says so, while a
+  // late claim is still just a timeout
+  'tests/balance/salvage-timeout.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
