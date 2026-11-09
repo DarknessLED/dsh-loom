@@ -44,7 +44,16 @@ try {
   rmSync(dir, { recursive: true, force: true })
 }
 const committed = readFileSync(preview, 'utf8')
-ok('the committed preview is the one the generator produces today', fresh === committed, `${committed.length} vs ${fresh.length} bytes`)
+// Compare after normalising line endings: a Windows runner checks the file out
+// with CRLF and the generator writes LF, which made this pin fail on CI for a
+// reason that has nothing to do with the panel being stale (55007 vs 54789
+// bytes was 218 line endings, not 218 characters of drift).
+const lf = (text) => text.replace(/\r\n/g, '\n')
+ok(
+  'the committed preview is the one the generator produces today',
+  lf(fresh) === lf(committed),
+  `${lf(committed).length} vs ${lf(fresh).length} bytes`,
+)
 
 // 2. The attributes the panel sets must survive serialisation.
 const html = fresh || committed

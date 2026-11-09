@@ -168,6 +168,7 @@ const standing = [
   // the audit may only certify the preview it can regenerate, with the
   // attributes the panel actually sets
   'tests/tools/preview-fresh.test.mjs',
+  'tests/tools/portable-fixtures.test.mjs',
   // candidates of one round create their worktrees at the same time, so cleanup
   // may only delete a registration it can prove is stale — git's own `worktree
   // prune` cannot tell a stale one from a sibling's half-written one

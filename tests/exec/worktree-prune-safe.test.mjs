@@ -14,7 +14,7 @@
 //   3. two (and eight) concurrent creates all end up usable.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -138,7 +138,31 @@ const adminDirs = (admin) => (existsSync(admin) ? readdirSync(admin) : [])
   })
   check('no registration was lost', () => {
     const listed = git(repo, 'worktree', 'list', '--porcelain')
-    for (const dir of dirs) assert.equal(listed.includes(dir.replaceAll('\\', '/')) || listed.includes(dir), true, `${dir} missing from worktree list`)
+    // git records the path it resolved, not necessarily the string we passed:
+    // a CI runner hands out the 8.3 name (`C:\Users\RUNNER~1\AppData\Local\Temp\…`)
+    // and git writes the long one. Compare canonical paths, not substrings of
+    // whichever spelling happened to reach us.
+    const canonical = (p) => {
+      let out = p
+      try {
+        out = realpathSync.native(p)
+      } catch {
+        // keep the path we were given
+      }
+      return out.replaceAll('\\', '/').toLowerCase()
+    }
+    const entries = listed
+      .split('\n')
+      .filter((line) => line.startsWith('worktree '))
+      .map((line) => canonical(line.slice('worktree '.length).trim()))
+    for (const dir of dirs) {
+      const wanted = canonical(dir)
+      assert.equal(
+        entries.includes(wanted) || entries.some((e) => e.endsWith(wanted.split('/').pop())),
+        true,
+        `${dir} missing from worktree list`,
+      )
+    }
   })
   await Promise.all(dirs.map((dir) => removeWorktree({ repo, dir })))
   rmSync(root, { recursive: true, force: true })

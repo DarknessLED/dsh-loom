@@ -75,7 +75,7 @@ function stateFor(workspace, rounds = []) {
     lessons: [],
     autopilot: { enabled: false, guard: null },
     budget: { usd: 5, rounds: 10, spentUsd: 0 },
-    evalset: { tasks: [{ id: 't1', verify: { cmd: 'true' } }], holdout: [] },
+    evalset: { tasks: [{ id: 't1', verify: { cmd: `"${process.execPath}" -e "process.exit(1)"` } }], holdout: [] },
     chain: {
       activeVersion: 1,
       versions: [
@@ -87,7 +87,7 @@ function stateFor(workspace, rounds = []) {
             params: { candidates: 2, maxSteps: 10 },
             nodes: [
               { id: 'work', type: 'agent', name: 'worker', prompt: 'do it' },
-              { id: 'check', type: 'verifier', name: 'check', cmd: 'true' },
+              { id: 'check', type: 'verifier', name: 'check', cmd: `"${process.execPath}" -e "process.exit(1)"` },
             ],
           },
         },

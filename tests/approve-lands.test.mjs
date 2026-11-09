@@ -73,7 +73,7 @@ function setup({ guard = null } = {}) {
     lessons: [],
     autopilot: { enabled: true, guard },
     budget: { usd: 5, rounds: 10, spentUsd: 0 },
-    evalset: { tasks: [{ id: 't1', verify: { cmd: 'true' } }], holdout: [] },
+    evalset: { tasks: [{ id: 't1', verify: { cmd: `"${process.execPath}" -e "process.exit(0)"` } }], holdout: [] },
     chain: { activeVersion: 1, versions: [] },
     checkpoints: [{ id: 'cp-1', kind: 'gate', status: 'open', at: 1, payload: { patch, attempt: 'r1a1', score: 1 } }],
   }

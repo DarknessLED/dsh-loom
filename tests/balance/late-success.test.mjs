@@ -76,7 +76,7 @@ function stateFor(workspace) {
             params: { candidates: 1, maxSteps: 10 },
             nodes: [
               { id: 'work', type: 'agent', name: 'worker', prompt: 'do it' },
-              { id: 'check', type: 'verifier', name: 'check', cmd: 'true' },
+              { id: 'check', type: 'verifier', name: 'check', cmd: `"${process.execPath}" -e "process.exit(0)"` },
             ],
           },
         },
