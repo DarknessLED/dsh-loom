@@ -79,14 +79,26 @@ on every round, a learned `planBudgetMs`, and a panel chip that says "规划 32%
 - The standing suite list had three duplicate entries and two packed lines: the
   headline count was inflated and those suites ran twice.
 
+### The suite now means the same thing on a clean checkout
+
+CI was red for four runs at 110/114, for three reasons that had nothing to do
+with the loop: eleven fixtures used `cmd: 'true'` (a POSIX builtin `cmd.exe`
+does not have — it *passed* on runners because Git's `usr/bin` is on `PATH`
+there, and failed here), the committed-preview pin compared raw bytes so a CRLF
+checkout looked stale, and the worktree check compared path substrings while a
+runner hands out the 8.3 name (`C:\Users\RUNNER~1\…`) and git writes the long
+one. All three are fixed, and `tests/tools/portable-fixtures.test.mjs` fails the
+build if a fixture ever names a POSIX builtin as its whole verifier command
+again.
+
 ## Numbers
 
 | | 0.2.0 | 0.2.1 |
 | --- | --- | --- |
-| Suites in `scripts/test-all.mjs` | 99 | **114** |
-| Spec files | 131 | **151** |
+| Suites in `scripts/test-all.mjs` | 99 | **115** |
+| Spec files | 131 | **153** |
 | `scripts/verify.mjs` | 110/110 | **115/115** |
-| e2e | green | green |
+| CI (windows-latest) | green at 0.2.0 | green again — see above |
 | Panel audit | OK (ARIA invisible) | OK (ARIA + clipping checked) |
 
 ## What this still does not do

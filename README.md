@@ -61,7 +61,7 @@ RSI 想要的是另一种形态：
 | **多窗口安全**：任何新窗口都能拿到全部工具；循环所有权按心跳最新者持有，旧窗口自动降级为只读观察，不会两个窗口同时派发 | ✅ M7 |
 | **对抗加固（chaos）**：子会话死掉 / 模型额度用尽换模型 / 上下文爆掉缩小简报重试一次 / ledger 漂移（重复 seq、乱序、torn 尾行）/ 重启后撤回「记了落地但没提交」的假成功 | ✅ M8 |
 
-测试：`scripts/verify.mjs` 115 项、`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent），以及 **`scripts/test-all.mjs` 的 114 个套件 / 151 个规格文件**——包含 712 条原始单元断言、`tests/chaos/*` 的对抗套件（子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复、视图漂移、worktree 竞态）、`tests/lifecycle/*` 的 provider 故障套件（静默死亡换父重试、跨 provider 回退、基建轮不计证据、连续故障自动暂停）、`tests/self*/` `tests/tri*/` `tests/balance/*` `tests/ui/*` `tests/dag*/*` `tests/preflight/*` 这批由循环自己写代码通过、随后钉进 standing 的规格。
+测试：`scripts/verify.mjs` 115 项、`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent），以及 **`scripts/test-all.mjs` 的 115 个套件 / 152 个规格文件**——包含 712 条原始单元断言、`tests/chaos/*` 的对抗套件（子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复、视图漂移、worktree 竞态）、`tests/lifecycle/*` 的 provider 故障套件（静默死亡换父重试、跨 provider 回退、基建轮不计证据、连续故障自动暂停）、`tests/self*/` `tests/tri*/` `tests/balance/*` `tests/ui/*` `tests/dag*/*` `tests/preflight/*` 这批由循环自己写代码通过、随后钉进 standing 的规格。
 
 
 ---

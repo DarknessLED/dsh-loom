@@ -79,11 +79,17 @@ A day spent on the thing that was actually breaking rounds: the provider.
 
 ### Meta
 
-- **114 suites, 151 spec files**, `verify.mjs` 115/115, e2e green, panel audit
+- **115 suites, 152 spec files**, `verify.mjs` 115/115, e2e green, panel audit
   clean on three canvas widths.
 - The standing list had **three duplicate entries and two packed lines**, so the
   headline total was inflated and those suites ran twice. It is de-duplicated by
   absolute path now, and a spec pins that.
+- **The suite now means the same thing on a clean checkout.** CI was red for four
+  runs because eleven fixtures used `cmd: 'true'` (a POSIX builtin `cmd.exe` does
+  not have; it passed on runners only because Git's `usr/bin` is on `PATH` there),
+  the preview pin compared raw bytes across a CRLF checkout, and the worktree
+  check compared path substrings against a runner's 8.3 temp name.
+  `tests/tools/portable-fixtures.test.mjs` fails the build if either comes back.
 
 ## [0.2.0] — 2026-11-09
 
