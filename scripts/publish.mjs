@@ -35,7 +35,13 @@ if (!existsSync(NOTES)) {
   process.exit(2)
 }
 
-const run = (args) => execFileSync('git', args, { stdio: 'pipe', encoding: 'utf8' })
+const run = (args) =>
+  execFileSync('git', ['-c', 'http.version=HTTP/1.1', ...args], { stdio: 'pipe', encoding: 'utf8' })
+// The proxy in front of this machine eats git's HTTP/2 upgrade and then hangs
+// with no output at all — forcing HTTP/1.1 is the difference between a push
+// that returns in a second and one that never returns. The token is passed in
+// the URL rather than left to a credential helper that may hold a stale one.
+const authed = `https://x-access-token:${token}@github.com/${OWNER}/${REPO}.git`
 const api = (path, init = {}) =>
   fetch(`https://api.github.com${path}`, {
     ...init,
@@ -51,7 +57,7 @@ const api = (path, init = {}) =>
 const body = readFileSync(NOTES, 'utf8')
 
 // 1. main
-run(['push', 'origin', 'main'])
+run(['push', authed, 'main'])
 console.log(`ok pushed main`)
 
 // 2. tag
@@ -60,7 +66,7 @@ try {
 } catch {
   run(['tag', '-a', TAG, '-m', `dsh-loom ${VERSION}`])
 }
-run(['push', 'origin', TAG])
+run(['push', authed, TAG])
 console.log(`ok pushed ${TAG}`)
 
 // 3. release (create or update)
