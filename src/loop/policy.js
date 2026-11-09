@@ -45,6 +45,28 @@ const OVERRIDE_RULES = {
   candidates: { valid: (v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 4, why: 'integer in [1, 4]' },
   knowledge: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
   halving: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
+  infraPauseAfter: {
+    valid: (v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 20,
+    why: 'integer in [1, 20]',
+  },
+  // A campaign may name the model chain it runs on. Whether the chain is
+  // *usable* is not decidable here — the host resolves providers at dispatch —
+  // so this checks shape only, and `policyFor` rejects the same shapes by the
+  // same field names. Accepting `{worker}` without `fallback` is deliberate:
+  // pinning one model is a legitimate experiment.
+  models: {
+    valid: (v) =>
+      Boolean(v) &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      (v.worker === undefined || v.worker === null || (typeof v.worker === 'string' && v.worker.trim().length > 0)) &&
+      (v.fallback === undefined ||
+        v.fallback === null ||
+        (Array.isArray(v.fallback) && v.fallback.every((m) => typeof m === 'string' && m.trim().length > 0))) &&
+      ((typeof v.worker === 'string' && v.worker.trim().length > 0) ||
+        (Array.isArray(v.fallback) && v.fallback.length > 0)),
+    why: '{worker?: string, fallback?: string[]} naming at least one model',
+  },
 }
 
 const NUMERIC_OVERRIDES = new Set(['minGain', 'holdoutSlack'])

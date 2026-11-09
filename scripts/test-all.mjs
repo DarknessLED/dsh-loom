@@ -133,6 +133,7 @@ const standing = [
   // a campaign can carry its own policy, and a stuck round explains itself first:
   'tests/balance/policy-override.test.mjs',
   'tests/balance/policy-model.test.mjs',
+  'tests/balance/policy-models-set.test.mjs',
   'tests/ui/tree-fail-first.test.mjs',
   // a policy override needs a writer, not just a reader:
   'tests/balance/policy-set.test.mjs',
