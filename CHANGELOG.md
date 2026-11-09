@@ -4,6 +4,87 @@ All notable changes to `dsh-loom`. The loop wrote most of these itself: each
 entry below started as a spec that failed, went through an RSI campaign, and
 was promoted only after the guard suite passed.
 
+## [0.2.1] — 2026-11-10
+
+A day spent on the thing that was actually breaking rounds: the provider.
+
+### Provider failures are now a first-class state
+
+- **Silence is retried at any duration.** `infra = silent && elapsedMs < 3000`
+  only covered the fast case; the failures that cost whole campaigns took 15–30
+  seconds. A child that ends in error with no diagnostic is retried once,
+  however long it took.
+- **The retry budget belongs to the attempt.** It used to live on the
+  dispatcher instance, so the first retry a campaign spent was the last one it
+  would ever get — `loom-acc2` lost eight rounds to a single consumed budget.
+- **The child session log is read before calling a death silent.**
+  `#sessionDiagnosis()` pulls `turn/end → reason.error.message` out of the
+  child's own log, so "no diagnostic" now means *the child said nothing*, not
+  *we did not look*. The message that showed up was `MALFORMED_RESPONSE: two
+  tool-call JSON objects glued together` — actionable, where the placeholder
+  was not.
+- **A round nobody ran is `interrupted`, not `no-gain`.** Infrastructure rounds
+  no longer become evidence against a task, no longer feed plateau detection,
+  and no longer reach `bestPriorScore`.
+- **A provider that cannot be used falls over to the next model** — and a chain
+  entry may now name a **provider** (`provider/model`), not only a model. The
+  host takes `agentOptions {provider?, model?}` as two fields; the dispatcher
+  only ever set `model`, so a cross-provider fallback silently asked the same
+  broken provider twice.
+- **Three silent rounds in a row pause the campaign** (`loopPolicy.infraPauseAfter`,
+  default 3) with one `infrastructure` checkpoint naming the rounds — instead of
+  burning the rest of the budget on a dead provider.
+- **A campaign can name its own model chain** (`campaign.policy.models =
+  {worker, fallback}`), so switching provider no longer means editing the profile
+  and restarting the app. Malformed chains are refused by field name and are
+  never applied halfway.
+
+### Work that is already finished is no longer thrown away
+
+- **Salvage**: an attempt stopped by its deadline whose worktree already passes
+  the verifier is promoted, labelled `salvaged`. Live rounds had thrown away
+  1,203 s of work that was already correct.
+- **`git worktree prune` no longer deletes a registration that is still being
+  written.** It removed the admin directory of a sibling candidate mid-registration
+  (`failed to read .git/worktrees/r1a1/commondir`), so the second candidate died
+  in 228 ms. Cleanup now deletes only registrations it can prove stale.
+
+### The planner stops being an unexamined expense
+
+- **Its own numbers are reported**: `planning.usable / failed / failedRate` on
+  the triangle and `round.finished.planUsable`. Measurement found **46 of 117
+  rounds (39%) paid for planning and got nothing back** — and the triangle had
+  only been counting timeouts, so the silent failures were invisible.
+- **Its deadline is learned from its record** (`planBudgetMs`): a window of
+  timeouts halves it, one finished plan earns the whole budget back.
+- **The panel gets a planning chip** — share of wall clock, how often it hit the
+  bound, and how many rounds came back empty-handed.
+
+### Panel
+
+- One dot can no longer mean running, waiting, finished and not-started at once;
+  the head dot answers "am I the one blocking it", and a folded row always says
+  something instead of rendering an empty span.
+- One round, one line: the `why` branch owns the attempts, the round row stops
+  repeating them.
+- The preview generator keeps every attribute the panel sets, so `panel-audit`
+  can see the keyboard contract it was previously blind to (aria=0, role=0,
+  tabindex=0 in the artifact), and it now fails on clipping as well as overflow.
+
+### Tools
+
+- **`rsi_doctor`** exposes the preflight the plugin already had: git repo, clean
+  worktree, node version, writable home, loop ownership — each failing check
+  names the command that clears it. The capability existed; nobody could reach it.
+
+### Meta
+
+- **114 suites, 151 spec files**, `verify.mjs` 115/115, e2e green, panel audit
+  clean on three canvas widths.
+- The standing list had **three duplicate entries and two packed lines**, so the
+  headline total was inflated and those suites ran twice. It is de-duplicated by
+  absolute path now, and a spec pins that.
+
 ## [0.2.0] — 2026-11-09
 
 ### Measured, not guessed

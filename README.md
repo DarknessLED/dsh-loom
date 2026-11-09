@@ -10,7 +10,7 @@
 
 ![侧栏面板：中文文案 + 战役树](docs/panel-preview.png)
 
-> **0.2.0（2026-11-09）**：循环开始给自己记账——每轮的时间/成本/验证摊薄都有真数字，验证器与计划可复用，`planMode: 'auto'` 会按战绩关掉规划，campaign 能自带 policy（不用重启就能 A/B），`rsi_run` 可手动跑一轮，总开关随时停派发，provider 静默死亡会自动重建父会话重试，面板改成中文 + 战役树。变更清单见 [CHANGELOG.md](CHANGELOG.md)，发版说明见 [RELEASE-0.2.0.md](RELEASE-0.2.0.md)。
+> **0.2.1（2026-11-10）**：这一版几乎全在修「provider 挂了以后循环怎么办」——静默死亡任意时长都重试一次、重试预算按 attempt 计、死前先读子会话自己的日志、基建故障不再算成 no-gain、模型链可以跨 provider 回退、连续三轮静默就暂停战役、campaign 能自带模型链（不用改 profile 重启）。另外：超时但已经改对的候选现在会被抢救而不是丢掉（实测白扔过 1,203 秒），`git worktree prune` 不再删掉兄弟候选正在写的注册，规划者的「空手而归」有了数字（117 轮里 46 轮白付），`rsi_doctor` 把一直存在却摸不到的自检暴露出来。变更清单见 [CHANGELOG.md](CHANGELOG.md)，上一版说明见 [RELEASE-0.2.0.md](RELEASE-0.2.0.md)。
 
 
 ---
@@ -61,7 +61,7 @@ RSI 想要的是另一种形态：
 | **多窗口安全**：任何新窗口都能拿到全部工具；循环所有权按心跳最新者持有，旧窗口自动降级为只读观察，不会两个窗口同时派发 | ✅ M7 |
 | **对抗加固（chaos）**：子会话死掉 / 模型额度用尽换模型 / 上下文爆掉缩小简报重试一次 / ledger 漂移（重复 seq、乱序、torn 尾行）/ 重启后撤回「记了落地但没提交」的假成功 | ✅ M8 |
 
-测试：`scripts/verify.mjs` 110 项、`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent），以及 **`scripts/test-all.mjs` 的 99 个套件 / 131 个规格文件**——包含 712 条原始单元断言、`tests/chaos/*` 的对抗套件（子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复、视图漂移）、`tests/self*/` `tests/tri*/` `tests/balance/*` `tests/ui/*` `tests/dag*/*` `tests/preflight/*` 这批由循环自己写代码通过、随后钉进 standing 的规格。
+测试：`scripts/verify.mjs` 115 项、`scripts/e2e.mjs` 41 项（真 git worktree + 真 `git apply`，stub agent），以及 **`scripts/test-all.mjs` 的 114 个套件 / 151 个规格文件**——包含 712 条原始单元断言、`tests/chaos/*` 的对抗套件（子进程死亡、模型回退、上下文压缩重试、ledger 漂移、重启恢复、视图漂移、worktree 竞态）、`tests/lifecycle/*` 的 provider 故障套件（静默死亡换父重试、跨 provider 回退、基建轮不计证据、连续故障自动暂停）、`tests/self*/` `tests/tri*/` `tests/balance/*` `tests/ui/*` `tests/dag*/*` `tests/preflight/*` 这批由循环自己写代码通过、随后钉进 standing 的规格。
 
 
 ---
