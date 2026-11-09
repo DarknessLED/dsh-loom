@@ -34,9 +34,12 @@ export const DEFAULT_CONFIG = {
     meta: null,
     judge: null,
     /**
-     * Models to fall back to, in order, when the child dies on a *model* limit
-     * (context window, token budget, quota). A dead child is never retried on
-     * another model — that only doubles the bill without changing the outcome.
+     * Models to fall back to, in order, when a child cannot be used: it hit a
+     * *model* limit (context window, token budget, quota), or it died with no
+     * diagnostic at all - a provider that breaks mid-turn is the same problem from
+     * the loop's side, and a rebuilt parent cannot fix it. A child that dies *with*
+     * a diagnosis is a real failure and is never retried on another model: that
+     * only double-bills the same answer.
      */
     fallback: [],
     /**

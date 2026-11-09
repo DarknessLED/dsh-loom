@@ -152,6 +152,10 @@ const standing = [
   'tests/lifecycle/retry-budget.test.mjs',
   // a provider outage is not a verdict on the task
   'tests/lifecycle/infra-round.test.mjs',
+  // a broken provider falls over to the next model
+  'tests/lifecycle/infra-model-fallback.test.mjs',
+  // a run of infrastructure rounds pauses the loop instead of eating the budget
+  'tests/lifecycle/infra-pause.test.mjs',
   // a stopped attempt whose tree already verifies is salvaged and says so, while a
   // late claim is still just a timeout
   'tests/balance/salvage-timeout.test.mjs',

@@ -124,10 +124,22 @@ export class Dispatcher {
       tried.push(current ?? 'default')
       const kind = classifyResult(res)
       const last = i === chain.length - 1
-      if (kind === 'ok' || (kind !== 'context' && kind !== 'tokens') || last) {
+      // An infrastructure death (the model layer broke mid-turn, so the child ended
+      // in error with nothing to say) is the same problem from the loop's side as an
+      // exhausted one: this model could not be used. A rebuilt parent does not fix a
+      // broken provider, so fall over to the next model in the chain instead of
+      // charging the round for a child that never got to work. A death *with* a
+      // diagnosis stays where it is: the patch was already shown to be broken, and a
+      // second provider would only double the bill for the same answer.
+      const unusable = kind === 'context' || kind === 'tokens' || res?.infra === true
+      if (kind === 'ok' || !unusable || last) {
+        // Only a budget/context exhaustion is reported as `exhausted` (one operator
+        // checkpoint, see round.js). A silent provider death keeps its own kind and
+        // its `infra` flag: the round is interrupted and retryable, not written off.
+        const budget = kind === 'context' || kind === 'tokens'
         return {
           ...res,
-          failureKind: kind === 'ok' ? 'ok' : last && (kind === 'context' || kind === 'tokens') ? 'exhausted' : kind,
+          failureKind: kind === 'ok' ? 'ok' : last && budget ? 'exhausted' : kind,
           model: current,
           modelsTried: tried,
           modelSwitch: tried.length > 1 ? { from: tried[0], to: current } : null,

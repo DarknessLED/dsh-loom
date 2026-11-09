@@ -272,11 +272,36 @@ export function policyFor({ config, campaign } = {}) {
   const isPlanMode = (v) => v === 'off' || v === 'full' || v === 'auto'
   const isCandidateMode = (v) => v === 'cascade' || v === 'parallel'
   const isRatio = (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1
+  const isPositiveInt = (v) => Number.isInteger(Number(v)) && Number(v) >= 1
   const planMode = decide('planMode', over.planMode, loop.planMode, isPlanMode, 'full')
   const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
   // `minGain` is a fraction, so a negative or >1 override cannot be a policy.
   const minGain = Number(decide('minGain', over.minGain, config?.gate?.minGain, isRatio, 0.05))
-  return { planMode, candidateMode, minGain, sources, rejected }
+  // How many rounds in a row may die of infrastructure before the loop stops
+  // itself. A provider outage is not a hard task, and burning a budget on it
+  // teaches nobody anything.
+  const infraPauseAfter = Number(
+    decide('infraPauseAfter', over.infraPauseAfter, loop.infraPauseAfter, isPositiveInt, 3),
+  )
+  return { planMode, candidateMode, minGain, infraPauseAfter, sources, rejected }
+}
+
+/**
+ * How many of the most recent rounds were interrupted by infrastructure.
+ *
+ * A `dispatcher is disposed` round is a different problem - the host re-applied the
+ * plugin - so it does not count: it says nothing about the provider, and pausing for
+ * it would punish a normal event.
+ */
+export function consecutiveInfraRounds(rounds) {
+  const list = Array.isArray(rounds) ? rounds : []
+  let n = 0
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const r = list[i]
+    if (!r || r.status !== 'interrupted' || r.reason !== 'infrastructure') break
+    n += 1
+  }
+  return n
 }
 
 /**
@@ -1542,9 +1567,35 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         status: 'interrupted',
         score: null,
         promoted: false,
+        // The streak counter reads this: a round interrupted by a re-apply and one
+        // interrupted by a broken provider are different problems.
+        reason: byDisposal ? 'dispatcher-disposed' : 'infrastructure',
         attempts,
       })
       log(`round ${n}: every attempt was lost to a plugin re-apply (dispatcher disposed); round interrupted, not scored`)
+      // Three outages in a row is a broken machine, not a hard task. Stop spending
+      // the operator's budget on it and say the true reason once, so nobody is
+      // invited to "adjust the objective" when the fix is to wait or switch models.
+      // Count from the log minus this round, plus this one: a folding runtime has
+      // already materialized it and a bare embedder has not, and both must agree.
+      const priorRounds = (view.state?.rounds || []).filter((r) => r && r.n !== n)
+      const streak = byDisposal ? 0 : consecutiveInfraRounds(priorRounds) + 1
+      if (streak >= campaignPolicy.infraPauseAfter) {
+        runtime.append(
+          view,
+          'campaign.status',
+          { status: 'paused', reason: 'infrastructure', rounds: streak },
+          'system',
+        )
+        raise('infrastructure', {
+          message: `${streak} rounds in a row died before any child got to work (the model layer ended the turn with no diagnostic); the loop is paused rather than spending more budget on a broken provider`,
+          rounds: streak,
+          roundsList: (view.state?.rounds || []).slice(-streak).map((r) => r.n),
+          hint: 'rsi_control {action:"resume"} once the provider is healthy, or set models.fallback to another model',
+        })
+        log(`round ${n}: ${streak} infrastructure rounds in a row; campaign paused`)
+        return { status: 'interrupted', round: n, retryable: true, score: null, promoted: false, taskId: task.id, paused: true }
+      }
       return { status: 'interrupted', round: n, retryable: true, score: null, promoted: false, taskId: task.id }
     }
     try {

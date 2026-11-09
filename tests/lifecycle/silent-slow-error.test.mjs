@@ -29,7 +29,7 @@ function fakeCtx({ behaviors }) {
     subagents: {
       startActivation(spec) {
         const behavior = behaviors[calls.length] ?? behaviors[behaviors.length - 1]
-        calls.push({ parent: spec.request?.parent?.id, label: spec.label })
+        calls.push({ parent: spec.request?.parent?.id, label: spec.label, model: spec.request?.agentOptions?.model ?? null })
         return {
           childId: `child-${calls.length}`,
           result:
@@ -101,15 +101,21 @@ const ok = (name) => {
   await d.dispose()
 }
 
-// 4. The retry is paid once per attempt, not once per model in the chain: a
-//    two-model chain that dies silently on the first model must not retry it twice.
+// 4. A retry is paid once per attempt, and a silent death then falls over to the
+//    next model in the chain: the rebuild buys one extra dispatch, not one per
+//    model, and a whole chain of silence still stops instead of looping.
 {
   const { ctx, calls } = fakeCtx({ behaviors: [{ delayMs: 3200, result: silentError }] })
   const d = new Dispatcher({ ctx, config: {}, log: () => {} })
   const res = await d.run([{ type: 'text', text: 'go' }], { cwd: '/tmp', models: ['m-a', 'm-b'] })
   assert.equal(res.failureKind, 'died')
-  assert.equal(calls.length, 2, `two dispatches total, got ${calls.length}`)
-  ok('the retry budget is per attempt, not per model')
+  assert.deepEqual(
+    calls.map((c) => c.model),
+    ['m-a', 'm-a', 'm-b'],
+    `one retry under m-a, then the fallback model (got ${JSON.stringify(calls.map((c) => c.model))})`,
+  )
+  assert.equal(res.infra, true, 'and the whole chain is still infrastructure, not a verdict on the task')
+  ok('an attempt pays one retry, then falls over to the next model')
   await d.dispose()
 }
 
