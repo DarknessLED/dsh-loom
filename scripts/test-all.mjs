@@ -140,6 +140,9 @@ const standing = [
   'tests/tools/doctor-tool.test.mjs',
   // the guard's own arithmetic: one spec, one run, one line
   'tests/tools/standing-list.test.mjs',
+  // the planner is a leg of the triangle, not a footnote: its wall time, its
+  // timeouts and its win rate are reported before anyone argues about it
+  'tests/balance/planning-accounting.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
