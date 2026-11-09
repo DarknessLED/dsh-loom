@@ -72,6 +72,22 @@ function lostToDisposal(attempt) {
 }
 
 /**
+ * True when an attempt never got a chance to try: the child died of the model
+ * layer, not of the patch.
+ *
+ * The dispatcher marks these `infra` (a silent error with no diagnostic, however
+ * long it took — seen live as two tool-call JSON objects glued together and as a
+ * context-length 400). A child that dies *with* a diagnosis is a real failure and
+ * must keep closing its round as `no-gain`, or every broken patch could be
+ * laundered as "retryable".
+ */
+function lostToInfrastructure(attempt) {
+  if (!attempt || attempt.screenedOut || attempt.abandoned) return false
+  if (attempt.infra === true) return true
+  return lostToDisposal(attempt)
+}
+
+/**
  * Best score this campaign has already seen on one task, or null.
  *
  * Scores are only comparable inside a single task: a multi-task campaign runs
@@ -1317,6 +1333,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           error: runRes.error,
           failureKind: outcomeKind,
           ...(salvaged ? { salvaged: true } : {}),
+          // Did this child ever get to try? The round is scored on attempts that
+          // ran, so the answer has to travel with the attempt instead of being
+          // re-derived from error text later.
+          ...(runRes.infra === true ? { infra: true, infraRetry: runRes.infraRetry === true } : {}),
           model: runRes.model ?? null,
           modelsTried: runRes.modelsTried ?? null,
           modelSwitch: runRes.modelSwitch ?? null,
@@ -1479,18 +1499,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       return { status: 'exhausted', round: n, score: 0, promoted: false, taskId: task.id, models }
     }
     // The host re-applied the plugin while the candidates were in flight, which
-    // disposed the dispatcher: every attempt came back without ever reaching its
-    // worktree. Nothing was tried, so a score here would be a 0 measured on a
-    // patch that never ran, and `no-gain` would turn that non-measurement into
-    // standing evidence against the task. Close the round as interrupted and say
-    // it is worth repeating. A round with at least one attempt that actually ran
-    // (a real child death, a verified failure) is never interrupted this way.
+    // disposed the dispatcher, or the model layer broke mid-turn (two tool-call
+    // JSON objects glued together, a context-length 400): every attempt came back
+    // without ever reaching its worktree. Nothing was tried, so a score here would
+    // be a 0 measured on a patch that never ran, and `no-gain` would turn that
+    // non-measurement into standing evidence against the task - in loom-acc3 that
+    // produced eleven rounds of false "unsolvable" verdicts from a provider
+    // outage. Close the round as interrupted and say it is worth repeating. A
+    // round with at least one attempt that actually ran (a diagnosed child death,
+    // a verified failure) is never interrupted this way.
     const dispatchedAttempts = attempts.filter((a) => !a.screenedOut)
-    if (dispatchedAttempts.length > 0 && dispatchedAttempts.every(lostToDisposal)) {
+    if (dispatchedAttempts.length > 0 && dispatchedAttempts.every(lostToInfrastructure)) {
       const lostSpend = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
       if (lostSpend > 0) {
         runtime.append(view, 'budget.spent', { usd: lostSpend, attempts: attempts.length }, 'system')
       }
+      const byDisposal = dispatchedAttempts.every(lostToDisposal)
       runtime.append(
         view,
         'round.finished',
@@ -1503,7 +1527,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // No score at all: 0 is the measurement of a patch that ran and failed.
           score: null,
           promoted: false,
-          reason: 'dispatcher-disposed',
+          reason: byDisposal ? 'dispatcher-disposed' : 'infrastructure',
           planTimedOut,
           ...modeRecord(),
           ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source),

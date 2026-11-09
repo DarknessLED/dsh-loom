@@ -23,6 +23,17 @@ function windowOf(options) {
 }
 
 /**
+ * Rounds that measured something. An interrupted round (the plugin was
+ * re-applied mid-flight, or the model layer broke) never ran an attempt, so it
+ * carries no verdict about the task: counting it as "flat" lets a provider
+ * outage masquerade as a plateau and sends a human to "adjust the objective or
+ * stop the campaign" when the honest answer is "wait".
+ */
+function measured(round) {
+  return Boolean(round) && round.status !== 'interrupted'
+}
+
+/**
  * True only when at least `window` rounds exist and none of the last `window`
  * rounds promoted anything.
  *
@@ -31,7 +42,7 @@ function windowOf(options) {
  * @returns {boolean}
  */
 export function plateauReached(rounds, { window = 3 } = {}) {
-  const list = Array.isArray(rounds) ? rounds : []
+  const list = (Array.isArray(rounds) ? rounds : []).filter(measured)
   const size = windowOf({ window })
   if (list.length < size) return false
   return list.slice(-size).every((round) => !(round && round.promoted === true))

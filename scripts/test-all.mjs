@@ -150,6 +150,8 @@ const standing = [
   'tests/lifecycle/silent-slow-error.test.mjs',
   // the retry budget belongs to the attempt, not to the dispatcher
   'tests/lifecycle/retry-budget.test.mjs',
+  // a provider outage is not a verdict on the task
+  'tests/lifecycle/infra-round.test.mjs',
   // a stopped attempt whose tree already verifies is salvaged and says so, while a
   // late claim is still just a timeout
   'tests/balance/salvage-timeout.test.mjs',
