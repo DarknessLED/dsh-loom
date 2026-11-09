@@ -38,6 +38,34 @@ export function modelChain(models, model, config) {
 }
 
 /**
+ * Split one chain entry into the two fields the host actually takes.
+ *
+ * The host spawns a child with `agentOptions: {provider?, model?}` — two separate
+ * fields. A chain entry is either a bare model name, which leaves the provider to
+ * the host, or `provider/model`. The slash form is the only way to say "this
+ * fallback lives on another provider", and it exists because a fallback that
+ * stays on the same provider cannot escape a provider that is breaking mid-turn —
+ * which is precisely the failure that cost loom-acc2 eight rounds.
+ *
+ * Only the FIRST segment is a provider: model ids may contain slashes themselves
+ * (command-code's are `deepseek/deepseek-v4.1-flash`), so a ref with three parts
+ * keeps the rest as the model.
+ */
+export function parseModelRef(ref) {
+  if (typeof ref !== 'string' || !ref.trim()) return { provider: null, model: null }
+  const text = ref.trim()
+  const at = text.indexOf('/')
+  if (at <= 0) {
+    const bare = at === 0 ? text.slice(1) : text
+    return { provider: null, model: bare || null }
+  }
+  const provider = text.slice(0, at)
+  const model = text.slice(at + 1)
+  if (!model) return { provider: null, model: null }
+  return { provider, model }
+}
+
+/**
  * Owns model-backed child sessions. One attempt = one fresh child agent
  * (`spawn` provider: own session, own prompt, zero parent context).
  *
@@ -177,7 +205,11 @@ export class Dispatcher {
     const parent = await this.ensureParent()
     const controller = new AbortController()
     const agentOptions = {}
-    if (model) agentOptions.model = model
+    // `provider/model` is how a chain names a fallback that lives on another
+    // provider; a bare name keeps the host default, exactly as before.
+    const ref = parseModelRef(model)
+    if (ref.provider) agentOptions.provider = ref.provider
+    if (ref.model) agentOptions.model = ref.model
     const maxTokens = Number(this.config?.session?.maxTokens) || 0
     if (maxTokens > 0) agentOptions.maxTokens = maxTokens
     const agentPreset = this.config?.session?.preset || undefined
