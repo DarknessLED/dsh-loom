@@ -3,14 +3,14 @@
 //
 //   - `statusTone` folds done / stopped / planning / idle into one grey dot, so
 //     a finished campaign and an unstarted one are the same pixel and the reader
-//     must read the word.
+//     must read the word to tell them apart.
 //   - the head row's dot answers "is it running", never "is it waiting for me":
-//     a campaign with 3 open checkpoints draws the same dot as one with 0.
+//     a campaign holding three questions draws the same dot as an idle one.
 //   - a folded row's brief is an empty span when the campaign has no money and
 //     no incumbent, so the most common row shape carries nothing at all.
 //
-// None of this is geometry, so `panel-audit` cannot see it; all of it is pure
-// functions, so these can.
+// None of this is geometry, so `panel-audit` cannot see it; all of it lives in
+// pure functions, so this can.
 
 import assert from 'node:assert/strict'
 import { loadPanel } from '../ui/harness.mjs'
@@ -29,15 +29,16 @@ function ok(name, fn) {
   }
 }
 
-// A7 - a finished campaign and one that has not started must not be the same dot.
+// A7 - a finished campaign and one that has not started must not be one dot.
 ok('done and planning are different tones', () => {
   assert.notEqual(panel.statusTone('done'), panel.statusTone('planning'))
 })
 ok('done and stopped are different tones', () => {
   assert.notEqual(panel.statusTone('done'), panel.statusTone('stopped'))
 })
-ok('every tone is one of the four declared variables', () => {
-  const allowed = [panel.TONES.ok, panel.TONES.warn, panel.TONES.bad, panel.TONES.idle]
+ok('every tone names a declared variable', () => {
+  const allowed = Object.keys(panel.TONES).map((k) => panel.TONES[k])
+  assert.ok(allowed.length >= 5, 'four tones cannot separate done, stopped and planning')
   for (const status of ['running', 'paused', 'done', 'stopped', 'planning', 'failed', 'idle']) {
     assert.ok(allowed.includes(panel.statusTone(status)), status)
   }
@@ -47,7 +48,7 @@ ok('every tone is one of the four declared variables', () => {
 ok('cardTone is exported so the head dot is assertable', () => {
   assert.equal(typeof panel.cardTone, 'function')
 })
-ok('a running campaign holding questions is not the same dot as one that is not', () => {
+ok('a running campaign holding questions differs from one that is not', () => {
   assert.equal(panel.cardTone({ status: 'running', open: 3 }), 'warn')
   assert.equal(panel.cardTone({ status: 'running', open: 0 }), 'ok')
 })
