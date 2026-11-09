@@ -79,4 +79,25 @@ ok('timeouts are stated instead of hidden')
 }
 ok('a zero-cost planner does not print a broken number')
 
+// The silent bucket: a planner that ran and handed back nothing. It is larger
+// than the timeout bucket in practice (46 vs 24 rounds), so a chip that only
+// says "超时 N" tells the reader the planner mostly works.
+{
+  const list = chips(base({ rounds: 5, timedOut: 1, timedOutRate: 0.2, failed: 3, usable: 1, ms: 480000, meanMs: 96000 }))
+  const chip = find(list, 'planning')
+  assert.ok(chip, 'a planner with silent failures still gets a chip')
+  assert.match(chip.label, /空手\s*3/, `the label names the rounds that paid and got nothing (${chip.label})`)
+  assert.match(chip.label, /超时\s*1/, 'the timeout bucket is still stated separately')
+  assert.match(String(chip.title), /没交出任何结论/, 'the title says what happened, in Chinese, without judging')
+}
+ok('a planner that returned nothing is stated, not hidden')
+
+{
+  const list = chips(base({ rounds: 4, timedOut: 0, timedOutRate: 0, failed: 0, usable: 4, ms: 400000, meanMs: 100000 }))
+  const chip = find(list, 'planning')
+  assert.ok(chip, 'a healthy planner still gets a chip')
+  assert.ok(!/空手/.test(chip.label), `a campaign with no silent failures does not print zero of them (${chip.label})`)
+}
+ok('a healthy planner does not advertise a zero failure count')
+
 console.log(`\n${pass}/${pass} passed`)

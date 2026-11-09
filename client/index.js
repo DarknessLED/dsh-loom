@@ -1063,15 +1063,23 @@ window.__ModuleLoader__.load({
           if (planMs !== null && spanMs !== null && spanMs > 0) planShare = planMs / spanMs
         }
         var planTimeouts = num(plan.timedOut)
+        var planFailed = num(plan.failed)
         var planLabel = '规划'
         if (planShare !== null) planLabel += ' ' + fmtPercent(planShare)
         if (planTimeouts > 0) planLabel += ' · 超时 ' + planTimeouts
+        // 46 of 117 rounds paid a planner and got nothing back — more than the
+        // 24 that hit the deadline. Omitting that bucket made the strip read as
+        // "the planner works" when most of its failures were simply silent.
+        if (planFailed > 0) planLabel += ' · 空手 ' + planFailed
         var planTitle = planShare === null
           ? '规划节点耗时 ÷ 战役墙钟：这次没有同时记下两者，算不出占比'
           : '规划节点耗时 ÷ 战役墙钟 = ' + fmtPercent(planShare) + '（' + planRounds + ' 轮记录了规划耗时）'
         planTitle += planTimeouts > 0
           ? '；其中 ' + planTimeouts + ' 轮撞到规划时限，规划没有在时限内返回，只影响那几轮的结果'
           : '；没有一轮撞到规划时限'
+        if (planFailed > 0) {
+          planTitle += '；另有 ' + planFailed + ' 轮规划跑完了但没交出任何结论（子进程出错或返回空），这些轮次白白付出了规划时间'
+        }
         chips.push({ key: 'planning', label: planLabel, title: planTitle })
       }
       return chips

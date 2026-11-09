@@ -124,6 +124,9 @@ export function campaignTriangle(rounds) {
   let planTimedOutPromoted = 0
   let planFinished = 0
   let planFinishedPromoted = 0
+  let planUsable = 0
+  let planFailed = 0
+  let planDecided = 0
   let measuredTokens = 0
   let promoted = 0
   let noGain = 0
@@ -153,6 +156,24 @@ export function campaignTriangle(rounds) {
         } else {
           planFinished += 1
           if (won) planFinishedPromoted += 1
+        }
+        // A planner that ran, spent time, and handed the workers nothing is a
+        // different failure from hitting the deadline: measured here, 46 of 117
+        // instrumented rounds were exactly that, and nothing counted them. Only a
+        // round that recorded the field can be judged; a legacy round stays
+        // unknown rather than being assumed healthy or assumed broken.
+        if (r.planUsable === true) {
+          planUsable += 1
+          planDecided += 1
+        }
+        if (r.planUsable === false) {
+          // A timed-out planner is its own bucket (`timedOut`), so it does not
+          // also count as a silent failure: the two must not overlap or the
+          // failure rate would charge the same round twice.
+          if (r.planTimedOut !== true) {
+            planFailed += 1
+            planDecided += 1
+          }
         }
       }
     }
@@ -220,6 +241,13 @@ export function campaignTriangle(rounds) {
     rounds: planned,
     timedOut: planTimedOut,
     timedOutRate: ratio(planTimedOut, planned),
+    // What the planner actually put in the workers' hands, and what it burned a
+    // deadline or a failed turn on and returned nothing. `failed` excludes rounds
+    // that already scored as `timedOut`, so the two counts are disjoint buckets of
+    // the same total: rounds = usable + failed + timedOut + unknown.
+    usable: planUsable,
+    failed: planFailed,
+    failedRate: ratio(planFailed, planDecided),
     ms: planMs,
     meanMs: planned > 0 ? Math.round(planMs / planned) : null,
     promotedWhenTimedOut: {
