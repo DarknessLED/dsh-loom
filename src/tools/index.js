@@ -21,6 +21,7 @@ import { holdUntil } from '../runtime/hold.js'
 import { nextCheckpointId } from '../runtime/ids.js'
 import { landingTarget } from '../runtime/round.js'
 import { campaignQuality, qualityLine } from '../runtime/quality.js'
+import { doctor } from '../runtime/doctor.js'
 import { reviewQueue } from '../runtime/review.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
@@ -291,6 +292,60 @@ export function registerTools(ctx, { runtime, config }) {
         },
         { detail: args.detail },
       )
+    },
+  })
+
+  defs.push({
+    name: 'rsi_doctor',
+    description:
+      'Answer "is this machine set up for the loop?" before a round burns its budget on a wrong assumption. ' +
+      'Checks the git work tree, an empty `git status`, the Node floor, a writable loom home and whether this ' +
+      'window owns the loop. Every failed check carries a concrete `fix`, not a restatement of the failure. ' +
+      'Read-only and safe to call any time.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: ID,
+        workspace: {
+          type: 'string',
+          description: 'Directory to check. Defaults to the named campaign\'s workspace, or none when neither is given.',
+        },
+      },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 30_000,
+    async execute(args = {}) {
+      // A campaign knows the directory it patches; an explicit argument wins so
+      // the operator can ask about a tree before creating a campaign on it.
+      let campaignId = args.id ? String(args.id) : null
+      let workspace = args.workspace ? String(args.workspace) : null
+      if (!workspace && campaignId) {
+        workspace = resolve(runtime, campaignId).state.workspace || null
+      } else if (!workspace && !campaignId) {
+        const all = runtime.listCampaigns()
+        if (all.length === 1) {
+          campaignId = all[0]
+          workspace = runtime.get(campaignId).state.workspace || null
+        }
+      }
+      const report = doctor({
+        workspace,
+        home: runtime.home,
+        runtime,
+        config: runtime.config ?? config,
+      })
+      return {
+        ...report,
+        // Name what was actually checked: "no workspace" and "a clean workspace"
+        // are different answers and the reader must be able to tell them apart.
+        id: campaignId,
+        workspace: workspace ?? null,
+        hint: report.ok
+          ? 'ready — a round can start'
+          : 'fix the failing checks above; each one names the command or edit that clears it',
+      }
     },
   })
 
