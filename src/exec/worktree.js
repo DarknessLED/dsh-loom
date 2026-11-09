@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { rm, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 
 /** Every git invocation is bounded (contract §2). */
 const GIT_TIMEOUT_MS = 60_000
@@ -159,6 +159,56 @@ export async function isGitRepo(dir) {
 }
 
 /**
+ * Delete the admin directories of worktrees whose checkout is provably gone.
+ *
+ * `git worktree prune` cannot be used here. Prune removes any admin directory it
+ * fails to read a `gitdir` file from — and a sibling creating its worktree at the
+ * same moment has exactly that shape for a few milliseconds. Running prune inside
+ * createWorktree therefore killed concurrent candidates (live: loom-probe r1a2,
+ * `fatal: failed to read .git/worktrees/r1a1/commondir: No error`).
+ *
+ * Here a directory is only removed when we can prove it is stale: it has a
+ * `gitdir` file and the path that file points at no longer exists. A registration
+ * that is still being written cannot be proven stale, so it is left alone.
+ *
+ * Never throws. Returns the ids it removed.
+ * @param {string} repo
+ * @returns {Promise<string[]>}
+ */
+export async function pruneStaleWorktrees(repo) {
+  const removed = []
+  if (typeof repo !== 'string' || repo === '') return removed
+  const admin = join(repo, '.git', 'worktrees')
+  let entries = []
+  try {
+    entries = await readdir(admin, { withFileTypes: true })
+  } catch {
+    return removed
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const dir = join(admin, entry.name)
+    let target = ''
+    try {
+      target = String(await readFile(join(dir, 'gitdir'), 'utf8')).trim()
+    } catch {
+      // No gitdir yet: the registration is still being created. Leave it alone.
+      continue
+    }
+    if (target === '') continue
+    const checkout = target.endsWith('.git') ? target.slice(0, -'.git'.length) : target
+    if (await pathExists(checkout)) continue
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 })
+      removed.push(entry.name)
+    } catch {
+      // best effort
+    }
+  }
+  return removed
+}
+
+/**
  * Create (or recreate) a linked worktree. If `dir` already exists it is removed
  * first with removeWorktree(), which never throws.
  * @param {{repo: string, dir: string, branch: string, baseRef?: string}} options
@@ -179,8 +229,10 @@ export async function createWorktree({ repo, dir, branch, baseRef = 'HEAD' } = {
   if (await pathExists(dir)) {
     await removeWorktree({ repo, dir })
   }
-  // Clear stale registrations left behind by a crashed run (cheap, ignore errors).
-  await runGit(repo, ['worktree', 'prune'])
+  // Clear registrations left behind by a crashed run. This must never touch a
+  // registration that a sibling candidate is still creating, so it is a
+  // prove-then-delete sweep rather than `git worktree prune`.
+  await pruneStaleWorktrees(repo)
 
   const args = ['worktree', 'add', '-B', branch, dir, base]
   const result = await runGit(repo, args)
@@ -287,7 +339,9 @@ export async function removeWorktree({ repo, dir } = {}) {
   }
   try {
     if (typeof repo === 'string' && repo !== '') {
-      await runGit(repo, ['worktree', 'prune'])
+      // Same reason as createWorktree: prune cannot tell a stale registration
+      // from a sibling's half-written one, so only proven-stale ones go.
+      await pruneStaleWorktrees(repo)
     }
   } catch {
     // best effort

@@ -164,6 +164,11 @@ const standing = [
   // the audit may only certify the preview it can regenerate, with the
   // attributes the panel actually sets
   'tests/tools/preview-fresh.test.mjs',
+  // candidates of one round create their worktrees at the same time, so cleanup
+  // may only delete a registration it can prove is stale — git's own `worktree
+  // prune` cannot tell a stale one from a sibling's half-written one
+  'tests/exec/worktree-prune-safe.test.mjs',
+  'tests/exec/worktree-race.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
