@@ -148,6 +148,8 @@ const standing = [
   // silence is silence at any duration: a turn that ended with no reason is not a
   // verdict on the task, and the attempt it destroys costs ten minutes of wall clock
   'tests/lifecycle/silent-slow-error.test.mjs',
+  // the retry budget belongs to the attempt, not to the dispatcher
+  'tests/lifecycle/retry-budget.test.mjs',
   // a stopped attempt whose tree already verifies is salvaged and says so, while a
   // late claim is still just a timeout
   'tests/balance/salvage-timeout.test.mjs',

@@ -102,16 +102,22 @@ export class Dispatcher {
     const chain = modelChain(models, model, this.config)
     const tried = []
     let res = null
+    // The retry budget is per attempt, not per dispatcher. It used to live on the
+    // instance, so the first round of a campaign that hit a broken parent consumed
+    // the only retry there would ever be: in loom-acc2 that turned a flaky minute
+    // into eight consecutive rounds dying in 1-2 s with nothing to show. One retry
+    // per run() still bounds the cost at two children.
+    let infraRetried = false
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
       res = await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })
-      // A child that dies in under three seconds without saying anything is not a
-      // failed task, it is a broken parent: after a host restart the cached agent
-      // can still be addressable while every child it spawns errors immediately.
-      // Rebuild once and retry before charging the round for an infrastructure bug.
-      if (res?.infra && !this.infraRetried) {
-        this.infraRetried = true
-        this.log(`child died instantly with no diagnostic (${res.error}); rebuilding the parent and retrying once`)
+      // A child that dies silently is not a failed task, it is a broken parent:
+      // after a host restart the cached agent can still be addressable while every
+      // child it spawns errors immediately. Rebuild once and retry before charging
+      // the round for an infrastructure bug.
+      if (res?.infra && !infraRetried) {
+        infraRetried = true
+        this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
         res = { ...(await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })), infraRetry: true }
       }
