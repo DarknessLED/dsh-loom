@@ -34,6 +34,7 @@ import { verifyOnce } from './verifier-reuse.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
+import { planBudgetMs } from './plan-budget.js'
 
 /**
  * A verify command is written by the task, not by the harness, so it may say
@@ -304,6 +305,17 @@ export function planModeFor(rounds, policy) {
 }
 
 /**
+ * The deadline this round's planner may take: the configured ceiling, reduced by
+ * whatever the campaign's own record says the planner has been buying (see
+ * `plan-budget.js`). Kept as one function so the planner dispatch and the record
+ * it writes cannot disagree about the number.
+ */
+function plannerBudget(state, config) {
+  const ceiling = Number(config?.session?.planTimeoutMs)
+  return planBudgetMs(state?.rounds, Number.isFinite(ceiling) ? { ceiling } : {})
+}
+
+/**
  * Run the pre-map agent nodes, one fresh session each, and return their text.
  *
  * A node is a planning step, not an attempt: it never produces a patch, never
@@ -322,7 +334,7 @@ export function planModeFor(rounds, policy) {
  * delta that cannot be computed falls back to a real planning call, because a
  * stale plan is worse than an expensive one.
  */
-async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, log }) {
+async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, planTimeoutMs, log }) {
   const findings = []
   // A timed-out planner is not a plan. The round still runs, but it records
   // that it did so without reconnaissance instead of pretending the empty
@@ -332,11 +344,9 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
   // it may run on its own model: `models.meta` when set, otherwise the worker
   // model exactly as before. Candidates below never consult `meta`.
   const planModel = config.models.meta || config.models.worker || null
-  // Planning is bounded work and gets its own, shorter deadline; attempts keep
-  // the per-attempt cap. Fall back to the default so a hand-built config (an
-  // embedder, a test) does not silently inherit the long one. The same value is
-  // written on `node.started` so a recovered node knows what window it had.
-  const planTimeoutMs = config.session.planTimeoutMs ?? 240_000
+  // The deadline is decided once per round by the caller (`plannerBudget`), so
+  // every planning node in this round runs under the same window and the record
+  // it writes cannot disagree with the dispatch it made.
   const nodes = preMapAgentNodes(chain)
   // One tree, one base commit: every node in this round is planned against the
   // same worktree branch point, so read it once for all of them.
@@ -681,6 +691,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
   // Per campaign, per policy: whether this round pays for planning at all.
   const planMode = planModeFor(state.rounds, campaignPolicy)
+  // Planning is bounded work and gets its own, shorter deadline; attempts keep
+  // the per-attempt cap. The ceiling comes from config, but the deadline the
+  // planner actually gets is learned from what its last few runs bought: a
+  // planner that keeps hitting the ceiling gets half of it next time, and one
+  // finished plan earns the whole budget back. Decided here, once per round, so
+  // the dispatch and the record it writes cannot disagree.
+  const planTimeoutMs = plannerBudget(state, config)
   const workerId = workerNodeId(chain)
   // Resolve the price table once: every attempt in this round is billed at the
   // same rates, and the finished record must name the table its dollars came
@@ -924,6 +941,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     skippedCandidates,
     abortedCandidates,
     planMode,
+    // The deadline the planner actually ran under, so a reader can tell "it ran
+    // out of the time it was given" from "it was given a shorter leash today".
+    planBudgetMs: planTimeoutMs,
     ...(secondCandidate ? { secondCandidate } : {}),
   })
   try {
@@ -946,6 +966,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         task,
         chain,
         round: n,
+        planTimeoutMs,
         log,
       })
       planFindings = planResult.findings
