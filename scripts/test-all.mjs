@@ -145,6 +145,9 @@ const standing = [
   'tests/balance/planning-accounting.test.mjs',
   // and its deadline is learned from what its own record says it bought
   'tests/balance/plan-budget.test.mjs',
+  // silence is silence at any duration: a turn that ended with no reason is not a
+  // verdict on the task, and the attempt it destroys costs ten minutes of wall clock
+  'tests/lifecycle/silent-slow-error.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

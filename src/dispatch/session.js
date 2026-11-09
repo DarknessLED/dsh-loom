@@ -242,11 +242,13 @@ export class Dispatcher {
     const elapsedMs = Date.now() - startedAt
     const stopReason = outcome?.stopReason ?? 'error'
     const diagnostic = outcome?.diagnostic ?? null
-    // An error with nothing to say, delivered fast, is the signature of a dead
-    // parent rather than a task that went wrong. Say so explicitly - a null
-    // diagnostic in the ledger is unreadable evidence.
+    // An error with nothing to say is not a verdict on the task, however long it
+    // took: a turn that ended in error without a diagnostic is either a dead
+    // parent (fast) or a model layer that broke mid-turn (slow - seen live as two
+    // tool-call JSON objects glued together, and as a context-length 400). Say so
+    // explicitly: a null diagnostic in the ledger is unreadable evidence.
     const silent = stopReason === 'error' && !diagnostic
-    const infra = silent && elapsedMs < 3000
+    const infra = silent
     return {
       sessionId: childId,
       text: textOf(outcome?.output),
