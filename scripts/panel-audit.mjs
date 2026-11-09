@@ -199,6 +199,26 @@ const AUDIT = `
     }
   }
   out.truncatedPerCanvas = Math.round(out.truncated / canvases.length);
+  // Geometry is not the whole page. The preview used to drop every aria-*,
+  // role and tabindex on the floor, so this script could not see the panel's
+  // keyboard contract at all — it certified a page no browser ever serves, and a
+  // regression in the accessibility work could never fail here. These four
+  // facts are cheap and they are the ones that break silently.
+  var first = document.querySelector('.canvas .loom');
+  if (first) {
+    var buttons = Array.prototype.slice.call(first.querySelectorAll('button'));
+    out.a11y = {
+      aria: first.querySelectorAll('[aria-label],[aria-live],[aria-checked],[aria-expanded],[aria-disabled]').length,
+      roles: first.querySelectorAll('[role]').length,
+      tabbable: first.querySelectorAll('[tabindex]').length,
+      switchRole: !!first.querySelector('[role="switch"]'),
+      switchChecked: !!first.querySelector('[role="switch"][aria-checked]'),
+      liveRegion: !!first.querySelector('[aria-live]'),
+      unnamed: buttons.filter(function (b) {
+        return !(b.getAttribute('aria-label') || (b.textContent || '').trim() || b.getAttribute('title'))
+      }).length,
+    }
+  }
   var pre = document.createElement('pre');
   pre.id = 'loom-audit';
   pre.textContent = JSON.stringify(out);
@@ -239,6 +259,10 @@ for (const c of data.canvases) {
 console.log('font: ' + Object.entries(data.fonts).map(([k, v]) => `${k}=${v}`).join(' '))
 console.log(`truncations: ${data.truncatedPerCanvas} ellipsised nodes per canvas (by design)`)
 console.log(`shadows: ${data.shadows} · state dots: ${data.dots} (one shadow each)`)
+if (data.a11y) {
+  const a = data.a11y
+  console.log(`a11y: ${a.aria} aria attrs · ${a.roles} roles · ${a.tabbable} tabindex · switch=${a.switchRole}/${a.switchChecked ? 'checked' : 'no-checked'} · live=${a.liveRegion ? 'yes' : 'no'} · unnamed buttons ${a.unnamed}`)
+}
 
 const problems = []
 if (data.canvases.some((c) => c.hScroll)) problems.push('a canvas scrolls horizontally')
@@ -259,6 +283,15 @@ for (const c of data.canvases) {
   }
 }
 
+if (data.a11y) {
+  // A button with no name is a button a screen reader calls "button". The
+  // switch must say whether it is on. The queue must announce itself when it
+  // changes. These are the three that a geometry-only audit cannot catch.
+  if (!data.a11y.switchRole || !data.a11y.switchChecked) problems.push('the loop switch does not expose role="switch" with aria-checked')
+  if (!data.a11y.liveRegion) problems.push('the waiting area is not a live region, so a new checkpoint is silent')
+  if (data.a11y.unnamed > 0) problems.push(`${data.a11y.unnamed} button(s) have no accessible name`)
+  if (data.a11y.roles < 4) problems.push(`only ${data.a11y.roles} elements carry a role — the panel is barely navigable`)
+}
 if (problems.length) {
   console.error('\nFAIL\n- ' + problems.join('\n- '))
   process.exit(1)

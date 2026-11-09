@@ -153,6 +153,9 @@ const standing = [
   'tests/balance/salvage-timeout.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
+  // the audit may only certify the preview it can regenerate, with the
+  // attributes the panel actually sets
+  'tests/tools/preview-fresh.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

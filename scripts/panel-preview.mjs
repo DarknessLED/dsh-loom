@@ -81,14 +81,28 @@ function html(node) {
     const kids = children.length === 0 ? undefined : children.length === 1 ? children[0] : children
     return html(type({ ...props, children: kids }))
   }
+  // Everything the panel actually sets has to survive into the preview, or the
+  // audit is measuring a page that no browser would ever serve. The old list was
+  // class/title/data-*/style/disabled, so every aria-*, role and tabIndex was
+  // dropped — which meant the accessibility work could never be audited at all,
+  // and a regression in it could never fail this script.
   const attrs = []
   if (props.className) attrs.push(`class="${escape(props.className)}"`)
   if (props.title) attrs.push(`title="${escape(props.title)}"`)
-  if (props['data-depth']) attrs.push(`data-depth="${escape(props['data-depth'])}"`)
-  if (props['data-last']) attrs.push(`data-last="${escape(props['data-last'])}"`)
-  if (props['data-tone']) attrs.push(`data-tone="${escape(props['data-tone'])}"`)
   if (props.style) attrs.push(`style="${styleOf(props.style)}"`)
   if (props.disabled) attrs.push('disabled')
+  for (const key of Object.keys(props)) {
+    if (key === 'className' || key === 'title' || key === 'style' || key === 'disabled') continue
+    if (key === 'children' || key === 'key' || key === 'ref') continue
+    if (!(key.startsWith('aria-') || key.startsWith('data-') || key === 'role' || key === 'tabIndex' || key === 'type')) continue
+    const value = props[key]
+    if (value === undefined || value === null || value === false) continue
+    const name = key === 'tabIndex' ? 'tabindex' : key
+    // aria-checked is a string in the DOM ("true"/"false"), never a bare
+    // attribute — React does the same. Only real boolean attributes are bare.
+    if (value === true && !key.startsWith('aria-')) attrs.push(name)
+    else attrs.push(`${name}="${escape(String(value))}"`)
+  }
   const tag = type === 'code' ? 'code' : type === 'button' ? 'button' : type === 'span' ? 'span' : type === 'b' ? 'b' : 'div'
   return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>${html(children)}</${tag}>`
 }
