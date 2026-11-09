@@ -129,6 +129,9 @@ const standing = [
   'tests/ui/tree-fail-first.test.mjs',
   // a policy override needs a writer, not just a reader:
   'tests/balance/policy-set.test.mjs',
+  // the preflight the plugin already had is now reachable as a tool, and the
+  // planner's own numbers are reported before anyone argues about it:
+  'tests/tools/doctor-tool.test.mjs',
 ]
 for (const rel of standing) files.push(join(root, rel))
 files.push(join(root, 'scripts', 'verify.mjs'))

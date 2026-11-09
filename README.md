@@ -43,7 +43,8 @@ RSI 想要的是另一种形态：
 | 检查点唤醒：`sessionController.prompt(mode:"queue")` 投递到发起战役的会话 | ✅ |
 | 成本核算：汇总子会话 `assistant/message.usage`，按可配置单价折 USD，双预算闸门 | ✅ |
 | 系统提示注入：主 agent 空闲也能在系统提示里看到各战役状态 | ✅ |
-| 工具面：`rsi_start` / `rsi_status` / `rsi_control`（含全局开关） / `rsi_run` / `rsi_chain` / `rsi_evalset` / `rsi_decide` / `rsi_report` / `rsi_lean` / `rsi_replay` / `rsi_dashboard` | ✅ |
+| 工具面：`rsi_start` / `rsi_status` / `rsi_control`（含全局开关） / `rsi_run` / `rsi_chain` / `rsi_evalset` / `rsi_decide` / `rsi_report` / `rsi_lean` / `rsi_replay` / `rsi_dashboard` / `rsi_export` / `rsi_doctor` | ✅ |
+| **开工自检**：`rsi_doctor` 一次回答「这台机器现在能跑吗」——git 仓库、`git status` 是否干净、Node 版本、loom home 可写、这个窗口是否持有循环；每条失败都带可执行的 `fix` | ✅ |
 | **监管地基**：每次尝试写租约（租约 + 会话事件水位）、看门狗写掉僵死尝试、崩溃重启对账 | ✅ M2 |
 | **结构化交接**：worker 输入是编译过的简报（≤6000 字符），输出强制 `AttemptReport` schema；不传 transcript | ✅ M2 |
 | **同级交流**：同轮候选共享一块有界黑板（障碍/发现），最多 5 条、每轮结束按上限剪枝 | ✅ M2 |
