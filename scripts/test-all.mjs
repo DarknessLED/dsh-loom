@@ -169,6 +169,8 @@ const standing = [
   // prune` cannot tell a stale one from a sibling's half-written one
   'tests/exec/worktree-prune-safe.test.mjs',
   'tests/exec/worktree-race.test.mjs',
+  // a queue row says how long it has waited, in the host's clock, in words
+  'tests/ui-eff/queue-wait.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
