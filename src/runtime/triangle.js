@@ -120,6 +120,10 @@ export function campaignTriangle(rounds) {
   let usd = 0
   let timed = 0
   let planned = 0
+  let planTimedOut = 0
+  let planTimedOutPromoted = 0
+  let planFinished = 0
+  let planFinishedPromoted = 0
   let measuredTokens = 0
   let promoted = 0
   let noGain = 0
@@ -139,6 +143,17 @@ export function campaignTriangle(rounds) {
       if (Number.isFinite(p)) {
         planMs += Math.max(0, p)
         planned += 1
+        // Both halves of the planner trade are measured over the rounds that
+        // actually recorded a plan: a timed-out planner and a planner that
+        // finished are different bets, so their win rates cannot be pooled.
+        const won = r.promoted === true
+        if (r.planTimedOut === true) {
+          planTimedOut += 1
+          if (won) planTimedOutPromoted += 1
+        } else {
+          planFinished += 1
+          if (won) planFinishedPromoted += 1
+        }
       }
     }
     attemptMs += num(r.attemptMs)
@@ -196,12 +211,35 @@ export function campaignTriangle(rounds) {
     refusedShare:
       hedgeDecisions > 0 ? Math.round((hedgeRefused / hedgeDecisions) * 1000) / 1000 : null,
   }
+  // The planner is the loop's most expensive habit and the ledger already
+  // records `planTimedOut` per round. This block is the only place that says
+  // what it bought: both win rates are over rounds that recorded a `planMs`
+  // (silence is not a zero), and each rate is null rather than 0 when its own
+  // denominator is empty, so "never measured" and "never won" stay distinct.
+  const planning = {
+    rounds: planned,
+    timedOut: planTimedOut,
+    timedOutRate: ratio(planTimedOut, planned),
+    ms: planMs,
+    meanMs: planned > 0 ? Math.round(planMs / planned) : null,
+    promotedWhenTimedOut: {
+      rounds: planTimedOut,
+      promoted: planTimedOutPromoted,
+      rate: ratio(planTimedOutPromoted, planTimedOut),
+    },
+    promotedWhenPlanned: {
+      rounds: planFinished,
+      promoted: planFinishedPromoted,
+      rate: ratio(planFinishedPromoted, planFinished),
+    },
+  }
   return {
     rounds: finished,
     timedRounds: timed,
     // efficiency
     durationMs,
     planMs: planningMs,
+    planning,
     attemptMs,
     verifierMs,
     holdoutMs,
