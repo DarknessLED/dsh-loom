@@ -83,13 +83,10 @@ const standing = [
   // the holdout gate is timed instead of being charged to the candidates
   'tests/tri6/attempt-window.test.mjs',
   'tests/tri6/holdout-split.test.mjs',
-  // the campaign reads its own record to decide whether a second opinion pays,
-  // and every checkpoint explains itself
+  // the campaign reads its own record to decide whether a second opinion pays
+  // (the checkpoint help it landed with is pinned above, next to its own comment)
   'tests/tri7/adaptive-cascade.test.mjs',
-  'tests/ui/checkpoint-help.test.mjs',
   // a failed read explains itself instead of printing a raw error, a live
-  // campaign is never called "empty", and the status is compact by default:
-  // once solved these are pins, so a promotion cannot delete the guard.
   'tests/ui/error-state.test.mjs',
   'tests/tri10/status-compact.test.mjs',
   'tests/tri11/plan-timeout.test.mjs',
@@ -117,12 +114,21 @@ const standing = [
   // the second candidate is an option priced by its tail, and the panel draws the
   // round as one band instead of five chips:
   'tests/balance/second-candidate.test.mjs',
-  'tests/balance/second-candidate.test.mjs', "tests/balance/second-candidate-gate.test.mjs",
+  'tests/balance/second-candidate-gate.test.mjs',
   'tests/ui/node-band.test.mjs',
-  'tests/ui/node-band.test.mjs', "tests/ui/node-band-render.test.mjs",
+  'tests/ui/node-band-render.test.mjs',
   // the planner can be switched off per policy and says which mode it ran in, and
   // a narrow sidebar keeps only the three cells that carry the answer:
-  'tests/balance/plan-mode.test.mjs', "tests/setup/one-call-start.test.mjs", "tests/preflight/doctor.test.mjs", "tests/balance/holdout-noop.test.mjs", "tests/defaults/opinionated.test.mjs", "tests/dag2/deadline.test.mjs", "tests/balance/late-success.test.mjs", "tests/balance/hedge-stats.test.mjs", "tests/ui/policy-visible.test.mjs", "tests/balance/plan-mode-evidence.test.mjs",
+  'tests/balance/plan-mode.test.mjs',
+  'tests/setup/one-call-start.test.mjs',
+  'tests/preflight/doctor.test.mjs',
+  'tests/balance/holdout-noop.test.mjs',
+  'tests/defaults/opinionated.test.mjs',
+  'tests/dag2/deadline.test.mjs',
+  'tests/balance/late-success.test.mjs',
+  'tests/balance/hedge-stats.test.mjs',
+  'tests/ui/policy-visible.test.mjs',
+  'tests/balance/plan-mode-evidence.test.mjs',
   'tests/ui/metrics-priority.test.mjs',
   // a campaign can carry its own policy, and a stuck round explains itself first:
   'tests/balance/policy-override.test.mjs',
@@ -132,8 +138,20 @@ const standing = [
   // the preflight the plugin already had is now reachable as a tool, and the
   // planner's own numbers are reported before anyone argues about it:
   'tests/tools/doctor-tool.test.mjs',
+  // the guard's own arithmetic: one spec, one run, one line
+  'tests/tools/standing-list.test.mjs',
 ]
-for (const rel of standing) files.push(join(root, rel))
+// Each spec runs once. The standing list grew by append, and the same pin was
+// added twice on three occasions — which quietly inflated the reported total and
+// paid for those suites twice. Dedupe by absolute path, keeping first position so
+// the order still reads as the story of what got pinned when.
+const seen = new Set(files)
+for (const rel of standing) {
+  const abs = join(root, rel)
+  if (seen.has(abs)) continue
+  seen.add(abs)
+  files.push(abs)
+}
 files.push(join(root, 'scripts', 'verify.mjs'))
 
 let failed = 0
