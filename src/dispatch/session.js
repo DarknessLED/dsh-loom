@@ -266,6 +266,13 @@ export class Dispatcher {
     // tool-call JSON objects glued together, and as a context-length 400). Say so
     // explicitly: a null diagnostic in the ledger is unreadable evidence.
     const silent = stopReason === 'error' && !diagnostic
+    // The child usually *does* say why — it just says it in its own session log,
+    // not on the result object. Adopting that message is the difference between
+    // "parent or provider unavailable" (nothing an operator can act on) and
+    // `Tool call "read": Unexpected non-whitespace character after JSON`, and it
+    // is also what lets a context-length failure be classified as a model limit
+    // so the fallback chain can fire.
+    const recovered = silent ? this.#sessionDiagnosis(childId) : null
     const infra = silent
     return {
       sessionId: childId,
@@ -273,9 +280,38 @@ export class Dispatcher {
       structured: outcome?.structured ?? null,
       stopReason,
       timedOut: false,
-      error: silent ? 'child session ended in error with no diagnostic (parent or provider unavailable)' : diagnostic,
+      error:
+        diagnostic ??
+        recovered ??
+        (silent ? 'child session ended in error with no diagnostic (parent or provider unavailable)' : null),
       elapsedMs,
       infra,
+      ...(recovered ? { diagnosisSource: 'session-log' } : {}),
+    }
+  }
+
+  /**
+   * The last error message the child recorded about itself. A child session that
+   * has been told to stop, or that never started a turn, has nothing to say and
+   * returns null — silence is reported as silence.
+   */
+  #sessionDiagnosis(childId) {
+    try {
+      const session = svc(this.ctx, 'sessions')?.get?.(childId)
+      if (!session) return null
+      const events = typeof session.snapshotEvents === 'function' ? session.snapshotEvents() : null
+      if (!Array.isArray(events)) return null
+      for (let i = events.length - 1; i >= 0; i -= 1) {
+        const event = events[i]
+        const type = event?.type ?? event?.kind
+        if (type !== 'turn/end') continue
+        const message = event?.data?.reason?.error?.message ?? event?.reason?.error?.message
+        if (typeof message === 'string' && message.trim()) return message.trim()
+      }
+      return null
+    } catch (err) {
+      this.log('could not read the child session diagnosis:', err?.message ?? err)
+      return null
     }
   }
 
