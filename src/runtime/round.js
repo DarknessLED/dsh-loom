@@ -283,7 +283,58 @@ export function policyFor({ config, campaign } = {}) {
   const infraPauseAfter = Number(
     decide('infraPauseAfter', over.infraPauseAfter, loop.infraPauseAfter, isPositiveInt, 3),
   )
-  return { planMode, candidateMode, minGain, infraPauseAfter, sources, rejected }
+  // Which models an attempt may use. The host reads `config.models` once at load,
+  // so changing providers used to mean editing the profile and restarting the
+  // app — the same constraint `campaign.policy` was built to remove for planMode.
+  // A chain is all-or-nothing: applying the worker but dropping a malformed
+  // fallback would look like an experiment while silently not being one.
+  const isModelName = (v) => typeof v === 'string' && v.trim().length > 0
+  const isModelList = (v) => Array.isArray(v) && v.every(isModelName)
+  const configModels = config?.models && typeof config.models === 'object' ? config.models : {}
+  const chainFrom = (source) => ({
+    worker: isModelName(source?.worker) ? source.worker : null,
+    fallback: isModelList(source?.fallback) ? source.fallback.slice() : [],
+  })
+  const configChain = chainFrom(configModels)
+  const configIsSet = configChain.worker !== null || configChain.fallback.length > 0
+  const fromConfig = () => {
+    sources.models = configIsSet ? 'config' : 'default'
+    return configChain
+  }
+  const overModels = over.models
+  let models = fromConfig()
+  if (overModels !== undefined && overModels !== null) {
+    if (typeof overModels !== 'object' || Array.isArray(overModels)) {
+      rejected.push('models')
+    } else {
+      const workerOk = overModels.worker === undefined || overModels.worker === null || isModelName(overModels.worker)
+      const fallbackOk =
+        overModels.fallback === undefined || overModels.fallback === null || isModelList(overModels.fallback)
+      const namesSomething = isModelName(overModels.worker) || isModelList(overModels.fallback)
+      if (!workerOk) rejected.push('models.worker')
+      if (!fallbackOk) rejected.push('models.fallback')
+      if (workerOk && fallbackOk && namesSomething) {
+        models = chainFrom({ ...configModels, ...overModels })
+        sources.models = 'campaign'
+      }
+    }
+  }
+  return { planMode, candidateMode, minGain, infraPauseAfter, models, sources, rejected }
+}
+
+/**
+ * The model chain an attempt should be dispatched with: the campaign's own chain
+ * when it named one, otherwise `undefined` so the dispatcher falls back to the
+ * config exactly as before.
+ */
+export function modelsFor(policy) {
+  const chain = policy?.models
+  const list = []
+  if (chain && typeof chain.worker === 'string' && chain.worker) list.push(chain.worker)
+  if (chain && Array.isArray(chain.fallback)) {
+    for (const name of chain.fallback) if (typeof name === 'string' && name) list.push(name)
+  }
+  return list.length > 0 ? list : undefined
 }
 
 /**
@@ -594,7 +645,7 @@ function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, inde
  * tell us which candidates deserve the expensive attempt. Whatever the worker
  * learned in the screen stays in its worktree, so a survivor starts ahead.
  */
-async function screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId, workerId = 'work', log }) {
+async function screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId, workerId = 'work', models, log }) {
   const startedAt = Date.now()
   const wtPath = join(runtime.home, 'worktrees', state.id, attemptId)
   const branch = `loom/${state.id}/${attemptId}`
@@ -621,6 +672,7 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       timeoutMs,
       label: `loom:${workerId}:${attemptId}:screen`,
       model: config.models.worker || null,
+      models,
     })
     const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
     Object.assign(out, {
@@ -732,6 +784,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
   // Per campaign, per policy: whether this round pays for planning at all.
   const planMode = planModeFor(state.rounds, campaignPolicy)
+  // Which models the workers in this round may use — the campaign's chain when it
+  // named one, otherwise the config's. Without an override `modelsFor` returns the
+  // config chain itself, which is what the dispatcher would have resolved anyway.
+  const models = modelsFor(campaignPolicy)
   // Planning is bounded work and gets its own, shorter deadline; attempts keep
   // the per-attempt cap. The ceiling comes from config, but the deadline the
   // planner actually gets is learned from what its last few runs bought: a
@@ -1026,7 +1082,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     if (screening) {
       const results = []
       for (const p of plan) {
-        const res = await screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId: p.attemptId, workerId, log })
+        const res = await screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId: p.attemptId, workerId, models, log })
         screenInfo.set(p.attemptId, res)
         results.push({ id: p.attemptId, ok: res.ok, score: res.ok ? 1 : 0 })
       }
@@ -1155,6 +1211,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // node of the chain produced this dispatch.
           label: `loom:${workerId}:r${n}a${i}`,
           model: config.models.worker || null,
+          models,
           onStart: startedHook,
         })
         // A context overflow is a packaging problem, not a code problem: the
@@ -1185,6 +1242,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             timeoutMs,
             label: `loom:${workerId}:r${n}a${i}:retry`,
             model: config.models.worker || null,
+            models,
             onStart: startedHook,
           })
         }
