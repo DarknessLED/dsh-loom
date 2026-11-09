@@ -633,7 +633,19 @@ window.__ModuleLoader__.load({
       // A checkpoint's wait is its own: the campaign may have run for hours, but
       // the question on the table may have been asked a minute ago. `now` is
       // injectable so the queue can be read as of a fixed instant.
-      var now = opts && typeof opts.now === 'number' && isFinite(opts.now) ? opts.now : Date.now()
+      //
+      // The host stamps every poll with its own clock (`data.now`), and that is
+      // the clock the checkpoint `at` values were written with. Reading the
+      // browser clock here makes a fresh question look stale (or an old one
+      // fresh) whenever the two machines disagree by more than the age in
+      // question, so the host clock wins whenever it is present; `opts.now`
+      // remains the override a caller or a spec can pin.
+      var hostNow = data && typeof data.now === 'number' && isFinite(data.now) ? data.now : null
+      var now = hostNow !== null
+        ? hostNow
+        : opts && typeof opts.now === 'number' && isFinite(opts.now)
+          ? opts.now
+          : Date.now()
       var verbs = ['approve', 'reject', 'snooze']
       var out = []
       var rows = (data && data.campaigns) || []
@@ -696,6 +708,26 @@ window.__ModuleLoader__.load({
         )
       })
       return out
+    }
+
+    /**
+     * The words a queue row shows: which campaign asked, and how long it waited.
+     *
+     * Both the row label and its tooltip read this function, so the two can
+     * never disagree about the wait, and a spec can assert the sentence without
+     * rendering React. An undated checkpoint returns an empty `wait` on purpose:
+     * the queue has no idea how old the question is, and borrowing the
+     * campaign's age would be a confident lie.
+     */
+    function queueRowText(row) {
+      var campaign = row && row.campaign != null ? String(row.campaign) : ''
+      var ms = row && typeof row.waitMs === 'number' && isFinite(row.waitMs) ? row.waitMs : null
+      return {
+        campaign: campaign,
+        // `age` already speaks the one Chinese duration dialect the panel uses
+        // (10分 / 3小时 / 2天), so the wait does not grow a second formatter.
+        wait: ms === null ? '' : age(Math.max(0, ms)),
+      }
     }
 
     /**
@@ -2354,6 +2386,7 @@ window.__ModuleLoader__.load({
       overview: overview,
       metrics: metrics,
       pending: pending,
+      queueRowText: queueRowText,
       queueOf: queueOf,
       hitProps: hitProps,
       switchProps: switchProps,
