@@ -16,14 +16,22 @@ function git(args, cwd, timeout = 60_000) {
  * is a new module used to score 1 in its worktree and then promote a patch that
  * did not contain the module at all. `add -N` (intent to add) makes the new
  * files show up as additions without staging their content.
+ *
+ * The worktree carries a link to the repo's dependency tree (see
+ * `createWorktree`), and `add -A` would happily stage every file behind it in a
+ * repo that does not ignore `node_modules`. A patch that carries somebody's
+ * dependencies is unapplicable and unbounded, so that one path is excluded by
+ * pathspec rather than trusted to a gitignore.
  */
+const DEPENDENCY_DIR = 'node_modules'
+
 export async function makePatch({ dir, outFile, base = 'HEAD' }) {
   try {
-    await git(['add', '-A', '-N'], dir)
+    await git(['add', '-A', '-N', '--', '.', `:(exclude)${DEPENDENCY_DIR}`], dir)
   } catch {
     // An empty worktree or a git that dislikes -A is not a reason to lose the diff.
   }
-  const { stdout } = await git(['diff', '--binary', base], dir)
+  const { stdout } = await git(['diff', '--binary', base, '--', '.', `:(exclude)${DEPENDENCY_DIR}`], dir)
   mkdirSync(dirname(outFile), { recursive: true })
   writeFileSync(outFile, stdout)
   return { path: outFile, bytes: Buffer.byteLength(stdout), empty: stdout.trim() === '' }
