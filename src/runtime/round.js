@@ -401,15 +401,22 @@ export function planModeFor(rounds, policy) {
   const history = Array.isArray(rounds) ? rounds : []
   if (history.length < 2) return 'full'
   const [prev, last] = history.slice(-2)
-  const timedOut = (r) => r?.planTimedOut === true
+  // A plan was not worth its price when it ran out of time, or when it came back
+  // having named nothing. The second case is the expensive one: the ledger says 85
+  // of 132 planned rounds got no text back while still spending ~24% of the wall
+  // clock, and `planUsable` was written for every one of them and read by nobody.
+  // It is three-state -- only an explicit false means "named nothing"; a record
+  // written before the field existed cannot answer, and reading absence as failure
+  // would defund planning on every old ledger.
+  const wasted = (r) => r?.planTimedOut === true || r?.planUsable === false
   const won = (r) => r?.promoted === true
-  // A ledger that predates `promoted` cannot say whether a timed-out round won;
-  // fall back to the timeout-only rule those records were judged by, rather than
+  // A ledger that predates `promoted` cannot say whether a wasted round won;
+  // fall back to the win-blind rule those records were judged by, rather than
   // treating "unrecorded" as "lost".
   if ([prev, last].some((r) => typeof r?.promoted !== 'boolean')) {
-    return timedOut(prev) && timedOut(last) ? 'off' : 'full'
+    return wasted(prev) && wasted(last) ? 'off' : 'full'
   }
-  return timedOut(prev) && won(prev) && timedOut(last) && won(last) ? 'off' : 'full'
+  return wasted(prev) && won(prev) && wasted(last) && won(last) ? 'off' : 'full'
 }
 
 /**
