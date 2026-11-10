@@ -75,9 +75,14 @@ function config(over = {}) {
   }
 }
 
-// The one command that every task in these fixtures runs. It writes a marker so
-// the test can count spawns instead of trusting the round's own bookkeeping.
-const SAME = `"${process.execPath}" -e "require('fs').appendFileSync('runs.log','x')"`
+// The one command that every task in these fixtures runs. It appends a marker so
+// the test can count spawns instead of trusting the round's own bookkeeping, and
+// it only passes once the candidate has produced `out.txt` -- a spec that passes
+// on the base commit is not evidence of work and is refused before promotion.
+const SAME =
+  `"${process.execPath}" -e "` +
+  `require('fs').appendFileSync('runs.log','x'); ` +
+  `process.exit(require('fs').existsSync('out.txt') ? 0 : 1)"`
 
 function dispatcher({ writes = true } = {}) {
   return {

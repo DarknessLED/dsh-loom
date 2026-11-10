@@ -79,6 +79,7 @@
 
 ### runtime/ — 回合与运行时
 
+- `src/runtime/baseline.js` — 基线裁决：回答「这条任务命令在补丁之前就已经通过了吗」。候选在从 HEAD 切出的工作树里验证，所以问题可以直接在 workspace 上问一次，答案按 `(任务, base, 命令)` 缓存，HEAD 一动就重测；缓存读坏只会多跑一次，绝不会伪造裁决。
 - `src/runtime/candidates.js` — 候选模式的自适应推断：`adaptiveCandidateMode(rounds)` 只看最近 `minRounds` 个「有测量」的回合，若每轮都采样了两个以上候选且每个候选都是满分 1，说明第二意见从未改变结果，下一轮应改为 `cascade`（先跑一个、满分就收手）；历史太短、只有一个候选或存在非 1 分时一律回落 `parallel`。是否启用由 `config.loopPolicy.autoCandidateMode` 决定，显式 `candidateMode` 永远优先，来源记在 `round.finished.candidateModeSource`（`config`/`auto`/`default`）。
 - `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；缺失 usage 时用 transcript 长度给出带 `estimated` 标记的上界。
 - `src/runtime/deferred.js` — 静默时段计算：把落在 quiet hours 内的检查点推迟到窗口结束的瞬间，既不投递也不丢弃。

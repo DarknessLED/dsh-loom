@@ -31,6 +31,7 @@ import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
+import { baseVerdict } from './baseline.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -1774,6 +1775,33 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Decided before the holdout gate: a tree that has not changed since the
     // verifier passed has nothing new for a second opinion to check.
     checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
+    // A verdict on a spec that was already green is not evidence of work. The
+    // candidate was verified inside a worktree cut from this very tree, so the
+    // question "did this command fail before the patch?" is answerable with one
+    // run against the base -- and in the ledger it was never asked: 22 of the 103
+    // landed rounds carried a passing candidate whose diff was empty.
+    //
+    // Only asked when there is a patch to justify: a no-op landing is the one case
+    // where the empty diff *is* the finding.
+    checks.baseFailed = 'skipped'
+    if (checks.hasPatch && checks.verifierOk) {
+      try {
+        const spec = task.verify?.cmd ?? null
+        const baseRes = await baseVerdict({
+          dir: view.dir,
+          cwd: state.workspace,
+          taskId: task.id,
+          base: best?.base ?? null,
+          command: spec,
+          run: () => runVerifier(task.verify, { cwd: state.workspace, timeoutMs: config.verify?.timeoutMs, env: verifierEnv }),
+        })
+        checks.baseFailed = baseRes.ok === false
+      } catch (err) {
+        // A base we could not measure is not a base that failed: leave the check
+        // as 'skipped' so a broken verifier cannot quietly block every promotion.
+        log('baseline check failed:', err?.message ?? err)
+      }
+    }
     // Holdout tasks are excluded from selection, so passing the visible verifier
     // proves less than it looks: a patch can special-case that task and break the
     // one held back. Run the holdout here, inside the winning candidate's
@@ -1867,7 +1895,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
       holdoutMs = Math.max(0, Date.now() - holdoutStartedAt)
     }
-    const basePass = checks.verifierOk && checks.testsClean && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
+    // A patch that did not have to fix anything did not earn the verdict. The
+    // no-op branch is the opposite claim (the tree already satisfied the task, and
+    // the empty diff is the evidence), so it is left alone.
+    const earned = checks.baseFailed !== false
+    const basePass = checks.verifierOk && checks.testsClean && earned && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
     const promote = basePass && checks.holdout !== false
     const rejectedByHoldout = basePass && checks.holdout === false
 

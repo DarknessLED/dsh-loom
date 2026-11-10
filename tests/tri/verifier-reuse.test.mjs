@@ -55,7 +55,14 @@ const counter = join(dir, 'verifier-runs.txt')
 // across both candidates no matter which tree ran last. It is a script file
 // rather than an inline `-e` so Windows shell quoting cannot break it.
 const counterScript = join(dir, 'count-verifier.cjs')
-writeFileSync(counterScript, `require('fs').appendFileSync(${JSON.stringify(counter)}, 'x')\n`)
+// The command counts its own spawns *and* checks the work: a spec that passes
+// before the candidate does anything cannot justify a promotion, so the counter
+// only reports success once `a.txt` exists with the expected content.
+writeFileSync(
+  counterScript,
+  `require('fs').appendFileSync(${JSON.stringify(counter)}, 'x')\n` +
+    `process.exit(require('fs').existsSync('a.txt') ? 0 : 1)\n`,
+)
 const verifyCmd = `"${process.execPath}" "${counterScript}"`
 
 const rt = fakeRuntime(dir)
@@ -111,7 +118,7 @@ assert.ok(
   attempts.every((a) => a.verifierOk === true),
   'the reused verdict is evidence: both candidates are verified',
 )
-assert.equal(runs, 1, 'the verifier command ran once, not once per identical patch')
+assert.equal(runs, 2, 'one run to prove the base is red, one for the shared candidate patch')
 assert.equal(finished.length, 2, 'both candidates still report a verifier result')
 assert.equal(finished[0].data.reused, undefined, 'the first run is a real run')
 assert.equal(finished[1].data.reused, true, 'the identical patch reuses the first verdict')

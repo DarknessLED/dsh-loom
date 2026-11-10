@@ -37,7 +37,15 @@ function repo(prefix) {
   return { root, dir }
 }
 
-const trueVerifier = `"${process.execPath}" -e "process.exit(0)"`
+// Two verifiers, because the two fixtures ask opposite questions.
+//
+// A no-op landing is a task the tree *already* satisfies, so its spec has to be
+// green before the round starts. A patch has to earn its verdict, so its spec has
+// to be red on the base -- the gate refuses a promotion nothing needed to fix.
+const alreadyGreen = `"${process.execPath}" -e "process.exit(0)"`
+const needsWork =
+  `"${process.execPath}" -e "` +
+  `process.exit(require('fs').existsSync('new.txt') ? 0 : 1)"`
 
 const CLAIM = JSON.stringify({
   changed: [],
@@ -93,7 +101,7 @@ const baseConfig = {
   const { root, dir } = repo('lesson-noop')
   const campaignDir = mkdtempSync(join(tmpdir(), 'loom-camp-'))
   try {
-    const state = campaign(dir, campaignDir, { id: 't1', prompt: 'p', verify: { cmd: trueVerifier, timeoutMs: 20000 } })
+    const state = campaign(dir, campaignDir, { id: 't1', prompt: 'p', verify: { cmd: alreadyGreen, timeoutMs: 20000 } })
     const rt = fakeRuntime(campaignDir)
     // The child reports no changed files: nothing was proven, only asserted.
     await runRound({
@@ -120,7 +128,7 @@ const baseConfig = {
   const { root, dir } = repo('lesson-work')
   const campaignDir = mkdtempSync(join(tmpdir(), 'loom-camp-'))
   try {
-    const state = campaign(dir, campaignDir, { id: 't2', prompt: 'p', verify: { cmd: trueVerifier, timeoutMs: 20000 } })
+    const state = campaign(dir, campaignDir, { id: 't2', prompt: 'p', verify: { cmd: needsWork, timeoutMs: 20000 } })
     ;(state.lessons = []), (state.evalset.tasks[0].id = 't2')
     const rt = fakeRuntime(campaignDir)
     await runRound({

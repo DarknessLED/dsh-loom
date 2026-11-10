@@ -114,7 +114,10 @@ const guardA = join(a.root, 'guard-a.txt')
 const guardScriptA = join(a.root, 'guard-a.cjs')
 writeFileSync(guardScriptA, `require('fs').appendFileSync(${JSON.stringify(guardA)}, 'g')\n`)
 const guardCmdA = `"${process.execPath}" "${guardScriptA}"`
-const verifyCmdA = `"${process.execPath}" -e "process.exit(0)" && ${guardCmdA}`
+// The spec has to be red before the candidate works, or the promotion it earns
+// is not evidence: `out.txt` is what the dispatcher below writes.
+const needsOut = 'process.exit(require(\'fs\').existsSync(\'out.txt\') ? 0 : 1)'
+const verifyCmdA = `"${process.execPath}" -e "${needsOut}" && ${guardCmdA}`
 const rtA = fakeRuntime(a.root)
 const viewA = makeView(a.root, a.dir, verifyCmdA, guardCmdA)
 
@@ -123,7 +126,11 @@ await runRound({ runtime: rtA, view: viewA, config, dispatcher, log: () => {}, n
 const appliedA = rtA.events.filter((e) => e.type === 'autopilot.applied').map((e) => e.data)
 const guardMarksA = existsSync(guardA) ? readFileSync(guardA, 'utf8').length : 0
 assert.equal(appliedA.length, 1, 'the promotion was applied')
-assert.equal(guardMarksA, 0, 'the guard command did not run a second time')
+// Zero, from both sides. The base check runs the compound command in the
+// workspace, where `out.txt` does not exist yet, so it exits before reaching the
+// guard; and the applier reuses the verifier verdict instead of spawning the
+// guard again. Two independent reasons the guard never got a second turn.
+assert.equal(guardMarksA, 0, 'the guard is not spawned a second time, on either path')
 assert.equal(appliedA[0].guard, 'reused-verifier', 'the applier says it reused the verifier verdict')
 assert.ok(appliedA[0].commit, 'the patch is still committed, so the next round starts from it')
 
@@ -135,7 +142,7 @@ const guardB = join(b.root, 'guard-b.txt')
 const guardScriptB = join(b.root, 'guard-b.cjs')
 writeFileSync(guardScriptB, `require('fs').appendFileSync(${JSON.stringify(guardB)}, 'g')\n`)
 const guardCmdB = `"${process.execPath}" "${guardScriptB}"`
-const verifyCmdB = `"${process.execPath}" -e "process.exit(0)"`
+const verifyCmdB = `"${process.execPath}" -e "${needsOut}"`
 const rtB = fakeRuntime(b.root)
 const viewB = makeView(b.root, b.dir, verifyCmdB, guardCmdB)
 
@@ -144,7 +151,9 @@ await runRound({ runtime: rtB, view: viewB, config, dispatcher, log: () => {}, n
 const appliedB = rtB.events.filter((e) => e.type === 'autopilot.applied').map((e) => e.data)
 const guardMarksB = existsSync(guardB) ? readFileSync(guardB, 'utf8').length : 0
 assert.equal(appliedB.length, 1, 'the promotion was applied')
-assert.equal(guardMarksB, 1, 'an unrelated guard command runs exactly once')
+// The base check runs the work spec only, so the guard's single mark is the
+  // applier's own run.
+  assert.equal(guardMarksB, 1, 'an unrelated guard command runs exactly once')
 assert.equal(appliedB[0].guard, guardCmdB, 'the applier reports the guard it ran')
 
 ok('a guard the verifier did not run still runs, exactly once')
