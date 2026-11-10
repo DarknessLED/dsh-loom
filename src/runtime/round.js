@@ -415,6 +415,16 @@ export function planModeFor(rounds, policy) {
   // would defund planning on every old ledger.
   const wasted = (r) => r?.planTimedOut === true || r?.planUsable === false
   const won = (r) => r?.promoted === true
+  // A round that ran with planning switched off recorded no plan at all, so it
+  // looks neither wasted nor planned. Reading it as neutral makes the round that
+  // proves the loop works without a plan the one that flips the decision back:
+  // the campaign then buys a planner every other round for as long as it runs.
+  // Once planning is off it stays off while the unplanned rounds keep landing, and
+  // one unplanned round that fails is enough to buy a plan again -- planning comes
+  // back when there is something to plan for.
+  const skipped = (r) => r?.planMode === 'off'
+  if (skipped(last)) return won(last) ? 'off' : 'full'
+  if (skipped(prev) && skipped(last)) return won(prev) && won(last) ? 'off' : 'full'
   // A ledger that predates `promoted` cannot say whether a wasted round won;
   // fall back to the win-blind rule those records were judged by, rather than
   // treating "unrecorded" as "lost".

@@ -246,6 +246,9 @@ const standing = [
   // interruption is the reason the retry exists, and four campaigns had it
   // overwritten by the second finish
   'tests/balance/interrupted-round-keeps-its-story.test.mjs',
+  // and a campaign that stopped buying plans must not buy them again just
+  // because the round it skipped planning in went fine
+  'tests/balance/a-skipped-plan-is-a-decision.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
