@@ -34,6 +34,13 @@ function isPromoted(round) {
  * one bad record cannot poison the mean.
  */
 function roundMs(round) {
+  // `durationMs` first: that is the field the loop writes on every round
+  // finished event, and the materializer only ever copies it under that name.
+  // Reading `ms` alone made this leg null in every campaign the ledger had --
+  // the durations were recorded, they were simply looked up under a name no
+  // writer used. `ms` stays as a fallback for older ledgers.
+  const modern = round?.durationMs
+  if (Number.isFinite(modern) && modern >= 0) return modern
   const ms = round?.ms
   if (Number.isFinite(ms) && ms >= 0) return ms
   const started = typeof round?.at === 'string' ? Date.parse(round.at) : NaN
