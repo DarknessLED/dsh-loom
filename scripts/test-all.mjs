@@ -237,6 +237,8 @@ const standing = [
   // a score nobody prints is a private opinion: the digest names the model
   // that actually did the work, and keeps "not measured" distinct from zero
   'tests/balance/models-are-visible.test.mjs',
+  // an attempt we stopped on purpose is not evidence about the model
+  'tests/balance/sibling-kill-is-not-a-provider-failure.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

@@ -43,6 +43,7 @@ function emptyRow() {
     exhausted: 0,
     context: 0,
     crash: 0,
+    abandoned: 0,
     other: 0,
     promoted: 0,
     measured: 0,
@@ -59,6 +60,14 @@ function emptyRow() {
  * `context`, `crash`, anything else is `other`. An attempt with no `model` is
  * filed under `unknown`. `promoted` counts the attempts a round actually
  * promoted, which is a different question from "the verifier passed".
+ *
+ * `abandoned` wins over `failureKind`. An attempt the round stopped on purpose --
+ * a sibling already solved the task, or the host restarted -- arrives here with
+ * `failureKind: 'died'`, because that is what an aborted child looks like from
+ * the dispatcher. It is true about the child and false about the provider: we
+ * stopped paying for an answer we already had. Filing it as a death made every
+ * two-candidate campaign look like a provider that dies once per round, at
+ * exactly the moment its sibling finished.
  *
  * @param {Array<object>} rounds folded rounds, each with an `attempts` array
  * @returns {Record<string, object>} one row per model ref
@@ -79,7 +88,8 @@ export function modelHealth(rounds) {
       const row = entry.row
       row.attempts += 1
       const kind = attempt.failureKind ?? (attempt.verifierOk ? 'ok' : 'other')
-      if (kind === 'ok') row.ok += 1
+      if (attempt.abandoned === true) row.abandoned += 1
+      else if (kind === 'ok') row.ok += 1
       else if (kind === 'timeout') row.timeouts += 1
       else if (kind === 'died') row.died += 1
       else if (kind === 'exhausted') row.exhausted += 1
@@ -148,6 +158,10 @@ export function demoteChain(chain, rounds, opts = {}) {
       if (!attempt || typeof attempt !== 'object') continue
       const ref = typeof attempt.model === 'string' && attempt.model.trim() ? attempt.model.trim() : null
       if (!ref) continue
+      // An attempt we stopped on purpose says nothing about the ref's health, so
+      // it must not extend a losing streak. Otherwise the rule benches whichever
+      // model is fast enough to win its round early.
+      if (attempt.abandoned === true) continue
       const kind = attempt.failureKind ?? (attempt.verifierOk ? 'ok' : 'other')
       const streak = streaks.get(ref) ?? []
       streak.push(NO_DELIVERY.has(kind) ? 'fail' : 'ok')

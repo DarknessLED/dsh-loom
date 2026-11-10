@@ -68,3 +68,26 @@ test('the triangle exposes the same rows the digest reads', () => {
   assert.deepEqual(Object.keys(tri.perModel).sort(), ['m/a', 'm/b'])
   assert.equal(tri.perModel['m/a'].attempts, 1)
 })
+
+test('a stopped attempt is not counted against the ref that ran it', () => {
+  // loom-ui8: three rounds, each one sibling killed a second before its brother
+  // won. The old line read "3/6", which is what a coin-flip provider looks like.
+  const rounds = [1, 2, 3].map((n) => ({
+    n,
+    status: 'promoted',
+    score: 1,
+    attempts: [
+      { id: `r${n}a1`, model: 'm/a', verifierOk: false, score: 0, failureKind: 'died', abandoned: true, reason: 'solved-by-sibling', durationMs: 594000 },
+      { id: `r${n}a2`, model: 'm/a', verifierOk: true, score: 1, failureKind: 'ok', durationMs: 593000 },
+    ],
+  }))
+  const text = campaignDigest({ id: 'camp', status: 'running', rounds })
+  assert.match(text, /m\/a 3\/3/, 'three judged attempts, all of them won')
+  assert.match(text, /\+3 stopped/, 'and the stopped ones are named, not hidden')
+  assert.doesNotMatch(text, /m\/a 3\/6/, 'the old reading counted wins as losses')
+})
+
+test('a ref with nothing stopped says nothing about stopping', () => {
+  const state = { id: 'camp', status: 'running', rounds: [round(1, [attempt('ok/provider')])] }
+  assert.doesNotMatch(campaignDigest(state), /stopped/)
+})

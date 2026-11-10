@@ -131,10 +131,16 @@ function modelLine(state) {
     .sort((a, b) => (b.h?.attempts ?? 0) - (a.h?.attempts ?? 0) || a.ref.localeCompare(b.ref))
   if (!rows.length) return null
   const named = rows.slice(0, MAX_MODELS).map(({ ref, h }) => {
-    const attempts = Number(h?.attempts) || 0
+    // Attempts we stopped on purpose are not judged attempts: a sibling already
+    // won the round, or the host restarted. Counting them in the denominator
+    // reads as "the provider fails half the time" when the campaign is in fact
+    // three wins out of three, so they get their own suffix instead.
+    const abandoned = Number(h?.abandoned) || 0
+    const judged = Math.max(0, (Number(h?.attempts) || 0) - abandoned)
     const ok = Number(h?.ok) || 0
     const p90 = Number.isFinite(h?.p90Ms) ? `${Math.round(h.p90Ms / 1000)}s` : '-'
-    return `${ref} ${ok}/${attempts} p90 ${p90}`
+    const shelved = abandoned > 0 ? ` (+${abandoned} stopped)` : ''
+    return `${ref} ${ok}/${judged} p90 ${p90}${shelved}`
   })
   const rest = rows.length - named.length
   const tail = rest > 0 ? ` +${rest} more` : ''
