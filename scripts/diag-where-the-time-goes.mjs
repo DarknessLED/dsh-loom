@@ -7,7 +7,7 @@ const home = process.env.DSH_LOOM_HOME || join(homedir(), '.dsh', 'loom');
 const dir = join(home, 'campaigns');
 const agg = { rounds:0, promoted:0, noGain:0, interrupted:0, budget:0,
   attemptTotal:0, attemptOk:0, attemptTimeout:0, attemptDied:0, attemptCtx:0,
-  withPatch:0, lostWithPatch:0,
+  withPatch:0, lostWithPatch:0, patchOk:0, patchFailed:0, patchNoVerdict:0,
   planMs:0, planRounds:0, planTimedOut:0, planRan:0, planHanded:0, planReused:0,
   holdoutMs:0, holdoutRounds:0, wallMs:0, wallRounds:0,
   lessons:0, lessonsMeasured:0, lessonsGain:0, lessonsHarm:0 };
@@ -57,7 +57,17 @@ if (existsSync(dir)) {
       if (e.type === 'lesson.added') { agg.lessons++; seenLessons.add(d.id); }
       if (e.type === 'lesson.impact') { agg.lessonsMeasured++; if (d.harm) agg.lessonsHarm++; agg.lessonsGain += Number(d.delta)||0; }
     }
-    for (const a of attempts.values()) if ((a.patchBytes ?? 0) > 0 && a.verifierOk !== true) agg.lostWithPatch++;
+    // A patch that was judged and failed is not lost work: the verifier read it
+    // and said no, which is the system working. Only a patch no verdict ever
+    // reached (the attempt was written off first) is unspent evidence, and that
+    // is the number the report has been quoting as 37% of all patches.
+    for (const a of attempts.values()) {
+      if ((a.patchBytes ?? 0) <= 0) continue;
+      if (a.verifierOk === true) { agg.patchOk++; continue; }
+      if (a.abandoned) { agg.lostWithPatch++; continue; }
+      if (typeof a.verifierOk === 'boolean') { agg.patchFailed++; continue; }
+      agg.patchNoVerdict++;
+    }
     perCampaign.push(c);
   }
 }
@@ -69,7 +79,7 @@ const wallPerRound = agg.wallRounds ? agg.wallMs/agg.wallRounds : 0;
 console.log(`wall/round ${sec(wallPerRound)} (measured ${agg.wallRounds}/${agg.rounds})  wall/promotion ${sec(agg.promoted ? agg.wallMs/agg.promoted : 0)}`);
 console.log('\n== attempts ==');
 console.log(`total ${agg.attemptTotal}  verifierOk ${agg.attemptOk} (${pct(agg.attemptOk,agg.attemptTotal)})  timeout ${agg.attemptTimeout}  died ${agg.attemptDied}  context ${agg.attemptCtx}`);
-console.log(`carried patch ${agg.withPatch} (${pct(agg.withPatch,agg.attemptTotal)})  patch-but-not-verified ${agg.lostWithPatch} (${pct(agg.lostWithPatch,agg.withPatch)})`);
+console.log(`carried patch ${agg.withPatch} (${pct(agg.withPatch,agg.attemptTotal)}): passed ${agg.patchOk}  failed ${agg.patchFailed}  written off before a verdict ${agg.lostWithPatch} (${pct(agg.lostWithPatch,agg.withPatch)})  unjudged ${agg.patchNoVerdict}`);
 console.log('\n== planning ==');
 const planMean = agg.planRounds ? agg.planMs/agg.planRounds : 0;
 console.log(`mean plan ${sec(planMean)} over ${agg.planRounds} rounds = ${(100*(wallPerRound?planMean/wallPerRound:0)).toFixed(0)}% of a round`);
