@@ -1286,7 +1286,16 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         }
         runtime.unwatchAttempt(attemptId)
         aborts.delete(attemptId)
-        const stall = runtime.stallReason(attemptId)
+        // What the watchdog observed when it gave up: whether the session ever
+        // advanced, and how long it had been quiet. 145 of 420 attempts died
+        // without a diagnostic, and the decision about what to do next (rebuild,
+        // retry, change provider) turns on this evidence -- which used to exist
+        // only in memory for the seconds the round was finishing.
+        //
+        // Read the observation before the verdict: `stallReason` consumes the
+        // watchdog bookkeeping, `stallEvidence` only looks at it.
+        const heartbeat = typeof runtime.stallEvidence === 'function' ? runtime.stallEvidence(attemptId) : null
+        const stall = heartbeat?.reason ?? runtime.stallReason(attemptId)
         // Two ways an attempt can be written off: the host stopped it, or this
         // round stopped it because a sibling already satisfied the task. The
         // second is not a failure, so it carries its own reason and the record
@@ -1449,6 +1458,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           modelsTried: runRes.modelsTried ?? null,
           modelSwitch: runRes.modelSwitch ?? null,
           retried,
+          // The liveness evidence the watchdog had, when it had any. Absent means
+          // nothing wrote this attempt off (it finished or failed on its own).
+          ...(heartbeat ? { heartbeat } : {}),
         }
         // One-shot success: every sibling still running cannot change the
         // outcome, so stop them through the dispatcher's own abort hook rather

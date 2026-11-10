@@ -184,6 +184,9 @@ const standing = [
   // above the tail of the work they judge
   'tests/lifecycle/deadline-covers-setup.test.mjs',
   'tests/balance/deadline-shape.test.mjs',
+  // a verdict about a dead child is worth nothing without the observation
+  // behind it: whether the session ever advanced, and how long it was quiet
+  'tests/balance/heartbeat-in-record.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

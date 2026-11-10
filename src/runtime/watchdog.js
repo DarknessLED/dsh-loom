@@ -139,7 +139,18 @@ export class Watchdog {
     } catch (err) {
       this.log('watchdog abort failed:', err?.message ?? err)
     }
-    return { attemptId: entry.attemptId, reason, idleMs, lastSeq: entry.lastSeq, sessionId: entry.sessionId }
+    // `advanced` is the fact every later decision needs: a child that never
+    // reported a step is a start-up failure, while a child that went quiet after
+    // forty steps is a stall mid-work. Both land here as "written off", and the
+    // record has to be able to tell them apart without replaying the session.
+    return {
+      attemptId: entry.attemptId,
+      reason,
+      idleMs,
+      lastSeq: entry.lastSeq,
+      advanced: entry.lastSeq !== null,
+      sessionId: entry.sessionId,
+    }
   }
 
   clear() {

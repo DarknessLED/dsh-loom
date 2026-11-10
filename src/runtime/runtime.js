@@ -55,8 +55,14 @@ export class Runtime {
         }
       },
       onStall: (rec) => {
-        this.stalls.set(rec.attemptId, rec.reason)
-        log(`attempt ${rec.attemptId} written off by watchdog (${rec.reason}, idle ${Math.round(rec.idleMs / 1000)}s)`)
+        // Keep the whole observation, not just the verdict: the round writes it
+        // onto the attempt record so a later reader can tell a child that never
+        // started from one that went quiet mid-work.
+        this.stalls.set(rec.attemptId, rec)
+        log(
+          `attempt ${rec.attemptId} written off by watchdog (${rec.reason}, idle ${Math.round(rec.idleMs / 1000)}s, ` +
+            `${rec.advanced ? `advanced to seq ${rec.lastSeq}` : 'never advanced'})`,
+        )
       },
     })
   }
@@ -82,9 +88,28 @@ export class Runtime {
 
   /** Why (if at all) the watchdog wrote this attempt off. */
   stallReason(attemptId) {
-    const reason = this.stalls.get(attemptId) ?? null
+    const rec = this.stalls.get(attemptId) ?? null
     this.stalls.delete(attemptId)
-    return reason
+    return rec?.reason ?? (typeof rec === 'string' ? rec : null)
+  }
+
+  /**
+   * The watchdog's full observation for this attempt, if it wrote it off.
+   *
+   * `stallReason` answers "why did we stop it"; this answers "what did we see",
+   * which is what a record has to carry to be useful after the process is gone.
+   *
+   * @returns {{reason: string, idleMs: number, lastSeq: number|null, advanced: boolean}|null}
+   */
+  stallEvidence(attemptId) {
+    const rec = this.stalls.get(attemptId)
+    if (!rec || typeof rec !== 'object') return null
+    return {
+      reason: rec.reason ?? null,
+      idleMs: Math.max(0, Number(rec.idleMs) || 0),
+      lastSeq: Number.isFinite(Number(rec.lastSeq)) ? Number(rec.lastSeq) : null,
+      advanced: rec.advanced === true,
+    }
   }
 
   /** Live attempts, for status output. Cheap: in-memory only. */
