@@ -117,8 +117,15 @@ const ok = (name) => {
   console.log(`ok ${pass} - ${name}`)
 }
 
-assert.equal(DEFAULT_CONFIG.session.attemptTimeoutMs, 600_000, 'the default budget is ten minutes, not twenty')
-ok('the default attempt budget is ten minutes')
+// The point of this pin is that an attempt has a budget at all, and that it is
+// comfortably under twenty minutes; the exact number is measured elsewhere
+// (tests/balance/deadline-shape.test.mjs sets it above the tail of the attempts
+// that succeed, which ten minutes was cutting into).
+assert.ok(
+  DEFAULT_CONFIG.session.attemptTimeoutMs > 0 && DEFAULT_CONFIG.session.attemptTimeoutMs < 20 * 60_000,
+  'an attempt has a budget well under twenty minutes',
+)
+ok('the default attempt budget is bounded')
 
 // Late answer: the round must not promote on a promise its deadline already broke.
 {

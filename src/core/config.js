@@ -53,8 +53,16 @@ export const DEFAULT_CONFIG = {
   session: {
     /** Force this agent preset for worker sessions (null = inherit). */
     preset: null,
-    /** Per-attempt wall clock cap. Ten minutes: measured attempts land in 250-700s. */
-    attemptTimeoutMs: 10 * 60_000,
+    /**
+     * Per-attempt wall clock cap. 13 minutes, not 10.
+     *
+     * Ten minutes was a checkpoint in the code rather than a percentile of the
+     * work: of 420 attempts, 24 were killed in the 600-605 s band -- pinned
+     * against the cap -- while the 570-600 s band held one. Successful attempts
+     * have p95 = 659 s, so a cap below that manufactures its own failures. 780 s
+     * clears the tail and still fits a round the budget can afford.
+     */
+    attemptTimeoutMs: 13 * 60_000,
     /**
      * Held back from the first model of a chain so that a timeout still leaves the
      * next model something to answer with. 0 = no reserve: the attempt's clock
@@ -80,11 +88,16 @@ export const DEFAULT_CONFIG = {
      */
     reasoningEffort: "",
     /**
-     * Wall clock cap for the planning dispatch. Planning reads a few files and
-     * names what will change; inheriting the attempt deadline let a wandering
-     * planner burn twenty minutes in the round's most expensive call.
+     * Wall clock cap for the planning dispatch. Three minutes.
+     *
+     * Planning is reconnaissance: a planner that has not named its files in three
+     * minutes is wandering, and healthy plans finish well inside it. The old
+     * four-minute ceiling was in fact never enforced -- the child's clock only
+     * started after setup, so a 161-node sample holds 48 planning runs past it and
+     * one at 8.5 minutes (see tests/lifecycle/deadline-covers-setup.test.mjs). Now
+     * that it binds, it should be a number a round can spend on looking around.
      */
-    planTimeoutMs: 4 * 60_000,
+    planTimeoutMs: 3 * 60_000,
     /** Rounds running at the same time across all campaigns. */
     maxConcurrent: 2,
     /** No new session events for this long => the attempt is written off. */

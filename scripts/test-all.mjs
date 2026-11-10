@@ -180,6 +180,10 @@ const standing = [
   'tests/balance/holdout-really-held-out.test.mjs',
   // knowledge is made of proven work: 19 "nothing to do" claims entered the tree
   'tests/balance/lesson-needs-work.test.mjs',
+  // a deadline that starts after setup is not a deadline, and the caps are set
+  // above the tail of the work they judge
+  'tests/lifecycle/deadline-covers-setup.test.mjs',
+  'tests/balance/deadline-shape.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

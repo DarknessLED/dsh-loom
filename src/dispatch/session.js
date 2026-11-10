@@ -180,6 +180,9 @@ export class Dispatcher {
     // late but real answer as a timeout anyway (see round.js). Each model therefore
     // sees only what is left of the budget it was given.
     const startedAt = Date.now()
+    // The child's budget is this attempt's budget: setup inside `#one` is paid
+    // out of the same clock the caller started.
+    const askedAt = startedAt
     const left = () => timeoutMs - (Date.now() - startedAt)
     // Held back from the first model so a timeout can still be answered by the next
     // one. Zero by default: on this project's own rounds a healthy attempt is
@@ -206,7 +209,7 @@ export class Dispatcher {
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
       const slice = i === 0 ? firstSlice : Math.max(1000, left())
-      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart })
+      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart, askedAt })
       // A child that dies silently is not a failed task, it is a broken parent:
       // after a host restart the cached agent can still be addressable while every
       // child it spawns errors immediately. Rebuild once and retry before charging
@@ -225,7 +228,7 @@ export class Dispatcher {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
-        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart })), infraRetry: true }
+        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart, askedAt })), infraRetry: true }
       }
       tried.push(current ?? 'default')
       const kind = classifyResult(res)
@@ -290,7 +293,7 @@ export class Dispatcher {
   }
 
   /** One child session, one model, no retry. */
-  async #one(prompt, { cwd, timeoutMs, label, model, onStart }) {
+  async #one(prompt, { cwd, timeoutMs, label, model, onStart, askedAt = null }) {
     const subagents = svc(this.ctx, 'subagents')
     const startedAt = Date.now()
     const parent = await this.ensureParent()
@@ -367,9 +370,17 @@ export class Dispatcher {
       }
     }
 
+    // The caller bought `timeoutMs` of the child's life, counted from when it
+    // asked. Everything spent getting here - resolving the parent, starting the
+    // activation, waking the provider - comes out of that budget: a clock that
+    // restarts after setup hands the child a fresh ceiling on top of the old one,
+    // which is how a planner with a 4-minute cap ran 8.5 minutes (48 of 161
+    // planning nodes overran it in the ledger).
+    const setupMs = askedAt ? Math.max(0, Date.now() - askedAt) : 0
+    const remainingMs = Math.max(1000, (Number(timeoutMs) || 1200_000) - setupMs)
     let timer = null
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => resolve({ __timeout: true }), Math.max(1000, Number(timeoutMs) || 1200_000))
+      timer = setTimeout(() => resolve({ __timeout: true }), remainingMs)
       if (typeof timer.unref === 'function') timer.unref()
     })
 
@@ -400,7 +411,7 @@ export class Dispatcher {
         structured: null,
         stopReason: 'aborted',
         timedOut: true,
-        error: `attempt exceeded ${timeoutMs}ms`,
+        error: `attempt exceeded ${remainingMs}ms`,
         elapsedMs: Date.now() - startedAt,
       }
     }
