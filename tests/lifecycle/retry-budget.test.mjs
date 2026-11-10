@@ -53,7 +53,10 @@ function silentHost({ fails = () => true }) {
   return { ctx: { get: (name) => services[name] }, calls }
 }
 
-const config = { models: {} }
+// `diedRetryMs: 0` keeps the retry unconditional. The default 60 s gate skips a
+// death this instant -- a different question. This spec is about the retry
+// *budget*, so it turns the gate off and lets every silent death ask once.
+const config = { models: {}, session: { diedRetryMs: 0 } }
 
 // 1. One attempt, one retry: the first child dies silently, the rebuilt parent's
 //    child succeeds.

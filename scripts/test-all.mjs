@@ -187,6 +187,10 @@ const standing = [
   // a verdict about a dead child is worth nothing without the observation
   // behind it: whether the session ever advanced, and how long it was quiet
   'tests/balance/heartbeat-in-record.test.mjs',
+  // the rebuild-and-retry was a coin flip: 32 attempts, zero conversions, and
+  // the deaths it retried lasted about a second. It now asks only when the child
+  // survived long enough to have wedged rather than been refused.
+  'tests/lifecycle/died-retry-when-earned.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

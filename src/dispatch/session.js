@@ -193,6 +193,7 @@ export class Dispatcher {
     // wall clock.
     const reserve = Math.max(0, Number(this.config?.session?.fallbackReserveMs) || 0)
     const minFallover = Math.max(0, Number(this.config?.session?.minFalloverMs) || DEFAULT_MIN_FALLOVER_MS)
+    const diedRetryMs = Math.max(0, Number(this.config?.session?.diedRetryMs) || 0)
     // Never longer than the attempt's own budget: a reserve smaller than `minFallover`
     // cannot buy a usable slice, and stretching the first slice past `timeoutMs` would
     // break the one-attempt-one-clock rule this whole path exists to keep.
@@ -224,7 +225,12 @@ export class Dispatcher {
       // The exception is a chain of one: there is nowhere else to go, so the
       // rebuild is the only remaining suspect worth paying for once.
       const noAlternative = chain.length === 1
-      if (res?.infra && !infraRetried && noAlternative) {
+      // How long it survived is the only liveness evidence the dispatcher has,
+      // and it is enough: 1 s means the provider refused before the child did any
+      // work (re-asking buys the same refusal), while minutes of silence is a
+      // wedged turn that a fresh parent can plausibly restart.
+      const survivedEnough = diedRetryMs <= 0 || Number(res?.elapsedMs ?? 0) >= diedRetryMs
+      if (res?.infra && !infraRetried && noAlternative && survivedEnough) {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()

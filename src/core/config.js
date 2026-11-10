@@ -81,6 +81,17 @@ export const DEFAULT_CONFIG = {
      */
     minFalloverMs: 30_000,
     /**
+     * How long a silent death must have survived before it is worth re-asking.
+     *
+     * A child that dies in a second was refused before it did any work: the
+     * provider will refuse the identical request just as fast, which is what the
+     * ledger shows -- 32 rebuild-and-retry attempts across 22 campaigns, zero of
+     * them converted into a working child. A child that ran for minutes and then
+     * went quiet is a wedged turn, and that is worth one more ask. 0 disables the
+     * gate and restores the unconditional retry.
+     */
+    diedRetryMs: 60_000,
+    /**
      * The reasoning effort every child is spawned with. Empty means inherit the
      * effort of the session that asked for the campaign -- a child running one
      * effort lower than its supervisor is a different model wearing the same name,
