@@ -194,6 +194,9 @@ const standing = [
   // a verdict on a spec that was already green is not evidence of work: 22 of
   // 103 landed rounds carried a passing candidate whose diff was empty
   'tests/balance/spec-must-fail-on-base.test.mjs',
+  // a fallback chain is a bet nobody kept the score on: per-model outcomes and
+  // the p90 that a deadline has to clear
+  'tests/balance/per-model-health.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

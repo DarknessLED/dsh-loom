@@ -11,6 +11,8 @@
  * different claims, and conflating them is how a budget guard gets fooled.
  */
 
+import { modelHealth } from './model-health.js'
+
 function num(x) {
   const n = Number(x)
   return Number.isFinite(n) ? n : 0
@@ -290,6 +292,10 @@ export function campaignTriangle(rounds) {
     usd: Math.round(usd * 1e6) / 1e6,
     tokensPerRound: measuredTokens > 0 ? ratio(tokens, finished) : null,
     usdPerPromotion: promoted > 0 ? Math.round((usd / promoted) * 1e6) / 1e6 : null,
+    // Which refs actually finish work. A fallback chain is a bet, and this is
+    // the score: attempts, outcomes and the p90 that a deadline has to clear,
+    // per model ref including `unknown` so the rows add up to the campaign.
+    perModel: modelHealth(list),
     measured: durationMs > 0 || measuredTokens > 0,
   }
 }
