@@ -26,6 +26,10 @@ for (const f of readdirSync(chaosDir).filter((n) => n.endsWith('.test.mjs')).sor
 }
 const standing = [
   'tests/self10/panel-decide.test.mjs',
+  // a worktree is a checkout of tracked files, and node_modules is never tracked:
+  // three rounds of loom-ui7 died on a holdout failure that was really a verifier
+  // measuring a tree with no dependencies.
+  'tests/exec/worktree-deps.test.mjs',
   // once a self-improvement campaign lands, its spec becomes a regression pin:
   // the loop must not be able to un-solve a task it already solved.
   'tests/self11/spend-estimate.test.mjs',

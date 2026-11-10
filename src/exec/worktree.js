@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, lstat, rm, stat, symlink } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
 /** Every git invocation is bounded (contract §2). */
@@ -126,6 +126,68 @@ async function runGit(cwd, args, { timeoutMs = GIT_TIMEOUT_MS } = {}) {
   })
 }
 
+/**
+ * The dependency directory git never tracks but a verifier still needs.
+ *
+ * A worktree is a checkout of tracked files only, so `node_modules/` — ignored by
+ * every repo that has one — does not exist inside it. A verifier that runs there
+ * then measures a tree with no dependencies: an import of a dev dependency fails,
+ * and any spec that degrades gracefully on a missing library (as ours deliberately
+ * does) reports a failure that has nothing to do with the patch under test. That
+ * is worse than a crash, because it looks like evidence.
+ */
+const DEPENDENCY_DIR = 'node_modules'
+
+/**
+ * Share the repository's dependency tree with a fresh worktree.
+ *
+ * A link rather than a copy: the tree can be hundreds of megabytes, and a
+ * candidate's patch never changes a dependency. Returns 'linked' when a link was
+ * made, 'present' when the worktree already has its own tree, and null when
+ * there is nothing to share (a repo with no dependencies keeps working unchanged).
+ *
+ * @param {string} repo
+ * @param {string} dir
+ * @returns {Promise<'linked'|'present'|null>}
+ */
+async function linkDependencies(repo, dir) {
+  if (typeof repo !== 'string' || repo === '' || typeof dir !== 'string' || dir === '') return null
+  const source = join(repo, DEPENDENCY_DIR)
+  const target = join(dir, DEPENDENCY_DIR)
+  if (!(await pathExists(source))) return null
+  // Never write through a tree that is already there: a worktree created from a
+  // base that happens to track node_modules owns its own copy.
+  if (await pathExists(target)) return 'present'
+  try {
+    await symlink(source, target, process.platform === 'win32' ? 'junction' : 'dir')
+    return 'linked'
+  } catch {
+    // A host that forbids links degrades to the old behaviour rather than
+    // failing the round: a missing dependency tree is a broken measurement, but
+    // refusing to make a worktree at all would stop the loop dead.
+    return null
+  }
+}
+
+/**
+ * Drop the dependency link before the worktree directory goes away.
+ *
+ * `rm -r` on a link removes the link itself, but unlinking first states the
+ * intent: nothing here may ever delete the repository's own dependency tree.
+ *
+ * @param {string} dir
+ */
+async function unlinkDependencies(dir) {
+  if (typeof dir !== 'string' || dir === '') return
+  const target = join(dir, DEPENDENCY_DIR)
+  try {
+    const info = await lstat(target)
+    if (info.isSymbolicLink()) await rm(target, { force: true })
+  } catch {
+    // nothing to unlink
+  }
+}
+
 async function pathExists(target) {
   try {
     await stat(target)
@@ -245,6 +307,9 @@ export async function createWorktree({ repo, dir, branch, baseRef = 'HEAD' } = {
       timedOut: result.timedOut,
     })
   }
+  // Tracked files only means no dependency tree; a verifier needs one to be
+  // measuring the same repo the promotion will land in.
+  await linkDependencies(repo, dir)
 }
 
 /**
@@ -321,6 +386,7 @@ export async function commitWorkspace(repo, message) {
 export async function removeWorktree({ repo, dir } = {}) {
   try {
     if (typeof repo === 'string' && repo !== '' && typeof dir === 'string' && dir !== '') {
+      await unlinkDependencies(dir)
       await runGit(repo, ['worktree', 'remove', '--force', dir])
     }
   } catch {
