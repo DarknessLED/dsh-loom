@@ -46,3 +46,42 @@ the plan outright for 75 ms.
 The campaign was rejected at its gate on purpose: the workspace was a throwaway
 (`C:/tmp/brief-live`) built only to observe the brief. Nothing from it belongs in
 the repo, and rejecting leaves the audit trail rather than deleting it.
+
+# Live proof: the fallback chain actually moves
+
+Recorded 2026-11-11 05:55-05:59 against commit `3ddc4b5`, campaign
+`loom-fallover-live` (throwaway workspace `C:/tmp/brief-live`).
+
+The chain had been configurable for a week and **had never once moved**: across
+436 attempts in the ledger, `modelsTried.length > 1` appeared zero times. Every
+test of the fallback injected the chain directly into `Dispatcher.run`, so
+nothing proved the campaign-level policy reaches the dispatcher, that a broken
+first ref is classified as unusable rather than as a failed task, or that the
+second ref really runs on its own provider.
+
+The campaign named a model that cannot exist as the worker and the real one as
+its fallback:
+
+```
+rsi_control {action:"policy", id:"loom-fallover-live",
+  policy:{models:{worker:"open-design/no-such-model-at-all",
+                  fallback:["open-design/deepseek-v4.1-flash"]}}}
+```
+
+All four attempts behaved the same way:
+
+| attempt | modelsTried | ran on | failureKind |
+| --- | --- | --- | --- |
+| r1a1 | `[no-such-model, deepseek-v4.1-flash]` | fallback | `died` (first ref) |
+| r1a2 | same | fallback | `ok`, `verifierOk: true` |
+| r2a1 | same | fallback | `ok`, `verifierOk: true` |
+| r2a2 | same | fallback | `died` |
+
+`modelSwitch: {from: "open-design/no-such-model-at-all",
+to: "open-design/deepseek-v4.1-flash"}` is on every record, and both rounds were
+promoted. After this run the ledger reads **4 of 440 attempts with more than one
+model tried** — all four from this campaign, which is the point: the fact is now
+observable rather than assumed.
+
+Round 2's planner finished in **0 ms with `reused: true`**, the plan-delta path
+working in a third live campaign.
