@@ -242,6 +242,10 @@ const standing = [
   'tests/balance/sibling-kill-is-not-a-provider-failure.test.mjs',
   // the card shows which ref finishes work, not just what the chain claims
   'tests/ui-eff/model-rows.test.mjs',
+  // a round the host killed and the loop then ran again keeps both facts: the
+  // interruption is the reason the retry exists, and four campaigns had it
+  // overwritten by the second finish
+  'tests/balance/interrupted-round-keeps-its-story.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

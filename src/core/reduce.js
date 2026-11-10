@@ -122,15 +122,39 @@ function apply(s, ev) {
       h.picks = h.picks.filter((p) => p.round !== round).concat({ round, id, poolSha })
       break
     }
-    case 'round.started':
-      s.rounds.push({ n: d.n, at: ev.t, attempts: [], status: 'running', score: null, taskId: d.taskId ?? null, chainVersion: d.chainVersion ?? null })
+    case 'round.started': {
+      // A round that recovery closed as `interrupted` and that was then run
+      // again gets a second `round.started` for the same number. Pushing a new
+      // entry would leave the first one stuck at `interrupted` forever while
+      // every later event resolved against the phantom, so the retry reopens
+      // the entry and says so. The dispatches are still counted one by one:
+      // the retry cost a real round of budget.
+      const reopened = s.rounds.find((x) => x.n === d.n)
+      if (reopened) {
+        reopened.status = 'running'
+        reopened.resumed = true
+        if (!reopened.chainVersion && d.chainVersion) reopened.chainVersion = d.chainVersion
+      } else {
+        s.rounds.push({ n: d.n, at: ev.t, attempts: [], status: 'running', score: null, taskId: d.taskId ?? null, chainVersion: d.chainVersion ?? null })
+      }
       s.budget.roundsUsed += 1
       break
+    }
     case 'round.finished': {
       const r = s.rounds.find((x) => x.n === d.n)
       // A missing flag (older ledgers) is not progress: plateau detection
       // treats "no evidence of promotion" as flat.
       if (r) {
+        // The interruption is not replaced by the retry: it is the reason the
+        // retry exists. Measured on this ledger, 4 of 66 campaigns have a round
+        // that finished twice, and overwriting the first finish erased the
+        // interruption in all 4 -- one of them reads back as a clean promotion
+        // while the log says the host killed it. So the fact is recorded when it
+        // happens, and a later finish cannot take it back.
+        if (d.status === 'interrupted' || r.status === 'interrupted') {
+          r.interrupted = true
+          r.interruptReason = r.interruptReason ?? d.reason ?? r.reason ?? 'unknown'
+        }
         Object.assign(r, { status: d.status, score: d.score ?? r.score, at: r.at, endedAt: ev.t, promoted: d.promoted === true })
         // Triangle accounting travels with the round so a reader never has to
         // re-derive it from attempt timings that older ledgers do not carry.
