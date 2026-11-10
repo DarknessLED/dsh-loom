@@ -197,6 +197,9 @@ const standing = [
   // a fallback chain is a bet nobody kept the score on: per-model outcomes and
   // the p90 that a deadline has to clear
   'tests/balance/per-model-health.test.mjs',
+  // the plugin shipped a config surface it never declared: `status: absent` in the
+  // host's own Config directory, so every knob had to be hand-edited
+  'tests/config/schema.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

@@ -28,6 +28,7 @@
 ### core/ — 状态与基础设施
 
 - `src/core/atomic.js` — 原子落盘原语：临时文件加 rename 的 JSON 写、JSONL 追加/读取、无损序列化，供所有状态文件复用。
+- `src/config-schema.js` — 插件的配置表单：`FIELDS` 列出操作者真正会调的十个路径（模型链、两个超时、并发、推理强度、最小增益、规划策略、开关、心跳），`describeConfig()` 把它们投成 JSON Schema，`mergeConfigValues(base, values)` 只校验表单拥有的路径、**其余键原样保留**（`home`/`budget`/`verify`/`knowledge` 是文件级决定，不能被一次热更新重置），`loadConfigSchema()` 动态 import schemastery 建出宿主读得懂的 `Config`，解析不到就退化成 `undefined`（等于今天的行为，绝不拖垮入口）。
 - `src/core/config.js` — 默认配置与归一化：tick 周期、预算、gate 阈值、检查点、静默时段、会话与定价表，非法值一律回落默认。
 - `src/core/ledger.js` — 只追加的事件日志：序号从文件现状分配以兼容热重载双写者，所有派生状态都必须能由它重建。
 - `src/core/lock.js` — 面板所有权锁：newest-writer-wins 的抢占、心跳刷新、存活/过期判定，以及只删自己记录的释放。

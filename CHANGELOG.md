@@ -6,6 +6,60 @@ was promoted only after the guard suite passed.
 
 ## [Unreleased]
 
+### The loop stops buying evidence it cannot trust, and names the tree it cut a patch against
+
+- **A spec that was already green cannot justify a promotion.** `checks.baseFailed` runs the
+  task's own verifier against the base commit before a promotion counts; a candidate whose
+  spec passes before it changes anything is rejected. 22 of 103 promoted rounds in the ledger
+  were zero-diff candidates, and 19 "nothing to do here" claims had entered the knowledge tree.
+  (`tests/balance/spec-must-fail-on-base.test.mjs`)
+- **A zero-diff landing no longer teaches anything.** `deriveLesson` is skipped when
+  `checks.noop` is set: a round that proved no work exists is a fact about the task, not a
+  lesson a worker should inherit. (`tests/balance/lesson-needs-work.test.mjs`)
+- **The same command twice is not a second opinion.** A holdout whose verifier is byte-for-byte
+  the work task's own command is marked `skipped-same-command` instead of being run again: 44 of
+  61 campaigns had no holdout at all, and the 17 that did used this shape.
+  (`tests/balance/holdout-really-held-out.test.mjs`)
+- **An attempt names the tree its patch was cut against.** `attempt.base` is recorded, so an
+  orphaned patch can be re-verified against the commit it was written for and `verifyOnce`'s
+  (patch, command, base) key can finally hit. All 420 historical records were base-less.
+  (`tests/balance/base-in-record.test.mjs`)
+- **Per-model health.** `modelHealth(rounds)` and `campaignTriangle.perModel`: attempts, outcomes
+  and p50/p90 per model ref, `unknown` included so the rows add up. `modelsTried.length > 1`
+  appears 0 times in 420 attempts — a fallback chain was a bet nobody kept the score on.
+  (`tests/balance/per-model-health.test.mjs`)
+
+### Deadlines that bind, and a death that is worth one more ask
+
+- The planning deadline was **never enforced**: the child's clock started after setup, so 48 of
+  161 planning runs overran the 240 s ceiling and one reached 8.5 minutes. The clock now starts
+  when the attempt is asked for, and `planTimeoutMs` is 180 s — planning is reconnaissance, not
+  a second attempt. (`tests/lifecycle/deadline-covers-setup.test.mjs`)
+- `session.attemptTimeoutMs` is 780 s, not 600 s. 600 s was a checkpoint in the code, not a
+  percentile: 24 attempts were killed in the 600–605 s band while the 570–600 s band held one.
+  Shrinking per-campaign saved 0.3 % of wall clock and killed two winners, so the adaptive form
+  may only widen. (`tests/balance/deadline-shape.test.mjs`)
+- `session.diedRetryMs` (60 s): the "silent death → rebuild parent → re-ask the same model"
+  retry spends a budget on a provider that refuses the identical request just as fast — 32
+  rebuilds across 22 campaigns, zero conversions. Deaths have two peaks, 93 under 3 s and 47
+  over 10 s; only the wedged kind earns the retry. (`tests/lifecycle/died-retry-when-earned.test.mjs`)
+- A verdict about a dead child now carries the observation behind it: `heartbeat: {reason,
+  idleMs, lastSeq, advanced}` lands on the attempt record, so replay can answer "was it moving
+  when it died?" — the watchdog's evidence used to live in memory only.
+  (`tests/balance/heartbeat-in-record.test.mjs`)
+
+### The plugin declares its config
+
+- The entry exports a `Config`, so the host projects a settings form instead of reading
+  `status: "absent"`. Ten knobs: the master switch, the model chain, reasoning effort, the two
+  timeout ceilings, concurrency, the gain bar, the planning mode, the tick period.
+- `mergeConfigValues` validates only the paths the form owns and **carries every other key
+  through untouched**: `home`, `budget`, `verify`, `knowledge` are file-level decisions, and a
+  form must not reset a tuned install. An invalid owned value falls back to what was there.
+- The schema library is imported dynamically and degrades to `undefined` (today's behaviour) —
+  a static import that fails to resolve takes the whole host entry, and the sidebar with it.
+  (`tests/config/schema.test.mjs`)
+
 ### A model timeout may now fall over — but only inside the same budget
 
 The dispatcher used to treat `timeout` as "not a model problem": a child that

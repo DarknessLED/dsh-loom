@@ -8,9 +8,20 @@ import { Runtime } from './runtime/runtime.js'
 import { svc } from './core/services.js'
 import { registerTools } from './tools/index.js'
 import { registerPanel } from './panel/api.js'
+import { loadConfigSchema, mergeConfigValues } from './config-schema.js'
 
 export const name = 'dsh-loom'
 
+/**
+ * The settings form, built from the same field list the code reads.
+ *
+ * The host learns a plugin's config shape only through this export; without it
+ * the plugin row reads `status: "absent"` and every knob has to be edited by hand
+ * in the profile's patch document, where a typo fails at load instead of at the
+ * field. It degrades to `undefined` when the schema library is not resolvable --
+ * an absent form is a far smaller loss than a failed host entry.
+ */
+export const Config = await loadConfigSchema()
 /** Hard dependency: `ctx.tools` exists by the time apply() runs. */
 export const inject = ['tools']
 
@@ -41,7 +52,9 @@ export function apply(ctx, config) {
 function applyInner(ctx, config) {
   let cfg
   try {
-    cfg = normalizeConfig(config)
+    // The form writes only the fields it owns; anything else is already in the
+    // patch document and must survive a hot update untouched.
+    cfg = normalizeConfig(mergeConfigValues({}, config))
   } catch (err) {
     ctx.logger?.warn?.(`[loom] bad config: ${err?.message ?? err}`)
     return
