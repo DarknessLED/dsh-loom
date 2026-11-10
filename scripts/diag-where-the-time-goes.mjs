@@ -8,7 +8,7 @@ const dir = join(home, 'campaigns');
 const agg = { rounds:0, promoted:0, noGain:0, interrupted:0, budget:0,
   attemptTotal:0, attemptOk:0, attemptTimeout:0, attemptDied:0, attemptCtx:0,
   withPatch:0, lostWithPatch:0,
-  planMs:0, planRounds:0, planEmpty:0, planDecided:0, planTimedOut:0,
+  planMs:0, planRounds:0, planTimedOut:0, planRan:0, planHanded:0, planReused:0,
   holdoutMs:0, holdoutRounds:0, wallMs:0, wallRounds:0,
   lessons:0, lessonsMeasured:0, lessonsGain:0, lessonsHarm:0 };
 const perCampaign = [];
@@ -32,9 +32,17 @@ if (existsSync(dir)) {
         if (Number.isFinite(d.durationMs) && d.durationMs > 0) { agg.wallMs += d.durationMs; agg.wallRounds++; c.wall += d.durationMs; c.wallN++; }
         if (Number.isFinite(d.planMs) && d.planMs > 0) { agg.planMs += d.planMs; agg.planRounds++; }
         if (d.planTimedOut === true) agg.planTimedOut++;
-        if (d.planUsable === false) { agg.planEmpty++; agg.planDecided++; }
-        else if (d.planUsable === true) agg.planDecided++;
+        // Round-level `planUsable` is deliberately not used: it only exists on
+        // rounds recorded after 2026-11-09, so a ratio built on it silently drops
+        // most of the ledger. Planner nodes below cover every planned round.
         if (Number.isFinite(d.holdoutMs) && d.holdoutMs > 0) { agg.holdoutMs += d.holdoutMs; agg.holdoutRounds++; }
+      }
+      if (e.type === 'node.finished' && d.role === 'planner' && d.round) {
+        if (d.reused === true) agg.planReused++;
+        else {
+          agg.planRan++;
+          if (d.ok === true && String(d.summary ?? '') !== '') agg.planHanded++;
+        }
       }
       if (e.type === 'attempt.finished') {
         const prev = attempts.get(d.id) || {};
@@ -65,7 +73,8 @@ console.log(`carried patch ${agg.withPatch} (${pct(agg.withPatch,agg.attemptTota
 console.log('\n== planning ==');
 const planMean = agg.planRounds ? agg.planMs/agg.planRounds : 0;
 console.log(`mean plan ${sec(planMean)} over ${agg.planRounds} rounds = ${(100*(wallPerRound?planMean/wallPerRound:0)).toFixed(0)}% of a round`);
-console.log(`planTimedOut ${agg.planTimedOut}  empty-handed ${agg.planEmpty}/${agg.planDecided} (${pct(agg.planEmpty,agg.planDecided)})`);
+const planEmptyAll = agg.planRan - agg.planHanded;
+console.log(`planTimedOut ${agg.planTimedOut}  planner ran ${agg.planRan} (reused ${agg.planReused})  handed text back ${agg.planHanded}  empty-handed ${planEmptyAll} (${pct(planEmptyAll,agg.planRan)})`);
 console.log('\n== holdout ==');
 const holdMean = agg.holdoutRounds ? agg.holdoutMs/agg.holdoutRounds : 0;
 console.log(`mean holdout ${sec(holdMean)} over ${agg.holdoutRounds} rounds = ${pct(agg.holdoutMs,agg.wallMs)} of measured wall`);
