@@ -1875,8 +1875,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       )
       // Only verified work becomes knowledge, and only the mechanism (`why`),
       // never the plan or the excuse.
+      //
+      // A no-op landing is a landing, not a finding: the tree already satisfied
+      // the verifier, so there is no work whose mechanism could be learned.
+      // Accepting one anyway is how 19 "there was nothing to do" claims reached
+      // the tree and started being injected into the next worker's brief as if
+      // they were research.
       try {
-        const derived = deriveLesson({ attempt: best, task, round: n })
+        const derived = checks.noop ? null : deriveLesson({ attempt: best, task, round: n })
         if (derived && !(state.lessons || []).some((l) => l.id === derived.id)) {
           runtime.append(view, 'lesson.added', { lesson: derived }, 'system')
         }

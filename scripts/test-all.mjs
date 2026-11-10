@@ -178,6 +178,8 @@ const standing = [
   // a holdout running the command the work verifier just ran is not a second
   // opinion: 17 campaigns registered exactly that and the gate fired once
   'tests/balance/holdout-really-held-out.test.mjs',
+  // knowledge is made of proven work: 19 "nothing to do" claims entered the tree
+  'tests/balance/lesson-needs-work.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the
