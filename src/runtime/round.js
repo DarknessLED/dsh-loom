@@ -150,6 +150,20 @@ export function chainVerifierNode(chain) {
  * state. With neither there is nothing to run, and the caller fails closed
  * rather than mistaking the absence of a proof for a proof.
  */
+/**
+ * A command, compared the way a shell would read it.
+ *
+ * Two verifiers are the same test when their commands differ only in the
+ * whitespace nobody types on purpose. The holdout gate uses this to tell a real
+ * second opinion from a second copy of the first one; a byte comparison would
+ * call `a &&  b` and `a && b` different tests and buy the same verdict twice.
+ *
+ * @param {unknown} cmd
+ * @returns {string}
+ */
+export function normalizeCommand(cmd) {
+  return String(cmd ?? '').replace(/\s+/g, ' ').trim()
+}
 export function acceptanceVerifier({ task, chain }) {
   if (task?.verify && typeof task.verify.cmd === 'string' && task.verify.cmd.trim() !== '') {
     return { spec: task.verify, source: 'task', cwd: null }
@@ -1783,7 +1797,21 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // say `holdout-failed` without saying which pool entry caught the patch.
     // A skipped no-op names nothing because nothing ran.
     const holdoutId = skipHoldout ? null : holdout?.id ?? null
-    if (skipHoldout) {
+    // A holdout that runs the same command this tree has already passed is not
+    // a second opinion: it cannot fail while the work verdict stands, so paying
+    // for it buys a second identical answer and calls it independent evidence.
+    // Measured over 210 rounds, 17 campaigns registered exactly this - a
+    // `suite` holdout whose command is the work verifier's own tail - and the
+    // gate fired once. Name the situation instead of re-running the command.
+    const sameCommandHoldout = Boolean(
+      acceptanceSpec &&
+        holdoutTask &&
+        normalizeCommand(holdoutTask.verify?.cmd) !== '' &&
+        normalizeCommand(holdoutTask.verify?.cmd) === normalizeCommand(acceptanceSpec.cmd),
+    )
+    if (sameCommandHoldout && !skipHoldout) {
+      checks.holdout = 'skipped-same-command'
+    } else if (skipHoldout) {
       // The candidate verified without moving the tree, so the holdout would run
       // the same command against the same bytes the verifier just approved: a
       // second identical verdict at full gate cost. Say it was unnecessary

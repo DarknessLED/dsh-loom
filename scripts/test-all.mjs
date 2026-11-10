@@ -175,6 +175,9 @@ const standing = [
   // a patch that cannot name its base cannot be re-verified: 420 attempt
   // records carried a patch path and not one carried the commit
   'tests/balance/base-in-record.test.mjs',
+  // a holdout running the command the work verifier just ran is not a second
+  // opinion: 17 campaigns registered exactly that and the gate fired once
+  'tests/balance/holdout-really-held-out.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the
