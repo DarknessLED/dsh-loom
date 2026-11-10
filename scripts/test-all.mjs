@@ -172,6 +172,9 @@ const standing = [
   // a stopped attempt whose tree already verifies is salvaged and says so, while a
   // late claim is still just a timeout
   'tests/balance/salvage-timeout.test.mjs',
+  // a patch that cannot name its base cannot be re-verified: 420 attempt
+  // records carried a patch path and not one carried the commit
+  'tests/balance/base-in-record.test.mjs',
   // the tree names a losing round once, not twice
   'tests/ui-eff/tree-merge.test.mjs',
   // the audit may only certify the preview it can regenerate, with the

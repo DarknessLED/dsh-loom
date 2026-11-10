@@ -1395,6 +1395,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const billed = hasTokens(spend.usage) ? spend : fallbackSpend(brief, runRes.text, pricing.table)
         record = {
           ...record,
+          // The tree this attempt was cut against: salvage re-verifies against it.
+          base: base ?? null,
           verifierOk: gateOk,
           exitCode: ver.exitCode,
           verifySignature: verifierSignature(ver),
