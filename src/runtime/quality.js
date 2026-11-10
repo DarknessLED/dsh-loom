@@ -53,10 +53,17 @@ function roundMs(round) {
  * The campaign's evidence health.
  *
  * verdict precedence:
- * - `no-evidence`  no round has finished yet
+ * - `no-evidence`  no round has reached a verdict yet
  * - `regressing`   the held-out task rejected at least one patch
- * - `stalled`      the last {@link STALL_WINDOW} rounds promoted nothing
+ * - `stalled`      the last {@link STALL_WINDOW} judged rounds promoted nothing
  * - `healthy`      anything else, including a single quiet round
+ *
+ * A round the host killed is not a judgement on the loop: the provider was down
+ * and nothing ran. Counting those as "quiet rounds" turned two campaigns whose
+ * last three rounds were all `interrupted` into `stalled`, which is an
+ * accusation about work that never happened. They are set aside, and the window
+ * reaches further back to find judged rounds; if there are not enough of them,
+ * the campaign has no evidence either way.
  *
  * @param {{rounds?: Array<object>} | undefined} state
  * @returns {{
@@ -81,12 +88,17 @@ export function campaignQuality(state) {
     : null
   const promotionRate = roundsCount ? promotions / roundsCount : 0
 
+  // Judged rounds only: an interrupted round produced no verdict, so it can
+  // neither prove progress nor prove the absence of it. The rate above still
+  // counts every round, because a killed round costs wall clock all the same.
+  const judged = rounds.filter((round) => round?.status !== 'interrupted')
+  const window = judged.slice(-STALL_WINDOW)
+
   let verdict
-  if (roundsCount === 0) verdict = 'no-evidence'
+  if (judged.length === 0) verdict = 'no-evidence'
   else if (holdoutFailures > 0) verdict = 'regressing'
-  else if (roundsCount >= STALL_WINDOW && rounds.slice(-STALL_WINDOW).every((round) => !isPromoted(round))) {
-    verdict = 'stalled'
-  } else verdict = 'healthy'
+  else if (window.length >= STALL_WINDOW && window.every((round) => !isPromoted(round))) verdict = 'stalled'
+  else verdict = 'healthy'
 
   return { rounds: roundsCount, promotions, noGain, holdoutFailures, promotionRate, avgRoundMs, verdict }
 }
