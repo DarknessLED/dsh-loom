@@ -234,6 +234,9 @@ const standing = [
   // asking of the reader, and a `stop` button has to ask twice
   'tests/ui-eff/head-dot.test.mjs',
   'tests/ui-eff/card-actions.test.mjs',
+  // a score nobody prints is a private opinion: the digest names the model
+  // that actually did the work, and keeps "not measured" distinct from zero
+  'tests/balance/models-are-visible.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and

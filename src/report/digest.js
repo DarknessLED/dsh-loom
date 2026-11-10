@@ -18,12 +18,14 @@
 import { campaignUsage } from '../runtime/cost.js'
 import { campaignQuality } from '../runtime/quality.js'
 import { reviewQueue } from '../runtime/review.js'
+import { modelHealth } from '../runtime/model-health.js'
 
 /** Hard ceiling on the whole digest, header and sections included. */
 export const DIGEST_MAX_LINES = 10
 
 const MAX_LINE = 120
 const MAX_REVIEWS = 3
+const MAX_MODELS = 3
 const DEFAULT_ROUNDS = 5
 
 /** Collapse every run of whitespace (including newlines) to a single space. */
@@ -104,6 +106,42 @@ function lessonLine(state) {
 }
 
 /**
+ * One line naming which models actually did the work.
+ *
+ * The fallback chain is a bet, and `modelHealth` is its score -- but a score
+ * nobody prints is not evidence, it is a private opinion. Every campaign in the
+ * ledger before this line existed looked identical from the digest: one blended
+ * "spend" figure, no hint that the primary provider died forty times while every
+ * promotion came from the fallback.
+ *
+ * Rows are ordered by attempts desc then ref asc so the line does not reshuffle
+ * between reads. Only the top few are named, and the remainder is a count: the
+ * digest is bounded prose, not a table. A model with no measured duration prints
+ * `p90 -` rather than `0 ms` -- "answered instantly" and "nobody timed it" are
+ * different findings.
+ */
+function modelLine(state) {
+  const rounds = roundsOf(state)
+  if (!rounds.length) return null
+  // Attempts can live on the round or on its attempts array; modelHealth already
+  // knows both shapes, so feed it the rounds and let it fold them.
+  const health = modelHealth(rounds)
+  const rows = Object.entries(health)
+    .map(([ref, h]) => ({ ref, h }))
+    .sort((a, b) => (b.h?.attempts ?? 0) - (a.h?.attempts ?? 0) || a.ref.localeCompare(b.ref))
+  if (!rows.length) return null
+  const named = rows.slice(0, MAX_MODELS).map(({ ref, h }) => {
+    const attempts = Number(h?.attempts) || 0
+    const ok = Number(h?.ok) || 0
+    const p90 = Number.isFinite(h?.p90Ms) ? `${Math.round(h.p90Ms / 1000)}s` : '-'
+    return `${ref} ${ok}/${attempts} p90 ${p90}`
+  })
+  const rest = rows.length - named.length
+  const tail = rest > 0 ? ` +${rest} more` : ''
+  return clip(`models: ${named.join(' · ')}${tail}`)
+}
+
+/**
  * Render one bounded catch-up for a campaign.
  *
  * @param {object} state materialized campaign state (rounds, openCheckpoints, lessons)
@@ -121,11 +159,14 @@ export function campaignDigest(state, opts = {}) {
   // Reserve room for the header, every review line and the lesson line first;
   // whatever is left is the round window. This is what keeps the total bounded
   // even when a campaign has more rounds than the caller asked for.
-  const reserved = lines.length + reviews.length + (lessons ? 1 : 0)
+  const models = modelLine(state)
+  const reserved = lines.length + reviews.length + (lessons ? 1 : 0) + (models ? 1 : 0)
   const room = Math.max(0, DIGEST_MAX_LINES - reserved)
   const take = Math.min(roundLimit, room)
   const rounds = take > 0 ? roundsOf(state).slice(-take).reverse() : []
   lines.push(...rounds.map(roundLine), ...reviews)
   if (lessons) lines.push(lessons)
+  // Models last: it is context for the rounds above, not the headline.
+  if (models) lines.push(models)
   return lines.filter((line) => line.length > 0).join('\n')
 }
