@@ -4,6 +4,36 @@ All notable changes to `dsh-loom`. The loop wrote most of these itself: each
 entry below started as a spec that failed, went through an RSI campaign, and
 was promoted only after the guard suite passed.
 
+## [Unreleased]
+
+### A model timeout may now fall over — but only inside the same budget
+
+The dispatcher used to treat `timeout` as "not a model problem": a child that
+hung for the whole `attemptTimeoutMs` (600 s by default) reported `timeout` and
+`models.fallback` was never tried. That is right when the fallback would start
+with a fresh full budget — the bill doubles and the round deadline is already
+gone — but wrong when the provider behind the first model is simply unreachable
+and the next one would have answered. `loom-acc6` burned two 600 s attempts on
+`open-design/deepseek-v4.1-flash` while `command-code` sat unused in the chain.
+
+- **`timeout` now counts as unusable**, alongside `context`, `tokens` and a
+  silent provider death.
+- **The attempt's wall clock is the ceiling, not each model.** `run()` records
+  `startedAt`; after a timeout the next model gets `timeoutMs - elapsed`, and
+  the fallover is skipped entirely when that is below `MIN_FALLOVER_MS` (30 s).
+  One attempt therefore still costs at most `timeoutMs`, and the round-level
+  deadline rewriter in `src/runtime/round.js:1263` still discards a late win.
+- **`session.fallbackReserveMs` (default `0`) is the opt-in.** When set, the
+  first model's slice is `timeoutMs - reserve` (never below the 30 s floor), so
+  a hung first model leaves the reserve for the next one. It stays opt-in
+  because healthy attempts need that budget: of 16 `ok` attempts across the
+  recorded campaigns, the median ran 397 s and 12 of 16 exceeded 300 s —
+  halving every attempt would cut most of the work that succeeds.
+- **A real timeout is still reported as `timeout`.** When the chain is
+  exhausted, or the first model used the whole budget, the result is unchanged
+  (`failureKind: 'timeout'`, `timedOut: true`), so retry and pause accounting
+  keep working.
+
 ## [0.2.1] — 2026-11-10
 
 A day spent on the thing that was actually breaking rounds: the provider.

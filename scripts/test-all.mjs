@@ -154,6 +154,9 @@ const standing = [
   'tests/lifecycle/retry-budget.test.mjs',
   'tests/lifecycle/silent-diagnosis.test.mjs',
   'tests/lifecycle/model-provider.test.mjs',
+  // a model that spent its whole slice without answering is unusable, not a
+  // verdict: loom-acc6 lost twelve 600 s attempts, five of which had a patch
+  'tests/lifecycle/timeout-fallover.test.mjs',
   // a provider outage is not a verdict on the task
   'tests/lifecycle/infra-round.test.mjs',
   // a broken provider falls over to the next model

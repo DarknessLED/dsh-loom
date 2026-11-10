@@ -56,6 +56,23 @@ export const DEFAULT_CONFIG = {
     /** Per-attempt wall clock cap. Ten minutes: measured attempts land in 250-700s. */
     attemptTimeoutMs: 10 * 60_000,
     /**
+     * Held back from the first model of a chain so that a timeout still leaves the
+     * next model something to answer with. 0 = no reserve: the attempt's clock
+     * belongs to the first model, which is what the measured rounds want (a healthy
+     * attempt needs p50 ~400 s of the 600 s budget). Set it for a campaign whose
+     * provider is known to stop answering: the fallback then runs inside the same
+     * wall clock instead of charging the round twice.
+     */
+    fallbackReserveMs: 0,
+    /**
+     * The least slice worth handing to a fallback model. Below this the child
+     * would be cancelled before its first token, so the attempt reports its
+     * timeout rather than buying a second child that cannot finish. It is a
+     * property of provider latency, not of the loop: 30 s suits a model that
+     * needs ~400 s of real work, and is far too generous for a fast one.
+     */
+    minFalloverMs: 30_000,
+    /**
      * Wall clock cap for the planning dispatch. Planning reads a few files and
      * names what will change; inheriting the attempt deadline let a wandering
      * planner burn twenty minutes in the round's most expensive call.

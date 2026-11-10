@@ -10,11 +10,29 @@ function textOf(output) {
 }
 
 /**
- * Model-side failures that a different model can plausibly survive. Everything
- * else — a dead child, a crash, a timeout — is not a model problem, and retrying
- * it on another model only doubles the bill.
+ * Model-side failures that a different model can plausibly survive: an exhausted
+ * context window, a token budget, or a model that spent a slice of the attempt's
+ * budget and answered nothing at all.
+ *
+ * A timeout used to sit on the other side of that line, because retrying it on
+ * another model "only doubles the bill". That is true only while the retry has a
+ * fresh budget to spend. The fallover below spends what is left of the attempt's
+ * own deadline and never more, so a provider that stopped answering costs one
+ * attempt's wall clock either way, and sometimes the second provider answers
+ * inside it. A dead child and a crash stay where they are: those are not model
+ * problems, and a second child only buys the same silence.
  */
 const MODEL_LIMIT = /context[ _-]?(length|window)|too long|maximum context|max[ _-]?tokens|token (limit|budget|quota)|quota|rate limit|overloaded|capacity/i
+
+/**
+ * The least time a fallback model can be given and still be worth starting. Below
+ * this the child would be cancelled before its first token in the normal case, so
+ * the attempt reports its timeout instead of buying a second child that cannot
+ * finish. Overridable per plugin (`session.minFalloverMs`) because the honest
+ * value is a property of the provider's latency, not of the loop: 30 s is right
+ * for a model that needs ~400 s of work, and far too long for a fast one.
+ */
+const DEFAULT_MIN_FALLOVER_MS = 30_000
 
 /** Why an attempt ended, in the vocabulary the round records. */
 export function classifyResult(res) {
@@ -130,6 +148,29 @@ export class Dispatcher {
     const chain = modelChain(models, model, this.config)
     const tried = []
     let res = null
+    // One attempt, one wall clock. Handing every model in the chain a fresh
+    // `timeoutMs` would make an attempt cost `chain.length * timeoutMs` and overrun
+    // the deadline the round wrote on its lease — after which the round discards a
+    // late but real answer as a timeout anyway (see round.js). Each model therefore
+    // sees only what is left of the budget it was given.
+    const startedAt = Date.now()
+    const left = () => timeoutMs - (Date.now() - startedAt)
+    // Held back from the first model so a timeout can still be answered by the next
+    // one. Zero by default: on this project's own rounds a healthy attempt is
+    // routinely longer than half the budget (p50 ~400 s of 600 s), so carving a
+    // slice out of every attempt would cut real work to buy an insurance nobody
+    // asked for. A campaign that runs on a provider it does not trust can set
+    // `session.fallbackReserveMs` and get the fallover for free inside the same
+    // wall clock.
+    const reserve = Math.max(0, Number(this.config?.session?.fallbackReserveMs) || 0)
+    const minFallover = Math.max(0, Number(this.config?.session?.minFalloverMs) || DEFAULT_MIN_FALLOVER_MS)
+    // Never longer than the attempt's own budget: a reserve smaller than `minFallover`
+    // cannot buy a usable slice, and stretching the first slice past `timeoutMs` would
+    // break the one-attempt-one-clock rule this whole path exists to keep.
+    const firstSlice =
+      chain.length > 1 && reserve > 0
+        ? Math.min(timeoutMs, Math.max(minFallover, timeoutMs - reserve))
+        : timeoutMs
     // The retry budget is per attempt, not per dispatcher. It used to live on the
     // instance, so the first round of a campaign that hit a broken parent consumed
     // the only retry there would ever be: in loom-acc2 that turned a flaky minute
@@ -138,7 +179,8 @@ export class Dispatcher {
     let infraRetried = false
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
-      res = await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })
+      const slice = i === 0 ? firstSlice : Math.max(1000, left())
+      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart })
       // A child that dies silently is not a failed task, it is a broken parent:
       // after a host restart the cached agent can still be addressable while every
       // child it spawns errors immediately. Rebuild once and retry before charging
@@ -147,7 +189,7 @@ export class Dispatcher {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
-        res = { ...(await this.#one(prompt, { cwd, timeoutMs, label, model: current, onStart })), infraRetry: true }
+        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart })), infraRetry: true }
       }
       tried.push(current ?? 'default')
       const kind = classifyResult(res)
@@ -159,8 +201,15 @@ export class Dispatcher {
       // charging the round for a child that never got to work. A death *with* a
       // diagnosis stays where it is: the patch was already shown to be broken, and a
       // second provider would only double the bill for the same answer.
-      const unusable = kind === 'context' || kind === 'tokens' || res?.infra === true
-      if (kind === 'ok' || !unusable || last) {
+      //
+      // A timeout belongs to the same class, with one condition: the model answered
+      // nothing at all inside its slice. It is tried on the next model only while the
+      // attempt still has a slice worth starting — below `minFallover` a child
+      // would be cancelled before its first token, which is the "doubles the bill"
+      // case the old rule was protecting against.
+      const unusable = kind === 'context' || kind === 'tokens' || res?.infra === true || kind === 'timeout'
+      const roomToFallOver = kind !== 'timeout' || left() >= minFallover
+      if (kind === 'ok' || !unusable || last || !roomToFallOver) {
         // Only a budget/context exhaustion is reported as `exhausted` (one operator
         // checkpoint, see round.js). A silent provider death keeps its own kind and
         // its `infra` flag: the round is interrupted and retryable, not written off.
@@ -173,7 +222,11 @@ export class Dispatcher {
           modelSwitch: tried.length > 1 ? { from: tried[0], to: current } : null,
         }
       }
-      this.log(`model ${current ?? 'default'} hit a limit (${kind}); trying ${chain[i + 1] ?? 'default'}`)
+      this.log(
+        `model ${current ?? 'default'} ${
+          kind === 'timeout' ? `used its whole ${Math.round(slice)}ms slice without an answer` : `hit a limit (${kind})`
+        }; trying ${chain[i + 1] ?? 'default'} with ${Math.max(0, Math.round(left()))}ms left`,
+      )
     }
     return {
       ...res,
@@ -287,7 +340,15 @@ export class Dispatcher {
     this.cancels.delete(childId)
 
     if (timedOut) {
-      return { sessionId: childId, text: '', structured: null, stopReason: 'aborted', timedOut: true, error: `attempt exceeded ${timeoutMs}ms` }
+      return {
+        sessionId: childId,
+        text: '',
+        structured: null,
+        stopReason: 'aborted',
+        timedOut: true,
+        error: `attempt exceeded ${timeoutMs}ms`,
+        elapsedMs: Date.now() - startedAt,
+      }
     }
     const elapsedMs = Date.now() - startedAt
     const stopReason = outcome?.stopReason ?? 'error'

@@ -1,4 +1,4 @@
-# 设计增补 v2 — 数学验证层、知识树、多子 agent 监管
+﻿# 设计增补 v2 — 数学验证层、知识树、多子 agent 监管
 
 > 来自 2026-11-06 讨论的四点要求。本文只写「要做什么、为什么这样、边界在哪」，实现细节随后落到代码。
 
@@ -215,9 +215,10 @@ Lesson {
 
 1. **子进程死掉**：`classifyResult()` 把 dispatcher 的结果归一成 `ok | timeout | tokens | context | died | exhausted`。`died` 不给分、不换模型、不重试（换模型只是把账单翻倍），回合照常收尾。关键一条：`gateOk` 现在要求 `failureKind === 'ok'`——子进程没跑完就不算验证通过，此前「验证器在未改动的工作树上恰好 exit 0」会被当成证据。
 2. **token 用尽 / 上下文爆掉**：`models.fallback` 是有序的降级链，只在 `tokens | context` 类失败上换下一个模型并记 `modelSwitch`；`context` 额外允许**一次**缩小简报的重试（丢掉 notes/lessons/plan，长度约减半），记 `retried:"smaller-brief"`。两者都不再静默变成 `no-gain`：全链用尽即 `round.finished.status="exhausted"` + `checkpoint{kind:"exhausted"}`。
-3. **历史偏移**：`Ledger.normalize()` 只留有限 seq、按 seq 升序、同 seq 先到先得；`appendJsonl` 在追加前补换行，避免 torn 尾行吞掉新记录。事件溯源因此保持「物化视图可由日志重建」的前提。
-4. **重启后的诚实恢复**（`src/runtime/recovery.js`）：账本里 `autopilot.applied` 只记了「应用过」而没记 commit，就不能算已落地。恢复时把这些轮次显式 `round.unlanded`（任务重新变为未解决），并只清理补丁自己 `new file mode` 建的文件 + `git checkout --` 恢复被改的已跟踪文件；**没有未提交证据时绝不动用户自己的脏工作区**（不用 `git clean -fd`）。同一份账本连跑两次恢复，第二次零写入。
-5. **面板降级**：一块坏数据只降级对应的行/字段（`{id, error}`、`live: []`、`lean: null`），不允许一条坏战役把整个侧栏变成 500——操作者无法从 500 里 debug 任何东西。
+3. **模型超时（2026-11-10 补）**：`timeout` 与 `tokens | context` 同类——这个模型在这次尝试里没有给出任何答案。区别是它只在**同一份墙上预算还有剩余**时才换下一个模型：`session.fallbackReserveMs`（默认 0）从第一次派发里预留一段时间，超时后用 `timeoutMs - 已用` 作为下一个模型的 slice；预算用光就直接记 `timeout`，不额外开子进程。旧的「超时不换模型」是因为换模型会把账单翻倍——那只有在新模型拿满一整份 `timeoutMs` 时才成立。实测数据（16 次 `ok` 尝试，p50 ≈ 400 s，12 次 > 300 s）说明不能默认切一刀：600 s 预算切成两半会砍掉一半正常的长尝试，所以预留必须显式开启。**注意**：这一条与第 1 条不同——`died` 仍不换模型。
+4. **历史偏移**：`Ledger.normalize()` 只留有限 seq、按 seq 升序、同 seq 先到先得；`appendJsonl` 在追加前补换行，避免 torn 尾行吞掉新记录。事件溯源因此保持「物化视图可由日志重建」的前提。
+5. **重启后的诚实恢复**（`src/runtime/recovery.js`）：账本里 `autopilot.applied` 只记了「应用过」而没记 commit，就不能算已落地。恢复时把这些轮次显式 `round.unlanded`（任务重新变为未解决），并只清理补丁自己 `new file mode` 建的文件 + `git checkout --` 恢复被改的已跟踪文件；**没有未提交证据时绝不动用户自己的脏工作区**（不用 `git clean -fd`）。同一份账本连跑两次恢复，第二次零写入。
+6. **面板降级**：一块坏数据只降级对应的行/字段（`{id, error}`、`live: []`、`lean: null`），不允许一条坏战役把整个侧栏变成 500——操作者无法从 500 里 debug 任何东西。
 
 **为什么不自动重试更多次**：重试是资源消耗，不是正确性。额度类失败靠换模型 + 交给人；进程死掉靠租约与看门狗识别；只有「成本已知且很可能成功」的场景（上下文超限）才值得自动重跑一次。
 
