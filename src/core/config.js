@@ -73,6 +73,13 @@ export const DEFAULT_CONFIG = {
      */
     minFalloverMs: 30_000,
     /**
+     * The reasoning effort every child is spawned with. Empty means inherit the
+     * effort of the session that asked for the campaign -- a child running one
+     * effort lower than its supervisor is a different model wearing the same name,
+     * and the loop has no way to notice the difference afterwards.
+     */
+    reasoningEffort: "",
+    /**
      * Wall clock cap for the planning dispatch. Planning reads a few files and
      * names what will change; inheriting the attempt deadline let a wandering
      * planner burn twenty minutes in the round's most expensive call.

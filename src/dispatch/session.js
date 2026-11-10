@@ -84,6 +84,32 @@ export function parseModelRef(ref) {
 }
 
 /**
+ * What the session that asked for this campaign is actually running on.
+ *
+ * A child that picks its own model is a second opinion nobody asked for: the
+ * loop reports one model in the attempt record and the bill names another. The
+ * host keeps this answer in the optional agentDefaultModel service, and reading
+ * it must never fail -- a missing service, a service that throws, or a
+ * selection with no model are all "the host did not say", which leaves the spawn
+ * exactly as it was before this was wired up.
+ */
+export async function resolveSelection(ctx) {
+  try {
+    const service = svc(ctx, 'agentDefaultModel')
+    const raw = service?.currentSelection?.()
+    const sel = raw && typeof raw.then === 'function' ? await raw : raw
+    if (!sel || typeof sel !== 'object') return null
+    const provider = typeof sel.provider === 'string' && sel.provider ? sel.provider : null
+    const model = typeof sel.model === 'string' && sel.model ? sel.model : null
+    const effort = typeof sel.reasoningEffort === 'string' && sel.reasoningEffort ? sel.reasoningEffort : null
+    if (!model) return null
+    return { provider, model, reasoningEffort: effort }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Owns model-backed child sessions. One attempt = one fresh child agent
  * (`spawn` provider: own session, own prompt, zero parent context).
  *
@@ -258,11 +284,27 @@ export class Dispatcher {
     const parent = await this.ensureParent()
     const controller = new AbortController()
     const agentOptions = {}
-    // `provider/model` is how a chain names a fallback that lives on another
-    // provider; a bare name keeps the host default, exactly as before.
+    // A child runs on the session that spawned it unless something names a model
+    // explicitly -- provider, model and effort together, because half a selection
+    // is how the loop ends up reporting a model it is not using.
+    const inherited = await resolveSelection(this.ctx)
     const ref = parseModelRef(model)
+    // Naming a model is a decision about the model only: the provider stays the
+    // host's, because guessing one from a bare name is a silent redirect.
+    const namesModel = Boolean(ref.model)
+    if (inherited) {
+      if (!namesModel && inherited.provider) agentOptions.provider = inherited.provider
+      if (!namesModel) agentOptions.model = inherited.model
+      if (inherited.reasoningEffort) agentOptions.reasoningEffort = inherited.reasoningEffort
+    }
     if (ref.provider) agentOptions.provider = ref.provider
     if (ref.model) agentOptions.model = ref.model
+    // `provider/model` is how a chain names a fallback that lives on another
+    // provider; a bare name keeps whatever the host said above.
+    const configuredEffort = this.config?.session?.reasoningEffort
+    if (typeof configuredEffort === 'string' && configuredEffort) {
+      agentOptions.reasoningEffort = configuredEffort
+    }
     const maxTokens = Number(this.config?.session?.maxTokens) || 0
     if (maxTokens > 0) agentOptions.maxTokens = maxTokens
     const agentPreset = this.config?.session?.preset || undefined
