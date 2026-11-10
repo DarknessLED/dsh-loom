@@ -49,6 +49,11 @@ window.__ModuleLoader__.load({
       warn: 'var(--loom-warn)',
       bad: 'var(--loom-bad)',
       idle: 'var(--loom-idle)',
+      // A finished campaign and a stopped one are not the same event, and
+      // neither is "not started yet": three greys here is why the audit found
+      // the dot unreadable without the word beside it.
+      done: 'var(--loom-done)',
+      stopped: 'var(--loom-stopped)',
     }
 
     // The reference's tokens, expressed as one stylesheet rather than inline
@@ -74,6 +79,7 @@ window.__ModuleLoader__.load({
       // accents sit at the point where they clear 4.2:1 on BOTH canvases — a
       // single value per hue, so the panel needs no theme switch of its own.
       ' --loom-ok:#3d8a58;--loom-warn:#8f7a33;--loom-bad:#c05a4a;--loom-idle:#7a7f87;',
+      ' --loom-done:#4f7f68;--loom-stopped:#8f6f6f;',
       ' --loom-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;',
       ' --loom-ease:cubic-bezier(.25,.46,.45,.94);',
       ' display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;font-size:13px;line-height:1.45;',
@@ -381,7 +387,51 @@ window.__ModuleLoader__.load({
       if (status === 'running') return TONES.ok
       if (status === 'paused') return TONES.warn
       if (status === 'failed' || status === 'error') return TONES.bad
+      if (status === 'done') return TONES.done
+      if (status === 'stopped') return TONES.stopped
       return TONES.idle
+    }
+
+    /**
+     * Which dot a card row draws, as a TONES key.
+     *
+     * `statusTone` answers "what state is this campaign in"; the head row has to
+     * answer "is it waiting on me", which is a different question and outranks
+     * the state: a running campaign holding three questions is not `ok`, and a
+     * failed one stays `bad` even with a queue behind it. Returning the key
+     * (not the resolved colour) keeps the caller able to read the decision.
+     */
+    function cardTone(c) {
+      if (!c) return 'idle'
+      if (c.status === 'failed' || c.status === 'error') return 'bad'
+      if (openCount(c) > 0) return 'warn'
+      if (c.status === 'running') return 'ok'
+      if (c.status === 'paused') return 'warn'
+      if (c.status === 'done') return 'done'
+      if (c.status === 'stopped') return 'stopped'
+      return 'idle'
+    }
+
+    // The card's own verbs, as data rather than JSX: the header can render
+    // them and a spec can assert the set. Only a live campaign has verbs — a
+    // finished or unknown one has nothing worth stopping, and offering a dead
+    // button teaches the reader that the buttons do not mean anything. `stop`
+    // is destructive, so it carries `confirm` and the UI asks twice.
+    function cardActions(campaign) {
+      var status = campaign && campaign.status
+      if (status === 'running') {
+        return [
+          { key: 'pause', label: '暂停', action: 'pause' },
+          { key: 'stop', label: '停止', action: 'stop', danger: true, confirm: true },
+        ]
+      }
+      if (status === 'paused') {
+        return [
+          { key: 'resume', label: '继续', action: 'resume' },
+          { key: 'stop', label: '停止', action: 'stop', danger: true, confirm: true },
+        ]
+      }
+      return []
     }
 
     function qualityTone(verdict) {
@@ -950,6 +1000,30 @@ window.__ModuleLoader__.load({
       if (c.holdout) out.push(num(c.holdout) + ' 留出')
       if (c.tasks) out.push(num(c.tasks) + ' 任务')
       return out
+    }
+
+    /**
+     * The one line a folded campaign row carries.
+     *
+     * The folded row used to slice `campaignMeta`, which is empty for the most
+     * common shape — a campaign that has not run and owns no figures — so the
+     * row rendered a blank span. Never blank, at most three facts, and every
+     * figure formatted: a brief is a claim, so `undefined`/`NaN` must not be
+     * able to become one.
+     */
+    function foldBrief(c) {
+      if (!c) return '暂无记录'
+      var meta = campaignMeta(c)
+      var bits = []
+      var rounds = amount(c.rounds)
+      if (rounds !== null) bits.push(num(rounds) + ' 轮')
+      if (costKnown(c)) bits.push(costLabel(c))
+      if (c.incumbent && amount(c.incumbent.score) !== null && bits.length < 3) bits.push('最佳 ' + c.incumbent.score)
+      if (amount(c.lessons) > 0 && bits.length < 3) bits.push(num(c.lessons) + ' 条知识')
+      if (bits.length > 0) return bits.join(' · ')
+      // Nothing measured: the artefacts campaignMeta owns are still facts, but
+      // a folded row can only carry three of them.
+      return meta.slice(0, 3).join(' · ') || statusLabel(c.status) || '暂无记录'
     }
 
     // ---- the triangle, the trend, the budget -------------------------------
@@ -2080,7 +2154,7 @@ window.__ModuleLoader__.load({
         var head = h(
           'div',
           { className: 'loom-titlerow' },
-          h('span', { className: 'loom-dot', style: { color: statusTone(c.status), marginBottom: 1 } }),
+          h('span', { className: 'loom-dot', style: { color: TONES[cardTone(c)], marginBottom: 1 } }),
           h('span', { className: 'loom-name', title: c.id }, c.id),
           h('span', { className: 'loom-state' }, statusLabel(c.status)),
           h('span', { className: 'loom-age', title: age(c.ageMs) ? '最近活动 ' + age(c.ageMs) + '前' : '' }, folded ? '' : age(c.ageMs)),
@@ -2092,6 +2166,7 @@ window.__ModuleLoader__.load({
           // it wants something from the reader. Everything else is one click
           // away, and that click is the whole card.
           var openCp = openCount(c)
+          var brief = foldBrief(c)
           var hit = hitProps(c, false, props.onToggle)
           hit.className = 'loom-hit'
           return h(
@@ -2100,11 +2175,11 @@ window.__ModuleLoader__.load({
             h(
               'div',
               hit,
-              h('span', { className: 'loom-dot', style: { color: statusTone(c.status) } }),
+              h('span', { className: 'loom-dot', style: { color: TONES[cardTone(c)] } }),
               h('span', { className: 'loom-name', title: c.id }, c.id),
               h('span', { className: 'loom-state' }, statusLabel(c.status)),
               openCp > 0 ? h('span', { className: 'loom-flag', title: openCp + ' 个检查点等你处理' }, '待 ' + openCp) : null,
-              h('span', { className: 'loom-brief', title: meta.join(' · ') }, meta.slice(0, 3).join(' · ')),
+              h('span', { className: 'loom-brief', title: brief }, brief),
               h('span', { className: 'loom-caret' }, '›'),
             ),
           )
@@ -2387,6 +2462,8 @@ window.__ModuleLoader__.load({
       costKnown: costKnown,
       age: age,
       statusTone: statusTone,
+      cardTone: cardTone,
+      cardActions: cardActions,
       qualityTone: qualityTone,
       text: text,
       Panel: Panel,
@@ -2403,6 +2480,7 @@ window.__ModuleLoader__.load({
       lessonsNode: lessonsNode,
       chainPath: chainPath,
       campaignMeta: campaignMeta,
+      foldBrief: foldBrief,
       triangleChips: triangleChips,
       sparkOf: sparkOf,
       budgetMeters: budgetMeters,

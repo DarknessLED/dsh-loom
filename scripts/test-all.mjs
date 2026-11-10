@@ -230,6 +230,10 @@ const standing = [
   'tests/exec/worktree-race.test.mjs',
   // a queue row says how long it has waited, in the host's clock, in words
   'tests/ui-eff/queue-wait.test.mjs',
+  // the sidebar's own verbs and its head dot: a card has to say what it is
+  // asking of the reader, and a `stop` button has to ask twice
+  'tests/ui-eff/head-dot.test.mjs',
+  'tests/ui-eff/card-actions.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
