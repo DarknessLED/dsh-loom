@@ -78,7 +78,7 @@ window.__ModuleLoader__.load({
       ' --loom-hover:rgba(127,127,127,.1);--loom-hover:color-mix(in srgb,var(--loom-base) 7%,transparent);',
       // accents sit at the point where they clear 4.2:1 on BOTH canvases — a
       // single value per hue, so the panel needs no theme switch of its own.
-      ' --loom-ok:#3d8a58;--loom-warn:#8f7a33;--loom-bad:#c05a4a;--loom-idle:#7a7f87;',
+      ' --loom-ok:#377f50;--loom-warn:#8a7431;--loom-bad:#b2503f;--loom-idle:#70747c;',
       ' --loom-done:#4f7f68;--loom-stopped:#8f6f6f;',
       ' --loom-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;',
       ' --loom-ease:cubic-bezier(.25,.46,.45,.94);',
@@ -175,6 +175,17 @@ window.__ModuleLoader__.load({
       '.loom-meta{margin-top:4px;font-family:var(--loom-mono);font-size:10px;letter-spacing:.01em;color:var(--loom-faint);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-chain{margin-top:3px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);',
+      // One row per model ref: the ratio a reader can act on, and the p90 that
+      // says whether it is fast. Laid out in a grid so the refs form a column
+      // instead of a ragged sentence.
+      '.loom-models{margin-top:4px;display:grid;grid-template-columns:1fr auto;gap:1px 8px;',
+      '.loom-model{display:flex;align-items:baseline;gap:6px;min-width:0;',
+      '.loom-model .ref{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}',
+      '.loom-model .ratio{font-family:var(--loom-mono);font-size:10px;color:var(--loom-soft);font-variant-numeric:tabular-nums;}',
+      '.loom-model .ratio[data-tone=bad]{color:var(--loom-bad);}',
+      '.loom-model .ratio[data-tone=warn]{color:var(--loom-warn);}',
+      '.loom-model .note{font-size:9.5px;color:var(--loom-faint);}',
+      '.loom-model .p90{font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);text-align:right;font-variant-numeric:tabular-nums;}',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       // ---- the measured triangle, the trend, the budget --------------------
       // One line of five figures, then one line of structure. The line ellipsises
@@ -275,6 +286,11 @@ window.__ModuleLoader__.load({
       '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11.5px;color:var(--loom-soft);min-width:0}',
       '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
+      // A fixed accent cannot clear 4.5:1 on both a white and a near-black
+      // canvas at this size, so the number keeps canvas ink and borrows the
+      // accent as a tint: readable either way, still signed.
+      '.loom-lesson .score[data-tone=up]{color:color-mix(in srgb,var(--loom-base) 58%,var(--loom-ok));}',
+      '.loom-lesson .score[data-tone=down]{color:color-mix(in srgb,var(--loom-base) 55%,var(--loom-bad));}',
       '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
       '.loom-note{padding:1px 12px 5px 18px;font-size:10px;line-height:1.5;color:var(--loom-faint)}',
       // shell
@@ -1252,6 +1268,58 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Which model actually did the work, one row per ref.
+     *
+     * The triangle computes this (`perModel`) and the digest prints one line, but
+     * a card is where an operator decides whether the chain is a good bet. A
+     * campaign whose primary provider died forty times while every promotion came
+     * from the fallback used to look identical to a healthy one.
+     *
+     * Two numbers must not be conflated:
+     *   * `judged` = attempts minus the ones we stopped on purpose. We abort a
+     *     sibling because another candidate already won; that is not a provider
+     *     failure, and counting it turns three wins out of three into 3/6.
+     *   * `p90 === '-'` = never measured. A ref that answered instantly and a ref
+     *     nobody timed are different findings.
+     *
+     * Sorted by attempts desc then ref asc so the rows do not reshuffle between
+     * two reads of the same ledger.
+     */
+    function modelRows(c) {
+      var t = (c && c.triangle) || null
+      if (!t || t.measured === false || !t.perModel || typeof t.perModel !== 'object') return []
+      var rows = []
+      Object.keys(t.perModel).forEach(function (ref) {
+        var h = t.perModel[ref] || {}
+        var attempts = amount(h.attempts) || 0
+        if (attempts <= 0) return
+        var abandoned = amount(h.abandoned) || 0
+        var judged = Math.max(0, attempts - abandoned)
+        var ok = amount(h.ok) || 0
+        var p90Ms = amount(h.p90Ms)
+        var p90 = p90Ms === null || p90Ms < 0 ? '-' : fmtSeconds(p90Ms / 1000) + 's'
+        var note = abandoned > 0 ? abandoned + ' stopped' : ''
+        var tone = judged > 0 && ok === 0 ? 'bad' : ok < judged ? 'warn' : 'ok'
+        rows.push({
+          key: ref,
+          ref: ref,
+          judged: judged,
+          ok: ok,
+          label: ok + '/' + judged,
+          p90: p90,
+          note: note,
+          tone: tone,
+          title: ref + '：判过 ' + judged + ' 次（另有 ' + abandoned + ' 次被主动停止，不算成败）· 赢 ' + ok + ' 次 · p90 ' + p90,
+        })
+      })
+      rows.sort(function (a, b) {
+        var d = (amount(t.perModel[b.ref].attempts) || 0) - (amount(t.perModel[a.ref].attempts) || 0)
+        return d !== 0 ? d : a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0
+      })
+      return rows
+    }
+
+    /**
      * Three thin meters: rounds, money, wall-clock. The numbers sit right
      * aligned in mono so the columns line up across campaigns; the fill is
      * clamped at 100% because a meter that overflows its own track is a
@@ -2027,7 +2095,7 @@ window.__ModuleLoader__.load({
                           h('span', { className: 'claim' }, text(item.claim, item.id)),
                           h(
                             'span',
-                            { className: 'score', style: { color: item.score > 0 ? TONES.ok : item.score < 0 ? TONES.bad : undefined } },
+                            { className: 'score', 'data-tone': item.score > 0 ? 'up' : item.score < 0 ? 'down' : 'flat' },
                             (item.score > 0 ? '+' : '') + item.score,
                           ),
                         )
@@ -2186,6 +2254,7 @@ window.__ModuleLoader__.load({
         }
 
         var tri = triangleChips(c)
+        var modelRows_ = modelRows(c)
         var spark = sparkOf(c)
         var meters = budgetMeters(c)
         var nodeKids = nodeChips(c)
@@ -2344,6 +2413,15 @@ window.__ModuleLoader__.load({
               return h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)
             }))),
             when(chain, h('div', { className: 'loom-chain', title: chain }, chain)),
+            when(modelRows_.length > 0, h('div', { className: 'loom-models' }, modelRows_.map(function (row) {
+              return [
+                h('div', { key: row.key + ':l', className: 'loom-model', title: row.title },
+                  h('span', { className: 'ref' }, row.ref),
+                  h('span', { className: 'ratio', 'data-tone': row.tone }, row.label),
+                  row.note ? h('span', { className: 'note' }, row.note) : null),
+                h('div', { key: row.key + ':r', className: 'p90', title: 'p90 用时（判过的尝试）' }, row.p90),
+              ]
+            }).reduce(function (all, pair) { return all.concat(pair) }, []))),
           ),
           bandNode,
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
@@ -2482,6 +2560,7 @@ window.__ModuleLoader__.load({
       campaignMeta: campaignMeta,
       foldBrief: foldBrief,
       triangleChips: triangleChips,
+      modelRows: modelRows,
       sparkOf: sparkOf,
       budgetMeters: budgetMeters,
       attemptChips: attemptChips,
