@@ -184,7 +184,19 @@ export class Dispatcher {
     const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
 
+    // The chain can name a model, or it can be empty and leave the choice to the
+    // host. In the second case the child runs on something real, and a record that
+    // says `null` files it under `unknown` -- the per-model table then cannot see
+    // the default case, which is almost every campaign. Ask once, up front, what
+    // the host says, and report that name for the chains that did not choose.
+    const inherited = await resolveSelection(this.ctx)
+    const inheritedName = inherited?.model ?? null
+    // An entry of `null` means "let the host decide". It stays null for the spawn --
+    // substituting a name here would make `parseModelRef` treat the inherited model
+    // as an explicit choice and drop the inherited provider with it -- and is only
+    // named in the record.
     const chain = modelChain(models, model, this.config)
+    const named = (entry) => entry ?? inheritedName ?? 'default'
     const tried = []
     let res = null
     // One attempt, one wall clock. Handing every model in the chain a fresh
@@ -223,7 +235,7 @@ export class Dispatcher {
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
       const slice = i === 0 ? firstSlice : Math.max(1000, left())
-      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart, askedAt })
+      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart, askedAt, inherited })
       // A child that dies silently is not a failed task, it is a broken parent:
       // after a host restart the cached agent can still be addressable while every
       // child it spawns errors immediately. Rebuild once and retry before charging
@@ -247,9 +259,9 @@ export class Dispatcher {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
-        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart, askedAt })), infraRetry: true }
+        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart, askedAt, inherited })), infraRetry: true }
       }
-      tried.push(current ?? 'default')
+      tried.push(named(current))
       const kind = classifyResult(res)
       const last = i === chain.length - 1
       // An infrastructure death (the model layer broke mid-turn, so the child ended
@@ -277,7 +289,7 @@ export class Dispatcher {
         return {
           ...res,
           failureKind: kind === 'ok' ? 'ok' : last && budget ? 'exhausted' : kind,
-          model: current,
+          model: named(current),
           modelsTried: tried,
           modelSwitch: tried.length > 1 ? { from: tried[0], to: current } : null,
         }
@@ -291,7 +303,7 @@ export class Dispatcher {
     return {
       ...res,
       failureKind: 'exhausted',
-      model: chain[chain.length - 1] ?? null,
+      model: named(chain[chain.length - 1]),
       modelsTried: tried,
       modelSwitch: tried.length > 1 ? { from: tried[0], to: chain[chain.length - 1] } : null,
     }
@@ -312,7 +324,7 @@ export class Dispatcher {
   }
 
   /** One child session, one model, no retry. */
-  async #one(prompt, { cwd, timeoutMs, label, model, onStart, askedAt = null }) {
+  async #one(prompt, { cwd, timeoutMs, label, model, onStart, askedAt = null, inherited = undefined }) {
     const subagents = svc(this.ctx, 'subagents')
     const startedAt = Date.now()
     const parent = await this.ensureParent()
@@ -321,15 +333,18 @@ export class Dispatcher {
     // A child runs on the session that spawned it unless something names a model
     // explicitly -- provider, model and effort together, because half a selection
     // is how the loop ends up reporting a model it is not using.
-    const inherited = await resolveSelection(this.ctx)
+    // The caller already asked the host once for this attempt; asking again could
+    // get a different answer and would then spawn on a model the record does not
+    // name. `undefined` means "nobody asked yet", so the single-model path still works.
+    const selection = inherited === undefined ? await resolveSelection(this.ctx) : inherited
     const ref = parseModelRef(model)
     // Naming a model is a decision about the model only: the provider stays the
     // host's, because guessing one from a bare name is a silent redirect.
     const namesModel = Boolean(ref.model)
-    if (inherited) {
-      if (!namesModel && inherited.provider) agentOptions.provider = inherited.provider
-      if (!namesModel) agentOptions.model = inherited.model
-      if (inherited.reasoningEffort) agentOptions.reasoningEffort = inherited.reasoningEffort
+    if (selection) {
+      if (!namesModel && selection.provider) agentOptions.provider = selection.provider
+      if (!namesModel) agentOptions.model = selection.model
+      if (selection.reasoningEffort) agentOptions.reasoningEffort = selection.reasoningEffort
     }
     if (ref.provider) agentOptions.provider = ref.provider
     if (ref.model) agentOptions.model = ref.model
