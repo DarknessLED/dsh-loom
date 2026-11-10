@@ -202,6 +202,7 @@ const standing = [
   'tests/balance/light-model-optional.test.mjs',
   'tests/balance/record-the-model-that-ran.test.mjs',
   'tests/balance/abandoned-work-still-counts.test.mjs',
+  'tests/balance/fallback-is-a-second-provider.test.mjs',
   // the plugin shipped a config surface it never declared: `status: absent` in the
   // host's own Config directory, so every knob had to be hand-edited
   'tests/config/schema.test.mjs',

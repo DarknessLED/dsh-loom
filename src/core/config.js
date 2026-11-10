@@ -40,8 +40,15 @@ export const DEFAULT_CONFIG = {
      * the loop's side, and a rebuilt parent cannot fix it. A child that dies *with*
      * a diagnosis is a real failure and is never retried on another model: that
      * only double-bills the same answer.
+     *
+     * The default names a *different provider on purpose*. A fallback that stays
+     * on the provider that just broke cannot escape it -- that is the failure that
+     * cost loom-acc2 eight consecutive rounds. The slash form is the only way to
+     * move a child off the host's provider, so the entry is written that way. Note
+     * the ledger: `modelsTried.length > 1` appears 0 times in 420 attempts, because
+     * this list was empty for every campaign that ever ran.
      */
-    fallback: [],
+    fallback: ['command-code/deepseek/deepseek-v4.1-flash'],
     /**
      * A cheaper model for steps whose output is a paragraph of text -- planning,
      * screening a candidate, judging a report -- and nothing else.

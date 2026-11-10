@@ -71,9 +71,19 @@ const ok = (name) => {
   const config = normalizeConfig({ home, models: { worker: 'cfg-w' }, rsi: { enabled: false } })
   const bare = policyFor({ config, campaign: { policy: {} } })
   assert.equal(bare.sources.models, 'config')
-  assert.deepEqual(modelsFor(bare), ['cfg-w'])
+  // The config chain is the worker followed by whatever fallbacks it carries --
+  // including the default one, which names another provider on purpose.
+  assert.deepEqual(modelsFor(bare), ['cfg-w', ...config.models.fallback])
+  // An operator who wants none says so, and is obeyed.
+  const alone = normalizeConfig({ home, models: { worker: 'cfg-w', fallback: [] }, rsi: { enabled: false } })
+  assert.deepEqual(modelsFor(policyFor({ config: alone, campaign: { policy: {} } })), ['cfg-w'])
 
-  const none = policyFor({ config: normalizeConfig({ home, rsi: { enabled: false } }), campaign: {} })
+  // "No chain at all" means the operator removed the fallback too. With a fallback
+  // in force the config does carry a chain, and saying `default` would hide it.
+  const none = policyFor({
+    config: normalizeConfig({ home, models: { fallback: [] }, rsi: { enabled: false } }),
+    campaign: {},
+  })
   assert.equal(none.sources.models, 'default')
   assert.equal(modelsFor(none), undefined)
   ok('with no override the config chain stands, and silence is not a model')

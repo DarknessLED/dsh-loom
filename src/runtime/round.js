@@ -345,12 +345,17 @@ export function policyFor({ config, campaign } = {}) {
  */
 export function modelsFor(policy) {
   const chain = policy?.models
-  const list = []
-  if (chain && typeof chain.worker === 'string' && chain.worker) list.push(chain.worker)
-  if (chain && Array.isArray(chain.fallback)) {
-    for (const name of chain.fallback) if (typeof name === 'string' && name) list.push(name)
-  }
-  return list.length > 0 ? list : undefined
+  if (!chain) return undefined
+  const fallback = Array.isArray(chain.fallback)
+    ? chain.fallback.filter((name) => typeof name === 'string' && name)
+    : []
+  const worker = typeof chain.worker === 'string' && chain.worker ? chain.worker : null
+  if (worker === null && fallback.length === 0) return undefined
+  // `null` in the head position means "inherit the host's model". It must stay a
+  // null rather than being dropped: a chain of nothing but fallbacks would send the
+  // very first child to the fallback provider, which is the silent redirect the
+  // inherited-model wiring exists to prevent.
+  return worker === null ? [null, ...fallback] : [worker, ...fallback]
 }
 
 /**

@@ -60,12 +60,26 @@ export function modelFor(config, role) {
 }
 
 export function modelChain(models, model, config) {
+  // An entry of `null` is a real instruction: "let the host decide here". It has to
+  // survive, because dropping it would promote the entry behind it into the first
+  // slice -- the child would run on the fallback provider and never try the
+  // session's own model at all.
   const explicit = Array.isArray(models) && models.length ? models : null
-  if (explicit) return explicit.filter((m) => typeof m === 'string' && m.length > 0)
-  const first = typeof model === 'string' && model ? model : config?.models?.worker
+  if (explicit) {
+    const kept = explicit.map((m) => (typeof m === 'string' && m.length > 0 ? m : null))
+    return kept.length ? kept : [null]
+  }
+  const named = typeof model === 'string' && model ? model : config?.models?.worker
+  const first = typeof named === 'string' && named ? named : null
   const fallback = Array.isArray(config?.models?.fallback) ? config.models.fallback : []
-  const chain = [first, ...fallback].filter((m) => typeof m === 'string' && m.length > 0)
-  return chain.length ? chain : [null]
+  const rest = fallback.filter((m) => typeof m === 'string' && m.length > 0)
+  // A `null` head means "let the host decide", and it has to survive. Filtering it
+  // out would make a config of `{worker: null, fallback: [...]}` dispatch its FIRST
+  // child on the fallback provider -- the loop would silently run on the wrong
+  // provider and would never try the session's own model at all. That is the
+  // shape the default config now has.
+  if (first === null && rest.length === 0) return [null]
+  return first === null ? [null, ...rest] : [first, ...rest]
 }
 
 /**
