@@ -96,7 +96,7 @@ again.
 | | 0.2.0 | 0.2.1 |
 | --- | --- | --- |
 | Suites in `scripts/test-all.mjs` | 99 | **115** |
-| Spec files | 131 | **153** |
+| Spec files | 131 | **152** |
 | `scripts/verify.mjs` | 110/110 | **115/115** |
 | CI (windows-latest) | green at 0.2.0 | green again — see above |
 | Panel audit | OK (ARIA invisible) | OK (ARIA + clipping checked) |
