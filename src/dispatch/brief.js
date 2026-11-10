@@ -59,6 +59,29 @@ function section(title, body) {
 }
 
 /**
+ * State the wall clock a node is working under.
+ *
+ * The planner is the one call every round makes before anything can succeed, and
+ * it was the one call nobody told the time. Ledger: 132 planned rounds, 85 (64%)
+ * came back with no text at all while still burning 24% of the wall clock, and a
+ * session log shows one such planner making 24 tool calls and then being killed
+ * mid-investigation. A brief that says "you have 180 s, report what you know when
+ * it runs out" cannot make a slow model fast, but it removes the failure mode
+ * where the agent never learns a clock was running.
+ *
+ * @param {unknown} raw milliseconds, or anything else
+ * @returns {string} the line to put in the Rules section, or an empty string
+ */
+function budgetRule(raw) {
+  const ms = Number(raw)
+  if (!Number.isFinite(ms) || ms <= 0) return ''
+  const seconds = Math.round(ms / 1000)
+  if (seconds <= 0) return ''
+  const readable =
+    seconds >= 120 ? `${seconds} s (about ${Math.round(seconds / 60)} minutes)` : `${seconds} s`
+  return `You have ${readable} of wall clock, enforced by the runner: it stops you the moment that runs out and nothing you found reaches the next agent. Work outwards from what the task actually needs, and when the budget gets short, write up what you already know instead of starting another investigation.`
+}
+/**
  * Compile the bounded brief handed to one fresh attempt.
  *
  * Never throws: malformed or missing input degrades to '(missing)' sections.
@@ -158,6 +181,10 @@ export function buildWorkerBrief(input) {
   let rulesBody = constraints.length
     ? constraints.map((rule, index) => `${index + 1}. ${rule}`).join('\n')
     : DEFAULT_RULE
+  // A limit the runner enforces has to be in the brief, or the agent meets it
+  // as an unexplained stop half-way through its investigation.
+  const budget = budgetRule(source.budgetMs)
+  if (budget) rulesBody = rulesBody + String.fromCharCode(10) + budget
 
   const failureBody = (detail) =>
     detail ? `Reason: ${failureReason}\nDetail: ${detail}` : `Reason: ${failureReason}`

@@ -33,6 +33,10 @@ const standing = [
   // and the link it makes must never end up inside a patch: a repo that does not
   // ignore node_modules would otherwise promote its own dependency tree.
   'tests/exec/patch-skips-deps.test.mjs',
+  // the planner was stopped by a clock it was never told about: 85 of 132 planned
+  // rounds came back empty while burning 24% of the wall clock.
+  'tests/dispatch/brief-states-budget.test.mjs',
+  'tests/balance/brief-states-deadline.test.mjs',
   // once a self-improvement campaign lands, its spec becomes a regression pin:
   // the loop must not be able to un-solve a task it already solved.
   'tests/self11/spend-estimate.test.mjs',

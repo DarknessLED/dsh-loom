@@ -551,6 +551,10 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
         ],
         plan: findings,
         reportGuide: RECON_GUIDE,
+        // The node is stopped by a clock; telling it nothing about that clock
+        // is how 85 of 132 planners spent the whole window and returned
+        // nothing at all.
+        budgetMs: planTimeoutMs,
         workspace: { branch, cwd: wtPath },
       })
       const res = await dispatcher.run(brief, {
@@ -649,7 +653,7 @@ export function abandonedVerdict(reason, cwd) {
  * sibling history beyond a handful of notes, no knowledge the round has not
  * earned yet.
  */
-function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars }) {
+function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars, budgetMs }) {
   const mapNode = (chain.nodes || []).find((n) => n.type === 'map')
   const rolePrompt = mapNode?.of?.prompt || 'Do the task in your worktree, then run the verification command.'
   const constraints = state.constraints.filter((c) => c.active).map((c) => c.text)
@@ -673,6 +677,7 @@ function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, inde
     previousFailure: lastFailure(state),
     workspace: { branch: `loom/${state.id}/${attemptId}`, cwd: worktree },
     ...(maxChars ? { maxChars } : {}),
+    ...(budgetMs ? { budgetMs } : {}),
   })
 }
 
@@ -1218,6 +1223,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
               excludeFamilies: holdoutFamilies,
             })
           : []
+        // The deadline is decided before the brief so the brief can state it.
+        // It is written on the lease and the `attempt.deadline` event below, so
+        // an interrupted attempt leaves behind the minute it was owed to end by
+        // instead of a window reconstructed later.
+        const timeoutMs = config.session.attemptTimeoutMs
         let brief = attemptBrief({
           chain,
           state,
@@ -1230,13 +1240,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           notes,
           lessons,
           plan: planFindings,
+          budgetMs: timeoutMs,
         })
         let retried = null
-        // Decide the deadline once, before the child is dispatched, and write the
-        // same value on the lease, the `attempt.deadline` event and (below) the
-        // finished record. An attempt that is interrupted then leaves behind the
-        // minute it was owed to end by instead of a window reconstructed later.
-        const timeoutMs = config.session.attemptTimeoutMs
         const deadlineAt = Date.now() + timeoutMs
         record = { ...record, timeoutMs, deadlineAt }
         runtime.append(view, 'attempt.deadline', { round: n, attemptId, timeoutMs, deadlineAt }, 'system')
@@ -1269,6 +1275,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         let outcomeKind = runRes.failureKind ?? classifyResult(runRes)
         if (outcomeKind === 'context') {
           retried = 'smaller-brief'
+          const remainingMs = Math.max(1000, deadlineAt - Date.now())
           const smaller = attemptBrief({
             chain,
             state,
@@ -1282,6 +1289,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             lessons: [],
             plan: [],
             maxChars: Math.max(1200, Math.floor(brief.length * 0.5)),
+            // The retry runs under what is left of the same clock.
+            budgetMs: remainingMs,
           })
           log(`attempt ${attemptId}: context overflow, retrying with a ${smaller.length}-char brief`)
           brief = smaller
