@@ -37,6 +37,12 @@ export const FIELDS = {
     description:
       '主模型到达额度上限（上下文/配额）时依次尝试的模型。子进程死于诊断过的错误不会换模型——那只会重复计费同一个答案。',
   },
+  'models.demoteAfter': {
+    type: 'number',
+    default: 0,
+    description:
+      '连续多少次失败把该模型排到链尾（0 = 永远保持配置顺序）。账本一直在回答这个问题，而没人问过它。',
+  },
   'session.attemptTimeoutMs': {
     type: 'number',
     default: 780000,
@@ -81,6 +87,7 @@ export const FIELD_ORDER = [
   'rsi.enabled',
   'models.worker',
   'models.fallback',
+  'models.demoteAfter',
   'session.reasoningEffort',
   'session.attemptTimeoutMs',
   'session.planTimeoutMs',

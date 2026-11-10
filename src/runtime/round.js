@@ -36,6 +36,7 @@ import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
+import { demoteChain } from './model-health.js'
 
 /**
  * A verify command is written by the task, not by the harness, so it may say
@@ -802,7 +803,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // Which models the workers in this round may use — the campaign's chain when it
   // named one, otherwise the config's. Without an override `modelsFor` returns the
   // config chain itself, which is what the dispatcher would have resolved anyway.
-  const models = modelsFor(campaignPolicy)
+  // A chain that keeps handing the first slice to a ref that keeps dying is a
+  // queue with an optimist at the front. The ledger already says which refs have
+  // not delivered; this is the one place that reads it before dispatching. The
+  // rule is off unless a campaign asks for it (`models.demoteAfter`), because
+  // reordering a working chain is a change nobody requested.
+  const configuredModels = modelsFor(campaignPolicy)
+  const demoteAfter = Number(config?.models?.demoteAfter ?? 0)
+  const demotion = demoteAfter > 0
+    ? demoteChain(configuredModels ?? [], state.rounds, { after: demoteAfter })
+    : { chain: configuredModels ?? [], demoted: [] }
+  const models = configuredModels === undefined ? undefined : demotion.chain
+  if (demotion.demoted.length) {
+    log(`models demoted to the back of the chain: ${demotion.demoted.join(", ")}`)
+  }
   // Planning is bounded work and gets its own, shorter deadline; attempts keep
   // the per-attempt cap. The ceiling comes from config, but the deadline the
   // planner actually gets is learned from what its last few runs bought: a

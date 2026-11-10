@@ -197,6 +197,7 @@ const standing = [
   // a fallback chain is a bet nobody kept the score on: per-model outcomes and
   // the p90 that a deadline has to clear
   'tests/balance/per-model-health.test.mjs',
+  'tests/balance/demote-dead-ref.test.mjs',
   // the plugin shipped a config surface it never declared: `status: absent` in the
   // host's own Config directory, so every knob had to be hand-edited
   'tests/config/schema.test.mjs',

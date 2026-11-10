@@ -6,6 +6,16 @@ was promoted only after the guard suite passed.
 
 ## [Unreleased]
 
+### The chain reads the score it just computed
+
+- `models.demoteAfter` (default 0 = off): a ref whose last N attempts in a row delivered
+  nothing (`died`/`timeout`/`exhausted`) moves to the back of the chain, and moves back the
+  moment it finishes one. `demoteChain` reads the same records `modelHealth` folds, so the
+  table and the decision cannot disagree. `modelsTried.length > 1` appears 0 times in 420
+  attempts — a provider that had died its last three tries kept getting the first slice every
+  round, because the chain was assembled from configuration alone.
+  (`tests/balance/demote-dead-ref.test.mjs`)
+
 ### The loop stops buying evidence it cannot trust, and names the tree it cut a patch against
 
 - **A spec that was already green cannot justify a promotion.** `checks.baseFailed` runs the

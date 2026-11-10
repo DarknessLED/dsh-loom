@@ -43,6 +43,18 @@ export const DEFAULT_CONFIG = {
      */
     fallback: [],
     /**
+     * How many failed attempts in a row move a ref to the back of the chain.
+     *
+     * 0 keeps the configured order always. The ledger answers this question and
+     * nothing used to ask it: `modelsTried.length > 1` appears 0 times in 420
+     * attempts, because a provider that died its last three tries kept getting the
+     * first slice every round. The correction is deliberately small -- the streak
+     * has to be current (a ref that recovered is not punished) and the demoted refs
+     * keep their own order -- because reordering a working chain on one bad patch
+     * of provider weather is worse than the disease.
+     */
+    demoteAfter: 0,
+    /**
      * USD per million tokens; override to match the account's real prices.
      * Left unset by default: `DEFAULT_PRICING` in src/runtime/cost.js supplies
      * the documented rates, and only an explicitly configured table counts as

@@ -108,3 +108,66 @@ export function modelHealth(rounds) {
   }
   return out
 }
+
+/**
+ * The set of outcomes that mean "this ref did not deliver", as opposed to "this
+ * attempt did not win". A ref can fail to deliver and still be worth keeping
+ * first: what it must not do is keep failing while holding the front of the
+ * queue.
+ */
+const NO_DELIVERY = new Set(['died', 'timeout', 'exhausted'])
+
+/**
+ * Move refs whose current streak is all failures to the back of the chain.
+ *
+ * The chain is assembled from configuration alone, so a provider that has died
+ * its last three attempts still gets the first slice every round: the score the
+ * loop just computed is never read. This is the smallest correction — the
+ * demoted refs keep their own relative order, every other ref keeps its place,
+ * and `after <= 0` disables the rule so a campaign that has not asked for this
+ * behaves exactly as before.
+ *
+ * @param {Array<string|null>} chain configured refs, front first
+ * @param {Array<object>} rounds folded rounds, each with an `attempts` array
+ * @param {{after?: number}} [opts] streak length that counts as a pattern; 0 disables
+ * @returns {{chain: Array<string|null>, demoted: string[]}}
+ */
+export function demoteChain(chain, rounds, opts = {}) {
+  const list = Array.isArray(chain) ? chain.slice() : []
+  const after = Number(opts?.after ?? 0)
+  if (!Number.isFinite(after) || after <= 0 || list.length === 0) return { chain: list, demoted: [] }
+
+  // Walk the ledger once, keeping the tail of each ref's outcomes. The tail is
+  // all that matters: a ref that died three times and then finished has recovered.
+  const streaks = new Map()
+  const folded = Array.isArray(rounds) ? rounds : []
+  for (const round of folded) {
+    if (!round || typeof round !== 'object') continue
+    const attempts = Array.isArray(round.attempts) ? round.attempts : []
+    for (const attempt of attempts) {
+      if (!attempt || typeof attempt !== 'object') continue
+      const ref = typeof attempt.model === 'string' && attempt.model.trim() ? attempt.model.trim() : null
+      if (!ref) continue
+      const kind = attempt.failureKind ?? (attempt.verifierOk ? 'ok' : 'other')
+      const streak = streaks.get(ref) ?? []
+      streak.push(NO_DELIVERY.has(kind) ? 'fail' : 'ok')
+      while (streak.length > Math.max(after, 1)) streak.shift()
+      streaks.set(ref, streak)
+    }
+  }
+
+  const dead = []
+  const keep = []
+  for (const ref of list) {
+    const key = typeof ref === 'string' ? ref.trim() : null
+    const streak = key ? streaks.get(key) : null
+    const failed = Array.isArray(streak) && streak.length >= after && streak.every((x) => x === 'fail')
+    if (key && failed) dead.push(key)
+    else keep.push(ref)
+  }
+  // A chain where everything is dead keeps its configured order: demoting all the
+  // refs would reorder the queue for no reason, and the round still has to try
+  // something.
+  if (keep.length === 0) return { chain: list, demoted: dead }
+  return { chain: [...keep, ...dead], demoted: dead }
+}

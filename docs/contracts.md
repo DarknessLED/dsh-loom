@@ -91,7 +91,7 @@
 - `src/runtime/hold.js` — 人工「暂缓」的到期时刻：读取 `config.checkpoint.holdMs`（缺省 6 小时），非法或非正值回落默认，保证暂缓永远指向未来而不是偷偷变成立即回答。
 - `src/runtime/ids.js` — 检查点 id 生成：时间戳加定宽单调计数器，保证同一毫秒内多次 raise 也不碰撞。
 - `src/runtime/lease.js` — 尝试租约：记录「本该在跑」的尝试，崩溃重启时对账，并按 TTL 清扫陈旧租约。
-- `src/runtime/model-health.js` — 模型健康度：把每个 attempt 的 `model`/`failureKind`/`durationMs` 折成按模型 ref 一行（attempts、ok、verified、timeout/died/context/crash、promoted、p50/p90），没有模型的 attempt 记作 `unknown` 而不是丢掉，未测到的时长是 `null` 而不是 0。`campaignTriangle.perModel` 直接用它，供面板与 `rsi_report` 判断回落链该往哪走。
+- `src/runtime/model-health.js` — 模型健康度：把每个 attempt 的 `model`/`failureKind`/`durationMs` 折成按模型 ref 一行（attempts、ok、verified、timeout/died/context/crash、promoted、p50/p90），没有模型的 attempt 记作 `unknown` 而不是丢掉，未测到的时长是 `null` 而不是 0。`campaignTriangle.perModel` 直接用它，供面板与 `rsi_report` 判断回落链该往哪走。 `demoteChain(chain, rounds, { after })` 是它的唯一消费者：某 ref 连续 `after` 次没有交付（died/timeout/exhausted）就把该 ref 排到链尾，恢复后自动归位，`after <= 0` 关闭整条规则（默认关闭——重排一条正在工作的链是没人要求的改动）。
 - `src/runtime/notify.js` — 检查点通知：只在该决策时唤醒主会话一次；静默时段写 `checkpoint.deferred` 并由 tick 补发，且永不重复投递。
 - `src/runtime/plateau.js` — 平台期判定：连续 N 轮没有 `promoted === true` 就认为停止进步，供检查点与面板使用。
 - `src/runtime/plan-budget.js` — 规划预算学习：把「规划器连续几轮撞满上限却什么都没产出」折成下一轮的截止时间，连续一个窗口的超时就减半、任何时候有一次规划在期限内完成就恢复到上限，从不因没有证据就惩罚新战役，也绝不返回非有限值或越界的数。
