@@ -1,7 +1,7 @@
 # dsh-loom 下一阶段目标（2026-11-11 修订版 · 待批准）
 
 > 状态：**待你批准**。批准后才会 `create_goal`；在你明确说"开始"之前不会建任何战役。
-> 修订依据：你 2026-11-11 00:37 的八条指示（认主目标 / 简单活 haiku 5.5 / 不看预算跑到 08:00 / 不着急发版 / 插件已修复 / 调研先行 / 用 RSI 自身机制 / 改完再给看）。
+> 修订依据：你 2026-11-11 00:37 的八条指示，以及 00:54 的补充（调研领域由我自己发现和评估、模型分配由我定、可以全用 ds v4.1 flash 不用 haiku、改完即开始）。
 
 ---
 
@@ -35,7 +35,7 @@
 | A1 | 子 agent 默认与主 agent 同 provider/model/effort | `agentDefaultModel.currentSelection()` 取值；未配置 `models.worker` 时必须跟随；`attempt.finished.model` 记录实际值 | 待做 |
 | A2 | 每次 spawn 都带 `reasoningEffort` | 断言 `agentOptions.reasoningEffort === 'high'`，campaign 可覆盖 | 待做 |
 | A3 | 回落链是数据不是代码 | 默认 `fallback: ['command-code/deepseek/deepseek-v4.1-flash']`；断言链顺序真被传下去 | 部分（链已可配，默认值未定） |
-| A4 | 简单活下放 | 新配置 `models.light`（默认 `open-design/claude-haiku-5.5`）用于规划/筛选/判题；worker 仍走主链 | 待做 |
+| A4 | 分档可选但默认关闭 | `models.light` 存在且可配，用于规划/筛选/判题；**默认不设**，即全部走主链的 ds v4.1 flash。只有实测证明某类活降级不掉质量时才启用 | 待做 |
 | A5 | 模型级健康度可见 | `campaignTriangle` 与面板新增 `perModel`：`{ref:{attempts, ok, timeouts, died, p50Ms, p90Ms}}` | 待做 |
 | A6 | 卡顿分钟级发现 | **已部分落地**（`minFalloverMs` + 共享时钟）；剩余：首片零输出的早期探测 | 部分 |
 | A7 | 连续慢的模型被降级 | `models.demoteAfter`（默认 2 次首片静默）→ 本战役内该 ref 排到链尾 | 待做 |
@@ -49,7 +49,7 @@
 子 agent 默认 : 同主 agent（provider + model + reasoningEffort 一起继承）
 回落链        : open-design/deepseek-v4.1-flash → command-code/deepseek/deepseek-v4.1-flash
                 两者 reasoningEffort = high
-简单活        : open-design/claude-haiku-5.5（规划 planner、筛选 screen、判题 judge）
+简单活        : 默认不降级，同样 open-design/deepseek-v4.1-flash（可按需指定，不再预设 haiku 档）
 触发回落      : ①context/token 类错误 ②静默死亡（无诊断） ③首片零输出 ④该 ref 已被降级
 不触发回落    : ①带诊断的真实失败（补丁已证明坏，换 provider 只是双倍账单）
                 ②验证器 ok=false（任务难度，不是模型故障）
@@ -63,15 +63,31 @@
 
 ### 2.1 调研先行（第 6 条）—— **Phase 0，不写任何代码**
 
-在写第一条规格之前，先并行派 3 个调研子 agent（走 `models.light`，即 haiku 5.5，便宜），各写一份 `< 500 行` 的中文笔记到 `research/`：
+**调研哪些领域由数据决定，不是由我拍脑袋列三个 R。** 昨晚我把 22 个战役、211 轮、420 个 attempt 的账本做了一次全量核算（`node scripts/diag-where-the-time-goes.mjs` 的输出就是下面的数字），它把该调研什么直接指出来了：
 
-| 调研 | 范围 | 必须回答 |
+| 实测 | 数字 | 它问的问题 |
 | --- | --- | --- |
-| **R1 · 调度与失败处理** | 2025–2026 关于 agent 编排、provider 熔断、模型路由（含 RouteLLM / FrugalGPT / Tail-at-Scale 类）的论文与开源实现 | 业界怎么判"这个 provider 现在不可用"？阈值多少？我们的 `minFalloverMs`/`demoteAfter` 该取什么值？ |
-| **R2 · 自改进循环（RSI）** | dream-rsi、gear、Sakana ADAS/DGM、AlphaEvolve 类 | 他们怎么防止"循环优化了假指标"？知识如何跨轮共享而不污染？我们的差距在哪 |
-| **R3 · 廉价验证与知识树** | 最小验证先行、successive halving、多臂老虎机在 agent 上的应用 | 我们 46/117 规划空转、41% no-gain 的结构性原因是什么？知识树现有哪些条目是错的 |
+| attempt 总数 / 决出结果 | 420 / 205（49%） | 一半的子会话没给出任何裁决 |
+| **子会话死亡** | **145（34.5%）**，远多于 timeout 23 | 为什么会死？是不是 provider 层？业界怎么兜 |
+| 有补丁却没拿到裁决 | 200 带补丁 → **72 个（36%）没被验过就丢了** | 已经做出来的活为什么不算数 |
+| 轮结论分布 | 录用 104（49%）、无进展 87（41%）、中断 22 | 41% 的无进展是难度还是流程 |
+| 规划 | 均值 118s = 一回合的 **25%**；记了 `planUsable` 的 9 轮里 **9 轮空手（100%）** | 规划到底在产出什么 |
+| 知识树 | 加了 91 条 lesson，只有 60 次 impact 测量，**delta 合计 +1.00，harm 3 次** | 91 条教训换 1.0 分，这套机制是否自欺 |
+| attempt 时长 | p50 145s / p90 601s / p99 1086s | 我们按 600s 一刀切，切在了 p90 上 |
 
-每份笔记必须带**可证伪的结论**和**会影响我们哪一行代码/哪个配置**。调研不做完不写规格。
+按这些数字，Phase 0 派 **5 个**调研子 agent（这是我根据上面的账本定的，执行中发现问题再加，不设上限）：
+
+| 调研 | 由哪个数字触发 | 必须回答 |
+| --- | --- | --- |
+| **R1 · 子会话死亡与失败分型** | 145 次 died（34.5%）是最大单一失败类 | 2025–2026 关于 provider 故障、连接断了、空诊断的实践：怎么区分"它死了"与"它没答"；心跳/liveness 该探什么；业界超时设在哪 |
+| **R2 · 已产出的活如何不丢（salvage）** | 72 个带补丁的 attempt 没被验就丢了（有补丁的 36%） | 断点续跑、worktree 落盘、partial result 复用；Temporal/LangGraph 的 checkpoint 粒度 |
+| **R3 · 超时与预算的形状** | 一刀切 600s 落在 p90 上 | 自适应 deadline、按任务类型估时、Tail-at-Scale 的尾延迟处理；我们该用分位数还是固定值 |
+| **R4 · 自改进循环是否在优化假指标** | 91 条 lesson → delta +1.00 | dream-rsi / gear / Sakana ADAS/DGM / AlphaEvolve：他们怎么防止"循环优化了假指标"；holdout 与泄漏 |
+| **R5 · 规划为什么空转** | 规划占 25% 墙钟、9/9 空手、24 次超时 | 规划-执行分离在 agent 上的真实收益证据；什么任务不值得规划；如何验证"规划有用"而不是假设 |
+
+每份笔记必须带**可证伪的结论**和**会影响我们哪一行代码/哪个配置**。达不到这两点就是废纸，退回重写。调研不做完不写规格。
+
+**模型分配（第 2 条的修订）**：你说可以全用 v4.1 flash、不用 haiku。我按这个来 —— **默认全部 `open-design/deepseek-v4.1-flash`**，不再为省钱把有判断力的活（R4 那种评估我们是否自欺的）降级给 haiku。哪里需要换模型，我会在派活时说明理由，而不是预先分配一个"简单活"档位。
 
 ### 2.2 知识树的共享（第 7 条）
 
@@ -91,7 +107,7 @@
 
 - 调研、审查、取证这类**可并行、不需要工作区写权限**的活，一律派 subagent，主 agent 不忙
 - 每个 subagent 只许写自己的文件（`research/*.md`），禁止改 `src`/`tests`/`client`/`scripts`，禁止跑 `test-all`
-- 简单活走 haiku 5.5，真活走主链
+- 默认全部 v4.1 flash；只有实测证明"某类活降级不掉质量"才把那一类换掉，且必须留下对照数据
 
 ---
 
@@ -101,16 +117,18 @@
 
 3 个调研 subagent 并行，我同时做两件不冲突的事：把 A9 的 Config schema 设计出来、把 A5 的 `perModel` 折叠逻辑先写成会失败的规格。
 
-**Phase 0 出口**：三份笔记 + 我对每份的复核（哪些采纳、哪些驳回、为什么）。
+**Phase 0 出口**：每份笔记 + 我对每份的复核（哪些采纳、哪些驳回、为什么），以及**按调研结论重排 M1–M5 的批次表**（下面的批次是我现在的猜测，调研可能推翻它）。如果调研指出还有别的领域该挖，就在 Phase 0 内追加，不进入 Phase 1 直到这块地翻完。
 
-### Phase 1–5 · 五批规格 → 战役（每批 1–2 条）
+### Phase 1–5 · 五批规格 → 战役（每批 1–2 条；内容待 Phase 0 复核）
+
+> 下面是**基于当前账本的猜测**。R1–R5 任一结论与它冲突，就以调研为准改表 —— 这本身就是这个循环该做的事。
 
 | 批 | 规格 | 依据 |
 | --- | --- | --- |
 | M1 | A1 + A2：读主 agent 选择 + 必带 effort | 纯装配层，最小风险 |
 | M2 | A3 + A4：默认回落链 + light 模型 | 配置 + 一处分支 |
 | M3 | A5 + A9：perModel 记账 + Config schema | 中；A9 让策略从隐藏默认值变成可发现配置 |
-| M4 | A6 剩余：首片零输出探测 | dispatcher 核心，风险最高，单独一批 |
+| M4 | A6 剩余：首片零输出探测 + 存活心跳 | dispatcher 核心，风险最高，单独一批；R1 若给出更准的 liveness 判据就换掉我的猜测 |
 | M5 | A7：降级 | 依赖 A5/A6 的数据 |
 
 每批流程固定：**写规格（三步验证）→ 建战役 → 循环自己实现 → 我审补丁/跑护栏/提交 → 钉 standing → 带前后数字报告**。
