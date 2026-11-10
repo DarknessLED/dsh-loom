@@ -454,16 +454,24 @@ function plannerBudget(state, config) {
  * delta that cannot be computed falls back to a real planning call, because a
  * stale plan is worse than an expensive one.
  */
-async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, planTimeoutMs, log }) {
+async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, chain, round, planTimeoutMs, models, log }) {
   const findings = []
   // A timed-out planner is not a plan. The round still runs, but it records
   // that it did so without reconnaissance instead of pretending the empty
   // findings were a considered answer.
   let planTimedOut = false
   // Planning is the one call every round makes before anything can succeed, so
-  // it may run on its own model: `models.meta` when set, otherwise the worker
-  // model exactly as before. Candidates below never consult `meta`.
-  const planModel = config.models.meta || config.models.worker || null
+  // it may run on its own model: `models.meta` names a model for the planning
+  // role and outranks everything else. Otherwise the planner dispatches on the
+  // same chain the workers use this round -- the demoted one included. A chain
+  // that demotes a dying ref for the workers but keeps buying plans from it is
+  // demoting the cheap call and paying for the expensive one. Candidates below
+  // never consult `meta`.
+  const metaModel = typeof config.models.meta === 'string' && config.models.meta ? config.models.meta : null
+  const planModel = metaModel || config.models.worker || null
+  // When the round has no explicit chain, `undefined` keeps the dispatcher's own
+  // resolution (config worker + fallback) exactly as before.
+  const planModels = metaModel ? undefined : Array.isArray(models) ? models : undefined
   // The deadline is decided once per round by the caller (`plannerBudget`), so
   // every planning node in this round runs under the same window and the record
   // it writes cannot disagree with the dispatch it made.
@@ -564,6 +572,7 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
         // "plan" marker does, and it is what a label is for.
         label: `loom:${state.id}:r${round}:plan:${id}`,
         model: planModel,
+        ...(planModels ? { models: planModels } : {}),
       })
       const text = String(res?.text ?? '').trim()
       planText = text
@@ -1126,6 +1135,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         chain,
         round: n,
         planTimeoutMs,
+        models,
         log,
       })
       planFindings = planResult.findings

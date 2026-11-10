@@ -209,6 +209,7 @@ const standing = [
   // the p90 that a deadline has to clear
   'tests/balance/per-model-health.test.mjs',
   'tests/balance/demote-dead-ref.test.mjs',
+  'tests/balance/planner-follows-the-chain.test.mjs',
   'tests/balance/stop-paying-for-nothing.test.mjs',
   'tests/balance/light-model-optional.test.mjs',
   'tests/balance/record-the-model-that-ran.test.mjs',
