@@ -37,6 +37,12 @@ export const FIELDS = {
     description:
       '主模型到达额度上限（上下文/配额）时依次尝试的模型。子进程死于诊断过的错误不会换模型——那只会重复计费同一个答案。',
   },
+  'models.light': {
+    type: 'string',
+    default: '',
+    description:
+      '规划、筛选、判题这类「产出一段文字」的步骤可换用的更便宜的模型。默认空，即全部走主链；是否真能省钱取决于小模型是否给出同样的判断，那需要先测。',
+  },
   'models.demoteAfter': {
     type: 'number',
     default: 0,
@@ -87,6 +93,7 @@ export const FIELD_ORDER = [
   'rsi.enabled',
   'models.worker',
   'models.fallback',
+  'models.light',
   'models.demoteAfter',
   'session.reasoningEffort',
   'session.attemptTimeoutMs',

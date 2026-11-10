@@ -199,6 +199,7 @@ const standing = [
   'tests/balance/per-model-health.test.mjs',
   'tests/balance/demote-dead-ref.test.mjs',
   'tests/balance/stop-paying-for-nothing.test.mjs',
+  'tests/balance/light-model-optional.test.mjs',
   // the plugin shipped a config surface it never declared: `status: absent` in the
   // host's own Config directory, so every knob had to be hand-edited
   'tests/config/schema.test.mjs',

@@ -43,6 +43,18 @@ export const DEFAULT_CONFIG = {
      */
     fallback: [],
     /**
+     * A cheaper model for steps whose output is a paragraph of text -- planning,
+     * screening a candidate, judging a report -- and nothing else.
+     *
+     * null by default, deliberately. Whether a smaller model changes a planning
+     * decision is an empirical question this loop cannot yet answer: it reads
+     * whether a plan arrived, not whether the plan named the right files. Turning
+     * this on without measuring that trades a token saving for a wrong-file plan
+     * nobody will trace back to here. Per-role, so buying a cheap planner never
+     * quietly downgrades the worker that writes the code.
+     */
+    light: null,
+    /**
      * How many failed attempts in a row move a ref to the back of the chain.
      *
      * 0 keeps the configured order always. The ledger answers this question and

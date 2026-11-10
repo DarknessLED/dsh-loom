@@ -46,6 +46,19 @@ export function classifyResult(res) {
 }
 
 /** The models an attempt may use, in order: explicit list, then config fallbacks. */
+/**
+ * The model a purely textual role should run on, or null when the operator has not
+ * asked for one. Only roles whose output is text qualify: planning, screening a
+ * candidate, judging a report. The worker that writes the code is never downgraded
+ * by this switch, because "simple" is a claim about the step, not about the round.
+ */
+export function modelFor(config, role) {
+  const light = config?.models?.light
+  if (typeof light !== 'string' || !light) return null
+  const textual = role === 'planner' || role === 'judge' || role === 'screen'
+  return textual ? light : null
+}
+
 export function modelChain(models, model, config) {
   const explicit = Array.isArray(models) && models.length ? models : null
   if (explicit) return explicit.filter((m) => typeof m === 'string' && m.length > 0)
