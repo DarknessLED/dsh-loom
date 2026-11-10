@@ -31,7 +31,11 @@ const node = (id, round, status, durationMs, role = 'planner') => ({ id, round, 
     [3, 2, 1],
     'newest round first: the panel is read top-down, and the last round is the question',
   )
-  assert.deepEqual(rows[1], { id: 'recon', role: 'planner', round: 2, status: 'done', durationMs: 241061 })
+  // `model` joined the row when the planner started naming the ref it ran on.
+  // The node fixture above predates the field, so it reads back as null rather
+  // than as an invented ref; tests/balance/a-node-remembers-its-model.test.mjs
+  // pins the populated case.
+  assert.deepEqual(rows[1], { id: 'recon', role: 'planner', round: 2, status: 'done', durationMs: 241061, model: null })
   ok('node rows reach the panel, newest round first')
 }
 

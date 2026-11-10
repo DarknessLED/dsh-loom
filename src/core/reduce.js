@@ -196,6 +196,12 @@ function apply(s, ev) {
       if (d.reused === true) row.reused = true
       if (d.planBasis) row.planBasis = d.planBasis
       if (d.sessionId !== undefined) row.sessionId = d.sessionId
+      // Which model ran this node. The planner dispatch records it because the
+      // whole point of following the round's chain is being able to check that
+      // it did: without this, "the planner used the model the policy named" has
+      // no public evidence. Absent means the event predates the field, and
+      // absent stays absent -- a reused plan really has no model to name.
+      if (d.model !== undefined) row.model = d.model
       break
     }
     case 'attempt.finished': {

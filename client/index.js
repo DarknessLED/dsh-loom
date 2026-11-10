@@ -1404,7 +1404,8 @@ window.__ModuleLoader__.load({
           key: id + '@' + (n && n.round !== null && n.round !== undefined ? n.round : '?') + '#' + i,
           label: label,
           title: id + (n && n.round !== null && n.round !== undefined ? ' · 第 ' + n.round + ' 轮' : '') +
-            (n && n.status ? ' · ' + n.status : ''),
+            (n && n.status ? ' · ' + n.status : '') +
+            (n && n.model ? ' · ' + n.model : ''),
           tone: lost ? TONES.bad : n && n.status === 'done' ? TONES.ok : TONES.warn,
         }
       })

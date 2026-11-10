@@ -50,6 +50,7 @@ export function nodesFor(state, opts = {}) {
       round: Number.isFinite(Number(n.round)) ? Number(n.round) : null,
       status: n.status ?? null,
       durationMs: Number.isFinite(Number(n.durationMs)) ? Number(n.durationMs) : null,
+      model: n.model ?? null,
     }))
     .sort((a, b) => (b.round ?? -Infinity) - (a.round ?? -Infinity))
     .slice(0, limit)

@@ -251,6 +251,7 @@ const standing = [
   'tests/balance/a-skipped-plan-is-a-decision.test.mjs',
   'tests/balance/mean-round-is-measured.test.mjs',
   'tests/balance/a-killed-round-is-not-a-stall.test.mjs',
+  'tests/balance/a-node-remembers-its-model.test.mjs',
 ]
 // Each spec runs once. The standing list grew by append, and the same pin was
 // added twice on three occasions — which quietly inflated the reported total and
