@@ -89,8 +89,7 @@ function fakeCtx({ results }) {
 {
   const { ctx, calls } = fakeCtx({
     results: [
-      { output: [], stopReason: 'error', diagnostic: null }, // silent death -> one retry on the same model
-      { output: [], stopReason: 'error', diagnostic: null }, // still dead -> this model is unusable
+      { output: [], stopReason: 'error', diagnostic: null }, // silent death -> this model is unusable
       { output: [{ type: 'text', text: 'done' }], stopReason: 'completed' }, // the next provider works
     ],
   })
@@ -107,10 +106,9 @@ function fakeCtx({ results }) {
     calls.map((c) => c.agentOptions),
     [
       { provider: 'open-design', model: 'deepseek-v4.1-flash' },
-      { provider: 'open-design', model: 'deepseek-v4.1-flash' },
       { provider: 'command-code', model: 'deepseek/deepseek-v4.1-flash' },
     ],
-    'the second model must go to the provider that actually hosts it',
+    'the second model must go to the provider that actually hosts it, without re-asking the dead one',
   )
   assert.deepEqual(res.modelsTried, ['open-design/deepseek-v4.1-flash', 'command-code/deepseek/deepseek-v4.1-flash'])
   ok('a cross-provider fallback is dispatched to the provider that hosts it')

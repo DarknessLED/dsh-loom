@@ -211,7 +211,17 @@ export class Dispatcher {
       // after a host restart the cached agent can still be addressable while every
       // child it spawns errors immediately. Rebuild once and retry before charging
       // the round for an infrastructure bug.
-      if (res?.infra && !infraRetried) {
+      //
+      // But only when there is no other model to ask. Across 22 campaigns this
+      // retry fired 32 times and converted a silent death exactly never: the
+      // provider was broken, not the handle, so the second child bought the same
+      // silence at full price. A chain with somewhere else to go goes there
+      // instead; the rebuild is the last thing an attempt has, not the first.
+      //
+      // The exception is a chain of one: there is nowhere else to go, so the
+      // rebuild is the only remaining suspect worth paying for once.
+      const noAlternative = chain.length === 1
+      if (res?.infra && !infraRetried && noAlternative) {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
@@ -233,6 +243,8 @@ export class Dispatcher {
       // attempt still has a slice worth starting — below `minFallover` a child
       // would be cancelled before its first token, which is the "doubles the bill"
       // case the old rule was protecting against.
+      // A silent death is an unusable model whenever the chain can move on; the
+      // single-model case is the only one where the parent rebuild above applies.
       const unusable = kind === 'context' || kind === 'tokens' || res?.infra === true || kind === 'timeout'
       const roomToFallOver = kind !== 'timeout' || left() >= minFallover
       if (kind === 'ok' || !unusable || last || !roomToFallOver) {

@@ -101,9 +101,10 @@ const ok = (name) => {
   await d.dispose()
 }
 
-// 4. A retry is paid once per attempt, and a silent death then falls over to the
-//    next model in the chain: the rebuild buys one extra dispatch, not one per
-//    model, and a whole chain of silence still stops instead of looping.
+// 4. A chain with somewhere else to go goes there directly: the retry is spent on
+//    a parent rebuild only when it is the last thing the attempt has. Across 22
+//    campaigns that rebuild fired 32 times and converted silence exactly never,
+//    while costing a second child at full price each time.
 {
   const { ctx, calls } = fakeCtx({ behaviors: [{ delayMs: 3200, result: silentError }] })
   const d = new Dispatcher({ ctx, config: {}, log: () => {} })
@@ -111,8 +112,8 @@ const ok = (name) => {
   assert.equal(res.failureKind, 'died')
   assert.deepEqual(
     calls.map((c) => c.model),
-    ['m-a', 'm-a', 'm-b'],
-    `one retry under m-a, then the fallback model (got ${JSON.stringify(calls.map((c) => c.model))})`,
+    ['m-a', 'm-b'],
+    `no rebuild when the chain can move on (got ${JSON.stringify(calls.map((c) => c.model))})`,
   )
   assert.equal(res.infra, true, 'and the whole chain is still infrastructure, not a verdict on the task')
   ok('an attempt pays one retry, then falls over to the next model')

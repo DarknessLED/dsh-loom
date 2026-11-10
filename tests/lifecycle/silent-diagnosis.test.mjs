@@ -110,12 +110,12 @@ ok('a child with nothing to say keeps the honest placeholder')
 {
   const limit = "This model's maximum context length is 65536 tokens"
   const silent = { output: [], stopReason: 'error', diagnostic: null }
-  // One silent death, one silent retry on the rebuilt parent, then the fallback
-  // model answers. Three children is the budget: the per-attempt retry, then the
-  // next model in the chain.
+  // One silent death, then the fallback model answers. Two children is the
+  // budget: the attempt does not re-ask the model that just died when the chain
+  // has somewhere else to go (see tests/lifecycle/no-blind-retry.test.mjs).
   const h = harness({
     events: [turnEnd(limit)],
-    results: [silent, silent, { output: [{ type: 'text', text: 'done' }], stopReason: 'completed', diagnostic: null }],
+    results: [silent, { output: [{ type: 'text', text: 'done' }], stopReason: 'completed', diagnostic: null }],
   })
   const res = await h.dispatcher.run('do the thing', {
     cwd: '.',
