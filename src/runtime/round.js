@@ -616,7 +616,12 @@ function lastFailure(state) {
  * verifier never ran, so the ledger gets a failing verdict that says so rather
  * than a pass or a silence that would read as evidence.
  */
-function abandonedVerdict(reason, cwd) {
+export function abandonedVerdict(reason, cwd) {
+  // `skipped` and `measured` are the part that matters. A stopped attempt keeps
+  // the patch it made, and 29 of them in this ledger held one -- but a verdict
+  // that only says `ok: false` reads downstream as "this work failed", so the
+  // triangle counts an unmeasured diff as a bad one. It was never looked at.
+  const why = typeof reason === 'string' && reason ? reason : 'unknown'
   return {
     ok: false,
     exitCode: null,
@@ -624,10 +629,13 @@ function abandonedVerdict(reason, cwd) {
     timedOut: false,
     durationMs: 0,
     stdout: '',
-    stderr: `not verified: attempt was abandoned (${reason})`,
+    stderr: `not verified: attempt was abandoned (${why})`,
     metrics: {},
     command: null,
     cwd,
+    skipped: true,
+    measured: false,
+    reason: why,
   }
 }
 
