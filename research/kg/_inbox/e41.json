@@ -1,0 +1,35 @@
+{
+ "nodes": [
+  {
+   "id": "exp-graded-005",
+   "kind": "number",
+   "title": "Replaying the proposed earned-rule over all 211 gates flips exactly the 3 graded rounds and nothing else",
+   "body": "The proposed fix to src/runtime/round.js:1977 is: keep earned as-is unless the base was measured passing, and in that one case accept the patch if the task's declared metric improved on the base's metric. Replayed over all 211 gate.evaluated records (research/exp/e41.mjs) with the graded task's measured base metric (QUALITY=0.500 on the base tree): only 4 gates have baseFailed false, and the new rule changes 4 decisions - the three loom-graded rounds (earnedOld false, earnedNew true) and loom-life round 1 (earnedNew false, which it already was rejected for, by holdout). Nothing else moves. That is the shape a safe change to this codebase has: it changes the decisions it is meant to change and touches no other campaign's history. It also confirms the fix is not speculative - the only thing standing between the loop and its first graded promotion is that one expression plus one extra field in the baseline cache.",
+   "source": "research/exp/e41.mjs (211 gates, dry replay of the proposed rule)",
+   "confidence": 0.95,
+   "topic": "graded",
+   "tags": [
+    "measurement",
+    "graded-score",
+    "dry-run"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-graded-005",
+   "rel": "supports",
+   "to": "exp-graded-003"
+  },
+  {
+   "from": "exp-graded-005",
+   "rel": "supports",
+   "to": "exp-graded-004"
+  },
+  {
+   "from": "exp-graded-005",
+   "rel": "requires",
+   "to": "exp-gate-001"
+  }
+ ]
+}

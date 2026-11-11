@@ -1,0 +1,86 @@
+{
+ "nodes": [
+  {
+   "id": "exp-slot-006",
+   "kind": "number",
+   "title": "The explore slot's pass rate is bimodal by campaign: 17 of 26 campaigns pass either always or never",
+   "body": "Of 231 rounds, 452 attempts. Taking every a1 attempt as a repeated measurement of the same role (the explore slot), 26 campaigns have at least three of them. In that set, 8 campaigns pass 100% of the time and 9 pass 0% - 17 of 26 campaigns show zero within-campaign variance in 3 to 16 attempts. The remaining nine scatter (loom-acc2 18 attempts 2 passes, loom-self 7/4, loom-chaos 6/4, loom-tri11 4/1, ...). Pooled rate is 0.5066. This is the missing sigma, and its shape is the finding: the dominant source of variation is which campaign a round belongs to, not which attempt it is. Any decision rule that treats consecutive rounds as repeated samples of one configuration is sampling across a boundary - the 8 all-pass campaigns are tasks the harness solves trivially, the 9 none-pass ones are tasks it cannot do yet, and in both cases the loop can change anything it likes without moving the number.",
+   "source": "research/exp/e31.mjs (231 rounds, 452 attempts, 68 campaigns)",
+   "confidence": 0.93,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "variance",
+    "difficulty"
+   ]
+  },
+  {
+   "id": "exp-slot-007",
+   "kind": "number",
+   "title": "The two arms are not independent: phi = 0.549, and a2 passes 79.8% when a1 passes but 24.8% when a1 fails",
+   "body": "225 two-arm rounds: both pass 83, both fail 91, only a1 30, only a2 21. Under independence at the pooled a1 rate (0.5066) we would expect 57.7 both-pass and 54.8 both-fail; observed is 83 and 91. Phi coefficient 0.549. P(a2 passes | a1 passes) = 0.798; P(a2 passes | a1 fails) = 0.248. The arms are the same model on the same brief in the same worktree base, so the shared factor is the round: the task, the base tree, the verifier's mood. This is why the paired within-round A/B in lesson.impact reads as flat: it conditions on the variable that drives both outcomes. It also revises the earlier 'second arm buys +20% promotions' reading - the second arm's value is concentrated exactly in the 51 discordant rounds, and it is a bet on the same factor, not a hedge against it.",
+   "source": "research/exp/e31.mjs (225 two-arm rounds, phi = 0.549)",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "candidates",
+    "independence"
+   ]
+  },
+  {
+   "id": "exp-stop-001",
+   "kind": "number",
+   "title": "Stopping at the first promotion would have used 71 of 231 rounds, and 58 of 68 campaigns did promote at least once",
+   "body": "Replay of the whole ledger under 'end the campaign at its first promotion' (research/exp/e31.mjs): 58 of 68 campaigns promoted at least once; reaching that first promotion took 71 rounds in total, against 231 rounds actually spent. So 69.3% of the loop's wall-clock and dollars went into rounds that did not change the campaign's outcome, measured by the campaign's own promotion criterion. This is not an argument that the extra rounds were worthless - later rounds are where a second task in the same campaign gets solved, and exp-score-001 already showed a task only offers one promotion opportunity - but it bounds what a better stopping rule could save, and it says the interesting question is per-task rather than per-campaign: the budget should be spent on tasks that have not promoted yet, and exp-slot-006 says those are exactly the 9 campaigns at 0% pass.",
+   "source": "research/exp/e31.mjs (68 campaigns, 231 rounds, 71 rounds to first promotion)",
+   "confidence": 0.9,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "stopping",
+    "budget"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-slot-006",
+   "rel": "supports",
+   "to": "ana-012",
+   "note": "supplies the dispersion ana-012 said was missing, and it is between-campaign"
+  },
+  {
+   "from": "exp-slot-006",
+   "rel": "refines",
+   "to": "exp-slot-004"
+  },
+  {
+   "from": "exp-slot-006",
+   "rel": "contradicts",
+   "to": "w2-decide-mde-formula-agent-sigma",
+   "note": "sigma 0.7-1.8pp is a within-task figure; ours is between-task and bimodal"
+  },
+  {
+   "from": "exp-slot-007",
+   "rel": "refines",
+   "to": "exp-slot-004",
+   "note": "phi 0.549 corrects the 73.5/18.8 split into conditional probabilities"
+  },
+  {
+   "from": "exp-slot-007",
+   "rel": "supports",
+   "to": "exp-slot-005"
+  },
+  {
+   "from": "exp-stop-001",
+   "rel": "derived-from",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "exp-stop-001",
+   "rel": "applies-to",
+   "to": "w6-stopping"
+  }
+ ]
+}

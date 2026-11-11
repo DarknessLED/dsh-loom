@@ -1,0 +1,66 @@
+{
+ "nodes": [
+  {
+   "id": "exp-slot-004",
+   "kind": "number",
+   "title": "The two arms are strongly correlated per round: a2 passes 73.5% when a1 passes and 18.8% when a1 fails",
+   "body": "Replayed 225 two-arm rounds (research/exp/e30.mjs): a1 passed 115 times. Given a1 passed, a2 also passed 73.5% of the time; given a1 failed, a2 passed only 18.8% (21 rescues out of 110). The arms are the same model with the same prompt, so the correlation is round-level difficulty showing through both samples - which means the second arm is not an independent bet, and 'rescue the failed round' is the expensive case, not the common one. Policy comparison on recorded outcomes: fixed K=1 gives 113 successes for 225 arms (1.99 arms per success); fixed K=2 gives 134 for 450 (3.36); sequential 'run the second only if the first failed' gives 134 for 337 (2.52). So sequential-if-failed captures the entire benefit of the second arm for 25% fewer attempts than fixed K=2, but the second arm still costs 26% more arms per success than not having it. This is the first measured policy comparison for this loop, and it needs no model calls to compute.",
+   "source": "research/exp/e30.mjs (225 two-arm rounds)",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "candidates",
+    "policy"
+   ]
+  },
+  {
+   "id": "exp-slot-005",
+   "kind": "analysis",
+   "title": "Because arms correlate within a round, any A/B that holds the round fixed is measuring round difficulty, not the treatment",
+   "body": "exp-slot-004 gives the mechanism behind three earlier results that looked like noise. Paired within-round comparisons (exp-lesson-001, lesson.impact) hold the round fixed, so both arms share the round's difficulty; when the round is easy both pass and the delta is 0 (53 of 60 cases), when it is hard both fail (also 0), and a nonzero delta appears only in the narrow band where the arms disagree - which is exactly where the tie-break then decides who wins (exp-slot-001). So a within-round paired design is not a low-power design here, it is a confounded one: it is conditioned on a variable that drives both outcomes. A usable design has to randomise the treatment across rounds (switchback, exp-human-002) or compare across campaigns, and must report the round-difficulty strata rather than a pooled mean.",
+   "source": "research/exp/e30.mjs + exp-lesson-001 + exp-slot-001",
+   "confidence": 0.92,
+   "topic": "tri",
+   "tags": [
+    "analysis",
+    "design",
+    "confound"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-slot-004",
+   "rel": "refines",
+   "to": "exp-cost-003",
+   "note": "sequential-if-failed gets the same success count for 25% fewer arms"
+  },
+  {
+   "from": "exp-slot-004",
+   "rel": "requires",
+   "to": "exp-slot-001"
+  },
+  {
+   "from": "exp-slot-005",
+   "rel": "derived-from",
+   "to": "exp-slot-004"
+  },
+  {
+   "from": "exp-slot-005",
+   "rel": "contradicts",
+   "to": "exp-lesson-001",
+   "note": "the paired design is confounded by round difficulty, not merely underpowered"
+  },
+  {
+   "from": "exp-slot-005",
+   "rel": "applies-to",
+   "to": "ana-009"
+  },
+  {
+   "from": "exp-slot-005",
+   "rel": "supports",
+   "to": "exp-human-002"
+  }
+ ]
+}

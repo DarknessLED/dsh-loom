@@ -1,0 +1,62 @@
+{
+ "nodes": [
+  {
+   "id": "exp-human-005",
+   "kind": "failure",
+   "title": "We cannot measure human minutes at all: the ledger stamps when a checkpoint was raised and answered, never when a human saw it",
+   "body": "Paired checkpoint.raised with the following checkpoint.answered in the same campaign, using the event envelope field t (ms epoch; research/exp/e27.mjs): 29 pairs. The loop waited a median of 12.05 minutes, p10 1.04, p90 1,700 minutes, max 4,086 minutes (2.8 days), total 17,854 minutes across 29 decisions. By kind: gate n=10 median 11.3 min, anomaly n=9 median 4.1 min, plateau n=9 median 1,590 min, setup n=1 273 min. 11 of 29 waited over an hour; only 2 were answered within a minute. This measures QUEUE time, not decision time, and the distinction is the finding: there is no event for 'a human opened the checkpoint', so 'minutes of human attention' - the quantity ana-001 says is the objective - is unmeasurable by construction. It also reconciles the two readings in our notes: wave3 measured seconds from a human already watching the panel, exp-human-001 measured 0.44 decisions per promotion, and both are consistent with a human who is away most of the time and fast when present. Any 'human minutes' metric needs a delivered/seen event before it can be computed, and a loop that blocks 12 minutes per decision is not unattended even when the human is quick.",
+   "source": "research/exp/e27.mjs (29 paired checkpoints)",
+   "confidence": 0.9,
+   "topic": "human-minutes",
+   "tags": [
+    "measurement",
+    "human-minutes",
+    "instrumentation"
+   ]
+  },
+  {
+   "id": "exp-human-006",
+   "kind": "analysis",
+   "title": "Blocking on a human costs the loop more than the human's decision does, so the checkpoint should not be a barrier",
+   "body": "exp-human-005 gives the size of the effect: median 12 minutes of loop wall clock per gate checkpoint, against a measured round median of 6.1 minutes (exp-wall-001). One checkpoint therefore costs about two rounds of progress, and plateau checkpoints cost 260 rounds. This is the quantitative case for ana-006's design: a checkpoint that pauses the loop converts a 30-second decision into a 12-minute hole, while a checkpoint that records a pending decision and keeps the loop working inside its authority loses only the reversibility. The current implementation chose the barrier, and the ledger shows what it costs.",
+   "source": "research/exp/e27.mjs + exp-wall-001 + exp-human-005",
+   "confidence": 0.85,
+   "topic": "human-minutes",
+   "tags": [
+    "analysis",
+    "checkpoint",
+    "blocking"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-human-005",
+   "rel": "refines",
+   "to": "exp-human-001",
+   "note": "0.44 decisions per promotion, but each one blocks 12 minutes"
+  },
+  {
+   "from": "exp-human-005",
+   "rel": "contradicts",
+   "to": "w3-humanminutes-rubber-stamp-seconds",
+   "note": "seconds vs 12 minutes measure different things; neither is human attention"
+  },
+  {
+   "from": "exp-human-006",
+   "rel": "supports",
+   "to": "ana-006",
+   "note": "quantifies the cost of the barrier the design argues against"
+  },
+  {
+   "from": "exp-human-006",
+   "rel": "requires",
+   "to": "exp-wall-001"
+  },
+  {
+   "from": "exp-human-005",
+   "rel": "applies-to",
+   "to": "ana-001"
+  }
+ ]
+}

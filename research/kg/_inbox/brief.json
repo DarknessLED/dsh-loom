@@ -1,0 +1,59 @@
+{
+ "nodes": [
+  {
+   "id": "exp-brief-001",
+   "kind": "number",
+   "title": "Two thirds of every worker brief is identical text, and the report instructions alone are 47% of it",
+   "body": "Built the real brief for 40 registered tasks (research/exp/e38.mjs): mean 2,139 chars, of which 1,484 are lines identical across every brief (69.4%). Decomposed by section: Rules 402 chars, Report 1,009 chars. So the report guide - seven fields, the fenced-json instruction, and the field-by-field description - is 47% of the text a worker reads, and the task-plus-objective it is supposed to act on is the remainder. At 452 attempts that is roughly 950 KB of identical template pushed through the model, all of it cache-read (exp-meter-002's 96.3% cache-read share) and none of it task-specific. This is not automatically wrong - the report schema is what makes the ledger machine-readable, and w6-attention found that removing instructions costs compliance - but it does mean the loop's per-attempt context budget is dominated by a contract, and any proposal to 'give the worker more context' should be priced against the 1,411 chars already spent on rules before adding more.",
+   "source": "research/exp/e38.mjs (40 real tasks, buildWorkerBrief, mean 2,139 chars)",
+   "confidence": 0.9,
+   "topic": "ctx",
+   "tags": [
+    "measurement",
+    "brief",
+    "context-budget"
+   ]
+  },
+  {
+   "id": "exp-brief-002",
+   "kind": "analysis",
+   "title": "The brief is a contract with the ledger, not a message to the worker, and that explains both its size and its gaps",
+   "body": "Reading the 40 briefs side by side makes the design intent visible: the Rules section exists so the runner's enforcement (wall clock, shell path) is not a surprise, and the Report section exists so the attempt produces fields the reducer can consume. Both are there for the loop's benefit, not the worker's. What is consistently absent is the same thing each time: the base tree's current score or QUALITY, the metric the task declares, and what the previous attempt actually got wrong beyond a reason string. So the brief tells the worker the rules of the game and how to score it, but never the current score - which is exactly the quantity a graded loop would need to hand over, and exactly the quantity that does not exist because exp-graded-003 showed the baseline verdict records only an exit code. One missing number in the baseline cache shows up as three different gaps: no minGain effect (exp-gate-001), no promotion on graded tasks (exp-graded-003), and no score in the brief. That is the strongest argument for fixing the baseline first: it is upstream of all three.",
+   "source": "brief composition analysis (research/exp/e38.mjs) + exp-graded-003 + exp-gate-001",
+   "confidence": 0.9,
+   "topic": "ctx",
+   "tags": [
+    "analysis",
+    "brief",
+    "baseline"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-brief-001",
+   "rel": "supports",
+   "to": "w5-tokenbudget-preamble-39pct-of-reads"
+  },
+  {
+   "from": "exp-brief-001",
+   "rel": "measures",
+   "to": "exp-meter-002"
+  },
+  {
+   "from": "exp-brief-002",
+   "rel": "derived-from",
+   "to": "exp-brief-001"
+  },
+  {
+   "from": "exp-brief-002",
+   "rel": "supports",
+   "to": "exp-graded-003"
+  },
+  {
+   "from": "exp-brief-002",
+   "rel": "refines",
+   "to": "ana-007"
+  }
+ ]
+}

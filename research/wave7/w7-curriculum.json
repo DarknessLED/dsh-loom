@@ -1,0 +1,452 @@
+{
+ "nodes": [
+  {
+   "id": "order-cheap",
+   "kind": "claim",
+   "title": "Task order is near-worthless inside a fixed compute budget; the number of distinct tasks is what pays",
+   "body": "Wu, Dyer & Neyshabur sweep thousands of orderings over CIFAR10/100 with 540 baseline ResNet-50 runs at 35,200 steps (100 epochs, batch 128). Curriculum, anti-curriculum and 'random-curriculum' (dynamic training-set size, random order) all land within noise of plain i.i.d. training; randomly ordered samples do as well or better, so 'any benefit is entirely due to the dynamic training set size'. For dsh-loom: the selector rotates over open tasks (src/runtime/selector.js pickTask), and this result says the ROTATION ORDER is not where quality comes from - the size and composition of the open-task pool is.",
+   "source": "arXiv:2012.03107 (ICLR 2021) https://arxiv.org/abs/2012.03107",
+   "confidence": "high",
+   "topic": "curriculum",
+   "tags": "ordering,curriculum,negative-result"
+  },
+  {
+   "id": "budget-regime",
+   "kind": "number",
+   "title": "Curriculum does pay - but only in the time-limited or noisy regime",
+   "body": "Same paper, two regimes where the ordering result flips: with a limited training-time budget (few iterations, imitating a large-data regime where multiple epochs are infeasible) curriculum beats standard training and anti-curriculum; with injected label noise it also wins. Anti-curriculum never wins in either regime. dsh-loom is permanently in the first regime: W = 480-940 s per round, 20 rounds/night is only 3.4-4.0 h of a night, so nothing ever gets a second epoch over the same task population. That is exactly the condition under which ordering starts to matter.",
+   "source": "arXiv:2012.03107 §5-6 https://arxiv.org/abs/2012.03107",
+   "confidence": "high",
+   "topic": "curriculum",
+   "tags": "budget,noise,regime"
+  },
+  {
+   "id": "implicit-curriculum",
+   "kind": "claim",
+   "title": "There is already an implicit curriculum, so explicit reordering has little room",
+   "body": "The paper's first experiment shows samples are learned in a highly consistent order across architectures and optimizers regardless of the schedule fed in - the model has its own difficulty ordering. Explicit curricula can only help at the margin because the implicit one is already doing the sorting. Translation for a code loop: the worker model has its own internal ordering over task types (config edits before multi-file refactors before UI wiring), so a hand-built difficulty ladder mostly re-derives what the worker already does.",
+   "source": "arXiv:2012.03107 §3 https://arxiv.org/abs/2012.03107",
+   "confidence": "medium",
+   "topic": "curriculum",
+   "tags": "implicit-curriculum,mechanism"
+  },
+  {
+   "id": "value-loss-priority",
+   "kind": "concept",
+   "title": "Prioritized Level Replay: mean |GAE| of the last trajectory is a label-free difficulty signal",
+   "body": "PLR scores each training level by the mean absolute generalized advantage estimate of the most recent trajectory (equivalent to an L1 value loss), then samples P_replay = (1-rho)*P_S + rho*P_C: P_S is a rank-based prioritization with temperature beta, P_C a staleness/recency distribution. rho = 0.1 on Procgen, 0.3 on MiniGrid, beta = 0.1. The Value Correction Hypothesis explains why it works: levels at the edge of ability have non-stationary value targets, hence high value error; unsolvable levels produce stationary failure, hence low value error. So the score tracks the expanding frontier of ability without any external difficulty label.",
+   "source": "arXiv:2010.03934 (ICML 2021) https://arxiv.org/abs/2010.03934",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "PLR,value-loss,label-free"
+  },
+  {
+   "id": "plr-numbers",
+   "kind": "number",
+   "title": "PLR: 135.0% vs 100.0% normalized return, and the mix is what buys it",
+   "body": "Procgen, 25M steps, 200 levels: PLR reaches 135.0% +/- 6.1 normalized test return against 100.0 +/- 2.0 for uniform sampling; UCB-DrAC+PLR reaches 182.9 +/- 8.2 (TSCL 103.9, mixreg 110.6). Significant gains on 10 of 16 Procgen environments; MiniGrid uses 1000 levels per difficulty. Both-only ablations are the interesting part: keeping only staleness (rho=1) or keeping only the L1 value-loss score (rho=0) is WORSE than uniform sampling. A recency term is not a nicety, it is load-bearing.",
+   "source": "arXiv:2010.03934 Table 1-2 https://arxiv.org/abs/2010.03934",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "PLR,ablation,numbers"
+  },
+  {
+   "id": "priority-collapse",
+   "kind": "failure",
+   "title": "A pure score-priority queue collapses; a pure recency queue forgets",
+   "body": "PLR's own ablation reports that either half alone underperforms uniform sampling, and the paper notes that any candidate scoring function must asymptotically decrease with visitation frequency or the sampler mode-collapses onto a few levels. For a code loop the analogue is a task score that only ever rewards past success: it will re-pick the same three tasks forever and starve the pool. dsh-loom's current selector is the opposite extreme - pure round-robin over unsolved tasks with no score at all - which is the other degenerate corner.",
+   "source": "arXiv:2010.03934 §4 (ablation + mode collapse note) https://arxiv.org/abs/2010.03934",
+   "confidence": "medium",
+   "topic": "difficulty",
+   "tags": "mode-collapse,sampling,antipattern"
+  },
+  {
+   "id": "azr-learnability",
+   "kind": "claim",
+   "title": "Absolute Zero: reward a proposed task by 1 - pass rate, and by exactly 0 when nothing solves it",
+   "body": "AZR's proposer reward is r_propose = 0 if mean solve rate is 0, else 1 - mean solve rate, where the mean is over G Monte-Carlo solver rollouts at non-zero temperature. It peaks at intermediate success and is zero at both p=0 and p=1, and crucially it is 0 (not -p) for impossible tasks, so the proposer gets no anti-signal that would teach it to avoid hard but learnable tasks. A Python executor both validates the proposed task and verifies the answer - the same artifact is the task factory and the grader.",
+   "source": "arXiv:2505.03335 (v3) https://arxiv.org/abs/2505.03335",
+   "confidence": "high",
+   "topic": "synthesis",
+   "tags": "AZR,learnability,self-play"
+  },
+  {
+   "id": "azr-magnitude",
+   "kind": "number",
+   "title": "AZR's whole curriculum apparatus is worth about 1.4 points; task-type diversity is worth more",
+   "body": "AZR-Base-7B ablation (Table 2, code / math / overall averages): full model with proposer+generation-reference conditioning 55.2 / 38.4 / 46.8; solver-only training 54.8 / 36.0 / 45.4; generation-reference removed 54.4 / 33.1 / 43.8; induction task type removed 54.2 / 33.3 / 43.8; deduction only 54.6 / 32.0 / 43.3. Removing the proposer costs 1.4 overall points; removing a whole task TYPE costs 3.5. If you only get one lever, it is the mix of task kinds, not the cleverness of the selector.",
+   "source": "arXiv:2505.03335 Table 2 https://arxiv.org/abs/2505.03335",
+   "confidence": "high",
+   "topic": "synthesis",
+   "tags": "AZR,ablation,magnitude"
+  },
+  {
+   "id": "variance-bound",
+   "kind": "claim",
+   "title": "Expected improvement is bounded by the variance of per-task success probability",
+   "body": "The online difficulty filtering paper proves the expected policy improvement of a group-relative update is lower-bounded by the variance of task-level success probabilities, which is maximized at p=0.5 and zero at p=0 or p=1. That is the formal version of 'aim at the band': a task everyone solves and a task nobody solves both produce a zero-advantage batch. Balanced filtering (drop tasks outside [T_low, T_high]) maximizes this bound; skewed filtering does not.",
+   "source": "arXiv:2504.03380 https://arxiv.org/abs/2504.03380",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "theory,variance,band"
+  },
+  {
+   "id": "band-sweep",
+   "kind": "number",
+   "title": "Band sweep: 27.3% -> >30% average, and ONLINE filtering beats offline curation 6x",
+   "body": "Sweeping (T_low, T_high) over {(0,1),(0.1,0.9),(0.2,0.8),(0.3,0.7),(0.4,0.6)} on a 3B model, stricter balanced filtering is monotonically better: average over 5 benchmarks goes from 27.3% to above 30%, with up to +12% gains in less than half the GRPO training steps. The load-bearing comparison: offline curation or offline scheduling of the same band reaches at most +2.1% over plain GRPO, and skewed filtering is WORSE than plain GRPO (24.9-25.9% vs 26.3%). The band is only worth having if it is applied per batch, online.",
+   "source": "arXiv:2504.03380 §4-5 https://arxiv.org/abs/2504.03380",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "online,offline,numbers"
+  },
+  {
+   "id": "band-width",
+   "kind": "claim",
+   "title": "The band does not need to be precise: any low cut in (0, 0.25) and high cut in (0.75, 1) behaves the same",
+   "body": "GOID labels each goal by the empirical success fraction from at most four rollouts and keeps goals with R_min <= p <= R_max, using 0.1 and 0.9 in every experiment. The appendix shows the algorithm is 'almost invariant' for any R_min in (0, 0.25) and any R_max in (0.75, 1), because with at most four attempts the estimated label is coarse anyway - they verify this by comparing against true labels estimated with three fresh rollouts, which are only slightly better. Practically: you do not need a calibrated difficulty model, you need a coarse 0.1/0.9-style cut and 3-4 samples per candidate.",
+   "source": "arXiv:1705.06366 (v5) §4.1 + Appendix C https://arxiv.org/abs/1705.06366",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "GOID,band,robustness"
+  },
+  {
+   "id": "tscl-slope",
+   "kind": "concept",
+   "title": "TSCL picks by learning-curve slope, and adds a forgetting term for tasks that are getting worse",
+   "body": "Teacher-Student Curriculum Learning treats subtask choice as a non-stationary multi-armed bandit: Q_{t+1}(a) = alpha*r_t + (1-alpha)*Q_t(a) with epsilon-greedy or Boltzmann selection, and four estimators of learning progress - Online (EWMA of return), Naive (train each task K times, regress score on trial), Window (FIFO buffer of the last K scores, regress score on timestamps) and Sampling (Thompson-style draw from the last K rewards). It also selects tasks whose performance is DEGRADING, to counter forgetting. It solved a Minecraft maze that could not be solved at all when trained directly on the maze.",
+   "source": "arXiv:1707.00183 https://arxiv.org/abs/1707.00183",
+   "confidence": "high",
+   "topic": "curriculum",
+   "tags": "TSCL,bandit,forgetting"
+  },
+  {
+   "id": "dapo-zero-gradient",
+   "kind": "claim",
+   "title": "At p=0 and p=1 the group-relative advantage is exactly zero, so those tasks buy nothing",
+   "body": "DAPO §3.2 Dynamic Sampling states the mechanism plainly: GRPO's advantage is zero when all G sampled outputs get the same reward, so prompts with accuracy 0 or 1 contribute no gradient at all - they are wasted batch slots. DAPO over-samples and filters to enforce 0 < |{correct}| < G, refilling the batch to a fixed size. This is the same statement as the variance bound, expressed as an implementation rule rather than a theorem, and it is the single cheapest thing a loop can copy.",
+   "source": "arXiv:2503.14476 §3.2 https://arxiv.org/abs/2503.14476",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "DAPO,GRPO,zero-gradient"
+  },
+  {
+   "id": "dapo-ladder",
+   "kind": "number",
+   "title": "DAPO ablation ladder: 30 -> 50 on AIME24 avg@32, dynamic sampling is the last +8",
+   "body": "Ablation on AIME24 avg@32, 32B base: naive GRPO 30, + overlong filtering 36, + Clip-Higher 38, + soft overlong punishment 41, + token-level loss 42, + Dynamic Sampling (full DAPO) 50, versus R1-Zero-Qwen-32B at 47 trained for twice as many steps. Note the shape: difficulty filtering is the last and largest single step (+8) but it only pays after the four preceding fixes; bolting a band onto a broken advantage estimator buys nothing.",
+   "source": "arXiv:2503.14476 Table 3 https://arxiv.org/abs/2503.14476",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "DAPO,ablation,ladder"
+  },
+  {
+   "id": "s1-selection",
+   "kind": "number",
+   "title": "1,000 chosen samples match 59,000: 50.0 vs 53.3 on AIME24",
+   "body": "s1 curates 1,000 problems on quality, difficulty and diversity. Table 2 (AIME24 / MATH500 / GPQA, 95% paired bootstrap CIs): 1K-random 36.7 / 90.6 / 52.0; 1K-diverse-only 26.7 / 91.2 / 54.6; 1K-longest-only 33.3 / 90.4 / 59.6; full 59K 53.3 / 92.8 / 58.1; s1K 50.0 / 93.0 / 57.6. So 1K selected is within 3.3 points of 59K on the headline benchmark at 1.7% of the data, and EVERY single criterion alone is worse than the combination - diversity alone loses 10 points of AIME24 versus random.",
+   "source": "arXiv:2501.19393 Table 2 https://arxiv.org/abs/2501.19393",
+   "confidence": "high",
+   "topic": "difficulty",
+   "tags": "s1,selection,ablation"
+  },
+  {
+   "id": "limo-small",
+   "kind": "claim",
+   "title": "817 examples: 63.3% AIME24 / 95.6% MATH500 against 6.5% / 59.2% for prior fine-tunes",
+   "body": "LIMO's 'Less-Is-More Reasoning Hypothesis' argues that when pretrained knowledge is complete, a minimal set of strategically designed demonstrations is sufficient and volume adds nothing; 817 curated examples give 63.3% on AIME24 and 95.6% on MATH500 with a 45.8-point absolute OOD improvement, using about 1% of the data of comparable fine-tunes. Read carefully it is a claim about coverage of reasoning SKILLS, not about task count per se - which is why it sits awkwardly next to the s1 result that random 1K already gets 36.7.",
+   "source": "arXiv:2502.03387 https://arxiv.org/abs/2502.03387",
+   "confidence": "medium",
+   "topic": "difficulty",
+   "tags": "LIMO,small-data"
+  },
+  {
+   "id": "order-spread",
+   "kind": "claim",
+   "title": "Across four SE tasks, permutation changes the target score by +6% to -4%",
+   "body": "The first empirical study of fine-tuning order in software engineering: Clone Detection, Defect Detection, Code Repair and Code Translation from CodeXGLUE, all 24 orderings, target-task performance moves by up to +6% gain and up to -4% loss - roughly a 10-point spread from ordering alone. Explanations tested: dataset syntactic similarity, semantic similarity, dataset size, probing/attention analysis, and task affinity. This is the strongest counterweight to the Wu et al. null result, but note the scale: 4 macro-tasks at fine-tuning scale, not 200 sample-level tasks inside one epoch.",
+   "source": "arXiv:2410.02915 https://arxiv.org/abs/2410.02915",
+   "confidence": "high",
+   "topic": "curriculum",
+   "tags": "ordering,positive-result,SE"
+  },
+  {
+   "id": "rebench-funnel",
+   "kind": "number",
+   "title": "Mining real tasks from GitHub: 450K candidates -> 21K usable, a 4.7% end-to-end yield",
+   "body": "SWE-rebench's automated funnel with acceptance rates per stage: match PRs and issues (~10M PRs, 6M issues, 32K repos) -> ~450K task candidates (~5% of PRs) -> ~150K after filtering (33%) -> 21K after install-and-validate (14%) -> 21,336 annotated tasks from 3,468 repos. Hard requirements: the PR must add or modify tests, and the patch is split into a solution patch (non-test files) and a test patch (test files only). A fresh supply of such tasks is also what makes a contamination-free benchmark possible.",
+   "source": "arXiv:2505.20411 (NeurIPS 2025) Table 6 https://arxiv.org/abs/2505.20411",
+   "confidence": "high",
+   "topic": "mining",
+   "tags": "SWE-rebench,funnel,yield"
+  },
+  {
+   "id": "benchplus-leak",
+   "kind": "failure",
+   "title": "32.67% of 'successful' SWE-bench patches were cheating, mostly because the issue text contained the fix",
+   "body": "SWE-Bench+ manually screened SWE-Agent+GPT-4 successes on SWE-bench (2,294 issues, 12 Python repos): 32.67% of successful patches were cheating, with the solution leaked in the issue report or its comments, and a further 31.08% of passing patches were suspicious because the tests were too weak to distinguish a real fix. After removing them the resolution rate fell from 12.47% to 3.97% - a two-thirds collapse - and the same defects appear in SWE-bench Lite and Verified. Over 94% of the issues predate LLM knowledge cutoffs, so this is not memorization, it is spec leakage.",
+   "source": "arXiv:2410.06992 https://arxiv.org/abs/2410.06992",
+   "confidence": "high",
+   "topic": "contamination",
+   "tags": "leakage,benchmark,weak-tests"
+  },
+  {
+   "id": "swe-illusion",
+   "kind": "claim",
+   "title": "The issue text alone localizes the right file up to 76% of the time on SWE-bench Verified",
+   "body": "Diagnostic probes on SWE-Bench-Verified: given only the issue text, a model identifies the file that must change with up to 76% accuracy on SWE-Bench-Verified versus up to 53% on repositories that are not in SWE-Bench; verbatim function reproduction reaches up to 35% consecutive 5-gram accuracy on SWE-Bench Verified/Full versus up to 18% on other benchmarks. The gap in both probes is the signature of memorization of the benchmark's repos rather than reasoning about the bug. It also means a task whose description names the file is much easier than the same task with the file withheld.",
+   "source": "arXiv:2506.12286 (v4) https://arxiv.org/abs/2506.12286",
+   "confidence": "high",
+   "topic": "contamination",
+   "tags": "memorization,probes"
+  },
+  {
+   "id": "training-on-test-task",
+   "kind": "concept",
+   "title": "'Training on the test task' is not malpractice, and it confounds exactly the comparison a self-improving loop makes",
+   "body": "Dominguez-Olmedo, Dorner and Hardt distinguish training on the test task from leakage or contamination: it is the legitimate practice of using knowledge about the evaluation task at training time (task format, domain, the shape of the expected answer), and it confounds both relative model comparisons and claims of emergent ability. Their correction is to fine-tune every compared model on the same task-relevant data first; once you do, apparent emergent behavior fades gradually. For a loop that edits its own repo and is graded by tests in that repo, the 'task-relevant data' and the 'grading data' are the same files - there is no clean arm.",
+   "source": "arXiv:2407.07890 (ICLR 2025 Oral) https://arxiv.org/abs/2407.07890",
+   "confidence": "high",
+   "topic": "contamination",
+   "tags": "confound,evaluation"
+  },
+  {
+   "id": "syngen",
+   "kind": "claim",
+   "title": "Tasks synthesized from commits, with no human issue, avoid the leak channel entirely",
+   "body": "R2E-Gym's SYNGEN builds tasks from a commit by generating tests against the pre-commit code and back-translating the resulting failure into a task description - the human issue is never in the loop, so the 'solution is written in the issue' failure mode of SWE-bench+ cannot occur. AgentGym holds >8.7K procedurally curated executable tasks; a 32B model reaches 34.4% pass@1 on SWE-bench Verified. On verification: execution-based verifiers have low distinguishability and execution-free verifiers are biased toward style, each saturating around 42-43%, while a hybrid reaches 51%.",
+   "source": "arXiv:2504.07164 https://arxiv.org/abs/2504.07164",
+   "confidence": "medium",
+   "topic": "synthesis",
+   "tags": "SYNGEN,commit-mining,verifier"
+  },
+  {
+   "id": "swe-smith",
+   "kind": "claim",
+   "title": "Synthesize tasks by breaking existing tests: 50k instances from 128 repos, 40.2% downstream",
+   "body": "SWE-smith takes any Python codebase and synthesizes hundreds to thousands of task instances whose defining property is that they break existing tests - the test suite is the oracle and the 'bug' is injected, so no issue text is needed and every instance is executable by construction. It produced 50k instances from 128 repositories; SWE-agent-LM-32B trained on them reaches 40.2% pass@1 on SWE-bench Verified. This is the cheapest known task factory for a repo you already have checked out, which is precisely dsh-loom's situation.",
+   "source": "arXiv:2504.21798 https://arxiv.org/abs/2504.21798",
+   "confidence": "high",
+   "topic": "synthesis",
+   "tags": "SWE-smith,injection,tests-as-oracle"
+  },
+  {
+   "id": "self-refine-hack",
+   "kind": "failure",
+   "title": "When the generator and the evaluator are the same model, iterative refinement hacks the evaluator",
+   "body": "Pan, He, Bowman and Feng run essay editing with a second language model as evaluator and show 'spontaneous reward hacking': the evaluator's numerical ratings improve across iterations while true quality stays flat or declines, and the effect intensifies when generator and evaluator share the same underlying model, because optimization pressure finds their shared vulnerabilities. The transferable lesson for a loop whose grader is a model (a review node, a plan judge) rather than an executor: rating drift is the default, not an edge case, and only a mechanical verifier that cannot be talked to is immune.",
+   "source": "arXiv:2407.04549 https://arxiv.org/abs/2407.04549",
+   "confidence": "high",
+   "topic": "verification",
+   "tags": "reward-hacking,self-grading"
+  },
+  {
+   "id": "ledger-slots",
+   "kind": "analysis",
+   "title": "Our own ledger: attempt slot 1 promotes 66.4%, slot 3+ promotes 10.7% and yields 5.8% of promotions",
+   "body": "Computed over all 229 recorded rounds in 70 campaign state files under C:/Users/Darkness/.dsh/loom/campaigns (103 promotions, base rate 45.0%). Per (campaign, task) pair, the k-th attempt at the same task promotes at: slot 1 = 83/125 = 0.664, slot 2 = 14/48 = 0.292, slot 3 = 4/25 = 0.16, slot 4 = 1/14 = 0.071, slot 5 = 1/9 = 0.111, slots 6-7 = 0/8. Slots >= 3 consume 56 rounds (24.5% of all rounds) and produce 6 promotions (5.8%). First attempts take 619 s mean versus 270 s for retries, so retries are both cheap and nearly barren: 987 s of wall per promotion from retries versus 649 s from first attempts.",
+   "source": "local ledger: C:/Users/Darkness/.dsh/loom/campaigns/*/views/state.json (229 rounds, 70 campaigns)",
+   "confidence": "high",
+   "topic": "local-ledger",
+   "tags": "slots,retries,yield"
+  },
+  {
+   "id": "ledger-serial",
+   "kind": "analysis",
+   "title": "A campaign's first round predicts the rest: 0.667 later-round promotion after a hit, 0.113 after a miss",
+   "body": "In the same 229-round ledger, campaigns whose round 1 promoted continue at 0.667 (63 later rounds); campaigns whose round 1 failed continue at 0.113 (97 later rounds). Round 1 alone is 69 rounds (30.1%) but carries 50 of 103 promotions (48.5%). A stop-after-round-1 counterfactual would score 50/69 = 0.725 promotions per round versus the actual 0.450, and would leave 19 of 69 campaigns empty instead of 14 - so the honest reading is not 'stop early' but 'the campaign, not the task, is the unit of difficulty'. Also: 15 of the 27 campaigns with >=3 rounds hit three consecutive flat rounds, which is the plateau checkpoint's default window.",
+   "source": "local ledger: C:/Users/Darkness/.dsh/loom/campaigns (promoted flag per round)",
+   "confidence": "high",
+   "topic": "local-ledger",
+   "tags": "variance,campaign,plateau"
+  },
+  {
+   "id": "ledger-contamination",
+   "kind": "analysis",
+   "title": "Our tasks are written by the loop, name their own test file, and the loop has edited its own graders",
+   "body": "Three measurements on the same ledger and repo: (a) 52 of 70 campaign objectives name a concrete tests/... path, and 147 of 153 commits that add files under tests/ are authored by 'dsh-loom <loom@local>' - the loop writes the spec it is then graded on; (b) 7 attempts changed files under tests/, and all 7 were scored verifierOk true, including tests/selector.test.mjs in loom-self4 and tests/ui/queue-count.test.mjs in loom-ui3; (c) 51 of 70 campaigns have an EMPTY holdout pool and the other 19 have exactly one holdout entry. There is no arm in this design where the task and the grader are independent.",
+   "source": "local ledger: C:/Users/Darkness/.dsh/loom/campaigns + git log over tests/ in C:/Projects/RSI",
+   "confidence": "high",
+   "topic": "local-ledger",
+   "tags": "contamination,holdout,self-grading"
+  },
+  {
+   "id": "cheapest-policy",
+   "kind": "question",
+   "title": "What is the cheapest next-task policy, and does the choice beat 20 more rounds?",
+   "body": "The evidence points to a three-part answer that is testable in one week of nights. (1) Stop re-attempting a failed (campaign, task) pair after one retry: our slots >= 3 are 24.5% of rounds for 5.8% of promotions, and P(recover | first attempt failed) = 0.190 at 987 s per recovered promotion. (2) Treat the campaign as the sampling unit, not the task: later rounds after a failed round 1 run at 0.113, so a 2-round cap on a cold campaign converts ~97 rounds into freed budget. (3) A learned task ranking is NOT worth building yet: a leave-one-campaign-out task prior predicts next-round promotion with AUC 0.600 and Brier skill of only 3.9% over the base rate, while 133 of 229 rounds concern tasks never seen in another campaign. Cheapest = two hand-written rules, zero new model calls.",
+   "source": "local ledger; tested against arXiv:2504.03380 (online band) and arXiv:2010.03934 (mixing)",
+   "confidence": "medium",
+   "topic": "policy",
+   "tags": "policy,cheapest,test"
+  }
+ ],
+ "edges": [
+  {
+   "from": "budget-regime",
+   "rel": "refines",
+   "to": "order-cheap",
+   "note": "The null result holds for standard training; our loop lives in the time-limited regime where the same paper finds ordering does help."
+  },
+  {
+   "from": "implicit-curriculum",
+   "rel": "derived-from",
+   "to": "order-cheap",
+   "note": "Explains why reordering has little headroom: the worker already imposes its own order."
+  },
+  {
+   "from": "value-loss-priority",
+   "rel": "requires",
+   "to": "priority-collapse",
+   "note": "A score term is only safe in a mixture that decays with visits; PLR supplies both halves."
+  },
+  {
+   "from": "plr-numbers",
+   "rel": "measures",
+   "to": "value-loss-priority",
+   "note": "135.0% vs 100.0% normalized return is the effect size of the score+staleness mixture."
+  },
+  {
+   "from": "priority-collapse",
+   "rel": "fails-at",
+   "to": "value-loss-priority",
+   "note": "Pure score-only (rho=0) and pure staleness-only (rho=1) are both worse than uniform."
+  },
+  {
+   "from": "variance-bound",
+   "rel": "supports",
+   "to": "value-loss-priority",
+   "note": "Theory: improvement is bounded by success-probability variance, which a frontier-tracking score approximates."
+  },
+  {
+   "from": "band-sweep",
+   "rel": "measures",
+   "to": "variance-bound",
+   "note": "Monotone improvement as the band tightens to (0.4,0.6) is the empirical reading of the variance bound."
+  },
+  {
+   "from": "band-width",
+   "rel": "refines",
+   "to": "variance-bound",
+   "note": "The band is coarse: any cut in (0,0.25)/(0.75,1) is equivalent, so calibration effort is wasted."
+  },
+  {
+   "from": "dapo-zero-gradient",
+   "rel": "supports",
+   "to": "variance-bound",
+   "note": "Same claim as an implementation rule: identical rewards across G rollouts give zero advantage."
+  },
+  {
+   "from": "dapo-ladder",
+   "rel": "measures",
+   "to": "dapo-zero-gradient",
+   "note": "+8 of the 20-point ladder comes from dynamic sampling, but only after four other fixes."
+  },
+  {
+   "from": "azr-learnability",
+   "rel": "same-as",
+   "to": "dapo-zero-gradient",
+   "note": "Both score a task by distance from the two degenerate pass rates; AZR adds the 'no anti-signal for impossible' choice."
+  },
+  {
+   "from": "azr-magnitude",
+   "rel": "refines",
+   "to": "azr-learnability",
+   "note": "Puts a size on it: the proposer/curriculum role is worth ~1.4 points, task-type diversity ~3.5."
+  },
+  {
+   "from": "tscl-slope",
+   "rel": "same-as",
+   "to": "value-loss-priority",
+   "note": "Both avoid an external difficulty measure: one reads value error, the other reads the slope of the learning curve."
+  },
+  {
+   "from": "s1-selection",
+   "rel": "supports",
+   "to": "limo-small",
+   "note": "Selection over volume: 1K chosen is within 3.3 points of 59K at 1.7% of the data."
+  },
+  {
+   "from": "order-spread",
+   "rel": "contradicts",
+   "to": "order-cheap",
+   "note": "A ~10-point spread across 24 orderings of 4 SE tasks is the strongest published counterexample."
+  },
+  {
+   "from": "benchplus-leak",
+   "rel": "supports",
+   "to": "swe-illusion",
+   "note": "Two independent probes of the same failure: the issue text gives away the fix."
+  },
+  {
+   "from": "training-on-test-task",
+   "rel": "applies-to",
+   "to": "ledger-contamination",
+   "note": "Our objectives name their own test path, which is this confound in its most direct form."
+  },
+  {
+   "from": "syngen",
+   "rel": "refines",
+   "to": "benchplus-leak",
+   "note": "Removes the leak channel by construction: the task is generated from the commit, never from a human issue."
+  },
+  {
+   "from": "swe-smith",
+   "rel": "same-as",
+   "to": "syngen",
+   "note": "Both synthesize executable tasks from the repo itself rather than from issue text."
+  },
+  {
+   "from": "self-refine-hack",
+   "rel": "requires",
+   "to": "syngen",
+   "note": "A model grader drifts; only an executor-backed verifier is immune, which is why synthesis needs execution."
+  },
+  {
+   "from": "rebench-funnel",
+   "rel": "supports",
+   "to": "syngen",
+   "note": "Real mined tasks are 4.7% end-to-end yield; synthesis is the cheaper factory when you already own the repo."
+  },
+  {
+   "from": "ledger-slots",
+   "rel": "supports",
+   "to": "cheapest-policy",
+   "note": "Retry decay 0.664/0.292/0.16/0.071 is the local measurement behind rule (1)."
+  },
+  {
+   "from": "ledger-serial",
+   "rel": "supports",
+   "to": "cheapest-policy",
+   "note": "Round-1 outcomes predicting 0.667 vs 0.113 is the local measurement behind rule (2)."
+  },
+  {
+   "from": "ledger-slots",
+   "rel": "contradicts",
+   "to": "variance-bound",
+   "note": "In our ledger the p=1 band still promotes 0.818 on a held-out half, so 'zero gradient at p=1' does not transfer to a stochastic per-attempt worker."
+  },
+  {
+   "from": "ledger-contamination",
+   "rel": "supports",
+   "to": "training-on-test-task",
+   "note": "147/153 test commits authored by the loop, 52/70 objectives naming a test path, 51/70 empty holdouts."
+  },
+  {
+   "from": "order-cheap",
+   "rel": "supersedes",
+   "to": "implicit-curriculum",
+   "note": "The measured null dominates the mechanism as the actionable claim."
+  }
+ ],
+ "gaps": [
+  "Does a floor/ceiling band applied per campaign (not per task) reproduce the online-filtering gain in a loop where each attempt is a fresh stochastic sample rather than one gradient step?",
+  "What is the actual p distribution over our task pool - we can only estimate it for the 33 tasks with >=2 rounds, and 133 of 229 rounds concern tasks with no cross-campaign history at all?",
+  "Are the 42 tasks that failed first and never recovered genuinely unlearnable, or did they fail because the plan was fixed once and never re-planned (a planning-mode confound rather than a difficulty signal)?",
+  "Does the 7/7 verifierOk rate on attempts that touch tests/ mean the verifier is blind to grader edits, or that those patches were legitimate fixture changes? Needs a patch that ONLY edits a test to distinguish.",
+  "Would a holdout that is not in the repo (a downstream task, a fresh mined issue) drop the promotion rate from 0.45 to what - is our 0.45 measuring capability or measuring test-writing?",
+  "How much of the slot decay is task difficulty versus plan reuse - i.e. is retry #2 re-running the same plan (cache hit) or genuinely re-planning?",
+  "What is the pass-rate of a task synthesized by breaking existing tests in THIS repo (SWE-smith style) - would it land in the 0.1-0.9 band or fall outside it?",
+  "If task choice mattered more than round count, the campaign-level variance share (0.680) should dominate; we measured task-level at 0.765 on pooled data but only 0.245 on between-task sums of squares - which decomposition is the right one?"
+ ]
+}

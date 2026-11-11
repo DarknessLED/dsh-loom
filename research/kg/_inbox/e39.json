@@ -1,0 +1,61 @@
+{
+ "nodes": [
+  {
+   "id": "exp-fail-005",
+   "kind": "failure",
+   "title": "Every one of the 80 'no diagnostic' failures had a diagnosis on disk; the harness lost it, and it is the same bug every time",
+   "body": "exp-fail-002 found 80 of 189 failures carry the literal string 'child session ended in error with no diagnostic (parent or provider unavailable)'. I checked the child session's own archive for all 80 distinct child ids (research/exp/e39.mjs): 0 archives missing, 80 of 80 contain a turn/end event whose reason.kind is 'error' AND a non-empty reason.error.message, and none of the 80 attempt records carries diagnosisSource ('session-log'), which the dispatcher sets only when #sessionDiagnosis recovered something. So the recovery path silently returned null 80 times out of 80 while the message sat in the log. The recovered messages are not varied: they are all one class - 'Tool call \"read\": Unexpected non-whitespace character after JSON at position 100' / 'Tool call \"grep\": Unexpected non-whitespace character after JSON at position 63 ... Received arguments: {\"pattern\": ...}{\"file_path\": ...}' - i.e. the model emitted two JSON objects glued together inside one tool-call argument. One provider-side formatting defect, reproduced across campaigns, was recorded as 80 different task failures with no cause. This single fix changes the loop's largest failure class from 'unknown' to 'known, provider-side, retryable'.",
+   "source": "research/exp/e39.mjs (80 child session archives) + exp-fail-002 + src/dispatch/session.js #sessionDiagnosis",
+   "confidence": 0.96,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "failure-modes",
+    "diagnostics",
+    "blocking"
+   ]
+  },
+  {
+   "id": "exp-fail-006",
+   "kind": "analysis",
+   "title": "A null diagnostic is not silence, it is a second bug wearing the first one's clothes",
+   "body": "The dispatcher's own comment says the child 'usually does say why - it just says it in its own session log, not on the result object', and it wrote #sessionDiagnosis specifically to adopt that message. Yet the fallback fired 80/80 times, and the resulting string ('parent or provider unavailable') names two things that were both available. The lesson is about how this codebase fails: an unreadable cause is reported as a plausible-sounding cause, so the ledger looks diagnostic while carrying nothing. That is worse than an empty field, because a later reader (human or agent) reads 'provider unavailable' as information and stops looking. The general rule: when a recovery path returns null, the record must say 'recovery attempted and returned null' and keep the pointer to where the truth lives (sessionId is already recorded). We had the sessionId in all 80 records and never used it.",
+   "source": "src/dispatch/session.js #sessionDiagnosis + 80/80 recovery misses (research/exp/e39.mjs)",
+   "confidence": 0.93,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "diagnostics",
+    "failure-modes"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-fail-005",
+   "rel": "supports",
+   "to": "exp-fail-002"
+  },
+  {
+   "from": "exp-fail-005",
+   "rel": "refines",
+   "to": "exp-fail-004"
+  },
+  {
+   "from": "exp-fail-005",
+   "rel": "contradicts",
+   "to": "w2-horizon-context-not-primary-bottleneck",
+   "note": "the dominant failure is neither context nor capability but a tool-call argument the provider glued together"
+  },
+  {
+   "from": "exp-fail-006",
+   "rel": "derived-from",
+   "to": "exp-fail-005"
+  },
+  {
+   "from": "exp-fail-006",
+   "rel": "supports",
+   "to": "ana-007"
+  }
+ ]
+}

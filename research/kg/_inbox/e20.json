@@ -1,0 +1,48 @@
+{
+ "nodes": [
+  {
+   "id": "exp-gate-001",
+   "kind": "failure",
+   "title": "minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9",
+   "body": "Replayed every gate.evaluated event in all 69 campaigns (research/exp/e20.mjs) and recomputed the decision at minGain = 0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 0.9. Rounds whose decision would differ from the recorded one: 0 at every threshold. The reason is structural, not a coincidence: scores are 0 (72 rounds) or 1 (136 rounds), so the only reachable margins are 0 and 1, and only 17 of 208 rounds carry an incumbent at all (margin 0 in 16, 1 in 1). bestPriorScore requires a landed round with a promotedAttemptId, so a task that never promoted has no incumbent and beatsIncumbent is trivially true. The config field gate.minGain, the whole sample-size / MDE / PACE apparatus that depends on it, and the review protocol in docs/contracts.md that describes a delta test: none of it is connected to a decision the loop has ever made. minGain is a setting with no observable effect, which is worse than a mis-set one because it reads as configured rigour.",
+   "source": "research/exp/e20.mjs (208 gated rounds, 69 campaigns)",
+   "confidence": 0.98,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "gate",
+    "dead-config"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-gate-001",
+   "rel": "supports",
+   "to": "exp-score-001",
+   "note": "binary scores are the reason no threshold can bite"
+  },
+  {
+   "from": "exp-gate-001",
+   "rel": "refines",
+   "to": "exp-score-002"
+  },
+  {
+   "from": "exp-gate-001",
+   "rel": "contradicts",
+   "to": "ana-004",
+   "note": "ana-004 predicted a multiple-testing machine; the machine is disconnected, so the inflation cannot happen yet"
+  },
+  {
+   "from": "exp-gate-001",
+   "rel": "requires",
+   "to": "exp-score-003",
+   "note": "a declared metric is the precondition for a gate that can discriminate"
+  },
+  {
+   "from": "exp-gate-001",
+   "rel": "applies-to",
+   "to": "ana-009"
+  }
+ ]
+}

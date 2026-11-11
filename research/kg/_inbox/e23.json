@@ -1,0 +1,38 @@
+{
+ "nodes": [
+  {
+   "id": "exp-cost-004",
+   "kind": "number",
+   "title": "A cost-aware tie-break would have saved 20% of spend and picked a different patch in 30 of 55 rounds",
+   "body": "Replayed every round with two verified, patched arms (55 rounds; research/exp/e23.mjs) and recomputed the choice using cheapest-attempt-first instead of id order. It would have picked a different attempt in 30 of 55 rounds, and in 21 of those 30 the two attempts touched exactly the same files, so the substitution is behaviourally plausible rather than obviously wrong. Spend on those 55 rounds was $3.751; cheapest-first would have been $3.005, a 19.9% saving (30.5% on the rounds where the choice differs). Caveat: this prices the choice that was made, not the future rounds that a different patch would have led to, so it is an upper bound on the saving and says nothing about whether the cheaper patch was as good. It does establish that the tie-break is worth ~20% of the loop's money, which is larger than any improvement the loop has promoted.",
+   "source": "research/exp/e23.mjs",
+   "confidence": 0.85,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "counterfactual",
+    "tie-break"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-cost-004",
+   "rel": "supports",
+   "to": "exp-slot-002",
+   "note": "quantifies what the id-order tie-break costs in dollars"
+  },
+  {
+   "from": "exp-cost-004",
+   "rel": "requires",
+   "to": "exp-cost-003",
+   "note": "same replay machinery; both price alternatives offline"
+  },
+  {
+   "from": "exp-cost-004",
+   "rel": "applies-to",
+   "to": "ana-004",
+   "note": "a cheap mechanical rule beats the statistical gate on measured value so far"
+  }
+ ]
+}

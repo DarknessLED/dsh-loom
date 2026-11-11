@@ -1,0 +1,101 @@
+{
+ "nodes": [
+  {
+   "id": "ana-012",
+   "kind": "analysis",
+   "title": "The loop cannot test its own changes because it has never measured the same configuration twice",
+   "body": "Six independent research agents converged on one obstruction from different directions. The stopping-rules survey computed that a 0.175 score gain against sigma 1-2 points is 8.8-17.5 sigma, so a single paired run already has power 0.8 - the entire 'is this real' question would vanish. Then it looked at our ledger and found the premise missing: 208 gate scores and 452 attempt scores are all binary, 94.1% of deltas are exactly zero, and no configuration was ever measured twice, so sigma does not exist to be plugged into any rule. The instrument agent found the same shape from the test side: mutation score's correlation with real faults evaporates once suite size is controlled, and our own suite pins down 10% of the module that ranks lessons. The memory agent found that 30 of 100 lessons are keyed by the campaign name that produced them (round reaches 255, ttl is 12 rounds, so a copied lesson arrives already expired). Three different failure modes, one cause: we measure the loop once per configuration and then reason about differences between configurations. The first instrument to build is therefore not a better decision rule - it is a repeat. Concretely: run one task twice in the same round with the same brief and record both scores; that single change creates sigma, and every rule in the literature becomes applicable instead of decorative.",
+   "source": "w6-stopping + w6-instrument + w6-memory + exp-score-001 + exp-mut-002 (2026-11-12)",
+   "confidence": 0.9,
+   "topic": "tri",
+   "tags": [
+    "analysis",
+    "measurement",
+    "variance"
+   ]
+  },
+  {
+   "id": "ana-013",
+   "kind": "analysis",
+   "title": "Nine promotions edited the instrument, which proves the editable surface was never scoped to the object being optimised",
+   "body": "A research agent claimed that held-out scoring is unguarded because TEST_PATH_RE only matches tests/ and leaves scripts/ editable. I did not take that on trust: I parsed all 114 promoted patch files and found 9 promotions touching an evaluator-adjacent path - scripts/test-all.mjs three times, scripts/verify.mjs, scripts/e2e.mjs, scripts/commit-policy.mjs, scripts/night-committer.mjs, tests/selector.test.mjs, src/exec/verifier.js twice. Those were legitimate tasks, and that is exactly the problem: nothing in the gate distinguishes 'improve the instrument' from 'weaken the instrument', because the instrument is inside the surface the loop may edit. The guard is a directory test where it needs to be a role test. Two consequences: (a) any campaign whose task is to improve the harness must be scored by a verifier that campaign cannot edit - a copy outside the worktree, or a hash-pinned suite; (b) the existing guard should be widened to scripts/ and src/exec/verifier.js at minimum, with an explicit allow-list for campaigns that are supposed to change them. The general rule the self-modification literature converges on is that the evaluator must live outside the evolved harness; our implementation has the evaluator inside it and compensates with a regex.",
+   "source": "w6-selfmod claim cross-checked against all 114 promoted patches (research/exp style parse, 2026-11-12)",
+   "confidence": 0.95,
+   "topic": "w6-selfmod",
+   "tags": [
+    "analysis",
+    "self-modification",
+    "guard"
+   ]
+  },
+  {
+   "id": "ana-014",
+   "kind": "analysis",
+   "title": "Self-evolution without verification scored below doing nothing, so the verifier is the product and the loop is a small term",
+   "body": "The frontier scan turned up the cleanest published decomposition and it reframes what we are building. VERSE (arXiv:2610.02616) runs disjoint train/validation/test/OOD splits over SWE-rebench: self-evolution without verification lands at 31.79, below the blank harness at 33.95, and validation selects round 0 over every evolved harness. Read as a ladder, verification buys +5.86 points and the self-evolution loop on top of it buys 1.24 (41.05 vs 39.81, overlapping confidence intervals). Concurrently DGM failed a randomised audit (arXiv:2610.14662): 145 modifications, target repair 8.3% versus 11.6% for the parent's other failures, e-value 0.15, p=0.89, wrong direction in five of six runs - though named goals do move their metric, so the loop obeys instructions without repairing anything. And continual evolution self-destructs: Meta-Harness 94.0% to 32.0% on SWE-Bench after five FeatureBench rounds (arXiv:2611.03219). The implication for dsh-loom is priority order, not despair: an hour spent on instrument precision buys more than an hour spent on loop machinery, and the honest claim we can make is 'verification plus human attention per landed change', never 'recursive self-improvement'. Our own promotion rate of 55% with a binary score is consistent with the 1.24-point term, not with the +5.86 term.",
+   "source": "w6-frontier (VERSE arXiv:2610.02616, DGM audit arXiv:2610.14662, continual arXiv:2611.03219)",
+   "confidence": 0.85,
+   "topic": "rsi",
+   "tags": [
+    "analysis",
+    "baselines",
+    "claims"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "ana-012",
+   "rel": "derived-from",
+   "to": "w6-stopping",
+   "note": "sigma 1-2 makes the gain trivial; the ledger has no sigma"
+  },
+  {
+   "from": "ana-012",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "ana-012",
+   "rel": "supports",
+   "to": "exp-mut-002"
+  },
+  {
+   "from": "ana-012",
+   "rel": "refines",
+   "to": "ana-003"
+  },
+  {
+   "from": "ana-013",
+   "rel": "derived-from",
+   "to": "w6-selfmod"
+  },
+  {
+   "from": "ana-013",
+   "rel": "contradicts",
+   "to": "exp-goodhart-001",
+   "note": "1.6% test touches understated the evaluator surface; 9 promotions touched scripts/ or verifier"
+  },
+  {
+   "from": "ana-013",
+   "rel": "requires",
+   "to": "ana-006"
+  },
+  {
+   "from": "ana-014",
+   "rel": "derived-from",
+   "to": "w6-frontier"
+  },
+  {
+   "from": "ana-014",
+   "rel": "contradicts",
+   "to": "ana-001",
+   "note": "the axis is right but the loop contributes the small term, so attention should go to the verifier"
+  },
+  {
+   "from": "ana-014",
+   "rel": "refines",
+   "to": "ana-002"
+  }
+ ]
+}

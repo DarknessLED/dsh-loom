@@ -1,0 +1,518 @@
+{
+ "nodes": [
+  {
+   "id": "w5-transfer-retention-plus3-to-minus15",
+   "kind": "number",
+   "title": "Skills kept only 5 of 21 train-set gains; retention spans +3.4 to -15.0 points",
+   "body": "36 final skills, 6 self-evolving skill methods x 6 benchmarks, Qwen3-Coder-480B, temp 0, test locked until the skill was frozen. 21 skills had train gain > 0; 5 kept the whole gain on test, 13 kept part, 3 kept none (2 of those were harmful). Retention = Gtest - Gtrain (their Eq. 3, i.e. train-to-test slippage minus the no-skill method's own slippage) ranges from +3.4 pp (EvoSkill, RBioBench Clinical) to -15.0 pp (EvoSkill, SpreadsheetBench); 10 of 36 test scores land below No Skill. Method caveat: one model, one seed per cell, 6 benchmarks, so the paper itself says six benchmarks are too few to attribute the spread to train/test distance.",
+   "source": "https://arxiv.org/abs/2609.39148",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "skill-library",
+    "retention",
+    "held-out",
+    "overfit"
+   ]
+  },
+  {
+   "id": "w5-transfer-instance-disjoint-still-decays",
+   "kind": "claim",
+   "title": "Instance-disjoint but family-shared splits still lost 17.5-30 pp, and no-skill lost 15 pp itself",
+   "body": "The overfit number depends on how the split was cut. On SpreadsheetBench, where recurring cell/sheet operation types appear in both splits (instance-disjoint, family-shared), every method lost 17.5-30 pp train to test - but the No-Skill baseline also lost 15 pp, so raw deltas roughly double-count a benchmark-difficulty shift. RBioBench likewise keeps package families across splits. Repository-disjoint (SWE-bench: 4 repos train/val, 2 test), specialty-disjoint (HealthBench) and data-family-disjoint (SciVisAgentBench, 84 families) splits are the honest ones, and HealthBench is the only benchmark where every skill helped (23.9 no-skill to 28.6-32.4 existing, 36.7 GSO). Lesson for a repo loop: an instance split inside one repository is the weak setting, and it still decayed.",
+   "source": "https://arxiv.org/abs/2609.39148",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "split-design",
+    "repository-disjoint",
+    "baseline-slippage"
+   ]
+  },
+  {
+   "id": "w5-transfer-hda-13-of-15-below-search",
+   "kind": "number",
+   "title": "Held-out gain came in below search-set gain in 13 of 15 settings, worse than baseline in 4",
+   "body": "Harness-Delta Attribution: 11 executor models x 3 frameworks (Meta-Harness, SkillOpt, AHE) x 4 benchmarks, 25 settings total. Excluding ALFWorld, held-out gain < search-set gain in 13 of 15 settings, less than half of it in 8, and in 4 settings the evolved harness scores WORSE than the untuned baseline on test. Validation-based checkpoint selection helps but does not close the gap: better than search-selection in 10 of 16 settings, worse in 6, and in 14 of 16 the val-selected harness's held-out gain is still below the search-selected harness's search-set gain. So a val split buys honesty in the report, not in the artefact.",
+   "source": "https://arxiv.org/abs/2610.22466",
+   "confidence": 0.9,
+   "topic": "w5-transfer",
+   "tags": [
+    "harness-edit",
+    "held-out",
+    "validation-selection",
+    "overfit"
+   ]
+  },
+  {
+   "id": "w5-transfer-alfworld-89pct-overfit",
+   "kind": "number",
+   "title": "On ALFWorld 89% of the evolution gain was overfit even though held-out test scores looked near-perfect",
+   "body": "The dangerous regime is the one where the test split looks fine. Withholding task types and scenarios did not stop near-perfect ALFWorld test scores; decomposing the gain showed 89% of it was overfitting on average, with the mechanism identified as distillation of benchmark priors from a strong proposer rather than any new capability. This is the failure a promotion gate cannot see: the gate reads a held-out number that is itself contaminated by priors shared between the proposer and the split. Read with rsi-011, where the same ALFWorld run grew its harness 7.6x into a deterministic controller with zero LLM calls.",
+   "source": "https://arxiv.org/abs/2610.22466",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "overfit",
+    "held-out",
+    "distillation",
+    "alfworld"
+   ]
+  },
+  {
+   "id": "w5-transfer-meta-option-crosses-splits",
+   "kind": "number",
+   "title": "One LiveMath option scored 100% (53/53) vs 31% (22/71) and appeared in search, validation and test alike",
+   "body": "The cleanest demonstration that a positive held-out gain need not be reasoning: a meta-option artifact present in the LiveMath questions gave Meta-Harness 0.8B 100% (53 of 53) on questions containing it against 31% (22 of 71) on the rest, and the same artifact was present in the search, validation AND test splits. The artefact's prevalence, not the harness's improvement, produced the lift, and every conventional split-based check passes because the split was cut on instances while the artefact is a property of the family. Underlies the HDA headline that in the 21 settings with significant search-set gains, >=54% is overfitting and 14% test-time scaling, >50% combined in 14 settings.",
+   "source": "https://arxiv.org/abs/2610.22466",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "artifact",
+    "held-out",
+    "split-leakage",
+    "goodhart"
+   ]
+  },
+  {
+   "id": "w5-transfer-dgm-direction-asymmetry",
+   "kind": "number",
+   "title": "DGM transfer is directional and near-zero once the recipient also changes: +14.7 pp one way, +1.2 pp the other",
+   "body": "Darwin Godel Machine (ICLR 2026), numbers read from the PDF. Same-domain, same-model transfer: SWE-bench-trained agent scored 28.9% on Polyglot against a 14.2% base (+14.7 pp); the Polyglot-trained agent scored 30.7% on SWE-bench against 20.0% (+10.7 pp) - real but asymmetric. Change the recipient model as well and the transfer nearly vanishes: the Polyglot-trained archive lifted Claude 3.5 Sonnet 32.0 to 33.3 (+1.3) and Claude 3.7 35.6 to 36.8 (+1.2). Training on Python only improved Python and reduced non-Python performance versus training on all languages. Cost context: one SWE-bench run ~USD 22,000. The paper asserts 'not overfitting' with no contamination test.",
+   "source": "https://arxiv.org/abs/2505.22954",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "dgm",
+    "transfer",
+    "cross-model",
+    "archive"
+   ]
+  },
+  {
+   "id": "w5-transfer-selfharness-no-portability",
+   "kind": "failure",
+   "title": "Self-Harness's 9/9 held-out gains have zero cross-model or cross-campaign tests",
+   "body": "Self-Harness (Shanghai AI Lab) fixes its held-in/held-out partition before the run, never shows held-out to the proposer, and accepts an edit only if neither split regresses; 9 of 9 model-benchmark combinations improved both splits on Terminal-Bench 2.0, e.g. MiniMax M2.5 held-in 43.0 to 50.0 and held-out 40.5 to 61.9. But grepping the full paper for transfer, cross-model, another model, swap and reuse returns no hits: no harness was ever moved to a second campaign or a different model, and the paper states harness design is model-specific. So the strongest positive held-out result in this literature is silent on the question our loop actually faces - whether the edit carries to the next campaign. Its accepted edits are 3-4 model-specific corrective patches.",
+   "source": "https://arxiv.org/abs/2606.09498",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "self-harness",
+    "negative-space",
+    "portability",
+    "held-out"
+   ]
+  },
+  {
+   "id": "w5-transfer-cross-domain-memory-3-7",
+   "kind": "number",
+   "title": "Cross-domain memory +3.7% avg, but raw traces are -8.4 pp and cross-model always loses",
+   "body": "Memory Transfer Learning, six coding benchmarks, Pass@3, four memory representations (Trajectory, Workflow, Summary, Insight), N=3 retrieved. Transferring memories across domains helps on average: GPT-5-mini 0.523 to 0.560 (+3.7%), DeepSeek V3.2 +2.6%, Qwen3-Coder-480B +1.8%, with per-benchmark deltas from 0.0% (Aider-Polyglot for GPT-5-mini) to +8.3% (MLGym). But the lowest-abstraction format is the only net-negative one: Trajectory memory took GPT-5-mini on MLGym from 0.667 to 0.583 and TerminalBench2 from 0.315 to 0.270, i.e. -8.4 and -4.5 pp - raw traces 'often induce negative transfer due to excessive specificity'. Cross-model memory works in both directions yet always underperforms same-model (self 0.543 vs 0.528/0.518 from Qwen/DeepSeek sources). Simple embedding retrieval (0.630) beat LLM reranking (0.598).",
+   "source": "https://arxiv.org/abs/2604.14004",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "memory-transfer",
+    "coding-agents",
+    "cross-model",
+    "representation"
+   ]
+  },
+  {
+   "id": "w5-transfer-loss-concentrates-unsolved",
+   "kind": "number",
+   "title": "Reuse raised ALFWorld retention +4.6 while new learning fell -26.1: harm lands on unsolved cases",
+   "body": "Two-phase A then B protocol, 200 training instances per phase, ALFWorld and BabyAI. Decomposing the effect into RR (retention on the subset the baseline already solved) and NL (new learning on the subset it failed) is what makes this useful: under raw trajectory memory, ALFWorld A to B gave delta-RR +4.6 but delta-NL -26.1, so the memory helped exactly where help was unnecessary and hurt where it was needed. Backward transfer B to A: ALFWorld Raw -5.5, Insight -3.5; BabyAI Raw -4.0, Insight +3.5 (Insight is the only positive backward transfer). Within-task advantage did not predict cross-task benefit - on ALFWorld task B, Raw went 80% to 71% cross-task while Insight went 66% to 72%, flipping the ranking. Baselines: task A pick_and_place 95%, task B pick_clean_place 54%.",
+   "source": "https://arxiv.org/abs/2604.27003",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "negative-transfer",
+    "continual-learning",
+    "alfworld",
+    "decomposition"
+   ]
+  },
+  {
+   "id": "w5-transfer-groundtruth-memory-fails-54",
+   "kind": "number",
+   "title": "Memory consolidated from GROUND-TRUTH solutions dropped accuracy from 100% to 54% on the same 19 problems",
+   "body": "This is the sharpest decay curve in the literature, and the source of the memory is what makes it damning: the lessons were distilled from correct solutions to the very problems being re-tested. GPT-5.4 solves a 19-problem ARC-AGI slice at 100% with no memory; after streaming consolidation it fails 54% of them. On 33 solvable tasks mean accuracy went 58.5+-5.4 (no memory) to 55.1 (epoch 1) to 38.5 (epoch 10), pass@10 33/33 to 22/33 to 20/33, ten repeats. ScienceWorld+CLIN peaks near step 20 then declines through step 100 for every memory size |M|=16/50/inf. WebShop+AWM 0.64 at 8 examples to 0.20 at 128, equal to no-memory (benefit fully erased). Seven published frameworks and two backbones degrade from peak in at least one setting. Frontier agents with full memory authority: GPT-5.5 78 to 80 to 68, Sonnet 5 40 to 58 to 48, GLM 5.2 22 to 44 to 22, DeepSeek V4 Pro 28 to 40 to 18 (below no-memory). Not context length: padding to ~790K tokens moved accuracy <4 pts.",
+   "source": "https://arxiv.org/abs/2605.12978",
+   "confidence": 0.9,
+   "topic": "w5-transfer",
+   "tags": [
+    "memory-decay",
+    "self-consolidation",
+    "decay-curve",
+    "coding-agents"
+   ]
+  },
+  {
+   "id": "w5-transfer-skillinfinity-no-heldout",
+   "kind": "failure",
+   "title": "The skill library with the best published pass rate optimizes and tests on the same 83 tasks",
+   "body": "Skill-Infinity reports 60.7% against 56.4% human-curated and 54.5% SkillEvolver on SkillsBench, avg@5 - but its own method sentence says skills are optimized on the SkillsBench tasks released with SkillEvolver and tested on those same 83 tasks, and grepping the paper for held-out, heldout or unseen returns zero hits. There is no split of any kind, so the 4.3-point margin over human-curated skills cannot be read as generalization; it is a train-on-test number. Cost context: 97.65M input tokens for the self-improvement phase, about 11 task-skill optimizations, under 15% added per task skill. This is the circularity pattern our loop risks whenever the lesson is scored on the campaign that produced it.",
+   "source": "https://arxiv.org/abs/2610.35434",
+   "confidence": 0.7,
+   "topic": "w5-transfer",
+   "tags": [
+    "skill-library",
+    "circularity",
+    "train-on-test",
+    "skillsbench"
+   ]
+  },
+  {
+   "id": "w5-transfer-backfires-inverted-u",
+   "kind": "number",
+   "title": "Ungated skills peaked at round 3 then gave back the gain; rollback recovers 1.7 of 12.3 pp",
+   "body": "Tencent, Terminal-Bench 2, five evolution rounds, deterministic verifier, no LLM grader. Seeded with three hand-written skills at 46%, ungated accumulation went 48% (R1, 35 skills) to 60% (R2, 68) to a 62% peak (R3, 105) then fell to 52% (R4, 141) and 50% (R5, 179) - only +2 pp over R1 after growing the pool 5x. Contamination targets hard tasks: the Hard tier peaked at 53% (R2) and eroded to 35% (R5). Recovery is where the transfer question bites: removing the 8 harmful source skills recovers 1.7 pp, full lineage cleanup a further 5.0 pp, and 5.6 pp of the 12.3 pp drop is irrecoverable even with oracle provenance. One git-conflict skill seeded two descendants that kept failing 4 of 7 git tasks after the source was deleted. Gated variant (three critics plus marginal-gain subset selection) rose every round, 52% to 72%, on a 37-skill pool.",
+   "source": "https://arxiv.org/abs/2608.05810",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "skill-contamination",
+    "self-evolution",
+    "rollback",
+    "inverted-u"
+   ]
+  },
+  {
+   "id": "w5-transfer-backfires-gated-transfer",
+   "kind": "number",
+   "title": "The same paper found +12 pp on 25 untouched held-out tasks and +8 to +16 pp across five backbones",
+   "body": "The counterweight to every pessimistic number here, and it is specific about the condition: pre-commit gating. Frozen R5 pools, no re-evolution, evaluated on Test-25 (25 tasks never used for distillation or gating): Seed 32% to VaG 44% (+12 pp), while on Event-50 the same pool went 46 to 72. Cross-model with the pool frozen: +8 pp (DeepSeek-V4-Pro 32 to 40), +12 (GPT-5.4 44 to 56), +8 (Claude Sonnet 4.5 48 to 56), +16 (Qwen3.6-35B-A3B 36 to 52) - skill knowledge written in natural language survived a backbone swap. Cross-benchmark to InterCode NL2Bash (200 tasks, different task structure, same shell ecosystem): Seed 57.5, ungated 179-skill pool 65.5 (+8.0), gated 37-skill pool 69.0 (+11.5). So transfer was positive when admission was gated, and roughly half as large as the in-distribution gain.",
+   "source": "https://arxiv.org/abs/2608.05810",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "transfer",
+    "gating",
+    "cross-model",
+    "positive-result"
+   ]
+  },
+  {
+   "id": "w5-transfer-memdev-harm-exceeds-rescue",
+   "kind": "number",
+   "title": "On already-solvable repository tasks memory's harm exceeded its rescue: 94.0% no-memory fell to 93.3%",
+   "body": "MemDev-Bench, 555 base tasks from SWE-bench Verified and Pro, 4,869 executable historical tasks, 22 repositories, three history scenarios (Relevant, Noisy, Repo), five structured memory systems. On 68 Improvement tasks memory clearly helps (resolved 35.3 no-memory to 39.6 raw trajectories to 42.6 best memory) with Rescue 9.9-13.2% against Harm 4.8-9.9%. The damaging half is the Preservation set of 50 tasks the agent already solves: no-memory resolves 94.0%, and averaged over the five systems Harm exceeds Rescue under Noisy history (3.7 vs 3.2%) and Repo history (3.2 vs 2.6%), pushing resolved below no-memory to 93.5% and 93.3%. Noisy history raises Harm (7.1 to 8.0%) without suppressing Rescue (11.7 to 11.5%), so unrelated history adds regressions rather than removing help. Cause named: agents reuse memory without reassessing applicability.",
+   "source": "https://arxiv.org/abs/2610.27524",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "memory",
+    "regression",
+    "repository-history",
+    "negative-transfer"
+   ]
+  },
+  {
+   "id": "w5-transfer-rem-capability-band",
+   "kind": "number",
+   "title": "Memory's sign flipped with recipient capability: +4.0 pp at <=31% unaided, -2.0 to -9.1 pp above 47%",
+   "body": "REM, five models spanning 20-53% unaided resolution on SWE-ContextBench Lite (99 repository tasks, 300 solved trajectories, resolved = held-out tests pass), memory and injection policy held fixed. The three models at or below 31.3% never lost resolution from the phased document (gaining 4.0, 4.1 and 1.0 pp), while the two above 47% lost under every memory condition by 2.0-9.1 pp, with Opus 4.8 falling 47.5% to 39.4%. Substituting an oracle document preserved the pattern, so it is a property of the recipient, not of retrieval: content that orients a mid-capability agent displaces the reasoning of one that would have localized the defect unaided. Single replicate per model, so the claim rests on the sign pattern. Also measured: gating on struggle 27.6% vs eager injection 25.3%, and never injecting the record at all 26.9% - within 0.7 pp of the full system.",
+   "source": "https://arxiv.org/abs/2610.27377",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "capability-band",
+    "memory",
+    "coding-agents",
+    "sign-flip"
+   ]
+  },
+  {
+   "id": "w5-transfer-no-cross-repo-measurement",
+   "kind": "claim",
+   "title": "Every measured experience-transfer result is within one repository; none moves a lesson to another repo",
+   "body": "Assembled limitation statements rather than a new experiment, because this is the gap that decides whether our loop's lessons can carry. REM states that every task's labeled trajectory comes from the same repository as the task (99 of 99) and that it did not measure how stored fixes age as a codebase evolves. MemDev-Bench pairs each base task with earlier tasks from the same repository by construction, because temporal validity required it. Skill-Infinity optimizes and tests on the same 83 tasks. The self-evolving skill paper's cross-benchmark arm (Terminal-Bench 2 to InterCode NL2Bash) shares the shell ecosystem and single-step structure. So the literature measures instance transfer, family transfer and model transfer, and stops before repository transfer or lesson staleness.",
+   "source": "https://arxiv.org/abs/2610.27377",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "cross-repo",
+    "staleness",
+    "negative-space",
+    "transfer-definition"
+   ]
+  },
+  {
+   "id": "w5-transfer-plasticity-declines-in-protocol",
+   "kind": "number",
+   "title": "Even the most plastic model lost ground inside its own protocol: NetHack Luna fell ~210 to ~120",
+   "body": "Agent Plasticity fixes weights and grows a persistent artefact inventory (Python tools, natural-language strategies, textual memory) with a fresh context per episode, and prices learning as P_sat = held-out gain per $1,000 to 90% of a fitted 4-parameter Hill rise. Positive cases are large (Chess Hard held-out: Fable 5 37.5 to 73.3, Opus 5 25.0 to 66.4) and out-of-distribution gains are consistently smaller than in-distribution ones (Go Fable 5 20 to 80 ID against 0 to 50 OOD; Hex Sol 40 to 77.5 ID against 28.1 to 78.1 OOD). But two same-protocol recipients declined: GPT-5.6 Luna on NetHack fell about 210 to 120 and GPT-5.6 Sol about 570 to 420, where Sol is the most plastic model on board games. Artefact reuse also dissociated from success: Luna took ~98% of relevant chess decisions without using artefacts, versus 2-6% for the models that actually improved.",
+   "source": "https://arxiv.org/abs/2610.08902",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "plasticity",
+    "negative-transfer",
+    "ood",
+    "artifacts"
+   ]
+  },
+  {
+   "id": "w5-transfer-loom-lessons-campaign-scoped",
+   "kind": "failure",
+   "title": "Loom's 100 lessons live in per-campaign state, so no lesson can reach the next campaign at all",
+   "body": "Measured on the live state, not inferred from docs. 100 lesson.added events exist across 53 of 68 campaign event logs at C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl, and each campaign's views/state.json carries its own lessons array (loom-self3 has 7, loom-ab has 1). The injection call site reads only the running campaign's state: src/runtime/round.js:1249 calls selectLessons(state.lessons || []), and state is built per campaign from that campaign's events.jsonl. Consequence measured directly: of 60 lesson.impact events, 60 resolved to a lesson authored in the SAME campaign and 0 crossed a campaign boundary. Two thirds of campaigns (63 of 69) share the workspace C:/Projects/RSI, so the same repository is being improved 63 times while the knowledge each run accrues cannot reach the next.",
+   "source": "python3: glob C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl; count lesson.added=100, lesson.impact=60, cross-campaign impacts=0; src/runtime/round.js:1249",
+   "confidence": 0.9,
+   "topic": "w5-transfer",
+   "tags": [
+    "loom",
+    "cross-campaign",
+    "knowledge-tree",
+    "local-measurement"
+   ]
+  },
+  {
+   "id": "w5-transfer-loom-injection-42-of-452",
+   "kind": "number",
+   "title": "Only 42 of 452 attempts ever saw a lesson, and 40 of those were on a task already solved that campaign",
+   "body": "Census over all 452 attempt.finished events in 68 campaigns. 42 attempts (9.3%) were injected with at least one lesson, spread over 19 campaigns; 31 of the 42 (73.8%) were lessons authored about a DIFFERENT task, so they are the only genuinely transfer-like injections the loop has made. But 40 of the 42 (95.2%) ran on a task the same campaign had already solved in an earlier attempt, and the joint condition - lesson written about another task AND the current task not yet solved - holds for just 2 of 452 attempts. Matching each attempt to its round.started taskId and to the lesson's own taskIds produced those counts. So the sample that could answer 'does a lesson transfer' is n=2, and the loop's routine exposure is to tasks it has already solved.",
+   "source": "python3 over C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl joining attempt.finished, round.started and lesson.added",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "loom",
+    "lesson-injection",
+    "census",
+    "local-measurement"
+   ]
+  },
+  {
+   "id": "w5-transfer-loom-ab-53-null",
+   "kind": "number",
+   "title": "Loom's own paired lesson A/B: 53 null, 4 'wins' that are control-arm crashes, 3 genuine losses, 0 genuine wins",
+   "body": "The loop already runs the experiment rsi-019 asks for and the result is legible per event. 60 lesson.impact events pair a treated attempt (saw lessons) against an unexposed control of the same round; resolving both arms by attempt id gives 53 pairs where both arms passed (delta 0), 4 with delta +1 where the control arm errored ('child session ended in error with no diagnostic' or 'dispatcher disposed'), and 3 with delta -1 where the treated arm genuinely failed (loom-self2 round 7, all three quarantined for 'paired evidence: gain -1 over 5 use(s), 1 harm(s)'). Accumulated: 25 of 100 lessons were ever used, 7 have non-zero gainSum, total gainSum +1.0, 13 quarantined (10 of them for 'claim announces that nothing was done'). So zero of 60 pairs is a real positive, and the 4 apparent wins are infrastructure noise counted as lesson value.",
+   "source": "python3 join of lesson.impact attempt/control ids against attempt.finished per campaign",
+   "confidence": 0.85,
+   "topic": "w5-transfer",
+   "tags": [
+    "loom",
+    "a-b-test",
+    "lesson-value",
+    "infra-noise"
+   ]
+  },
+  {
+   "id": "w5-transfer-loom-round-curve-confound",
+   "kind": "number",
+   "title": "Loom's pass rate falls 62.2% to 25% by round, but 27.9% of attempts are infra errors",
+   "body": "Computed per round index over all 452 attempts: round 1 62.2% (n=135), round 2 58.9% (n=107), round 3 36.5% (n=52), round 4 33.3% (n=24), rounds 5-10 40.0, 40.0, 37.5, 25.0, 33.3, 40.0, round 11 20.0%, round 13 25.0% (n=8). It would be easy to read as decay, and it is not: later rounds are a different task mix (median 3 evalset tasks per campaign, 2.48 mean), and 126 of 452 attempts (27.9%) carry an error string - 80 'child session ended in error with no diagnostic', 21 timeouts at 600000ms, 14 'dispatcher disposed', 6 'cannot get property sessions'. With 28% of rows scoring zero for transport reasons, any longitudinal curve from this log is an availability curve. The honest statement is that the log cannot separate decay from attrition, which is exactly the gap an external decay study would fill.",
+   "source": "python3 aggregation of attempt.finished by round and error field over the 69 campaign logs",
+   "confidence": 0.8,
+   "topic": "w5-transfer",
+   "tags": [
+    "loom",
+    "decay",
+    "attrition",
+    "local-measurement"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "w5-transfer-retention-plus3-to-minus15",
+   "rel": "supports",
+   "to": "rsi-010",
+   "note": "both measure the search-set-versus-test gap and find it large; this one does it per skill over 36 cells"
+  },
+  {
+   "from": "w5-transfer-retention-plus3-to-minus15",
+   "rel": "refines",
+   "to": "w2-memory-mode-asymmetry-transfer",
+   "note": "adds that abstraction choice changes transfer sign: raw trajectories are the only net-negative representation here too"
+  },
+  {
+   "from": "w5-transfer-instance-disjoint-still-decays",
+   "rel": "refines",
+   "to": "w5-transfer-retention-plus3-to-minus15",
+   "note": "separates real slippage from the no-skill baseline's own 15 pp slippage on the same benchmark"
+  },
+  {
+   "from": "w5-transfer-hda-13-of-15-below-search",
+   "rel": "supports",
+   "to": "rsi-010",
+   "note": "independent measurement of the same overfit share with a different codebase and framework set"
+  },
+  {
+   "from": "w5-transfer-hda-13-of-15-below-search",
+   "rel": "contradicts",
+   "to": "rsi-005",
+   "note": "rsi-005 reports 9/9 combinations improving held-in and held-out; HDA finds held-out gain below search gain in 13 of 15 settings and below baseline in 4"
+  },
+  {
+   "from": "w5-transfer-alfworld-89pct-overfit",
+   "rel": "supports",
+   "to": "rsi-011",
+   "note": "explains the ALFWorld pathology as prior distillation and quantifies it at 89% of the gain"
+  },
+  {
+   "from": "w5-transfer-meta-option-crosses-splits",
+   "rel": "supports",
+   "to": "w2-verify-holdout-reuse-overfitting",
+   "note": "an artefact present in all three splits defeats the protection a fixed holdout is supposed to give"
+  },
+  {
+   "from": "w5-transfer-dgm-direction-asymmetry",
+   "rel": "refines",
+   "to": "rsi-001",
+   "note": "qualifies rsi-001's headline: transfer is directional and near-zero once the recipient model also changes"
+  },
+  {
+   "from": "w5-transfer-selfharness-no-portability",
+   "rel": "contradicts",
+   "to": "rsi-005",
+   "note": "rsi-005 frames its retained edits as general improvements; the paper has no cross-model or cross-campaign test and says harness design is model-specific"
+  },
+  {
+   "from": "w5-transfer-cross-domain-memory-3-7",
+   "rel": "refines",
+   "to": "w2-memory-mode-asymmetry-transfer",
+   "note": "supplies the positive average (+3.7%) that the fidelity-generality trade predicts, alongside the representation that loses"
+  },
+  {
+   "from": "w5-transfer-cross-domain-memory-3-7",
+   "rel": "supports",
+   "to": "rsi-021",
+   "note": "cross-model memory underperformed same-model memory in every direction, consistent with recipient-dependent transfer"
+  },
+  {
+   "from": "w5-transfer-loss-concentrates-unsolved",
+   "rel": "supports",
+   "to": "w2-memory-mode-asymmetry-transfer",
+   "note": "measures the trade at the subset level: +4.6 retention on solved cases against -26.1 new learning on unsolved ones"
+  },
+  {
+   "from": "w5-transfer-groundtruth-memory-fails-54",
+   "rel": "supersedes",
+   "to": "w2-memory-decay-no-benchmark",
+   "note": "that node's claim was that no decay curve exists on a task benchmark; this supplies one, with ground-truth-derived memories, over 10 epochs"
+  },
+  {
+   "from": "w5-transfer-groundtruth-memory-fails-54",
+   "rel": "applies-to",
+   "to": "w2-memory-gap-code-loop-poison",
+   "note": "the poisoning question for a code loop now has a measured analogue: consolidation from correct solutions alone can halve accuracy"
+  },
+  {
+   "from": "w5-transfer-skillinfinity-no-heldout",
+   "rel": "contradicts",
+   "to": "w2-meta-warm-start-library",
+   "note": "that node cites the 60.7% skill-library result; the number comes from optimizing and testing on the same 83 tasks"
+  },
+  {
+   "from": "w5-transfer-backfires-inverted-u",
+   "rel": "contradicts",
+   "to": "w2-meta-warm-start-library",
+   "note": "a warm-started library is not a monotone asset: pass@1 returned to +2 pp over seed after the pool grew 5x"
+  },
+  {
+   "from": "w5-transfer-backfires-inverted-u",
+   "rel": "applies-to",
+   "to": "gap-w4-036",
+   "note": "directly answers whether a loop can revert a bad promotion: source removal recovers 1.7 of a 12.3 pp drop and 5.6 pp is irrecoverable"
+  },
+  {
+   "from": "w5-transfer-backfires-gated-transfer",
+   "rel": "refines",
+   "to": "w5-transfer-backfires-inverted-u",
+   "note": "same experiment, opposite sign out of distribution: gated pools gained +12 pp on 25 untouched tasks, so the damage is conditional on admission control"
+  },
+  {
+   "from": "w5-transfer-memdev-harm-exceeds-rescue",
+   "rel": "supports",
+   "to": "rsi-021",
+   "note": "memory harm concentrated where the agent was already competent and grew with irrelevant history, matching recipient-dependent harm"
+  },
+  {
+   "from": "w5-transfer-rem-capability-band",
+   "rel": "refines",
+   "to": "w2-memory-mode-asymmetry-transfer",
+   "note": "locates the sign flip in the recipient's capability rather than in the memory format"
+  },
+  {
+   "from": "w5-transfer-rem-capability-band",
+   "rel": "supports",
+   "to": "rsi-021",
+   "note": "harm grew with executor strength in both studies, from different benchmark families"
+  },
+  {
+   "from": "w5-transfer-no-cross-repo-measurement",
+   "rel": "derived-from",
+   "to": "w5-transfer-rem-capability-band",
+   "note": "REM's 99/99 same-repository design is the source of the limitation this node names"
+  },
+  {
+   "from": "w5-transfer-no-cross-repo-measurement",
+   "rel": "derived-from",
+   "to": "w5-transfer-skillinfinity-no-heldout",
+   "note": "the skill-library literature's only split is inside the released benchmark"
+  },
+  {
+   "from": "w5-transfer-no-cross-repo-measurement",
+   "rel": "applies-to",
+   "to": "w3-holdout-gap-no-decay-curve-in-repo",
+   "note": "both name the same missing measurement: an ageing holdout inside a changing repository"
+  },
+  {
+   "from": "w5-transfer-plasticity-declines-in-protocol",
+   "rel": "supports",
+   "to": "w5-transfer-backfires-inverted-u",
+   "note": "two independent protocols where more accumulated experience ended below its own peak"
+  },
+  {
+   "from": "w5-transfer-loom-lessons-campaign-scoped",
+   "rel": "supports",
+   "to": "w4-curriculum-no-cross-campaign-state",
+   "note": "that node found no task-level state crossing campaigns; lesson state does not either, and here the cause is code, not configuration"
+  },
+  {
+   "from": "w5-transfer-loom-lessons-campaign-scoped",
+   "rel": "fails-at",
+   "to": "w5-transfer-no-cross-repo-measurement",
+   "note": "our loop cannot even attempt the cross-repository transfer nobody has measured, because its lessons never leave the campaign"
+  },
+  {
+   "from": "w5-transfer-loom-injection-42-of-452",
+   "rel": "refines",
+   "to": "gap-w1-004",
+   "note": "the gap says nobody A/Bs lesson injection; our log A/Bs it 60 times, and 40 of 42 injected attempts were on already-solved tasks"
+  },
+  {
+   "from": "w5-transfer-loom-ab-53-null",
+   "rel": "supports",
+   "to": "ctx-033",
+   "note": "confirms that node's reading of the lesson mechanism as null, with the 4 apparent wins traced to control-arm crashes"
+  },
+  {
+   "from": "w5-transfer-loom-ab-53-null",
+   "rel": "refines",
+   "to": "w5-transfer-loom-injection-42-of-452",
+   "note": "the census says exposure is rare; the paired result says where it happened the measured effect was zero"
+  },
+  {
+   "from": "w5-transfer-loom-round-curve-confound",
+   "rel": "contradicts",
+   "to": "w5-transfer-loom-ab-53-null",
+   "note": "a declining pass rate by round would suggest harm from accumulated lessons; the 27.9% infra-error rate makes that reading unsupported"
+  }
+ ],
+ "gaps": [
+  "Does a lesson written in campaign A change the pass rate of campaign B on the same repository, and by how much per lesson injected?",
+  "What is the measured transfer of an experience artefact from repository R to a different repository R', as a function of code overlap?",
+  "How fast does a repo-specific lesson go stale as the codebase changes underneath it — measured in commits or diff churn, not in rounds?",
+  "Is the sign of lesson transfer predictable from the recipient model's unaided score on the task, the way REM's capability band suggests?",
+  "Does pre-commit gating preserve out-of-distribution transfer while removing contamination, and does the +12 pp Test-25 lift reproduce outside Terminal-Bench 2?",
+  "How many false positives does a paired lesson A/B produce per hundred comparisons when one arm's harness can fail for infrastructure reasons?",
+  "Can contamination chains and plain staleness be separated experimentally, given that both produce a curve that peaks then declines?",
+  "What is the marginal transfer of the Nth lesson — is there a dose-response curve, or does the second lesson add nothing to the first?",
+  "Does restoring the specificity a consolidator dropped recover the transfer it lost, or is the loss in the abstraction step itself?",
+  "Would a cross-campaign lesson store help more than a fresh context on the same task, at equal token cost?"
+ ]
+}

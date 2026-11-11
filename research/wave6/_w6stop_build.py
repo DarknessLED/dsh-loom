@@ -1,0 +1,316 @@
+import json, os
+
+N = []
+
+def n(id, kind, title, body, source, conf, tags):
+    N.append({"id": id, "kind": kind, "title": title, "body": body,
+              "source": source, "confidence": conf, "topic": "w6-stopping", "tags": tags})
+
+# ---------------- project ----------------
+n("p-dsh-loom-stop-surface", "project",
+  "dsh-loom's stopping surface: a cheap, shallow, binary gate, not a sequential test",
+  "A dsh-loom round is plan -> attempt(s) -> verifier gate -> promote-if-better. The accept rule today is a fixed minGain 0.05 on a 0-1 score plus a per-node budget cap; there is no alpha, no information fraction and no pre-specified number of looks. Measured over the 69 campaign dirs under ~/.dsh/loom/campaigns: attempt.finished 452, verifier.finished 254, round.finished 231, gate.evaluated 208, artifact.promoted 114, attempt.abandoned 63, attempt.deadline 147. Rounds per campaign are min 1, median 2, mean 3.4, max 18 (histogram 1:14, 2:27, 3:14, 4:2, 5:1, 6:2, 7:2, 9:1, 12:1, 13:1, 14:1, 16:1, 18:1). Per-round cost is median $0.0005 and max $0.002 with median wall clock 8.0 min and max 25.6 min. So a measurement here is cheap and fast (~0.5 cent, 8 minutes) and campaigns are short (median 2 rounds): the binding question is not whether we can afford another look, it is whether one look carries any information at all. Test in our ledger: this inventory is the baseline every other test in this file is measured against - any proposed stopping rule must be replayed over these 231 rounds and 208 gates to report how many promotions it would change.",
+  "~/.dsh/loom/campaigns events.jsonl + rounds/<n>/board.jsonl (this repo's own ledger, read 2026-11)",
+  0.9, ["ledger", "loop", "stopping", "ground-truth"])
+
+# ---------------- numbers: my own computations ----------------
+n("n-one-run-suffices", "number",
+  "At the stated sigma of 1-2 points the 0.175 gap is 8.8-17.5 sigma, so one run per arm already clears 80% power",
+  "Using the standard two-arm planning formula n/arm = 2((z_alpha/2 + z_beta)/(Delta/sigma))^2 with Delta = 0.825-0.65 = 0.175, alpha 0.05 two-sided and 80% power: sigma=0.01 gives n/arm=0.05 (ceil 1), sigma=0.02 gives 0.21 (1), sigma=0.04 gives 0.82 (1), sigma=0.06 gives 1.85 (2), sigma=0.10 gives 5.13 (6). The break-even sigma at which one run per arm lands exactly on 80% power is 0.0625. Equivalently, a single paired evaluation gives z = Delta*sqrt(2)/sigma = 24.75 at sigma=0.01, 17.50 at 0.015, 12.37 at 0.02, 6.19 at 0.04, 4.12 at 0.06 and 2.47 at 0.10, with two-sided p from <1e-30 down to 1.3e-2, and minimum Bayes factor exp(z^2/2) from 1e33 down to 21.4. The whole 'is 0.825 real' question is therefore decided by whether sigma is really 1-2 points, not by adding rounds: at the stated sigma the correct number of looks is one. dsh-loom application: this is why the loop should not spend a second round on a 0.175 gap once sigma is pinned down; it should spend that budget on estimating sigma. Test in our ledger: take 10 campaigns with >=2 rounds, re-evaluate each promoted artifact and its pre-promotion incumbent 3 times on the same suite and record the paired score difference, then compare the observed between-repeat sd to 0.02 - if the sd is <= 0.02 the one-look rule is already sufficient and every extra round in those campaigns was unnecessary.",
+  "own computation, python + NormalDist; formula from arXiv:2411.00640 and the repo's w2-decide-mde-formula-agent-sigma node",
+  0.85, ["power", "sample-size", "mde", "one-shot"])
+
+n("n-sigma-hat-inflation", "number",
+  "A sigma estimated from k rounds is itself uncertain: the 95% upper bound is 5.03x at k=3, 2.41x at k=5, 1.65x at k=10",
+  "Sizing on sigma_hat is the standard way a cheap stopping rule fools itself. Treating (k-1)*sigma_hat^2/sigma^2 as chi-square with k-1 df (Wilson-Hilferty quantiles), the 95% upper confidence bound on sigma_true is 5.03x sigma_hat at k=3, 3.02x at k=4, 2.41x at k=5, 1.80x at k=8, 1.65x at k=10 and 1.37x at k=20; because n scales as sigma^2 the required sample-size multiplier is 25.3x, 9.1x, 5.8x, 3.25x, 2.71x and 1.88x respectively. Concretely, if the true sigma is 2.37x the naive estimate then a case that looked like n/arm=0.82 (sigma assumed 0.04) actually needs n/arm=4.61. Practical rule: pick the number of repeats so that the upper bound, not the point estimate, still leaves you at the sample size you are willing to pay for - about 5 repeats to keep the penalty under 6x, 10 to keep it under 3x. dsh-loom application: any sigma the loop estimates from a handful of rounds is a lower bound on the noise it must plan for, which is exactly the mistake a 2-round median campaign makes. Test in our ledger: pick one frozen attempt artifact and re-run the verifier on it 10 times without changes, then compute the chi-square upper bound on sigma_hat from k=3,5,10 subsets of those 10 and check whether the bound converges to something the loop could afford; this needs no campaign changes, only repeat verifier invocations on a stored patch.",
+  "own computation (chi-square upper bound via Wilson-Hilferty); consistent with the sigma_hat caveat in arXiv:2602.07150",
+  0.85, ["sigma-estimation", "sample-size", "uncertainty"])
+
+n("n-peeking-cumulative", "number",
+  "Cumulative 5%-level looks inflate Type I to 8.3% at 2 looks, 14.2% at 5, 19.4% at 10 and 24.8% at 20",
+  "Gaussian random walk simulation (200,000 trials per point) of the rule 'reject as soon as |S_k|/sqrt(k) > 1.96 at any look k', with one unit of information per look, gives P(reject | H0) = 0.0501 at 1 look, 0.0831 at 2, 0.1071 at 3, 0.1422 at 5, 0.1943 at 10 and 0.2484 at 20. This reproduces the Armitage-McPherson-Rowe 1969 numbers (0.14 at 5 looks, 0.19 at 10 looks at nominal 5%) to within simulation error, and it is the same failure mode as the Evan Miller stop-on-significance result (26.1% at up to 150 observations). An earlier variant of this simulation that used a fixed number of observations per look instead of a cumulative statistic gave 0.043/0.071/0.096/0.133 at 2/5/10/20 looks; that variant understates the inflation and should not be quoted. dsh-loom application: a campaign that tests after every round at a nominal 5% runs at 9.8% with 2 rounds (the median) and 60.3% with 18 rounds (loom's longest campaign), so the promotion count of 114 is not interpretable as 114 confirmed improvements. Test in our ledger: replay the existing gate decisions with a Holm correction across each campaign's rounds and count how many of the 114 promotions survive; this is a pure recomputation over stored gate scores and needs no new runs.",
+  "own simulation; cross-checked against Armitage, McPherson & Rowe 1969 (J R Stat Soc A 132:235-244) and evanmiller.org/how-not-to-run-an-ab-test.html",
+  0.85, ["peeking", "type-i", "simulation"])
+
+n("n-gs-calibration", "number",
+  "Calibrated 5%-level boundaries: OBF two-sided final 1.98/2.04 (K=2/5) with first look 2.80/4.56; one-sided final 1.68/1.75",
+  "Boundary calibration by simulation of a Gaussian random walk (400,000 trials, K equally spaced looks, 25 observations per look, bisection on the boundary). TWO-SIDED alpha=0.05: a constant Pocock boundary needs c = 2.179 at K=2, 2.290 at K=3, 2.413 at K=5 and 2.552 at K=10; an O'Brien-Fleming-shaped boundary c_k = C/sqrt(t_k) needs a final (t=1) value C = 1.979 at K=2, 2.007 at K=3, 2.039 at K=5 and 2.080 at K=10, implying first-look critical values of 2.80, 3.48, 4.56 and 6.58. ONE-SIDED alpha=0.05 (the directional case, candidate better than incumbent): constant c = 1.879/1.992/2.120/2.266 and OBF final C = 1.683/1.707/1.753/1.798 for K=2/3/5/10, with first-look values 2.38/2.96/3.92/5.69. Cross-checks: the two-sided OBF K=5 final 2.04 and first look 4.56 reproduce metricgate's table exactly ('z above 4.5 at the first look with K=5'), and Pocock K=2 = 2.179 matches the standard literature value 2.178. The monitoring cost at the final look is small (1.96 -> 2.04 for five two-sided looks) because the early looks are punitive. Published maximum-sample inflation is 1.01-1.03 for OBF and 1.10-1.17 for Pocock; a naive ratio (C+z_beta)^2/(1.96+z_beta)^2 gives 1.06 at K=5, which overstates it because earlier looks also contribute power. dsh-loom application: these are the constants a capped-K campaign should use instead of an unadjusted 1.96, and the K=2 row (final 1.98 two-sided, 1.68 one-sided) is the only one a median-2-round campaign needs. Test in our ledger: take the 58 campaigns that promoted at least once, re-check each promotion against the K=2 one-sided boundary 1.68 rather than 1.96 and see which promotions flip; if the gate is binary most will be unaffected, which is itself the finding that the boundary is not the bottleneck.",
+  "own numpy simulation; cross-checked against metricgate.com/docs/group-sequential-obrien-fleming and the standard Pocock/O'Brien-Fleming tables; inflation factors zenodo.org/records/18879839 Table 12",
+  0.85, ["group-sequential", "obrien-fleming", "pocock", "simulation"])
+
+n("n-sprt-savings", "number",
+  "A two-sided SPRT saves 30-36% of fixed-budget measurements at equal power, not the folklore 50%",
+  "Simulation of a one-sample SPRT (20,000 trials, alpha 0.05 one-sided, beta 0.10, log-LR increment d*x - d^2/2) against the fixed one-sample N = ((z_alpha + z_beta)/d)^2: at d=0.175 the fixed N is 256.3 while the SPRT average sample number is 164.1 under H1 (ratio 0.64, power 0.912) and 138.6 under H0 (Type I 0.049); at d=0.20, 196.2 vs 125.9 (0.64); at d=0.30, 87.2 vs 58.0 (0.67); at d=0.50, 31.4 vs 22.1 (0.70). So the saving shrinks as the effect gets smaller - exactly the regime an optimisation loop cares about - and the often-quoted 'SPRT needs as much as 50% fewer samples' (Bechhofer 1960) is the large-effect limit. The saving also costs you the ability to report a fixed-N p-value: an SPRT's stopping time is random, so the comparison to a fixed-gate campaign is not like-for-like unless the fixed side is also allowed the same number of looks. dsh-loom application: a sequential gate could cut the median campaign's measurement spend by roughly a third, but only if the gate can produce a running test statistic, which a pass/fail verifier cannot. Test in our ledger: instrument 10 campaigns to record the per-attempt verifier statistic (not just pass/fail), then offline simulate an SPRT over those sequences and compare the stopping round it would have chosen to the round the fixed cap chose.",
+  "own simulation; the 50% folklore and its relative-efficiency formula from Bechhofer 1960 (JASA 55:660-663), quoted at seminars.math.binghamton.edu/sttseminar/130404.pdf",
+  0.85, ["sprt", "sequential", "savings", "simulation"])
+
+n("n-fwer-per-campaign", "number",
+  "A campaign with R gate comparisons has family-wise error 1-0.95^R: 9.8% at 2 rounds, 14.3% at 3, 60.3% at 18",
+  "The natural unit of a false 'this candidate is better' claim in dsh-loom is the campaign, not the attempt, because a campaign iterates until its budget is spent. Under independent 5%-level gates, the probability of at least one spurious promotion is 1-(1-0.05)^R: R=1 5.0%, R=2 9.8%, R=3 14.3%, R=4 18.5%, R=5 22.6%, R=10 40.1%, R=18 60.3%, and over the ledger's whole 231 rounds 1.0000. Holding the campaign at a true 5% needs per-gate alpha of 0.0253 at R=2, 0.0167 at R=3, 0.0125 at R=4 and 0.0028 at R=18 (Bonferroni; Holm strictly dominates it here because it spends alpha in the order the tests are run). This is the number that makes the 'median campaign is only 2 rounds' fact reassuring rather than damning: at median 2 rounds the multiplicity cost is 2x, not the 46x that 231 rounds across all campaigns would suggest, because campaigns are separate experiments on separate objectives. Test in our ledger: recompute the 208 gate decisions per campaign with Holm at the campaign level and count how many of the 114 promotions survive at a true campaign-level 5%; the difference is the multiplicity cost dsh-loom is currently paying.",
+  "own computation over the ledger's round counts (median 2, mean 3.4, max 18, total 231)",
+  0.8, ["multiplicity", "fwer", "campaign", "bonferroni"])
+
+n("n-ledger-mde", "number",
+  "The ledger's own effect sizes need 252 to 6,553 attempts per arm, so dsh-loom cannot currently resolve the effects it claims to act on",
+  "Feeding dsh-loom's measured deltas into n/arm = 2((z_alpha/2+z_beta)/(Delta/sigma))^2: gate.evaluated delta has mean 0.0588 and sd 0.2353, giving d/sigma = 0.25 and n/arm = 252; the binary gate at p=0.5 worst case (sd 0.5) gives n/arm = 1,136; lesson.impact delta has mean 0.0167 and sd 0.3412, giving d/sigma = 0.05 and n/arm = 6,553. Compare the whole ledger: 208 gate.evaluated events, 231 rounds, 69 campaigns. A 252-per-arm requirement is 1.2x the entire gate history and a 6,553-per-arm requirement is 31x it. For contrast the case-premise numbers (Delta 0.175, sigma 0.0175) give n/arm = 0.2 but they describe a score with a 1.75-point sd, which no binary verifier can deliver: a pass/fail gate observed at p=0.5 has sd 0.5, i.e. 25-50x the assumed noise. Either the ledger's scores must become continuous and repeated, or the effect sizes it reports cannot be distinguished from noise at any horizon it can afford. Test in our ledger: the check is arithmetic, not experimental - compute the observed Delta/sigma for each campaign's promoted-vs-incumbent pair from the board.jsonl rows and confirm none of them reaches d/sigma > 2, which is the threshold below which no affordable number of attempts can resolve the difference.",
+  "own computation over ~/.dsh/loom/campaigns aggregates (gate.evaluated n=208; lesson.impact n=60) plus the standard MDE formula",
+  0.85, ["mde", "ledger", "effect-size", "feasibility"])
+
+# ---------------- analysis: the answer + counterfactual ----------------
+n("a-cheapest-rule", "analysis",
+  "The cheapest rule that does not fool itself: one paired run per arm, gated by a 5-repeat sigma check, not more rounds",
+  "Recommended stopping rule for the 0.825-vs-0.65 decision, in cost order. Step 1 (the only essential step): measure sigma from k>=5 repeated evaluations of ONE frozen configuration on the SAME task set, with no edits in between, and size on the 95% upper bound of sigma_hat (2.41x at k=5, 1.65x at k=10) rather than on sigma_hat. Step 2: run the candidate and the incumbent once each on the same paired task set. If the true sigma is <= 0.02 this single pair yields z >= 12.4 and p <= 1e-30, so STOP and accept - no sequential machinery, no second round. Step 3: escalate to a pre-specified K-look design only when the measured Delta/sigma <= about 3 (the regime where n/arm exceeds 1); then use a calibrated boundary (two-sided OBF final 1.98 at K=2 and 2.04 at K=5 against 1.96 for one look; one-sided final 1.68 and 1.75 against 1.645) or an e-process threshold log(1/alpha)=3.00, both fixed in advance. Step 4: the diagnostic that vetoes all of the above - if sigma_hat comes back >= 0.06 one run per arm no longer reaches 80% power (n/arm=1.85), and if sigma_hat >= 0.126 even a single comparison is not significant at p=0.05 (z=1.96), so a '0.825 vs 0.65' result at that noise level would have to be wrong about something else. Total cost at dsh-loom's rates: about 7 evaluations at median $0.0005 and 8.0 min each, under an hour and under a cent, versus the median campaign's 2 rounds that currently decide the same question with no sigma estimate at all. Test in our ledger: apply steps 1-2 to one campaign by re-running the verifier on a frozen artifact 5 times to get sigma_hat, then compare the resulting decision to the decision the campaign actually reached in 2+ rounds; a matching verdict at 7 evaluations instead of several rounds is the validation, and a mismatch identifies which assumption (sigma, pairing, task set) is wrong.",
+  "derived from own computations n-one-run-suffices, n-sigma-hat-inflation, n-gs-calibration",
+  0.8, ["recommendation", "stopping-rule", "cheap", "diagnostic"])
+
+n("a-stop-at-first-promotion", "analysis",
+  "Stopping at the first promotion would have used 133 of the ledger's 231 rounds (58%), and 30 rounds already ran after the last promotion",
+  "Reconstructing each campaign's promotion rounds from artifact.promoted events (round field): the actual total is 231 rounds and 114 promotions, with the final promotion landing at round 1 in 16 campaigns, round 2 in 28, round 3 in 9, round 4 in 1, and rounds 6/7/9/13 in one campaign each. A counterfactual 'stop at the first promotion' rule consumes 133 rounds (58% of actual, saving 98), and 'stop at the second' consumes 182 (79%). Eleven of 69 campaigns never promoted at all, so a stopping rule must include a futility arm or those campaigns run their whole budget for nothing. Ten campaigns kept running after their final promotion, burning 30 rounds (13% of all rounds): loom-acc2 11 of them, loom-self, loom-self2, loom-self3 3 each, plus six 1-2 round tails - and the 0-promotion campaigns plus these tails are the only place a shorter fixed budget would have saved anything. Caveat: this is a counterfactual on outcomes already known, so it is an upper bound on what adaptive stopping can save, not a measured saving. Test in our ledger: this counterfactual is already computable and should be recomputed prospectively - log the round of every promotion as the loop runs, then compare each campaign's actual length to its first-promotion round; the divergence is the live value of the adaptive rule.",
+  "own reconstruction of ~/.dsh/loom/campaigns events.jsonl (artifact.promoted round field, round.finished counts)",
+  0.75, ["counterfactual", "budget", "adaptive", "ledger"])
+
+# ---------------- failures ----------------
+n("f-ledger-gate-binary", "failure",
+  "dsh-loom's gate is pass/fail with 94% of deltas exactly zero, so no round-to-round sigma exists to build a stopping rule on",
+  "Measured over all 208 gate.evaluated rows in ~/.dsh/loom/campaigns: score has mean 0.6538 and sd 0.4757 but only two distinct values, {0,1}; promoted is True in 114 and False in 94. incumbentScore is present in only 17 of 208 rows, and in those the pair is always score=1 against an incumbent of 0 or 1. delta has mean 0.0588 and sd 0.2353, and 94.1% of deltas are exactly 0. The same collapse appears at the attempt level: across all 452 attempt.finished events the score field takes only the values {0.0, 1.0} with mean 0.4845. Consequently there is no repeated measurement of one configuration anywhere in the ledger, hence no empirical sigma, hence no way to compute a power or a sequential boundary from the ledger as it stands. This is the single structural obstacle: every stopping rule above needs sigma, and the ledger cannot supply it. Test in our ledger: the fix is measurable in isolation - pick 5 stored attempt patches, re-run each verifier 3 times, and record whether the 0/1 verdict ever flips; any flip establishes a sigma on the binary scale and gives the loop its first empirical noise estimate without touching the campaign runner.",
+  "own read of ~/.dsh/loom/campaigns events.jsonl (208 gate.evaluated, 452 attempt.finished)",
+  0.9, ["gate", "binary", "noise", "blocker"])
+
+n("f-ledger-holdout-reuse", "failure",
+  "The holdout is one fixed suite reused every round (pool size 1 in all 50 selections), which is the adaptive-reuse failure mode",
+  "All 50 holdout.selected events in ~/.dsh/loom/campaigns have id 'suite', pool ['suite'] (pool size exactly 1 in every row), a poolSha, and holdoutRuns None. There is no fresh-task draw and no rotation: the same fixed suite scores the incumbent and every candidate, round after round, across 231 rounds. That is precisely the adaptive-analysis pattern Dwork et al.'s thresholdout and the reuse literature warn about: once the same evaluation set has been used to accept 114 artifacts, the apparent score of a later candidate is partly a selection over the suite's idiosyncrasies, and the nominal alpha of any single comparison no longer holds. The practical consequence for the 0.825-vs-0.65 case is that even a statistically clean single comparison on this suite is only clean for one look; it stops being clean if 0.825 was reached by trying several candidates against the same suite and keeping the best. dsh-loom's ledger cannot currently distinguish those two histories because it records the winning score, not the losing ones. Test in our ledger: split the fixed suite in half by task id, re-evaluate the promoted artifacts against each half separately, and measure the between-half score gap; a gap comparable to the claimed 0.175 improvement means the score is suite-specific rather than candidate-specific.",
+  "own read of ~/.dsh/loom/campaigns events.jsonl (50 holdout.selected rows, all pool size 1)",
+  0.85, ["holdout", "reuse", "adaptive", "selection"])
+
+n("f-fixed-budget-tail", "failure",
+  "Fixed budgets leave campaigns running past their last promotion and past any possible gain, with 11/69 campaigns never promoting",
+  "The ledger shows both directions of fixed-budget waste. Upward: 10 campaigns continued after their last promotion for a total of 30 rounds (13% of all rounds), the extreme being loom-acc2 with 11 post-promotion rounds; those rounds re-plan, re-attempt and re-verify an objective that already has an accepted artifact, so the only thing they can produce is a spurious 'improvement' found by searching a reused suite. Downward: 11 of 69 campaigns end with zero promotions after spending their full round budget, so the same fixed budget that over-runs successful campaigns cannot cut short hopeless ones. The shape - a hard round cap - is what a fixed-budget design always looks like, and it is why the stopping question is worth money here even at $0.0005/round: 13% of rounds and 16% of campaigns are on the wrong side of the cap. Note the cost saving is small in dollars (about $0.015 across the whole ledger tail); the saving that matters is in the false-positive surface, because those rounds are extra looks. Test in our ledger: re-run 5 of the 10 tail campaigns with a stop-at-first-promotion rule and compare the landed artifact's later re-measured score to the one it was promoted on; a systematic drop is the regression-to-the-mean signature of the survivor-bias mechanism.",
+  "own reconstruction of ~/.dsh/loom/campaigns (artifact.promoted round vs round.finished count; 69 campaigns)",
+  0.8, ["fixed-budget", "waste", "tail", "futility"])
+
+# ---------------- claims: literature ----------------
+n("c-armitage-1969", "claim",
+  "Repeated significance testing on accumulating data: 14% Type I at 5 looks and 19% at 10 looks against a nominal 5%",
+  "Armitage, McPherson and Rowe (1969, 'Repeated Significance Tests on Accumulating Data', J R Stat Soc A 132:235-244) computed the exact overall Type I error of the rule 'test at 5% after every 2n observations and stop at the first significant result'. The overall error is 0.14 at five looks and 0.19 at ten looks, against a nominal 0.05. The tabulated reproduction in Pocock (1983, Table 10.1) is the usual citation, and a Portuguese thesis reproduces the small-look end as 8.3% at 2 tests and 14.2% at 5 tests. The point of the paper is not that peeking is always wrong but that the inflation is a deterministic function of the number of looks, so it can be priced: this is the ancestor of alpha spending and of every group-sequential boundary. Applied to dsh-loom: the loop effectively tests after every round, and with a median of 2 rounds that is the 8.3-9.8% row, not the 5% row. Test in our ledger: at median 2 rounds the expected inflation is the 2-look row (8.3-9.8%), so count how many campaigns promoted on round 2 and re-check whether the deciding comparison would still pass with a two-look boundary; the flips are the measured cost of the current uncorrected rule.",
+  "Armitage, McPherson & Rowe 1969, J R Stat Soc A 132:235-244; reproduced as Pocock 1983 Table 10.1 and in people.bath.ac.uk/mascj/talks_2003/mgslides.pdf",
+  0.85, ["peeking", "type-i", "classic", "group-sequential"])
+
+n("c-miller-ab", "claim",
+  "Stop-on-significance with a 150-observation cap produces 26.1% false positives where the nominal rate is 5%",
+  "Evan Miller's simulation ('How Not to Run an A/B Test', 2010) runs the rule 'compute the p-value after every observation and stop the moment it drops below 0.05' on a true null with a 150-observation cap. The false positive rate is 26.1% at a nominal 5% - a 5.2x inflation - and the inflation grows if the cap is raised. The same page tabulates the required reported significance for a true 5% error: 2.9% with 1 look, 2.2% with 2, 1.8% with 3, 1.4% with 5, 1.0% with 10 looks. It also gives the planning rules n = 16*sigma^2/delta^2 for sample size and delta = (t_alpha/2 + t_beta)*sigma*sqrt(2/n) for the minimum detectable effect. The mechanism is that each look is a fresh chance to cross the threshold, and the crossing events are not disjoint, so the union bound overfits the true error - which is exactly why continuous monitoring needs a boundary that grows with the information fraction. dsh-loom application: the loop's minGain-0.05 accept rule applied after every round is the 'stop when it looks good' pattern this page measures, and its cap is the campaign's round budget rather than 150 observations. Test in our ledger: for each of the 10 campaigns that ran past their last promotion, ask whether the final rounds' gate results would have crossed a 5% threshold on their own; any that did are the measured false-positive rate of the current rule.",
+  "evanmiller.org/how-not-to-run-an-ab-test.html (2010); planning formulas cross-checked against arXiv:2411.00640",
+  0.9, ["peeking", "simulation", "type-i", "planning-formula"])
+
+n("c-lan-demets", "claim",
+  "Alpha spending functions let the analysis times be chosen after the data are seen, provided the spending schedule alpha*(t) is fixed",
+  "Lan and DeMets (1983, Biometrika 70:659-663, 'Discrete sequential boundaries for clinical trials') introduced the alpha spending function: choose a non-decreasing alpha*(t) with alpha*(0)=0 and alpha*(1)=alpha, then spend alpha*(t_k)-alpha*(t_{k-1}) at the k-th look at information fraction t_k. The cumulative Type I error stays at or below alpha no matter when the looks occur, so the number and timing of interim analyses need not be fixed in advance - only the spending function does. Published inflation factors for the resulting designs: O'Brien-Fleming-shaped spending inflates maximum sample size by 1.01 (K=2), 1.02 (K=3), 1.02 (K=4) and 1.03 (K=5); Pocock-shaped by 1.10, 1.14, 1.16 and 1.17; a linear alpha proportional to t by 1.05-1.09. A union-bound schedule alpha_k = alpha*6/(pi^2 k^2) is even more conservative: at two-sided alpha=0.05 it demands |z| of 2.17 at the first look, 2.67 at the second, 3.24 at the fifth and 3.61 at the tenth, i.e. it buys the anytime guarantee by paying a 10-100% larger critical value than the calibrated OBF designs (2.80 at the first of five). dsh-loom application: a spending function would let the loop keep its current irregular round schedule (median 2 rounds, max 18) without pre-committing to a look count, which matches how campaigns actually run. Test in our ledger: choose alpha*(t) = alpha*t (linear, published inflation 1.05-1.09) and recompute the 208 gate decisions with the resulting per-round thresholds; report how many of the 114 promotions change verdict.",
+  "Lan & DeMets 1983, Biometrika 70:659-663 (abstract via PubMed 1912268); inflation table zenodo.org/records/18879839; union-bound computation own",
+  0.85, ["alpha-spending", "group-sequential", "clinical", "flexible-looks"])
+
+n("c-safe-testing-evalues", "claim",
+  "E-values preserve Type I error under optional continuation, so a loop can keep deciding whether to run another round",
+  "Grunwald, de Heide and Koolen's 'Safe Testing' (JRSS-B discussion paper, arXiv:1906.07801 v5 2023) builds tests whose evidence measure is an e-value: a nonnegative random variable with expectation at most 1 under the null. Multiplying e-values from independent batches keeps this property, and Ville's inequality bounds the probability that an e-process ever exceeds 1/alpha by alpha - so the Type I error survives optional continuation, meaning the experimenter may decide whether to collect more data based on what has been seen. The analogue of power is growth-rate optimality (GRO), and GRO e-values turn out to be Bayes factors with specially chosen priors; the paper includes a one-sample safe t-test. For dsh-loom the attraction is that 'should we run another round?' becomes a legal data-dependent question instead of a multiplicity violation, and the threshold is a plain log-odds 1/alpha = 20 (log 3.00 at alpha=0.05). Test in our ledger: build a running e-value from each campaign's per-round gate outcomes (treating each round as a batch) and report the round at which it would have crossed 3.00; the distribution of those rounds versus the actual campaign lengths is the plug-in estimate of what safe testing would save.",
+  "arXiv:1906.07801 (Grunwald, de Heide, Koolen, Safe Testing, v5 2023); arXiv:2210.01948 for the e-process framing",
+  0.85, ["e-values", "safe-testing", "optional-stopping", "anytime-valid"])
+
+n("c-confidence-sequence", "claim",
+  "Confidence sequences stay valid at unbounded horizons and their widths shrink at the LIL rate sqrt(log log t / t)",
+  "Howard, Ramdas, McAuliffe and Sekhon (arXiv:1810.08240, Ann. Statist. 49(2):1055-1080, 2021) construct confidence sequences - sequences of confidence intervals uniformly valid over an unbounded time horizon, nonasymptotically and nonparametrically. They connect the Cramer-Chernoff method, the law of the iterated logarithm and the sequential probability ratio test, give an empirical-Bernstein bound growing at the LIL rate, and extend to self-normalized processes and matrix martingales. The width penalty relative to a fixed-n interval is the sqrt(log log t) factor: at n=208 observations the LIL-rate half-width is 1.29x the fixed-n one (0.0897 vs 0.0693 at unit sd), rising to 1.39x at n=1,000 and 1.49x at n=10,000. That is the honest price of never having to pre-commit to a sample size, and it is modest: about 29% wider intervals for a ledger of dsh-loom's size. Test in our ledger: compute a confidence sequence over the ledger's own cumulative gate outcomes per campaign and compare its width at the campaign's final round to the width of a fixed-n interval at the same count; the 1.29x LIL penalty at n=208 is the number to expect, and a much larger observed ratio would indicate a misspecified noise model.",
+  "arXiv:1810.08240 (Howard, Ramdas, McAuliffe, Sekhon; Ann. Statist. 2021); LIL ratio own computation",
+  0.85, ["confidence-sequence", "anytime-valid", "lil", "price"])
+
+n("c-always-valid-johari", "claim",
+  "Always-valid inference for continuously monitored experiments was deployed commercially at scale, so the practice is not exotic",
+  "Johari, Koomen, Pekelis and Walsh ('Always Valid Inference: Continuous Monitoring of A/B Tests', arXiv:1512.04922, math.ST, v3 2019; Management Science 2022) define always-valid p-values and confidence sequences for experiments that are monitored continuously, and report deployment in a commercial experimentation platform running over hundreds of thousands of experiments. The design goal they emphasise is trading sample size against power efficiently without needing to know the user's stopping preference in advance - i.e. the same institution-level problem dsh-loom has, where a human or an autopilot can stop a campaign at any time. The relevant transferable claim is narrow but useful: an always-valid procedure is compatible with a loop whose stopping time is chosen by an interested party after seeing interim results, which is exactly what a self-improving loop is. Test in our ledger: since the loop's stopping time is already chosen by an autopilot rather than pre-registered, the honest test is to instrument one campaign with an always-valid interval and check whether the autopilot's stop coincides with the always-valid boundary's crossing; disagreement is a measured false-stop.",
+  "arXiv:1512.04922 (Johari, Koomen, Pekelis, Walsh, Always Valid Inference)",
+  0.8, ["always-valid", "deployment", "a-b-testing"])
+
+n("c-sprt-bechhofer", "claim",
+  "The SPRT's 50%-smaller-sample claim is a large-effect limit; its relative efficiency is (theta1-theta0)/(4|theta1+theta0-2theta|)",
+  "Bechhofer (1960, JASA 55:660-663), comparing Wald's sequential probability ratio test with the best fixed-sample procedure, gives the limiting relative efficiency as (theta1-theta0)/(4|theta1+theta0-2theta|) and states that the SPRT sample size 'may be as much as 50% smaller'. Two caveats matter for an optimisation loop. First, the 50% is approached only as the effect grows: the simulation behind n-sprt-savings gets 0.64-0.70 of the fixed sample at d=0.175-0.5, and approaches the bound only for large d. Second, the comparison assumes simple hypotheses; for composite hypotheses a naive SPRT constructed at a guessed alternative can lose badly to a Neyman-Pearson fixed-sample test at a different alternative. So 'use SPRT, halve the cost' is the wrong lesson; 'use SPRT, save a third, and only if you can name the alternative' is the right one. dsh-loom application: the loop cannot honestly claim the 50% saving because its effects are small (Delta/sigma around 3-8, not the large-d limit) and it cannot name a single alternative in advance. Test in our ledger: estimate the achievable saving by fitting the observed Delta/sigma from a set of campaigns and reading the ratio off the simulation curve (0.64 at d=0.175 through 0.70 at d=0.5) rather than assuming 0.5.",
+  "Bechhofer 1960, JASA 55:660-663, as quoted at seminars.math.binghamton.edu/sttseminar/130404.pdf; ratio check from own simulation",
+  0.8, ["sprt", "relative-efficiency", "caveat"])
+
+n("c-hyperband", "claim",
+  "Hyperband reports an order-of-magnitude speedup on hyperparameter search, but no significant speedup when a rung costs seconds",
+  "Li, Jamieson, DeSalvo, Rostamizadeh and Talwalkar ('Hyperband', JMLR 18 (2018) 1-52, arXiv:1603.06560) treat hyperparameter optimisation as pure-exploration non-stochastic infinite-armed bandit and allocate a predefined resource across randomly sampled configurations, with smax = floor(log_eta R) brackets for a fixed budget B. The abstract claims 'over an order-of-magnitude speedup over our competitor set on a variety of deep-learning and kernel-based learning problems'; the introduction separately claims 5x over popular Bayesian optimisation methods and being within 30x factors of known lower bounds in stochastic settings (the 30x is a factor against a bound, not a measured speedup - do not conflate them). Crucially the paper reports overhead: on 117 downsampling datasets Hyperband gave no significant speedup when training took seconds, because the per-bracket initialisation cost dominated the resource actually being allocated. That is the transferable warning for dsh-loom, where a 'rung' is a full plan-attempt-verify cycle at median 8 minutes and $0.0005, and the fixed overheads (planning, worktree setup, verifier cache) are a large share of it. Test in our ledger: measure the real overhead share first - for 10 stored rounds, decompose the round duration into planning, worktree setup, attempt and verify time from the ledger's timings; if the fixed costs dominate as they did in the 117-dataset experiment, successive halving cannot pay here either and that ends the question cheaply.",
+  "arXiv:1603.06560 / JMLR 18 (2018) 1-52, abstract + section 1 + the 117-dataset overhead experiment",
+  0.85, ["hyperband", "successive-halving", "speedup", "overhead"])
+
+n("c-sh-nonstochastic", "claim",
+  "Successive halving on iterative learners reached comparable accuracy an order of magnitude faster, in the non-stochastic setting",
+  "Jamieson and Talwalkar ('Non-stochastic Best Arm Identification and Hyperparameter Optimization', AISTATS 2015, arXiv:1502.07943) introduce the non-stochastic best-arm identification problem, note that an existing algorithm is well suited to it, and cast hyperparameter optimisation as an instance by exploiting the iterative nature of the learners: a configuration's intermediate validation accuracy at epoch r is treated as a resource-limited observation rather than as a noisy draw, so the guarantee is about ordering at the budget you actually pay for, not about a population mean. Empirically they report 'comparable test accuracies an order of magnitude faster than baseline methods'. This is the closest published analogue to a loop that measures a candidate by running it: it justifies early elimination on intermediate results, but its guarantee is deterministic-with-respect-to-the-curve, so it says nothing about a candidate whose measured score is noisy at fixed budget - which is dsh-loom's situation. Test in our ledger: the non-stochastic guarantee needs a monotone resource curve (more budget, better score), so check whether promoted artifacts re-scored at higher verifier budget actually improve; if the curve is flat or noisy for dsh-loom attempts, the method's premise fails and no rung schedule will help.",
+  "arXiv:1502.07943 (Jamieson & Talwalkar, AISTATS 2015), abstract",
+  0.8, ["successive-halving", "best-arm", "non-stochastic", "analogue"])
+
+n("c-frace", "claim",
+  "F-Race discards a candidate the moment a statistical test says it cannot win, buying evaluation savings at the cost of small-sample tests",
+  "Birattari, Stutzle, Paquete and Varrentrapp ('A Racing Algorithm for Configuring Metaheuristics', GECCO 2002) introduced F-Race: candidates are evaluated on a stream of problem instances and eliminated as soon as the accumulated evidence is statistically sufficient that a candidate is worse than the incumbent best, using Friedman's test across instances plus pairwise tests (the 2002 paper defends the statistics at length, including against the objection that the small samples involved make the central limit theorem unusable). Balaprakash, Birattari and Stutzle (Hybrid Metaheuristics 2007) add iterated F-Race, which samples new candidates around the best and 'allows a significant reduction of the number of function evaluations without any major loss in solution quality'. The mechanism that maps to dsh-loom is the per-candidate sequential test: instead of a fixed number of instances per candidate, the number spent on a candidate is a function of how clearly it is losing - which is exactly the adaptive budget the ledger lacks. Note the paper's own caveat: the tests run on very small samples, so the nominal level is approximate. Test in our ledger: F-Race needs multiple instances per candidate to run its per-instance test, so check board.jsonl for whether a candidate's per-task outcomes exist or only a pooled score; if only pooled scores are stored, racing is unimplementable without first changing what the verifier records.",
+  "Birattari et al., GECCO 2002 (dl.acm.org/doi/abs/10.5555/2955491.2955494); Balaprakash, Birattari & Stutzle 2007; discussion in Fawcett & Hoos racing-ablation work",
+  0.8, ["racing", "f-race", "elimination", "adaptive-budget"])
+
+n("c-survivor-bias", "claim",
+  "Successive halving selects on the noise realisation: survivors' errors are biased upward by E[eps|survived]=0.0056 at sigma=0.02, eta=3",
+  "A controlled study of learning-curve surrogates ('Survivor Bias in Learning-Curve Surrogates: Successive Halving Selects on Noise', zenodo.org/records/21210485) shows that successive halving's survival event is a selection on the noise draw, not only on quality: in their parameterised family, the expected error of a survivor is biased upward by E[eps | survived] = 0.0056 at sigma=0.02 with elimination rate eta=3, and the fitted latent parameters of survivors are noise-inflated in the direction of the selection. The structure is the classic Tobit/Heckman selection one - a truncated error distribution - so it produces regression to the mean when the survivor is re-measured: the promoted candidate's next measurement is systematically lower than the one that promoted it. This is the single most important caveat for applying successive halving or Hyperband to dsh-loom candidates, because dsh-loom's promotion decision is exactly a survival event, and its reused fixed holdout will not reveal the regression because the same suite produced the inflated score. Test in our ledger: re-score the 114 promoted artifacts on the same suite a second time and compare to the promoting score; a mean drop in the direction and rough size of the selection bias (E[eps|survived] ~ 0.0056 at sigma=0.02, eta=3 in the controlled study) is the direct measurement, and it needs only stored patches and a re-run, no campaign changes.",
+  "zenodo.org/records/21210485 (Survivor Bias in Learning-Curve Surrogates); selection-bias structure per Efron, PMC3325056",
+  0.75, ["successive-halving", "selection-bias", "winner's-curse", "caveat"])
+
+n("c-dietterich", "claim",
+  "Two widely used comparison tests 'should never be used' because their Type I error is far above nominal",
+  "Dietterich (1998, 'Approximate Statistical Tests for Comparing Supervised Classification Learning Algorithms', Neural Computation 10(7):1895-1923, doi 10.1162/089976698300017197) reviews five approximate tests for 'is algorithm A better than B on this task' and compares their actual probability of false detection when no difference exists. Two are found to have high Type I error 'in certain situations and should never be used': the test for the difference of two proportions, and the paired-differences t test based on several random train-test splits. A third, the paired t test on 10-fold cross-validation, is also inflated; the recommended alternative is the 5x2cv paired t. The lesson transfers directly to a loop whose gate compares a candidate's pass rate to an incumbent's: the difference-of-two-proportions test is the naive gate, and its over-rejection comes from the same place as the peeking inflation - reusing the same test instances for both arms and treating them as independent evidence. dsh-loom application: the current gate compares a candidate's pass rate against an incumbent's, which is the difference-of-two-proportions shape Dietterich says should never be used; switching to a paired comparison on the same tasks is free and removes one inflation source. Test in our ledger: recompute a sample of gate decisions using a paired test (each task contributes a matched 0/1 pair) and compare the verdict count to the unpaired one; the difference is the size of the bias available to remove.",
+  "Dietterich 1998, Neural Computation 10(7):1895-1923, doi 10.1162/089976698300017197 (abstract via PubMed 9744903)",
+  0.85, ["comparison-test", "type-i", "cross-validation", "gate-design"])
+
+# ---------------- concepts ----------------
+n("x-optional-stopping", "concept",
+  "A stopping rule is part of the inference: the number of looks is a random variable, so an unadjusted fixed-n threshold stops meaning what it says",
+  "Optional stopping is the mechanism behind every number in this file. If the decision to stop depends on the data seen so far, then the event 'declared significant' is a union over the looks, P(union) <= sum of per-look alphas, and the realised error is the sum unless the looks are made dependent in a controlled way (alpha spending, group-sequential boundaries) or the evidence measure is made a martingale (e-values, confidence sequences). Three ways to make the union cheap: pre-commit to K looks and use a boundary calibrated for K (two-sided OBF final 1.98 at K=2 and 2.04 at K=5 against 1.96 for a single look, with stated inflation 1.01-1.03); pre-commit to a spending function and let look timing float (Lan-DeMets, inflation 1.05-1.17 depending on shape); or use an e-process whose threshold is log(1/alpha)=3.00 and is valid at every stopping time without pre-commitment. The cost ordering matters: at Delta/sigma >= 4 a single look dominates all of them (n/arm < 1), so the entire apparatus is only worth its complexity at Delta/sigma <= ~3. dsh-loom application: it tells the loop which of the three fixes is cheapest at its scale - with Delta/sigma >= 8 a single look, so the honest design is one pre-registered evaluation rather than a monitored campaign. Test in our ledger: for each campaign, record the information fraction at which the deciding promotion happened and check whether any of them needed more than one look under a pre-registered design; the ones that did are the cases where sequential machinery would have paid.",
+  "synthesis of arXiv:1512.04922, arXiv:1810.08240, arXiv:1906.07801, arXiv:2210.01948, Lan & DeMets 1983, Armitage et al. 1969",
+  0.85, ["optional-stopping", "mechanism", "union-bound", "synthesis"])
+
+n("x-evalue-ville", "concept",
+  "An e-process is a nonnegative martingale starting at 1, so Ville's inequality caps its running maximum at 1/alpha - no pre-specified look count",
+  "The e-value construction is the cleanest fit to a loop that decides round by round. A test martingale (e-process) is a nonnegative process E_t with E_0=1 and E[E_t | past] <= 1; multiplying per-batch e-values keeps that property, and Ville's inequality gives P(there exists t with E_t >= 1/alpha) <= alpha. Three consequences for a stopping rule: (i) the threshold is a constant log(1/alpha) = log 20 = 2.996 at alpha=0.05, so no boundary table is needed; (ii) the rule 'stop when the running log e-value crosses 3.00' is valid even if a human or an autopilot chooses to look after every round, which is what dsh-loom does; (iii) the price is paid in the drift per observation, not in the threshold - for a normal mean with effect d the log e-value for N(d,1) against N(0,1) grows at d^2/2 per observation under the truth, i.e. 0.0153 per observation at d=0.175, so crossing 3.00 takes about 196 observations (262 if the alternative is d/2 instead of d). Note how close that is to the SPRT threshold log((1-beta)/alpha)=log(18)=2.89: the e-value is essentially the SPRT re-derived as a martingale, so the ~30-36% saving over a fixed budget carries over. Test in our ledger: the 196-observation drift figure is the cheapest falsification - count the effective observations per campaign (attempts, not rounds) and check whether any campaign ever had enough to cross 3.00 at its own effect size; most have 2-4, which is why an e-process would never fire and why the loop currently ends on the cap instead.",
+  "arXiv:2210.01948 (game-theoretic statistics), arXiv:1906.07801 (safe testing); drift computation own",
+  0.8, ["e-values", "ville", "martingale", "mechanism"])
+
+edges = [
+ ("n-one-run-suffices", "derived-from", "w2-decide-mde-formula-agent-sigma",
+  "Same planning formula with the case's Delta=0.175 and sigma=0.01-0.10 substituted; the repo node supplies the formula and the agent-score sigma range."),
+ ("n-one-run-suffices", "applies-to", "p-dsh-loom-stop-surface",
+  "Says the correct number of looks for this case is one, which is the opposite of what the current multi-round loop does."),
+ ("n-sigma-hat-inflation", "refines", "w2-decide-mde-formula-agent-sigma",
+  "Adds the sigma_hat uncertainty the existing node flags but does not quantify: 2.41x upper bound at k=5, 5.03x at k=3."),
+ ("n-sigma-hat-inflation", "requires", "p-dsh-loom-stop-surface",
+  "Any sigma estimate here must come from repeated identical evaluations, and the ledger has none, so the requirement is on the loop's instrumentation."),
+ ("a-cheapest-rule", "derived-from", "n-one-run-suffices",
+  "The single-pair arm of the rule is a direct consequence: at Delta/sigma>=8.8 one comparison is decisive."),
+ ("a-cheapest-rule", "derived-from", "n-sigma-hat-inflation",
+  "The 5-repeat sigma check and the escalate-only-below-Delta/sigma-3 clause come from the chi-square bound."),
+ ("a-cheapest-rule", "requires", "n-gs-calibration",
+  "Step 3's boundary values (two-sided OBF final 1.98 at K=2, 2.04 at K=5; one-sided 1.68/1.75) are the calibrated numbers."),
+ ("f-ledger-holdout-reuse", "fails-at", "a-cheapest-rule",
+  "Even a clean single comparison on a suite already used for 114 promotions is an adaptive analysis; the rule's validity is contingent on fresh tasks."),
+ ("f-ledger-gate-binary", "fails-at", "n-ledger-mde",
+  "The binary gate is why the ledger's measurable effect is 0.0588 against sd 0.2353-0.5, which is why 252-1,136 attempts per arm are needed."),
+ ("f-ledger-gate-binary", "applies-to", "p-dsh-loom-stop-surface",
+  "Structural blocker: no repeated measurement of one configuration exists anywhere in the 452 attempts."),
+ ("n-peeking-cumulative", "supports", "c-armitage-1969",
+  "Independent simulation reproduces 0.1422 at 5 looks and 0.1943 at 10 looks against the 1969 values 0.14 and 0.19."),
+ ("n-peeking-cumulative", "supports", "c-miller-ab",
+  "Same mechanism, different cap: 0.2484 at 20 looks is the same inflation curve Miller measures to 26.1% at continuous monitoring."),
+ ("n-peeking-cumulative", "supports", "w2-decide-peeking-inflates-fpr",
+  "Supplies the per-look-count table the repo node asserts qualitatively (P(B>A)>0.95 identical to unadjusted repeated testing)."),
+ ("c-armitage-1969", "supports", "x-optional-stopping",
+  "The 1969 computation is the original demonstration that the look count, not the test, sets the error rate."),
+ ("c-miller-ab", "supports", "x-optional-stopping",
+  "The 26.1%-versus-5% gap is the extreme (continuous) end of the same mechanism."),
+ ("x-optional-stopping", "requires", "c-lan-demets",
+  "Alpha spending is the cheapest way to make optional stopping legal when the look schedule is not fixed."),
+ ("c-safe-testing-evalues", "refines", "c-lan-demets",
+  "Extends legality from 'spending function fixed in advance' to 'any stopping time chosen on the data', at the cost of a different evidence measure."),
+ ("c-safe-testing-evalues", "requires", "x-evalue-ville",
+  "The optional-continuation guarantee is Ville's inequality applied to the e-process."),
+ ("c-confidence-sequence", "supports", "x-evalue-ville",
+  "Confidence sequences are the interval-valued form of the same martingale bound, with the sqrt(log log t) width penalty."),
+ ("x-evalue-ville", "applies-to", "p-dsh-loom-stop-surface",
+  "Threshold 3.00 in log units and no boundary table: the cheapest way for a round-by-round loop to keep its alpha, if it can afford the drift."),
+ ("c-always-valid-johari", "supports", "c-confidence-sequence",
+  "Commercial deployment over hundreds of thousands of experiments is the field evidence that continuous monitoring at scale is tractable."),
+ ("c-always-valid-johari", "applies-to", "p-dsh-loom-stop-surface",
+  "The exact institutional problem: the stopping time is chosen by an interested party (human or autopilot) after seeing interim results."),
+ ("c-sprt-bechhofer", "supports", "n-sprt-savings",
+  "Supplies the relative-efficiency formula whose small-effect limit the simulation measures as 0.64-0.70, not 0.50."),
+ ("n-sprt-savings", "contradicts", "c-sprt-bechhofer",
+  "Tension worth recording: the 50% folklore is true only in the large-effect limit, and the loop's regime is the opposite end."),
+ ("c-sh-nonstochastic", "supports", "c-hyperband",
+  "Hyperband is successive halving plus bracket scheduling over this non-stochastic best-arm formulation."),
+ ("c-hyperband", "supports", "c-sh-nonstochastic",
+  "The order-of-magnitude speedup is the empirical payoff for the resource-allocation view."),
+ ("c-survivor-bias", "contradicts", "c-hyperband",
+  "The order-of-magnitude claim does not account for the winner's-curse bias in the promoted configuration's re-measured score."),
+ ("c-survivor-bias", "contradicts", "c-sh-nonstochastic",
+  "Under measurement noise the non-stochastic guarantee does not apply, and survival becomes a selection on the noise draw."),
+ ("c-survivor-bias", "applies-to", "p-dsh-loom-stop-surface",
+  "dsh-loom's promotion is literally a survival event, and its reused fixed suite cannot reveal the regression to the mean."),
+ ("c-frace", "refines", "c-sh-nonstochastic",
+  "Racing makes the per-candidate budget adaptive through a statistical elimination test rather than a fixed rung schedule."),
+ ("c-dietterich", "applies-to", "f-ledger-gate-binary",
+  "The naive gate is exactly the difference-of-two-proportions family Dietterich says should never be used; swapping it for a paired design is free."),
+ ("n-gs-calibration", "supports", "c-lan-demets",
+  "Independently reproduces the boundary values: two-sided OBF K=5 final 2.04 / first look 4.56 and Pocock K=2 2.179 match the published tables to three digits."),
+ ("n-gs-calibration", "derived-from", "c-armitage-1969",
+  "The boundary exists to price the inflation the 1969 paper measured."),
+ ("n-ledger-mde", "derived-from", "w2-decide-mde-formula-agent-sigma",
+  "Same formula, plugged with the ledger's own deltas and sds instead of literature sigmas."),
+ ("n-fwer-per-campaign", "applies-to", "p-dsh-loom-stop-surface",
+  "Quantifies the per-campaign multiplicity cost at the ledger's actual round counts (median 2, max 18)."),
+ ("a-stop-at-first-promotion", "supports", "f-fixed-budget-tail",
+  "The 133-of-231-rounds counterfactual and the 30 post-promotion rounds are the same measurement from two directions."),
+ ("f-fixed-budget-tail", "applies-to", "p-dsh-loom-stop-surface",
+  "Concrete waste: 13% of rounds after the last promotion, 16% of campaigns with no promotion at all."),
+ ("f-ledger-holdout-reuse", "applies-to", "w2-decide-adaptive-reuse",
+  "Instantiates the repo node's warning with a measurement: pool size 1 in all 50 holdout selections."),
+ ("ver-009", "contradicts", "n-one-run-suffices",
+  "If infra noise is really ~3-6 pp rather than 1-2 points, one run per arm is no longer enough (2/arm at sigma=0.06, 6 at 0.10) and the whole one-shot recommendation collapses."),
+ ("w3-cheapwin-noise-floor", "contradicts", "n-one-run-suffices",
+  "Measured agent pass@1 sd above 1.5 pp on a single run would put the case's assumed sigma at the edge where the one-look argument still holds only barely."),
+ ("w2-decide-nonstationarity-window", "applies-to", "a-stop-at-first-promotion",
+  "A stopping rule that assumes a fixed incumbent ignores drift; re-measuring an old incumbent after N rounds answers a different question."),
+ ("a-cheapest-rule", "applies-to", "p-dsh-loom-stop-surface",
+  "Costed at the ledger's own rates: about 7 evaluations, under an hour and under a cent, versus the median 2-round campaign that decides the same question with no sigma."),
+]
+
+gaps = [
+ "What is the actual round-to-round sigma of ONE frozen dsh-loom configuration? The ledger contains no repeated evaluation of a single configuration (all 452 attempt.finished scores are {0,1} on different candidates), so the case's '1-2 points' premise is untested here. Test: run N>=10 identical attempts at one commit against the same suite, no edits, and report the sd of the gate score and of any continuous proxy.",
+ "Is the gate's discrimination limited by binary scoring or by the verifier itself? A pass/fail suite of S tasks has granularity 1/S, so a 1.75-point sd is impossible for S<57; nobody has measured what fraction of the round-to-round spread is task-set granularity versus genuine flakiness.",
+ "Does an always-valid rule (e-process, threshold log 20) actually cost fewer rounds than the current cap in a live campaign? No campaign in the ledger has ever run under two different stopping rules, so there is no paired comparison; the only numbers available are my counterfactual (133 vs 231 rounds) and the SPRT simulation (0.64-0.70), neither of which is a live A/B.",
+ "What does a 2-candidate race buy? candidatesPlanned is 2 in 147 of 231 rounds, so successive halving with eta=2 can eliminate at most one candidate per rung; a 2-arm race against running both to completion has never been measured here.",
+ "How many candidates were compared before each of the 114 promotions? The ledger records the winning score and the gate verdict but not the losing candidates' scores, so the selection multiplicity behind each promotion cannot be reconstructed - which is exactly the quantity a selection-optimism correction needs.",
+ "Are the 63 abandoned attempts (12% of 452) censored non-randomly? If deadlines preferentially kill slow-but-good attempts, the surviving score distribution is biased, not merely noisier; no campaign records the abandoned attempt's partial score.",
+ "Is there any published measurement of a fixed round budget versus an adaptive stopping rule in an AGENT loop (not hyperparameter search)? Hyperband's order-of-magnitude is measured on cheap rungs with seconds-long training, and Jamieson-Talwalkar's is non-stochastic; I found no primary study on a loop whose unit of measurement is an LLM agent attempt costing minutes and cents.",
+]
+
+out = {"nodes": N, "edges": [{"from": a, "rel": r, "to": b, "note": note} for a, r, b, note in edges],
+       "gaps": gaps}
+
+# ---- inline validation against the repo's own rules ----
+KINDS = {'claim','concept','project','source','question','failure','number','analysis'}
+RELS = {'supports','contradicts','refines','requires','supersedes','applies-to','derived-from','measures','fails-at','same-as'}
+import sqlite3
+db = sqlite3.connect('research/kg/store.sqlite')
+live = {r[0] for r in db.execute("select id from node where status='live'")}
+ids = [x['id'] for x in N]
+problems = []
+if len(ids) > 30: problems.append(f"too many nodes {len(ids)}")
+for i in set(ids):
+    if ids.count(i) > 1: problems.append(f"dup {i}")
+for x in N:
+    for k in ('id','kind','title','body','source','confidence','topic','tags'):
+        if not x.get(k): problems.append(f"missing {k} {x['id']}")
+    if x['kind'] not in KINDS: problems.append(f"kind {x['id']}")
+    if len(x['body']) < 200: problems.append(f"short body {len(x['body'])} {x['id']}")
+    if len(x['title']) < 12: problems.append(f"short title {x['id']}")
+    if not (0 <= x['confidence'] <= 1): problems.append(f"conf {x['id']}")
+    if not isinstance(x['tags'], list) or not x['tags']: problems.append(f"tags {x['id']}")
+known = set(ids) | live
+for e in out['edges']:
+    if e['rel'] not in RELS: problems.append(f"rel {e['rel']}")
+    if e['from'] == e['to']: problems.append(f"self {e['from']}")
+    for s in ('from','to'):
+        if e[s] not in known: problems.append(f"dangling {e[s]}")
+deg = {i: 0 for i in ids}
+for e in out['edges']:
+    for s in ('from','to'):
+        if e[s] in deg: deg[e[s]] += 1
+print("nodes", len(ids), "edges", len(out['edges']), "gaps", len(gaps))
+print("external endpoints:", sorted({e[s] for e in out['edges'] for s in ('from','to')} - set(ids)))
+print("body len min/median/max:", min(len(x['body']) for x in N), sorted(len(x['body']) for x in N)[len(N)//2], max(len(x['body']) for x in N))
+print("isolated nodes:", [i for i, d in deg.items() if d == 0])
+print("PROBLEMS", len(problems))
+for p in problems: print("  -", p)
+if problems: raise SystemExit(1)
+
+p = 'research/wave6/w6-stopping.json'
+json.dump(out, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+print("wrote", p, os.path.getsize(p), "bytes")

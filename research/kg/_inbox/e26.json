@@ -1,0 +1,61 @@
+{
+ "nodes": [
+  {
+   "id": "exp-transfer-001",
+   "kind": "failure",
+   "title": "Zero lessons have ever crossed a campaign boundary: 100 lessons live in 53 campaigns and none is visible to another",
+   "body": "Counted lesson.added and lesson.impact events across all 69 campaigns (research/exp/e26.mjs) and then the campaign state files that back them: 100 lessons exist, held in 53 campaigns' views/state.json (loom-self3 7, loom-self2 5, the rest 1-3 each). 25 of the 100 were ever shown to a worker, 0 of those 25 was shown in a campaign other than the one that earned it, 75 were never shown at all, 13 are quarantined. The mechanism is structural, not statistical: src/runtime/round.js:1249 calls selectLessons(state.lessons, ...) and state is the campaign's own state, while deriveLesson sets family = task.family and no global lesson store is read. So 'self-improvement' here means within-campaign improvement only; each campaign re-learns the same facts, and the 66-campaign history is an archive of lessons nobody can use. Every cross-campaign transfer number quoted in the literature is therefore inapplicable to this implementation - ours is exactly zero by construction.",
+   "source": "research/exp/e26.mjs + src/runtime/round.js:1249 + %USERPROFILE%/.dsh/loom/campaigns/*/views/state.json",
+   "confidence": 0.98,
+   "topic": "rsi",
+   "tags": [
+    "measurement",
+    "transfer",
+    "architecture"
+   ]
+  },
+  {
+   "id": "exp-transfer-002",
+   "kind": "analysis",
+   "title": "The knowledge tree the panel shows is one campaign's shelf, so its 87 claims are reviews of 66 separate memories",
+   "body": "Follows directly from exp-transfer-001: the panel aggregates lessonsAll across all campaigns for display, but the loop itself never aggregates them for use. So the panel's '87 live claims, 29 files' is a union of 53 disjoint knowledge bases that each campaign built and abandoned at stop time. That reframes the panel's purpose: it is not a window onto the loop's memory, it is a window onto a pile of discarded memories, and its main value is diagnostic - it shows a human what each campaign had learned before it ended, which is exactly the material a cross-campaign memory would need. The cheapest useful feature is therefore not better display but promoting the union into a shared store with provenance, so campaign N+1 starts with campaign N's facts.",
+   "source": "research/exp/e26.mjs",
+   "confidence": 0.95,
+   "topic": "rsi",
+   "tags": [
+    "analysis",
+    "transfer",
+    "panel"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-transfer-001",
+   "rel": "contradicts",
+   "to": "ana-007",
+   "note": "ana-007 assumed a shared corpus the L2 could grep; there is no shared corpus"
+  },
+  {
+   "from": "exp-transfer-001",
+   "rel": "supports",
+   "to": "w3-cheapwin-context-files-null",
+   "note": "context injection had no measurable effect partly because there was so little cross-task context to inject"
+  },
+  {
+   "from": "exp-transfer-002",
+   "rel": "refines",
+   "to": "exp-transfer-001"
+  },
+  {
+   "from": "exp-transfer-002",
+   "rel": "applies-to",
+   "to": "ana-005"
+  },
+  {
+   "from": "exp-transfer-001",
+   "rel": "requires",
+   "to": "exp-human-004"
+  }
+ ]
+}

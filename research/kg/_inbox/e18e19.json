@@ -1,0 +1,128 @@
+{
+ "nodes": [
+  {
+   "id": "exp-meter-002",
+   "kind": "number",
+   "title": "Independent re-measurement: recorded spend is 198x below billed, and the error has no opposite tail",
+   "body": "Re-ran the metering join from scratch (research/exp/e18.mjs), without reusing the wave4 script: 431 loom sessions joined by sessionId to their own archived transcript. Recorded costUsd totals $0.108; the provider usage blocks in those same sessions price to $21.3868 at loom's DEFAULT_PRICING (input 0.28, output 0.42, cacheRead 0.028 per Mtok). Ratio 198x. Of 431 attempts, 277 recorded a positive figure and 154 recorded exactly $0.00 while carrying real spend; 333 of 431 understate by more than half; 0 of 431 overstate. Median per-attempt ratio among attempts that recorded anything positive is 108x. True per-attempt cost: median $0.0334, mean $0.0496, p90 $0.1189, max $0.3613. Two independent scripts landing on 246x and 198x is agreement on the direction and rough size, not on the constant: the denominator moves with how many zero-dollar attempts are included, and the price table itself is known-wrong (see w4-metering-price-table-inverted), so the ratio is token error times price error and should not be quoted as a single number.",
+   "source": "research/exp/e18.mjs (431 sessions, this machine)",
+   "confidence": 0.95,
+   "topic": "metering",
+   "tags": [
+    "measurement",
+    "cost",
+    "replication"
+   ]
+  },
+  {
+   "id": "exp-meter-003",
+   "kind": "failure",
+   "title": "cacheWriteTokens is present in 34,490 usage blocks and prices to zero because the table has no leg for it",
+   "body": "Scanned all 922 archived transcripts: 34,490 assistant/message usage blocks, 147,234,828 uncached input + 24,727,375 output + 3,816,828,940 cache-read tokens; cache-read is 96.3% of input+cache-read. The usage blocks carry four keys (inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens), and in this sample cacheWriteTokens summed to exactly 0, so the missing price leg costs nothing today — but the key exists and DEFAULT_PRICING has no cacheWritePerMTok, so the day a provider bills cache writes the meter will silently price them at zero rather than fail. That is the same failure shape as the rest of the meter: absent configuration reads as free, never as unknown.",
+   "source": "research/exp/e17.mjs (922 transcripts)",
+   "confidence": 0.9,
+   "topic": "metering",
+   "tags": [
+    "measurement",
+    "cost",
+    "silent-zero"
+   ]
+  },
+  {
+   "id": "exp-slot-002",
+   "kind": "number",
+   "title": "Slot 1 and slot 2 cost the same and slot 1 converts 5x better, so per-promotion cost is set by the tie-break",
+   "body": "Per-slot attempt economics across 69 campaigns (research/exp/e19.mjs, real per-session cost from transcripts): slot a1 ran 227 attempts, 115 verified, 61 errored, 95 promoted, $11.10 spent ⇒ $0.117 per promotion. Slot a2 ran 225 attempts, 104 verified, 65 errored, 19 promoted, $10.29 spent ⇒ $0.541 per promotion. The two slots are indistinguishable on quality (verified 50.7% vs 46.2%, error 26.9% vs 28.9%) and on cost (within 7%), but differ 4.6x in conversion because rankAttempts breaks ties by id and rNa1 sorts before rNa2. Consequence: every aggregate cost-per-promotion figure we have published, including w4-metering-cost-per-accepted-change ($0.2071), is an average of a 0.117 and a 0.541 stream, i.e. it describes the tie-break and not the work.",
+   "source": "research/exp/e19.mjs",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "cost",
+    "tie-break"
+   ]
+  },
+  {
+   "id": "exp-slot-003",
+   "kind": "failure",
+   "title": "The lesson effect is the slot effect: treated-slot 1 lessons average +0.333, treated-slot 2 lessons average -0.063",
+   "body": "Split the 60 paired lesson.impact deltas by which arm was treated (research/exp/e19.mjs): when the treated arm was a1, n=12, mean delta +0.333, 4 positive, 0 negative, 8 zero. When the treated arm was a2, n=48, mean delta -0.063, 0 positive, 3 negative, 45 zero. Since a2 cannot win a tie (see exp-slot-001 and exp-slot-002), a treated-a2 round can only show a positive delta when the lesson made a2 pass where a1 failed — which almost never happens — while a treated-a1 round shows a positive delta whenever a1 passes and a2 does not, which is the base rate. So the pool mean of +0.0167 is a mixture of a +0.333 arm and a -0.063 arm in a 1:4 ratio, and both arms are measuring the tie-break. Any conclusion of the form 'lessons help a little' or 'lessons do nothing' is unsupported until exposure is randomised independently of slot.",
+   "source": "research/exp/e19.mjs (60 paired impacts)",
+   "confidence": 0.95,
+   "topic": "ctx",
+   "tags": [
+    "measurement",
+    "confound",
+    "lessons"
+   ]
+  },
+  {
+   "id": "exp-yield-001",
+   "kind": "number",
+   "title": "13 rounds had a passing patch and promoted nothing, so the gate discards about one in nine working rounds",
+   "body": "Counted rounds in which at least one arm verified and produced a non-empty diff but no candidate was promoted (research/exp/e19.mjs): 13 rounds across 69 campaigns, against 114 promotions. These are the rounds that produced working code the loop threw away, and they are distinct from no-gain rounds where nothing passed. Combined with 154 zero-dollar-but-real attempts and 5 never-landed promotions (exp-human-002), the picture is that the loop's loss is not concentrated in bad attempts, it is concentrated in good attempts that the bookkeeping declines to keep.",
+   "source": "research/exp/e19.mjs",
+   "confidence": 0.9,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "waste",
+    "gate"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "rel": "supports",
+   "note": "independent script, same direction, different constant",
+   "from": "exp-meter-002",
+   "to": "w4-metering-246x-undercount"
+  },
+  {
+   "rel": "refines",
+   "from": "exp-meter-002",
+   "to": "w4-metering-zero-dollar-attempts"
+  },
+  {
+   "rel": "supports",
+   "from": "exp-meter-003",
+   "to": "w4-metering-cache-write-unpriced"
+  },
+  {
+   "rel": "supports",
+   "from": "exp-slot-002",
+   "to": "exp-slot-001"
+  },
+  {
+   "rel": "refines",
+   "from": "exp-slot-002",
+   "to": "w4-metering-cost-per-accepted-change"
+  },
+  {
+   "rel": "contradicts",
+   "note": "the pool mean is a mixture of two slot-biased arms",
+   "from": "exp-slot-003",
+   "to": "exp-lesson-001"
+  },
+  {
+   "rel": "requires",
+   "from": "exp-slot-003",
+   "to": "exp-slot-001"
+  },
+  {
+   "rel": "supports",
+   "from": "exp-yield-001",
+   "to": "exp-human-002"
+  },
+  {
+   "rel": "applies-to",
+   "from": "exp-slot-002",
+   "to": "ana-008"
+  },
+  {
+   "rel": "applies-to",
+   "from": "exp-meter-002",
+   "to": "ana-008"
+  }
+ ]
+}

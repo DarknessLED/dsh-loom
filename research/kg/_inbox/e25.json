@@ -1,0 +1,62 @@
+{
+ "nodes": [
+  {
+   "id": "exp-human-003",
+   "kind": "number",
+   "title": "A promotion is 32 lines over 1 file at the median: 61% fit one sitting, none needed chunking, zero carried lockfile noise",
+   "body": "Measured all 114 promotions (research/exp/e25.mjs): median diff 32 changed lines (p25 1, p75 71, p90 122, max 264) over a median of 1 file (p90 3, max 7). 70 of 114 (61.4%) are under 50 lines; 0 exceed 300; 0 contained lockfile or vendored noise. So the human review burden per promotion is small and uniform - this is the one part of the pipeline already fit for a one-minute decision, and it means the binding constraint on human attention is not diff size but (a) how many checkpoints arrive at once and (b) whether the card says what to look at. It also removes 'the diffs are too big to review' as a defence for not gating: the diffs are not big.",
+   "source": "research/exp/e25.mjs (114 promotions)",
+   "confidence": 0.95,
+   "topic": "human-minutes",
+   "tags": [
+    "measurement",
+    "review",
+    "diff-size"
+   ]
+  },
+  {
+   "id": "exp-human-004",
+   "kind": "number",
+   "title": "Self-reported file lists are accurate when present (73/84 exact) but absent for a third of promotions",
+   "body": "Cross-checked every promotion's report.changed against its actual diff.filesChanged (research/exp/e25.mjs): 73 exact-count matches, 11 mismatches, 30 with no report at all. So the self-report is not the liar the literature warns about - when a worker writes a file list it is right 87% of the time - but it is missing one time in four, which is why the claim field had to become required rather than optional. The 11 mismatches are the ones worth inspecting: a mismatch is a cheap mechanical signal that the worker's model of its own edit is wrong, and it costs nothing to compute because both sides are already in the ledger.",
+   "source": "research/exp/e25.mjs",
+   "confidence": 0.9,
+   "topic": "human-minutes",
+   "tags": [
+    "measurement",
+    "self-report",
+    "verification"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-human-003",
+   "rel": "supports",
+   "to": "exp-human-001",
+   "note": "small diffs plus 0.44 decisions per promotion means attention is cheap already"
+  },
+  {
+   "from": "exp-human-003",
+   "rel": "refines",
+   "to": "w3-humanminutes-rubber-stamp-seconds"
+  },
+  {
+   "from": "exp-human-004",
+   "rel": "supports",
+   "to": "w4-graded-ledger-two-distinct-values",
+   "note": "both concern what the ledger fails to record"
+  },
+  {
+   "from": "exp-human-004",
+   "rel": "applies-to",
+   "to": "ana-007",
+   "note": "report-vs-diff mismatch is the cheapest mechanical check available"
+  },
+  {
+   "from": "exp-human-004",
+   "rel": "requires",
+   "to": "w4-selfedit-ledger-actor-is-not-provenance"
+  }
+ ]
+}

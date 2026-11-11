@@ -1,0 +1,66 @@
+{
+ "nodes": [
+  {
+   "id": "exp-graded-003",
+   "kind": "failure",
+   "title": "End to end, the graded path cannot promote anything: a metric task always exits 0, so baseFailed is false and the round is never earned",
+   "body": "I ran the graded route through the real runtime instead of calling scoreAttempt directly, on a live campaign (loom-graded, workspace C:/tmp/graded-live, one task whose verify prints QUALITY=0.500-1.000 and always exits 0, metrics.quality pattern QUALITY=(\\d+)). Three rounds, six attempts: every attempt that reached the metric recorded metrics {quality:1} and score 1, and every gate evaluation recorded verifierOk true, testsClean true, hasPatch true, beatsIncumbent true, baseFailed FALSE, holdout skipped, promoted false. All three rounds closed no-gain and the campaign ended 'converged, round budget exhausted' with base quality still 0.500. Root cause is one line in src/runtime/round.js:1977 - const earned = checks.baseFailed !== false - which is correct for a pass/fail verifier and fatal for a graded one: an always-exit-0 instrument means the base tree 'passes', so nothing a candidate does can ever be earned. The two features are mutually exclusive as written: exp-score-003 and exp-graded-001 proved the graded machinery works when called directly, and this proves it is unreachable through the gate. Fix direction: earned should be (baseFailed === true) OR (the metric improved over the base's metric), which needs one extra field in the base verdict: the base's own metric values, not just its exit code.",
+   "source": "live campaign loom-graded on C:/tmp/graded-live, 3 rounds / 6 attempts, 2026-11-12",
+   "confidence": 0.97,
+   "topic": "graded",
+   "tags": [
+    "measurement",
+    "graded-score",
+    "gate",
+    "blocking"
+   ]
+  },
+  {
+   "id": "exp-graded-004",
+   "kind": "analysis",
+   "title": "The reason graded scoring looks implemented but is invisible is that nothing ever asked the base for a number",
+   "body": "The graded path has a scoring function (scoreAttempt, 0.7*quality+0.3*pass), a metric parser (parseMetrics), a ledger field (attempt.metrics) and a prior-score comparison that handles continuous values (bestPriorScore). What it does not have is a baseline value: src/runtime/baseline.js caches {ok, exitCode} per (task, base, command) and nothing else, so the gate can ask 'did the base pass' but never 'what did the base score'. Every downstream decision that assumes a number - the minGain threshold, the candidate-count policy, the stopping rule, the holdout slack - is therefore being fed a boolean that the boolean-shaped check overwrites. This is why 168 registered tasks declare zero metrics and why exp-gate-001 found that sweeping minGain changes no decision: the graded path was built at the two ends (parser, scorer) and never at the middle (baseline), and the middle is what connects them. The smallest complete change is: base verdict returns metrics too, and earned accepts an improvement in the task's declared primary metric.",
+   "source": "src/runtime/baseline.js (cache shape) + live loom-graded run + exp-gate-001 + exp-score-003",
+   "confidence": 0.93,
+   "topic": "graded",
+   "tags": [
+    "analysis",
+    "graded-score",
+    "baseline"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-graded-003",
+   "rel": "contradicts",
+   "to": "exp-score-003",
+   "note": "the machinery scores correctly in isolation and is unreachable through round.js"
+  },
+  {
+   "from": "exp-graded-003",
+   "rel": "supports",
+   "to": "exp-gate-004"
+  },
+  {
+   "from": "exp-graded-003",
+   "rel": "fails-at",
+   "to": "exp-graded-001"
+  },
+  {
+   "from": "exp-graded-004",
+   "rel": "derived-from",
+   "to": "exp-graded-003"
+  },
+  {
+   "from": "exp-graded-004",
+   "rel": "supports",
+   "to": "exp-gate-001"
+  },
+  {
+   "from": "exp-graded-004",
+   "rel": "requires",
+   "to": "ana-004"
+  }
+ ]
+}

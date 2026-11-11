@@ -1,0 +1,81 @@
+{
+ "nodes": [
+  {
+   "id": "exp-cost-001",
+   "kind": "number",
+   "title": "43% of real spend goes to attempts that deliver nothing, and half of that is attempts that errored before verifying",
+   "body": "Per-attempt real cost from 431 joined transcripts (research/exp/e21.mjs): median $0.0334, p90 $0.1189, total $21.387. Verified attempts (n=219) median $0.0421, total $12.547. Verified but rejected by the gate (n=111) total $6.238. Errored attempts (n=105) total $3.448. Spend that produced no promotion: $9.686 of $21.387 = 45.3%. Median output is 8,167 tokens over 17 model calls (481 output tokens per call), and 96.4% of all input tokens are cache reads. The errored bucket's median cost is $0.0000 with p90 $0.1189: the failures are bimodal, half costing nothing because they died at startup and half costing a full attempt.",
+   "source": "research/exp/e21.mjs",
+   "confidence": 0.95,
+   "topic": "metering",
+   "tags": [
+    "measurement",
+    "cost",
+    "waste"
+   ]
+  },
+  {
+   "id": "exp-cost-002",
+   "kind": "number",
+   "title": "In two-arm rounds the losing attempt costs 45% of the round, and the winner is decided by luck not diversity",
+   "body": "Across 128 two-arm rounds where at least one arm verified (research/exp/e21.mjs): total $15.353, of which the non-winning arm spent $6.895 = 44.9%. So the loop pays almost as much to explore the second candidate as it pays to produce the one it keeps. Whether that is worth it is a separate question, answered by exp-cost-003: the second arm here is the same model with the same prompt, so what it buys is a retry.",
+   "source": "research/exp/e21.mjs",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "cost",
+    "parallel"
+   ]
+  },
+  {
+   "id": "exp-cost-003",
+   "kind": "number",
+   "title": "The second candidate buys 19 extra promotions for 93% more spend, i.e. $541 marginal vs $119 baseline",
+   "body": "225 rounds ran two arms (research/exp/e22.mjs). a1 won 93, a2 won 19, neither won 113. Of a2's 19 wins, 18 happened where a1 ran and failed and 1 where a1 errored; 0 happened where a1 passed (the tie-break forbids it, see exp-slot-001). Both arms passed in 83 rounds. Disagreements are symmetric: a1-only-pass 30, a2-only-pass 21, both fail 91. So the second arm is worth +19/93 = +20% promotions for +93% spend ($10.29 vs $11.10). Cost per promotion: one arm $0.119, two arms $0.188 (58% worse); marginal cost of the 19 extra promotions $541 each. Because both arms are the same model with the same prompt, the disagreement is sampling noise, not portfolio diversity - the loop is buying a coin-flip retry at list price, which only pays if rounds are scarcer than dollars.",
+   "source": "research/exp/e22.mjs",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "candidates",
+    "economics"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-cost-001",
+   "rel": "supports",
+   "to": "w4-metering-cost-per-accepted-change",
+   "note": "43-45% non-promoting spend, computed from transcripts rather than the meter"
+  },
+  {
+   "from": "exp-cost-001",
+   "rel": "refines",
+   "to": "w4-metering-cache-read-95pct"
+  },
+  {
+   "from": "exp-cost-002",
+   "rel": "supports",
+   "to": "exp-cost-001"
+  },
+  {
+   "from": "exp-cost-003",
+   "rel": "supports",
+   "to": "exp-slot-002"
+  },
+  {
+   "from": "exp-cost-003",
+   "rel": "contradicts",
+   "to": "ana-005",
+   "note": "delegation here buys noise-retry, not diversity; the case for it needs rounds-scarcer-than-dollars"
+  },
+  {
+   "from": "exp-cost-003",
+   "rel": "applies-to",
+   "to": "ana-009",
+   "note": "a live pass-rate rule could cut K when the first arm passes"
+  }
+ ]
+}

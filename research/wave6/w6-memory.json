@@ -1,0 +1,504 @@
+{
+  "nodes": [
+    {
+      "id": "n-store-scope",
+      "kind": "claim",
+      "title": "dsh-loom's lesson store is per-campaign in storage and in key, so campaign B cannot match a campaign-A lesson even if the file were shared",
+      "body": "state.lessons lives inside campaigns/<id>/views/state.json; src/core/paths.js campaignDir() builds join(home,'campaigns',id), and nothing under src/ writes a cross-campaign knowledge root. But the stronger lock is the retrieval key: selectLessons() (src/knowledge/select.js:138) filters through matchReason() (:75), whose only tiers are family equality, taskIds.includes(target.id), tag overlap, and family==='*'. deriveLesson() (src/knowledge/impact.js:258) sets family = task?.family ?? task?.id ?? '*' and taskIds = [task.id] - both campaign-local task identifiers. So a foreign lesson's family never equals B's family, its taskIds never contain B's task id, tags are empty in 100/100 records, and no record is '*'. A shared file alone would change nothing; the key has to change with it.",
+      "source": "C:/Projects/RSI/src/knowledge/select.js:75-96,138-176; C:/Projects/RSI/src/knowledge/impact.js:258-307; C:/Projects/RSI/src/core/paths.js campaignDir()",
+      "confidence": "high",
+      "topic": "dsh-loom-store",
+      "tags": ["per-campaign", "match-reason", "retrieval-key", "code-verified"]
+    },
+    {
+      "id": "n-ledger-census",
+      "kind": "number",
+      "title": "Census of the real ledger: 69 campaigns, 3,256 rounds, 452 finished attempts, 100 lessons, and zero cross-campaign exposures",
+      "body": "Counted directly under C:/Users/Darkness/.dsh/loom/campaigns: 69 campaigns with views/state.json, sum(seq)=3,256 rounds, 452 attempt.finished events, 451 lease files, 100 lesson.added events, 100 lessons across 53 campaigns (47 campaigns hold none). 72 distinct families for 100 lessons. Exposure: 42 of 452 attempts (9.3%) were shown a non-empty lessons list, totalling 66 lesson-shown slots. Attributing each shown lesson id to its owning campaign gives 66/66 same-campaign exposures and 0 cross-campaign - the zero-reuse claim is not only a design statement, it is measured. Ledger status: 38 done, 24 stopped, 7 converged.",
+      "source": "C:/Users/Darkness/.dsh/loom/campaigns/*/views/state.json and */events.jsonl (counted 2026-11-12, n=69 campaigns / 452 attempt.finished)",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["census", "zero-cross-campaign", "exposure", "measured"]
+    },
+    {
+      "id": "n-family-key",
+      "kind": "analysis",
+      "title": "30 of 100 lessons are keyed by a campaign name, and only one family in the whole corpus spans two campaigns",
+      "body": "Family distribution over the 100 stored lessons: 30 records have family equal to the earning campaign's own name (loom-self3 holds 7 such records, loom-self2 5, loom-self6/loom-self9 3 each), 70 have a task-shaped family (planning-chip, brief-clock, second-candidate-gate), 0 have family '*' and 0 carry tags. taskIds resolve to 85 distinct ids; exactly 1 of those ids appears in two campaigns, and exactly 1 family ('noop', from the no-work claim) spans two campaigns. So on the present corpus a global store would unlock one matchable family out of 72. The campaign name is not incidental metadata - for 30% of the tree it is the retrieval key, i.e. the historian's axis promoted to the worker's axis.",
+      "source": "C:/Users/Darkness/.dsh/loom/campaigns/*/views/state.json lesson.family/taskIds/tags (n=100)",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["family-key", "campaign-name-leak", "72-families", "measured"]
+    },
+    {
+      "id": "n-exposure-rotation",
+      "kind": "concept",
+      "title": "Exposure is one-treated-slot-per-round with parity rotation, which is why a naive A/B number and the paired number disagree",
+      "body": "exposeIndexes(candidateCount, round) in src/runtime/exposure.js returns exactly one index, start = ((round-1) mod count + count) mod count - round 1 treats a1, round 2 treats a2, round 3 a1 again. A single-candidate round exposes nobody, because one candidate has no control. This is a real experiment harness: the control is same-round, same-task, same-worktree, and config.knowledge.maxShown=3 caps payload (src/core/config.js:157). Observed treatment slots in the ledger: a1 treated 8 times, a2 treated 34 times, a3 never - consistent with candidateCount=2 campaigns dominating. Any analysis that does not stratify by slot or pair within round therefore compares different slot populations and books the slot difference as lesson effect.",
+      "source": "C:/Projects/RSI/src/runtime/exposure.js:1-42; C:/Projects/RSI/src/core/config.js:154-160; observed treated slots a1=8, a2=34",
+      "confidence": "high",
+      "topic": "dsh-loom-instrument",
+      "tags": ["exposure", "control-slot", "parity", "paired-design"]
+    },
+    {
+      "id": "n-false-winner",
+      "kind": "number",
+      "title": "The same ledger yields +46pp, +32pp or +2.4pp for the same lessons depending on how you compare - our own corpus contains a false winner of exactly the kind rotation was built to prevent",
+      "body": "Treated attempts (n=42): mean score 0.905, median 1.0, verifierOk 38/42. Untreated attempts (n=410): mean 0.442, median 0.0, verifierOk 181/410. Naive difference: +46.4pp. Restricting to the 19 campaigns that ever exposed a lesson: treated 0.905 vs untreated 0.583, i.e. +32.1pp. Pairing inside the round (which is what pairedImpacts does, choosing the first unscreened lesson-free attempt as control): 42 deltas, mean +0.024, median 0.0, 5 gains (>+0.01), 4 harms (<-0.01), 33 neutral. The lesson corpus therefore looks like a +46pp intervention and is in fact a +2.4pp one - the gap is composition (lessons exist only in campaigns that were already winning, and the a2 slot outscores a1 on the observed cases).",
+      "source": "C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl attempt.finished data.score/verifierOk/lessons; pairing rule from C:/Projects/RSI/src/knowledge/impact.js:49-78",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["false-winner", "confounding", "paired-vs-naive", "measured"]
+    },
+    {
+      "id": "n-underpowered",
+      "kind": "analysis",
+      "title": "At 42 treated observations per 100 lessons the impact loop cannot rank anything: 33 of 42 paired deltas are exactly zero",
+      "body": "The verifier score is effectively binary on this corpus: of the 42 within-round paired deltas, 33 are exactly 0.0 (both candidates scored the same), 5 are +1 and 4 are -1. With NOISE=0.01 (src/knowledge/impact.js:19) a delta of 0 is 'neutral' and never moves gainSum or harmCount, so a lesson's posterior is built from a handful of coin flips. Corpus-wide: 75/100 lessons have useCount 0, 10 have useCount 1, only 3 reach useCount 5 - and those 3 are all in loom-self2 with gainSum -1 and harmCount 1, so they trip both quarantine rules (uses>=5 and gain<=0, and harm>=minHarm=2 is not reached but the first is). 13 of 100 lessons are already quarantined. A store that adds cross-campaign reach multiplies the denominator without adding rounds, which makes the estimator worse, not better.",
+      "source": "C:/Projects/RSI/src/knowledge/impact.js:19,49-126; measured deltas and useCount distribution over 100 lessons / 452 attempts",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["power", "binary-score", "noise-floor", "quarantine"]
+    },
+    {
+      "id": "n-ttl-clock",
+      "kind": "failure",
+      "title": "Lessons carry campaign-local round numbers, so a lesson copied from campaign A into campaign B is born expired",
+      "body": "isExpired() (src/knowledge/select.js:63) is `round > createdRound + ttlRounds`, ttlRounds defaults to 12 and all 100 stored lessons have ttlRounds exactly 12; createdRound is whatever round of the earning campaign produced it (observed 1..17). Round numbers are per-campaign: the ledger's campaigns reach seq 255 (loom-acc2), 182 (loom-life), 172 (loom-acc3). Import a lesson earned at A round 3 into B at round 40 and 40 > 3+12, so the selector drops it before scoring. Even without import, scoreLesson subtracts staleness = 0.15*max(0, round-createdRound)/12, which is 0.15 at 12 rounds and 1.25 at 100 rounds against a 0.5 confidence base - so the tree structurally holds about one TTL window of memory and then forgets by arithmetic. Any cross-campaign store must rebase the clock on import and keep originRound as provenance only.",
+      "source": "C:/Projects/RSI/src/knowledge/select.js:63-70,98-118; ttlRounds=12 on 100/100 lessons; campaign seq max 255",
+      "confidence": "high",
+      "topic": "dsh-loom-store",
+      "tags": ["ttl", "clock-rebasing", "born-expired", "provenance-vs-clock"]
+    },
+    {
+      "id": "n-confidence-flat",
+      "kind": "number",
+      "title": "99 of 100 lessons carry confidence 0.5, so scoring collapses to recency minus harm",
+      "body": "lessonConfidence() (src/knowledge/impact.js:242) reads attempt.report.confidence and falls back to 0.5 when absent. Observed distribution: 0.5 on 99 records, 0.96 on 1. Since scoreLesson = confidence + gainSum/(useCount+1) - 0.5*harmCount - staleness, a flat 0.5 with 75/100 useCount 0 and 96/100 gainSum 0 means the ranking is driven almost entirely by the staleness term - i.e. lessons are ordered by how recently they were created, which is recency, not quality. Only 4 lessons have gainSum>0 and 3 have harmCount>0 across the entire corpus. A cross-campaign store inherits this: importing 200 records from other campaigns into a 3-slot display budget would be ranked by an uninformative key plus a staleness term that punishes exactly the older-but-still-true lessons a shared store is supposed to preserve.",
+      "source": "C:/Projects/RSI/src/knowledge/impact.js:242-256; C:/Projects/RSI/src/knowledge/select.js:98-118; measured confidence/useCount/gainSum over 100 lessons",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["confidence", "degenerate-ranking", "recency", "measured"]
+    },
+    {
+      "id": "n-files-axis",
+      "kind": "analysis",
+      "title": "The code already computes a campaign-independent axis - files[] and subject - but only 1 of 100 lessons has it populated",
+      "body": "deriveLesson() computes files = lessonFiles(attempt) (capped at MAX_LESSON_FILES, normalized, de-duplicated) and subject = lessonFiles(attempt)[0] ?? symbolInClaim(raw), with the comment at src/knowledge/impact.js:284 explicitly rejecting campaign as a grouping axis: 'a lesson is about files, not about the round that happened to earn it ... which is the historian's axis, not the next worker's.' Measured reality: 1 of 100 stored lessons has a non-empty files[] and 1 has a subject - because lessonFiles() returns [] whenever the attempt did not report changed paths, which is the common case here. So the one key that is stable across campaigns exists in the schema, is populated 1% of the time, and is not in matchReason()'s tier list at all. The fix is therefore smaller than a new subsystem: populate files[], add a 'file' tier above 'family', and stop letting family default to a campaign name.",
+      "source": "C:/Projects/RSI/src/knowledge/impact.js:210-240 (lessonFiles), 258-307 (deriveLesson, comment at :284); measured files[]/subject presence 1/100",
+      "confidence": "high",
+      "topic": "dsh-loom-store",
+      "tags": ["files-axis", "subject", "schema-already-there", "minimal-fix"]
+    },
+    {
+      "id": "c-mem0",
+      "kind": "claim",
+      "title": "mem0 buys latency and tokens with an eager write-time conflict resolver, and gives up long-horizon recall to do it",
+      "body": "Mem0 (arXiv:2504.19413) runs an extract-then-decide write pipeline: an LLM distills candidate facts from a dialogue, then a second step issues ADD / UPDATE / DELETE / NOOP against existing entries. Reported: +26% LLM-as-judge over OpenAI's memory on LoCoMo, ~2% more for the graph variant Mem0g, 91% lower p95 latency and >90% token-cost reduction versus putting the full context in the window. The cost is visible in an independent comparison table: Mem0 at 49.0% on LongMemEval versus Zep 71.2% and full-context GPT-4o 60.2% - it loses to the naive baseline on hard long-horizon recall. UPDATE destroys the prior belief rather than versioning it, and the schema has no confidence, evidence or provenance field, which is exactly what a store shared across campaigns needs to decide whether a claim is still true in a new repo state.",
+      "source": "https://arxiv.org/abs/2504.19413 (Mem0, Chhikara et al.); LongMemEval 49.0% from an independent vendor comparison table (medium confidence: competitor-authored)",
+      "confidence": "medium",
+      "topic": "memory-systems",
+      "tags": ["mem0", "write-pipeline", "conflict-resolution", "latency", "token-cost"]
+    },
+    {
+      "id": "c-zep",
+      "kind": "claim",
+      "title": "Zep/Graphiti gets +11pp on LongMemEval at 1/72 the context, but goes negative on exactly the knowledge-update questions a shared lesson store must answer",
+      "body": "Zep (arXiv:2501.13956) stores a bi-temporal knowledge graph - every edge carries both valid-time and ingestion-time - so a superseded fact is retained with its validity interval rather than overwritten. Numbers: LongMemEval 71.2% (gpt-4o) vs 60.2% full-context (+11.0pp, 18.3% relative) and 63.8% vs 55.4% (gpt-4o-mini, +8.4pp, 15.2% relative), at 1.6K average context tokens versus 115K (about 72x reduction) with ~90% latency cut; DMR 94.8% vs MemGPT 93.4%. Per-question-type it gains +77.7% on single-session-preference and +48.2% on temporal reasoning, and DEGRADES on knowledge-update (-3.36%) and single-session-assistant (-9.06%). The degradation is the interesting part for us: the category where an old claim must be recognised as stale is precisely where the graph store underperforms the flat baseline.",
+      "source": "https://arxiv.org/abs/2501.13956 (Zep: A Temporal Knowledge Graph Architecture for Agent Memory)",
+      "confidence": "high",
+      "topic": "memory-systems",
+      "tags": ["zep", "graphiti", "bi-temporal", "knowledge-update", "context-reduction"]
+    },
+    {
+      "id": "c-memgpt",
+      "kind": "claim",
+      "title": "MemGPT keeps the tier that was written by an explicit, cost-bearing eviction decision - everything else is regenerated summary",
+      "body": "MemGPT/Letta (arXiv:2310.08560) treats the context window as OS-managed virtual memory: main context = system instructions + a fixed-size read/write 'working context' block + a FIFO queue of recent messages; recall storage is a searchable message DB; archival storage is a searchable document store. All memory edits are self-directed function calls by the model. The queue warns at ~70% of the token budget and flushes at 100%, evicting ~50% of the window and regenerating a recursive summary of what left. Deep Memory Retrieval: GPT-4 32.1% to 92.5%, GPT-4 Turbo 35.3% to 93.4%, GPT-3.5 38.7% to 66.9%. The transferable design lesson is that durable content survives because an eviction event paid a cost to write it, while the summary tier is lossy by construction - so a knowledge store should treat 'promoted to durable' as a separate, deliberate write, not as a field on the same record.",
+      "source": "https://arxiv.org/abs/2310.08560 (MemGPT: Towards LLMs as Operating Systems)",
+      "confidence": "high",
+      "topic": "memory-systems",
+      "tags": ["memgpt", "letta", "paging", "eviction", "tiering"]
+    },
+    {
+      "id": "c-amem",
+      "kind": "claim",
+      "title": "A-MEM's 'memory evolution' rewrites existing notes when new ones arrive - the mechanism that makes a shared store self-corrupting",
+      "body": "A-MEM (arXiv:2502.12110, NeurIPS 2025) builds Zettelkasten-style notes: each interaction becomes a note with a contextual description, keywords and tags, linked automatically to semantically similar notes, and 'memory evolution' then updates the attributes of EXISTING notes when a new note is added, so later experience can revise earlier conclusions. Evaluated across 6 foundation models and beats the compared baselines. The risk is structural and reviewer-flagged: evolution silently rewrites high-influence memories, so provenance and versioning are lost - you cannot ask which campaign's evidence produced the current wording, nor roll back a rewrite that turned out to be wrong. For a cross-campaign store this is the single most dangerous borrowed mechanism: the notes that get rewritten most are the most-retrieved ones, so corruption concentrates exactly where reach is highest.",
+      "source": "https://arxiv.org/abs/2502.12110 (A-MEM: Agentic Memory for LLM Agents)",
+      "confidence": "medium",
+      "topic": "memory-systems",
+      "tags": ["a-mem", "zettelkasten", "memory-evolution", "audit-risk"]
+    },
+    {
+      "id": "c-ace",
+      "kind": "claim",
+      "title": "ACE's numbers show incremental itemised deltas beat rewriting playbooks, and its own ablation shows the gain depends on trustworthy execution signals",
+      "body": "ACE (arXiv:2510.04618, ICLR 2026) names two failure modes of self-editing context - brevity bias (compression drops domain detail) and context collapse (rewriting destroys accumulated knowledge) - and fixes them with itemised bullets carrying metadata (id plus helpful/harmful counters), incremental delta ops ADD/UPDATE/REMOVE merged by deterministic non-LLM code, and grow-and-refine de-duplication. Results: +10.6% on agent tasks, +8.6% on finance, AppWorld 59.4% average versus ReAct 42.4 and roughly level with IBM CUGA 60.3 using a smaller open model; +17.1% with online adaptation; adaptation latency -86.9%, rollouts -75.1% versus GEPA, token cost -83.6% versus Dynamic Cheatsheet. Ablation: dropping the Reflector and multi-epoch refinement gives 55.1 versus 59.4. Stated limitation: without reliable execution signals 'the constructed context can be polluted by spurious or misleading signals' - online FiNER without ground-truth labels is 72.9 (+3.8) versus 76.6 (+7.5) with labels, and Dynamic Cheatsheet goes negative at 65.4 (-3.7).",
+      "source": "https://arxiv.org/abs/2510.04618 (ACE: Agentic Context Engineering)",
+      "confidence": "high",
+      "topic": "memory-systems",
+      "tags": ["ace", "context-collapse", "delta-ops", "counters", "label-dependence"]
+    },
+    {
+      "id": "c-ace-collapse",
+      "kind": "failure",
+      "title": "Context collapse, measured: 18,282 tokens and 66.7 accuracy become 122 tokens and 57.1 - below the 63.7 no-adaptation baseline",
+      "body": "The concrete collapse trace in ACE (arXiv:2510.04618) is AppWorld step 60: context 18,282 tokens, accuracy 66.7. The next step rewrites the playbook, context falls to 122 tokens, and accuracy falls to 57.1 - below the 63.7 that the same agent scores with no adaptation at all. That is the sharpest available demonstration that a self-editing store can destroy more value than it ever created, and that the loss is not gradual: one rewrite step removed 99.3% of the context and 9.6 accuracy points, crossing under the do-nothing floor. It also gives us the diagnostic to copy - report store size and score together per round, and treat 'store shrank by >90% in one write' as an alarm rather than a compaction win.",
+      "source": "https://arxiv.org/abs/2510.04618 (ACE, Section on brevity bias and context collapse)",
+      "confidence": "high",
+      "topic": "failure-modes",
+      "tags": ["context-collapse", "brevity-bias", "below-baseline", "alarm-design"]
+    },
+    {
+      "id": "c-reward-inflation",
+      "kind": "claim",
+      "title": "When the stored score is an LLM's own assessment, wrong episodes get inflated rewards and the agent preferentially reuses its most confident mistakes",
+      "body": "The 'echo gap' / memory reward inflation paper (arXiv:2608.00017, Asadolahi et al., 29 Jun 2026) analyses label-free self-improving memory: the reward written into the store is the model's own judgement, so incorrect episodes receive inflated scores, and score-ranked retrieval then preferentially replays the mistakes the model was most confident about. The inflation compounds multiplicatively as inflated memories are retrieved, re-endorsed and re-stored, and it persists even under plain similarity retrieval, not only score ranking. The paper formalises the Error-Independence Assumption (EIA): a usable signal must both track truth and decorrelate its error from the memory bias, proves necessity, and gives a closed-form recoverable payoff. Mitigation LUCID (de-inflation) lifts BIRD text-to-SQL execution accuracy to 56.9% versus 54.0% for Memento-style self-graded memory (+2.9 mean over seeds) and 52.4% for the identical architecture with no memory - i.e. self-graded memory was worth only +1.6pp over none, and de-inflation recovered most of that.",
+      "source": "https://arxiv.org/abs/2608.00017 (Memory Reward Inflation / Echo Gap, 2026)",
+      "confidence": "medium",
+      "topic": "failure-modes",
+      "tags": ["reward-inflation", "self-grading", "EIA", "BIRD", "de-inflation"]
+    },
+    {
+      "id": "c-memharness",
+      "kind": "claim",
+      "title": "Raw memory replay is worse than no memory: 76.4% drops to 70.1% on ALFWorld, until retrieved experience is rewritten against the current state",
+      "body": "MemHarness (arXiv:2607.28272, Jul 2026) argues 'memory is reconstructed, not replayed': it retrieves candidate experience, then a GRPO-trained policy REWRITES the retrieved content against the current state, and is allowed to REJECT a memory outright. Numbers: ALFWorld RL-only 76.4% falls to 70.1% when raw memory replay is added - a 6.3pp negative transfer from pure retrieval; the RL+Raw-Memory baseline on OOD tasks is 76.3% versus 83.0% with no memory at all. With reconstruction: 85.9% OOD, versus 82.4% for retrieval without reconstruction and 83.0% with no memory. Mechanism given: a stored trajectory carries an implicit environment state it was formed in; without re-grounding, the replay reads as authoritative and overrides the current observation. For dsh-loom this is direct: a lesson's claim is stated in the repo state of campaign A, and campaign B's worktree differs.",
+      "source": "https://arxiv.org/abs/2607.28272 (MemHarness: Memory Is Reconstructed, Not Replayed)",
+      "confidence": "high",
+      "topic": "transfer-evidence",
+      "tags": ["memharness", "negative-transfer", "reconstruction", "rejection"]
+    },
+    {
+      "id": "c-continual-memory",
+      "kind": "claim",
+      "title": "Two-phase A-to-B protocol: raw trajectories give FWT -9.5 with new-learning -26.1, abstract insights give +6.5, and negative transfer lands on the hard cases",
+      "body": "'When Continual Learning Moves to Memory' (arXiv:2604.27003, Hu/Long/Wang, NTU, 29 Apr 2026) runs sequential task phases of n=200 instances with a frozen LLM and a shared ReMe memory, measuring FWT = Acc_B(none->A->B) - Acc_B(none->B), BWT = Acc_A(none->A->B) - Acc_A(none->A), plus RR (retention on the baseline-success subset) and NL (new learning on the baseline-fail subset). ALFWorld A->B: Raw FWT -9.5 (80.5 to 71.0) with dRR +4.6 but dNL -26.1; Insight FWT +6.5 (65.5 to 72.0) with dRR +9.3 and dNL +3.3. BabyAI A->B: Raw -7.5, Insight +9.0. B->A: Raw -0.5, Insight -2.5 - i.e. transferring from a harder to an easier task is nearly free either way. Three conclusions we can use: abstraction decides the sign; damage concentrates on the hard subset while easy cases barely move; and finer granularity or more frequent retrieval is not universally better - strong forward transfer can coexist with severe forgetting, so the two must be reported separately.",
+      "source": "https://arxiv.org/abs/2604.27003 (Hu, Long, Wang, NTU, 29 Apr 2026), Tables 2-3 and RR/NL diagnostics",
+      "confidence": "high",
+      "topic": "transfer-evidence",
+      "tags": ["FWT", "BWT", "RR-NL", "abstraction", "negative-transfer"]
+    },
+    {
+      "id": "c-skillsbench",
+      "kind": "claim",
+      "title": "Curated skills add +16.6pp, but self-generated skills score below having no skills at all",
+      "body": "SkillsBench (arXiv:2602.12670, v4 14 Jun 2026; Li et al.) evaluates 87 containerised tasks across 8 domains under 18 model-harness configurations with 3 trials each. Curated human-authored skills raise mean pass rate from 33.9% to 50.5% (+16.6pp) - a large, reproducible gain. But 13 of the 87 tasks have NEGATIVE deltas even with curated skills, and skills generated by the agent itself land BELOW the no-skills baseline. That is the sharpest published statement of the asymmetry this whole topic turns on: authored/curated reusable knowledge transfers, self-generated reusable knowledge can anti-transfer. dsh-loom is entirely in the self-generated column, and its 100 lessons were each written by the attempt that had just been verified on one task.",
+      "source": "https://arxiv.org/abs/2602.12670 (SkillsBench: Evaluating Agent Skills), v4 14 Jun 2026",
+      "confidence": "high",
+      "topic": "transfer-evidence",
+      "tags": ["skillsbench", "curated-vs-generated", "negative-deltas", "87-tasks"]
+    },
+    {
+      "id": "c-skillopt",
+      "kind": "claim",
+      "title": "SkillOpt: one 379-1,995-token text artifact trained on a frozen model, best or tied in 52/52 cells, and the artifact moves across harnesses",
+      "body": "SkillOpt (arXiv:2605.23904, Microsoft + SJTU/Tongji/Fudan, v2 25 May 2026) treats a single skill document as the trainable external state of a frozen agent: an optimiser model turns scored rollouts into bounded add/delete/replace edits, and an edit is accepted only when it strictly improves a held-out validation score (plus a textual learning-rate budget, a rejected-edit buffer, and an epoch-wise slow/meta update; zero inference-time calls at deployment). Across six benchmarks, seven target models and three harnesses (direct chat, Codex, Claude Code) it is best or tied on all 52 evaluated cells, beating human, one-shot LLM, Trace2Skill, TextGrad, GEPA and EvoSkill skills. On GPT-5.5: +23.5 points in direct chat, +24.8 inside Codex, +19.1 inside Claude Code. The deployed artifact is 379-1,995 tokens (median ~920) assembled from 1-4 accepted edits, and training costs 0.6M-46.4M tokens per absolute test point.",
+      "source": "https://arxiv.org/abs/2605.23904 (SkillOpt: Executive Strategy for Self-Evolving Agent Skills)",
+      "confidence": "high",
+      "topic": "transfer-evidence",
+      "tags": ["skillopt", "text-space-optimizer", "held-out-gate", "52-cells", "frozen-model"]
+    },
+    {
+      "id": "n-skillopt-retention",
+      "kind": "number",
+      "title": "Measured retention of a transferred skill ranges 10% to 140% of the in-domain gain, and it splits by task type not by harness",
+      "body": "SkillOpt's transfer tables report retention as the share of the in-domain (Direct) gain that survives when a skill trained elsewhere is applied with no further optimisation. Cross-harness, GPT-5.5: SpreadsheetBench Codex->Claude Code baseline 22.1, Direct 80.4, Transferred 81.8, +59.7 gain, 102% retention; Claude Code->Codex 27.5 / 85.0 / 71.1, +43.6, 76%; LiveMath Claude Code->Codex 35.2 / 78.4 / 48.0, +12.8, 30%; LiveMath Codex->Claude Code 40.8 / 56.5 / 42.4, +1.6, 10%. Cross-model, GPT-5.4 to smaller variants: 82%, 16%, 25%, and 140% (a case where the transferred skill beat the in-domain one). The paper's reading is that procedural content - how to inspect, verify and format - is the portable class, while reasoning-heavy content stays tied to the environment. No row fell below the target's no-skill baseline, and all rows stay inside one GPT family, so this is demonstrated portability, not general portability.",
+      "source": "https://www.marktechpost.com/2026/08/05/microsoft-skillopt-agent-skill-transfer-portability/ reporting arXiv:2605.23904 tables; marktechpost numbers are secondary (confidence medium for exact table cells)",
+      "confidence": "medium",
+      "topic": "transfer-evidence",
+      "tags": ["retention-rate", "102-percent", "10-percent", "procedural-vs-reasoning", "measured"]
+    },
+    {
+      "id": "c-transplant-analytic",
+      "kind": "analysis",
+      "title": "The Transplant paper defines the retention metric but contains no measured cells - its retention numbers are model predictions, not measurements",
+      "body": "ThakiCloud's 'The Transplant' (2026-10-19) decomposes transplant loss by an identity: with a deterministic router, conjunction retention R_J = R_L * R_S (loading times execution), so on the log scale the total gap is exactly the loading gap plus the execution gap. It supplies three ex-ante predictors computable without transplanting: schema coupling kappa_T (share of golden tasks with at least one convention-dependent required call), prompt anchoring alpha (share of body segments presupposing the home prompt), and tier depth d-bar (mean sequential required calls, giving retention ~ (p*/p)^d-bar by Jensen). Schema axis closed form: verbatim execution retention = 1 - kappa_T; fully coupled skills (kappa_T = 1) show 'total silent breakage' - the transcript looks fine and every graded call fails. Critically, the authors state the paper 'is not a measured study, it reports no cell values', and every number in the write-up is a prediction of the analysis model. So this source contributes a decomposition and three computable predictors, and contributes ZERO empirical retention rates - anyone citing 'retention percentages' from it is citing algebra.",
+      "source": "https://www.thakicloud.com/tech-blog/en/research/cross-harness-skill-transplant/ (2026-10-19); explicit disclaimer: 'Every number in this post is a prediction of the analysis model, not a measurement.'",
+      "confidence": "high",
+      "topic": "transfer-evidence",
+      "tags": ["analytic-only", "no-cells", "silent-breakage", "kappa-T", "evidence-thin"]
+    },
+    {
+      "id": "c-agentpoison",
+      "kind": "claim",
+      "title": "0.1% of a memory store is enough: AgentPoison gets ~82% attack success with under 1% benign accuracy loss, and the defence literature is weak",
+      "body": "AgentPoison (NeurIPS 2024, arXiv:2407.12784) backdoors RAG agents by poisoning long-term memory or the knowledge base: a small set of trigger-bearing entries is optimised so that the trigger reliably retrieves them, and the retrieved poisoned demonstration steers the plan. Reported: attack success rate ~82% on average (82.4 ASR-r on Agent-Driver and comparable on the other agents), with a poisoning ratio below 0.1% of the store, benign accuracy drop under 1%, and no training or fine-tuning required - the attack lives entirely in what the retrieval step hands the model. On the defence side the paper's own results are discouraging: one defence cuts ASR by over 60% (to 0.256 / 0.233) while perplexity-filter and distillation-classifier defences were 'often ineffective or even detrimental'. For a store whose entire purpose is to inject another campaign's text into a worker's brief, 0.1% is the relevant threat number.",
+      "source": "https://arxiv.org/abs/2407.12784 (AgentPoison, NeurIPS 2024)",
+      "confidence": "high",
+      "topic": "poisoning",
+      "tags": ["agentpoison", "82-percent-ASR", "0.1-percent-poison", "weak-defences"]
+    },
+    {
+      "id": "c-minja",
+      "kind": "claim",
+      "title": "MINJA needs no write access at all - only normal user turns - and it targets exactly the store-executions-then-replay-similar pattern dsh-loom implements",
+      "body": "MINJA (arXiv:2503.03704, Dong et al.) is a memory-injection attack conducted through QUERY-ONLY interaction: the attacker never touches the database, never needs write permission, and only sends ordinary user messages. It works by getting the victim agent to record the attacker's content as a memory of a successful experience, and then by shaping later queries so that memory is retrieved as an in-context demonstration - i.e. it attacks the exact loop 'store prior executions as memory, retrieve similar records as demonstrations'. Reported outcomes are high injection success against memory-augmented agents, with the poisoning surviving summarisation and being hard to remove once written. For dsh-loom the exposure is structural: lessons are derived from worker-written claim text (attempt.report.lesson), which is untrusted, and then replayed verbatim into another attempt's brief. There is no signature, no review step, and the quarantine rule only watches measured harm after the fact.",
+      "source": "https://arxiv.org/abs/2503.03704 (MINJA: Memory INJection Attack, Dong et al., 2025)",
+      "confidence": "medium",
+      "topic": "poisoning",
+      "tags": ["minja", "query-only", "indirect-injection", "untrusted-claim-text"]
+    },
+    {
+      "id": "c-retrace",
+      "kind": "claim",
+      "title": "Reusing historical repair plans directly scores BELOW having no experience (about 18.4 vs 19.6), while reconstructed problem-level experience reaches 31.9",
+      "body": "RETRACE (arXiv:2610.04658, 3 Oct 2026) attacks the alignment problem in reusing software history: a PR may contain several CI problems, failed attempts, reverted edits and unrelated changes, so 'the fix' is not cleanly attributable. It reconstructs problem-level experience with an endpoint view (reason backwards from changes retained in the passing revision) and a development view (trace repair evolution forward through commit history), reconciled by CI execution evidence, and represents the recovered experience at three abstraction levels from concrete fix to transferable repair pattern. On CI-REPAIR-BENCH (565 PR-level repairs, 101 repositories, 12 failure categories): mini-SWE-agent 19.6% to 31.9% Pass@1 with MiniMax-M2.5; 23.3% to 32.8% with DeepSeek-V4-Flash; Codex on a matched subset 15.5% to 27.5%. Crucially it beats the 'Historical-Plan' baseline (direct reuse of historical repair plans) by +13.5pp while beating No-Experience by only +12.3pp - implying the direct-reuse baseline sits at roughly 18.4%, i.e. about 1.2pp BELOW doing nothing.",
+      "source": "https://arxiv.org/abs/2610.04658 (RETRACE, CI-REPAIR-BENCH, 565 PRs / 101 repos); direct-reuse figure derived from the reported +12.3 and +13.5 deltas",
+      "confidence": "medium",
+      "topic": "transfer-evidence",
+      "tags": ["retrace", "ci-repair", "direct-reuse-below-baseline", "problem-attribution"]
+    },
+    {
+      "id": "f-netclaw",
+      "kind": "failure",
+      "title": "A production memory store audited at 46% pollution, 26% relevant, and 65% of queries where the right answer was to inject nothing",
+      "body": "The Netclaw memory audit (Jul 2026, 1,216-document corpus, 112 recall events, 281 injected items, 251 exhaustively judged, Cohen's kappa 0.754) is the most useful negative datapoint because it is a real deployment rather than a benchmark. Item verdicts: 46% pollution, 27% marginal, 26% relevant. Event verdicts: 29% helpful, 52% neutral, 19% actively harmful. On 60 of 93 real queries (65%) ZERO relevant memories were injected - and the always-take-3 design structurally cannot inject nothing. A floor sweep over 155 score-joined items found relevant-precision flat at ~0.34 for every floor from 10 to 60: raising the threshold sheds good and bad items in equal proportion, so lexical score carries no relevance signal. Other measured failures: the LLM curation tier succeeded 0 times in 6 lifetime invocations; the write-side dedup tier consolidated twice ever, with a 98% silent-create escape rate at cos 0.90; mean 349 tokens per 3-item recall; 95% of checkpoints dropped before curation.",
+      "source": "https://github.com/netclaw-dev/netclaw/blob/fd3fbfd1a68a6ba0c27b85b9da56583862f7d0a1/docs/research/memory-audit-2026-07.md",
+      "confidence": "high",
+      "topic": "deployment-evidence",
+      "tags": ["pollution-46-percent", "zero-relevant-65-percent", "abstain", "precision-flat", "token-cost"]
+    },
+    {
+      "id": "c-crossdomain-small",
+      "kind": "claim",
+      "title": "A four-constraint store transferred across domains gave +6.9pp on 29 paired SWE-bench instances with zero regressions",
+      "body": "A small independent study on persistent memory for coding agents reports a cross-domain arm on SWE-bench: 30 instances, 29 paired after one instance was dropped for a pip-flag build failure (dropped equally in both arms, so pairing stays unbiased). The treatment arm loaded ONLY the 4 constraints learned on Subset 1 (django, sympy) while the 11 constraints belonging to Subset 2 were held out: baseline 18/29 = 62.1%, treatment 20/29 = 69.0%, delta +6.9 points, two FAIL-to-PASS flips (scikit-learn-14087 LogisticRegressionCV refit=False indexing; sphinx-9461 classmethod + property docs), zero regressions. This is the closest published support for the 'smallest useful store' thesis - four abstract constraints, not a corpus - but n=29 with a single study, so it should be treated as a hypothesis generator for our own ledger, not as an effect size.",
+      "source": "https://zenodo.org/records/20834509/files/paper.pdf (Persistent memory for AI coding agents, cross-domain subset); low confidence: n=29, single practitioner study",
+      "confidence": "low",
+      "topic": "transfer-evidence",
+      "tags": ["four-constraints", "plus-6.9pp", "zero-regressions", "n-29", "evidence-thin"]
+    },
+    {
+      "id": "a-minimal-store",
+      "kind": "analysis",
+      "title": "Smallest viable design: ship the claim and its file set, keep provenance as a field that is never a key, and re-earn the score in the reading campaign",
+      "body": "Synthesis of the local measurement and the transfer evidence. Minimum record: {claim <=200 chars, files[] normalized repo-relative paths (1..8), kind, origin = campaign/attempt id (provenance only), lastVerifiedRound (rebased into the reader's clock), local verdicts {n, gain, harm} that are NEVER copied across campaigns}. Retrieval: add a 'file' tier to matchReason above 'family' - match when the current task's changed-file set intersects files[] - and drop the campaign-name fallback for family so a lesson cannot be keyed by the run that earned it. Ranking: keep confidence and staleness, but treat imported records as confidence 0.5 with zero counters until the reading campaign has its own paired observations, because gainSum/harmCount are local measurements of a local confound (our treated-vs-control gap is +46pp naive and +2.4pp paired, i.e. the stored score is mostly composition). Payload: 3 lessons at the measured 274 chars is ~205 tokens, well inside SkillOpt's 379-1,995-token portable artifact. Test in the ledger: replay the 452 recorded attempts against a global store and count (a) foreign matches a 'file' tier would have produced, (b) their paired deltas, (c) false positives where the file matched and the claim was campaign-specific.",
+      "source": "Derived from n-family-key, n-false-winner, n-ttl-clock, n-files-axis + arXiv:2605.23904 (artifact size) + arXiv:2604.27003 (abstraction, FWT/NL split)",
+      "confidence": "medium",
+      "topic": "design",
+      "tags": ["minimal-design", "file-tier", "provenance-not-key", "local-counters", "205-tokens"]
+    },
+    {
+      "id": "a-rebase-abstain",
+      "kind": "analysis",
+      "title": "The two mechanisms that make a shared store safe are also the two dsh-loom lacks: clock rebasing on import, and permission to return nothing",
+      "body": "Two independent failure modes block a shared store, and both are cheaper to fix than to build. (1) Clock rebasing: isExpired compares campaign-local rounds against a 12-round TTL, and campaigns reach round 255, so any imported lesson is either born expired or must carry a rebased lastVerifiedRound; originRound stays as provenance. Zep's bi-temporal graph is the expensive version of the same idea (valid-time vs ingestion-time), and its negative knowledge-update delta (-3.36%) shows even that version struggles to retire stale claims. (2) Abstention: selectLessons already returns [] for phase 'explore', but matchReason has no 'not applicable' mode that survives a full 3-slot budget, and Netclaw's always-take-3 design injected nothing relevant on 65% of queries with 46% pollution - the failure was not ranking, it was being forced to fill slots. The minimal change is a file-match requirement (no intersecting path, no lesson) plus a per-round budget where an empty result is a normal output rather than a degradation signal.",
+      "source": "Derived from n-ttl-clock, n-files-axis, f-netclaw, c-zep; selectLessons explore branch at C:/Projects/RSI/src/knowledge/select.js:138-146",
+      "confidence": "medium",
+      "topic": "design",
+      "tags": ["clock-rebasing", "abstention", "bi-temporal", "empty-is-valid"]
+    }
+  ],
+  "edges": [
+    {
+      "from": "n-family-key",
+      "rel": "supports",
+      "to": "n-store-scope",
+      "note": "The measured key distribution (30/100 keyed by campaign name, 1 shared family in 72) is what turns 'per-campaign storage' into 'unmatchable by construction'."
+    },
+    {
+      "from": "n-ledger-census",
+      "rel": "measures",
+      "to": "n-store-scope",
+      "note": "0 cross-campaign exposures out of 66 lesson-shown slots is the empirical reading of the design constraint."
+    },
+    {
+      "from": "n-exposure-rotation",
+      "rel": "requires",
+      "to": "n-false-winner",
+      "note": "The +46pp naive number only becomes +2.4pp because one slot is treated per round; the rotation is the instrument that exposes the confound."
+    },
+    {
+      "from": "n-false-winner",
+      "rel": "contradicts",
+      "to": "n-confidence-flat",
+      "note": "The corpus looks like a strong positive (treated 0.905) while 99/100 lessons carry an uninformative 0.5 confidence: the apparent signal is composition, not stored quality."
+    },
+    {
+      "from": "n-underpowered",
+      "rel": "refines",
+      "to": "n-false-winner",
+      "note": "33 of 42 paired deltas are exactly 0, so the paired estimate itself is near-noise and any global-store expansion must add rounds, not just reach."
+    },
+    {
+      "from": "n-ttl-clock",
+      "rel": "fails-at",
+      "to": "n-store-scope",
+      "note": "Even a shared file would deliver expired records: createdRound is a foreign clock value and expiry is round > createdRound + 12."
+    },
+    {
+      "from": "n-files-axis",
+      "rel": "applies-to",
+      "to": "a-minimal-store",
+      "note": "files[]/subject already exist in deriveLesson and are populated 1/100; the minimal design is mostly populating and matching on the axis the code already computes."
+    },
+    {
+      "from": "a-minimal-store",
+      "rel": "requires",
+      "to": "a-rebase-abstain",
+      "note": "A file-keyed store is only safe with rebasing and abstention: otherwise imports arrive dead or fill slots with irrelevant claims."
+    },
+    {
+      "from": "a-minimal-store",
+      "rel": "derived-from",
+      "to": "c-continual-memory",
+      "note": "The decision to ship abstract claim text rather than trajectories comes from FWT -9.5 (Raw) vs +6.5 (Insight) with dNL -26.1 on the hard subset."
+    },
+    {
+      "from": "c-continual-memory",
+      "rel": "supports",
+      "to": "c-skillsbench",
+      "note": "Two independent protocols agree that reused-experience quality depends on abstraction/generation source: -9.5 FWT for raw traces, and self-generated skills below the no-skills baseline."
+    },
+    {
+      "from": "c-skillsbench",
+      "rel": "contradicts",
+      "to": "c-skillopt",
+      "note": "SkillsBench: self-generated skills fall below no-skills. SkillOpt: optimised text artifacts win 52/52 cells. The difference is the held-out acceptance gate, not the artifact format."
+    },
+    {
+      "from": "c-skillopt",
+      "rel": "supports",
+      "to": "n-skillopt-retention",
+      "note": "The measured retention shares come from SkillOpt's own transfer tables: 102/76/30/10 across harness pairs."
+    },
+    {
+      "from": "n-skillopt-retention",
+      "rel": "refines",
+      "to": "c-transplant-analytic",
+      "note": "SkillOpt supplies the empirical retention numbers the analytic model predicts; the model supplies the loading/execution split those numbers lack."
+    },
+    {
+      "from": "c-transplant-analytic",
+      "rel": "fails-at",
+      "to": "n-skillopt-retention",
+      "note": "Its schema theorem predicts verbatim retention 1 - kappa_T and full breakage at kappa_T = 1, but it reports no cell values, so it cannot confirm or contradict the measured 10%-140% spread."
+    },
+    {
+      "from": "c-retrace",
+      "rel": "supports",
+      "to": "c-memharness",
+      "note": "Both find raw replay negative: RETRACE's direct-plan baseline ~18.4 vs 19.6 no-experience, and MemHarness 70.1 (raw replay) vs 76.4 (no memory)."
+    },
+    {
+      "from": "c-memharness",
+      "rel": "supports",
+      "to": "a-rebase-abstain",
+      "note": "Reconstruction against current state, and the option to reject a memory, are the operational form of 'abstain or re-ground'; 85.9 vs 82.4 shows the gain comes from re-grounding."
+    },
+    {
+      "from": "c-reward-inflation",
+      "rel": "contradicts",
+      "to": "a-minimal-store",
+      "note": "Copying gainSum/harmCount across campaigns imports A's inflation; the design's 're-earn counters locally' is the direct response to the EIA result."
+    },
+    {
+      "from": "c-reward-inflation",
+      "rel": "applies-to",
+      "to": "n-underpowered",
+      "note": "Our counters come from paired verifier deltas, not LLM self-grading, which is the EIA-decorrelated case; but with 33/42 zero deltas the estimate is variance-dominated rather than bias-dominated."
+    },
+    {
+      "from": "c-ace-collapse",
+      "rel": "refines",
+      "to": "c-ace",
+      "note": "The collapse trace quantifies the failure mode ACE names: 18,282 to 122 tokens and 66.7 to 57.1, below the 63.7 no-adaptation floor."
+    },
+    {
+      "from": "c-ace",
+      "rel": "supports",
+      "to": "n-confidence-flat",
+      "note": "ACE's itemised per-bullet helpful/harmful counters are the alternative to a single flat confidence scalar; our 99/100 at 0.5 is what a store looks like without them."
+    },
+    {
+      "from": "c-ace",
+      "rel": "applies-to",
+      "to": "a-minimal-store",
+      "note": "Deterministic non-LLM merge of ADD/UPDATE/REMOVE deltas is the write discipline the minimal store needs so a lesson edit cannot rewrite an unrelated claim."
+    },
+    {
+      "from": "c-zep",
+      "rel": "supports",
+      "to": "a-rebase-abstain",
+      "note": "Bi-temporal edges are the full version of clock rebasing; the -3.36% knowledge-update delta is the evidence that even this version struggles to retire stale claims."
+    },
+    {
+      "from": "c-memgpt",
+      "rel": "refines",
+      "to": "a-minimal-store",
+      "note": "MemGPT's durable tier survives because an eviction event paid a cost to write it; that argues for promotion as a separate deliberate write, not a field on the lesson."
+    },
+    {
+      "from": "c-amem",
+      "rel": "fails-at",
+      "to": "a-minimal-store",
+      "note": "Memory evolution rewrites existing high-influence notes, which is exactly what a shared store must not do: provenance and versioning are lost, so origin must stay immutable."
+    },
+    {
+      "from": "f-netclaw",
+      "rel": "supports",
+      "to": "a-rebase-abstain",
+      "note": "65% of real queries had zero relevant memories and the always-take-3 design could not abstain; 46% of injected items were pollution."
+    },
+    {
+      "from": "f-netclaw",
+      "rel": "measures",
+      "to": "c-crossdomain-small",
+      "note": "Both are deployment-scale evidence rather than benchmark evidence, and both are small: 1,216 docs / 251 judged items versus n=29 paired instances."
+    },
+    {
+      "from": "c-crossdomain-small",
+      "rel": "supports",
+      "to": "a-minimal-store",
+      "note": "Four transferred constraints producing +6.9pp with zero regressions is the only direct evidence that a very small store can transfer across domains."
+    },
+    {
+      "from": "c-agentpoison",
+      "rel": "requires",
+      "to": "a-rebase-abstain",
+      "note": "Under 0.1% poison yields ~82% ASR, so a cross-campaign channel needs a cheap integrity check: file-path match is itself a partial defence because a poisoned claim must name the right file."
+    },
+    {
+      "from": "c-minja",
+      "rel": "applies-to",
+      "to": "n-store-scope",
+      "note": "MINJA's query-only injection targets exactly this loop - store the execution, replay similar records - and our lessons are un-reviewed worker-written claim text."
+    },
+    {
+      "from": "c-minja",
+      "rel": "contradicts",
+      "to": "a-minimal-store",
+      "note": "Worker-written claim text is untrusted input; a design that ships claims into another campaign without signature or review widens the injection surface from one campaign to all of them."
+    },
+    {
+      "from": "c-mem0",
+      "rel": "fails-at",
+      "to": "c-zep",
+      "note": "Eager ADD/UPDATE/DELETE scores 49.0% on LongMemEval versus Zep's 71.2%: the cheap write policy loses exactly the long-horizon recall a shared store exists for."
+    },
+    {
+      "from": "c-mem0",
+      "rel": "supports",
+      "to": "n-ttl-clock",
+      "note": "Both drop rather than version: mem0's UPDATE erases the prior belief, our isExpired erases the prior round's lesson. A shared store needs the discarded version kept."
+    },
+    {
+      "from": "n-ledger-census",
+      "rel": "measures",
+      "to": "a-minimal-store",
+      "note": "The replay test proposed in the design is run against this exact corpus: 452 attempts, 42 treated, 66 exposure slots, 0 cross-campaign."
+    }
+  ],
+  "gaps": [
+    "What is the actual cross-campaign hit rate if files[] were populated? Replay the 452 recorded attempts and count how many foreign lessons would match a task's changed-file set - unanswerable today because 1/100 lessons has a non-empty files[].",
+    "Does a campaign-name family ever help? 30/100 lessons are keyed by the earning campaign's own name, but no evidence exists that this ever matched a task in that campaign either - the ablation (drop campaign-name families, keep task-id families) has not been run.",
+    "What is the measured retention of a dsh-loom lesson transferred to a new campaign? The literature reports 10%-140% share of in-domain gain (SkillOpt) and FWT -9.5 to +9.0 (NTU), but our own transfer effect is unmeasured because transfer has never happened (0/66 exposures crossed a campaign).",
+    "Is the binary verifier score the binding constraint on the impact loop, or the 42 treated observations? Disambiguating needs ~10x more treated rounds per lesson, or a graded score; at 33/42 exactly-zero deltas no statistic can currently separate a good lesson from a neutral one.",
+    "Would a naive import of the 100 existing lessons into a shared root improve or degrade holdout pass rate? The prediction from MemHarness (70.1 raw replay vs 76.4 no memory) and RETRACE (~18.4 direct plan reuse vs 19.6 no experience) is degrade, but nothing in our ledger tests it.",
+    "How much of the 274-char mean claim text is campaign-specific? No coding of claim text for repo-state dependence exists; without it the 'abstract enough to transfer' threshold is undefined and only the 13/87 negative-delta and dNL -26.1 style results constrain it from outside.",
+    "Does abstention (no file match, no lesson shown) reduce or increase round throughput? selectLessons returns [] during explore already, so the counterfactual is computable from existing rounds, but no such analysis has been run.",
+    "Is the lesson write path an injection surface in practice? MINJA's query-only attack and AgentPoison's <0.1% ratio imply yes in principle, but no attempt has tried poisoning our own store via a worker-written claim."
+  ]
+}

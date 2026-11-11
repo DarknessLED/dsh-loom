@@ -1,0 +1,60 @@
+{
+ "nodes": [
+  {
+   "id": "exp-chain-001",
+   "kind": "number",
+   "title": "Every campaign activated chain version 1 and none ever activated a second version: L2 has never once run",
+   "body": "Scanned all chain events across 68 campaigns (research/exp/e37.mjs): 96 chain.proposed, 69 chain.activated, and the activated-version distribution is {1: 69}. Zero campaigns activated more than one version. Of the 96 proposals only two distinct shapes appear - 95 are 'agent>map>verifier>human' (the code-fix template) and one is 'agent>verifier'. So the L2 loop, the layer whose job is to optimise the work chain itself, has produced no proposal that was ever executed twice, and in practice the loop is a fixed four-node pipeline invoked 69 times. This is the same finding as exp-gate-004 from the chain side: the machinery for self-modification exists (chain.propose/activate, node.started/node.finished are all recorded) but nothing in the loop ever calls it with a variant worth comparing. The reason is structural rather than accidental: proposing a chain variant needs an evaluation that can tell two chains apart, and exp-score-001 showed the only score is binary with a one-shot per-task ceiling.",
+   "source": "research/exp/e37.mjs (68 campaigns, 96 proposals, 69 activations)",
+   "confidence": 0.95,
+   "topic": "rsi",
+   "tags": [
+    "measurement",
+    "self-modification",
+    "chain"
+   ]
+  },
+  {
+   "id": "exp-chain-002",
+   "kind": "failure",
+   "title": "The planner node is the only node that ever runs, and it fails on 100 of 100 starts with the same empty diagnostic",
+   "body": "Node-level accounting from the same scan: 100 node.started, 178 node.finished, and every start is the 'recon' node; finished breaks down as recon 176 and worker 2. In loom-acc1 the recon node's record is ok:false, stopReason:'error', error:'child ses...' - the same 'child session ended in error with no diagnostic (parent or provider unavailable)' string that accounts for 80 of 189 failures (exp-fail-002). So the four-node chain runs one node, that node dies, and the round is recorded as a failed attempt. The 'map' and 'human' nodes in the template have never executed at all. Two consequences: the chain machinery is untested in production (its own tests pass, but no campaign has exercised the map or human node), and the dominant cost is a planner that cannot start a child session - which is a harness bug wearing the costume of a task failure.",
+   "source": "research/exp/e37.mjs (100 node.started, 178 node.finished)",
+   "confidence": 0.9,
+   "topic": "rsi",
+   "tags": [
+    "measurement",
+    "chain",
+    "failure-modes"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-chain-001",
+   "rel": "supports",
+   "to": "exp-gate-004"
+  },
+  {
+   "from": "exp-chain-001",
+   "rel": "contradicts",
+   "to": "ana-002",
+   "note": "L2 is not merely overbuilt; it has never executed a second version"
+  },
+  {
+   "from": "exp-chain-002",
+   "rel": "supports",
+   "to": "exp-fail-004"
+  },
+  {
+   "from": "exp-chain-002",
+   "rel": "supports",
+   "to": "exp-fail-002"
+  },
+  {
+   "from": "exp-chain-002",
+   "rel": "applies-to",
+   "to": "exp-chain-001"
+  }
+ ]
+}

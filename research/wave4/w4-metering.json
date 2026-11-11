@@ -1,0 +1,408 @@
+{
+  "nodes": [
+    {
+      "id": "w4-metering-246x-undercount",
+      "kind": "number",
+      "title": "Loom's recorded spend is 246x below provider usage in its own child logs",
+      "body": "331 loom attempts joined by sessionId to their archived transcripts: recorded costUsd sums to $0.0866, while the assistant/message usage blocks in those same sessions sum to 18,258,102 uncached input + 5,778,853 output + 492,650,420 cacheRead tokens, which prices to $21.3336 at loom's own DEFAULT_PRICING. Ratio 246x. Per attempt the median error is 811x (p10 167x, p90 3,386x) and 0 of 331 attempts recorded at or above the true figure, so the error is one-directional, not noise. True per-attempt cost: median $0.0455, mean $0.0645, p90 $0.1344, max $0.3613. Limitation: one machine, 69 campaigns, a 10-day window, and the $21.33 is itself computed with a price table this research shows to be wrong, so 246x measures the token error compounded by the price error, not either alone.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-comment-false-usage-exists",
+      "kind": "failure",
+      "title": "The comment justifying the fallback path is false: child logs do carry usage",
+      "body": "src/runtime/cost.js:181-186 asserts 'Child session logs carry no `usage` on assistant messages (verified against real archives)' and treats the host meter as the only real measurement. On this machine 437 of 437 loom child sessions are archived and 8,983 of their 9,015 assistant/message events (99.65%) carry a usage object; across all 923 session archives it is 34,268 of 34,318 (99.85%), with zero all-zero blocks. So sumUsage() would have worked the whole time. It is never reached because the meter is tried first and returns null. Limitation: the archives are DSH v4 session logs on one host; the comment may have been true against a different DSH version, and I cannot date when it was written.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-meter-wrong-argument",
+      "kind": "failure",
+      "title": "The token meter is called with a session id where it takes a session object, so it returns null",
+      "body": "@deepseek-ai/dsh-token-meter's API is measure(session, requestHeader?), and its docstring says '@param session - session to replay through its current durable tail'; it calls this._sync(session) on the object. src/runtime/cost.js:191 passes the sessionId string: meter.measure(sessionId). The call therefore yields nothing usable, measureViaMeter returns null every time, and every attempt falls through to fallbackSpend. The unit test cannot catch this because tests/self6/meter-usage.test.mjs injects tokenMeter:{measure:()=>MEASURED}, a fake that accepts any argument and proves only that the return value is consumed. Limitation: I infer the null from behaviour (no attempt ever carries a meter-shaped measurement) rather than from a stack trace, since the meter swallows the failure in a try/catch.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-meter-not-billing",
+      "kind": "concept",
+      "title": "The DSH meter returns context occupancy, not billing: no dollars, no in/out split",
+      "body": "The host token meter's measure() returns {logRevision, baseline, surfaceDeltaTokens, totalTokens, surfaceTokens, nodes}, where totalTokens = max(0, baseline.tokens + surfaceDeltaTokens). Its README states 'Occupancy is a reference figure, not a billing record: nothing in the harness makes decisions from it'. Charging this per attempt would sum a context-pressure number, not a bill. The billing-grade fields exist elsewhere: a session projection named tokenUsage carries 'Provider-reported usage accumulated across the complete durable log' as {uncachedInputTokens, outputTokens, cacheReadTokens, cacheWriteTokens}. Note uncachedInputTokens, not inputTokens, so even normalizeMeterUsage's field names would not line up. Limitation: this is read from a bundled asar, and the projection may be reachable by plugins only through ctx.sessionProjections.stateOf(session), which loom does not attempt.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-cache-read-95pct",
+      "kind": "number",
+      "title": "95.3% of the tokens loom's attempts consumed are cache reads",
+      "body": "Across the 331 joined attempts: uncached input 18,258,102, output 5,778,853, cacheRead 492,650,420, cacheWrite 0. Cache reads are 95.3% of all metered tokens. At DEFAULT_PRICING they are 64.7% of the true cost ($13.794 of $21.334), with input $5.112 and output $2.427. The independent cost-meter ledger on the same machine agrees on the shape: cacheRead/input = 25.8x over 24 days and 36,061 calls. Any attribution design that sums input+output, or that forgets the cache-read bucket, is measuring roughly 4.7% of the work. Limitation: the cacheRead share depends on how DSH lays out its prefix; a harness with fewer, smaller cached prefixes would show a lower share, and this is one host's workload.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-cache-write-unpriced",
+      "kind": "failure",
+      "title": "cacheWriteTokens is recorded in every usage block and never priced at all",
+      "body": "src/runtime/cost.js:150-161 computes (in/1e6)*inP + (out/1e6)*outP + (cacheRead/1e6)*cacheP. cacheWriteTokens is summed by sumUsage, carried through normalizeMeterUsage, stored on the attempt record, and then multiplied by nothing. Provider rates make this the most expensive bucket per token: Anthropic charges 1.25x base input for a 5-minute cache write and 2x for a 1-hour write against 0.1x for a read. On this machine the omission happens to be free: cacheWrite is 0 in all 331 attempts and 0 on every one of the 24 ledger days. That is a property of the provider, not of the code. Limitation: DeepSeek's API may not bill cache writes separately, so the bug is latent here and would only bite on a route whose adapter reports a nonzero cacheWriteTokens.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-price-table-inverted",
+      "kind": "number",
+      "title": "The default price table inverts the output/cache-read ratio against the observed rate card",
+      "body": "DEFAULT_PRICING is 0.28 in / 0.42 out / 0.028 cacheRead, i.e. out/in = 1.500 and cr/in = 0.100. The observed rate card on this machine (ledger.json.details-cache rows, bucket/tokens/rate) is input 0.15000, out/in = 4.000, cr/in = 0.020. So output is underpriced 2.67x and cache reads overpriced 5x at the same time. Because the workload is cache-read dominated, the second error wins: re-pricing the same 331 attempts at the observed card gives $7.684 instead of $21.334, so the default table overstates true spend 2.78x even when the tokens are right. Limitation: the observed card is one provider's promotional rate on one account, has changed at least nine times in the ledger's pricingHistory, and is not a list price anyone else should copy.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-fallback-blind-preamble",
+      "kind": "analysis",
+      "title": "The fallback prices only brief and answer, blind to the per-call preamble that dominates cost",
+      "body": "fallbackSpend(brief, text, pricing) sets inputTokens = ceil(brief.length/4) and outputTokens = ceil(text.length/4), with cacheRead and cacheWrite hardcoded to 0. This is why the 100 distinct recorded inputTokens values bottom out at a function of brief length (479 to 1,313 tokens, implying briefs of 1,916 to 5,252 characters). It structurally omits the system prompt, the tool schemas, every prior turn, every tool result, and all cache traffic. Independent work puts the fixed preamble at 16,581 tokens per call for Claude Code, 7,025 for OpenCode and 829 for mini-SWE-agent, multiplied by 55-88 steps: 'the bill is set at the first call and multiplied by the step count'. A fallback that prices only the brief is not a lower bound on that bill; it is a different quantity. Limitation: the 16,581-token preamble is measured for other harnesses, not for DSH, and this host may prepend a smaller or larger one that I did not measure.",
+      "source": "https://arxiv.org/html/2610.04433v1",
+      "confidence": 0.9,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-tokensof-drops-cache",
+      "kind": "failure",
+      "title": "tokensOf counts input+output only, so the token cap sees 21.5x fewer tokens than the meter",
+      "body": "src/runtime/round.js:785-790 returns inputTokens+outputTokens when positive, else ceil((brief.length+text.length)/4); it never adds cacheReadTokens or cacheWriteTokens. On the 331 joined attempts that is 24,036,955 tokens against 516,687,375 actually metered, a 21.5x undercount before any pricing is applied. The USD cap and the token cap therefore disagree about the same round by an order of magnitude, and only the USD one is even nominally wired to a price. Limitation: whether this matters depends on whether anyone sets budget.tokens; on this machine none of the 69 campaigns did, so the cap has never been exercised and the bug is unobserved rather than harmless.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-cap-never-bound",
+      "kind": "number",
+      "title": "No campaign came near its USD cap: 0 of 69 breached, worst case 0.1x of the limit",
+      "body": "Every one of the 69 campaigns records a budget.usd between $1 and $30 and a budget.spentUsd that is at most 0.1x of it. Recomputed from provider usage at DEFAULT_PRICING, the largest true campaign spend is $1.244 (loom-ui8, cap $20) and the largest ratio to cap is still ~0.1x. So the budget preflight, the projectedUsd affordability test and the exhausted/unaffordable branches at src/runtime/round.js:917-945 have never fired in anger: the guard is untested by real traffic, and the number that would have stopped a runaway (spentUsd) is 198-246x too small to ever reach a cap. Limitation: these campaigns were short by design (1-18 rounds); a long campaign would eventually cross a cap, so this shows the guard is unexercised, not that the caps are unreachable.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-zero-dollar-attempts",
+      "kind": "number",
+      "title": "152 of 331 metered attempts recorded $0.00 while carrying 37.6% of the real spend",
+      "body": "Because fallbackSpend is keyed on visible text, an attempt that returns little or no text records costUsd 0. 152 of the 331 joined attempts have costUsd 0 with real provider usage totalling $8.011, i.e. 37.6% of all measured spend is present in the logs and absent from the ledger. Twenty-one campaigns record a total spend of exactly $0 while their attempts really cost more than $0.05, and in 43 of 43 campaigns with any recorded spend, a single attempt cost more than that campaign's entire recorded total. src/runtime/round.js:1830-1833 also suppresses the budget.spent event when roundCost is 0, so these rounds append no spend event at all. Limitation: a $0 attempt can also mean a genuine no-op (crash, spawn failure), so some of the 152 are correctly free; the 37.6% is an upper bound on invisible spend.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-cost-per-accepted-change",
+      "kind": "number",
+      "title": "Cost per promoted round is $0.2071 and 43% of measured spend did not promote",
+      "body": "226 rounds across the campaigns, 103 promoted. True spend (provider usage at DEFAULT_PRICING) is $12.125 on promoted rounds and $9.208 on non-promoted ones, so $0.2071 per promoted round and 43% of spend producing nothing that shipped. By failureKind the split is ok $8.443 (123 attempts), unclassified $6.294 (122), timeout $3.379 (25), died $3.218 (61): the unclassified bucket alone is 29% of spend, which is the population a naive per-attempt table would silently drop. Vendor analysis of the fully loaded figure puts tokens under 10% of cost per accepted change ($7.20 of $106.20 in one worked example, $4.68 of $56.01 in another) with review, rework and escaped defects making up the rest. Limitation: the $0.2071 uses a price table shown to be wrong, counts only model tokens, and excludes the human checkpoint time that the other 90% of the Sonar figure consists of.",
+      "source": "https://www.sonarsource.com/resources/library/economics-of-agentic-development/",
+      "confidence": 0.8,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-within-round-cost-spread",
+      "kind": "number",
+      "title": "Two candidates for one task in one round differ in cost by a median of 1.36x",
+      "body": "161 rounds spawned two candidates that both have metered usage. The ratio of the more expensive to the cheaper has median 1.36, p90 2.31, and a maximum of 77.09. That variance is within one round, one task, one brief, one verifier, and it is imposed by run-to-run behaviour rather than by task difficulty. It means a per-task or per-claim cost figure derived from a single run is unreliable at the 1.4x level as a matter of course, and catastrophically unreliable in the tail. It also means 'pick the cheaper candidate' is a real selector signal available for free from the same metering, and loom currently does not use it. Limitation: the 77x outlier is a single round and may be a retry storm rather than genuine work; medians from 161 pairs describe this workload only.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-streaming-usage-split",
+      "kind": "claim",
+      "title": "Streaming usage arrives in two places; keeping only the last event loses cache-creation tokens",
+      "body": "Anthropic's stream puts the input-side counters (input_tokens, cache_creation_input_tokens, cache_read_input_tokens) in message_start only, while output_tokens reaches its final value in message_delta; a reader that inspects only the last event captures cache_read and silently loses cache_creation. Total input is the summation of input_tokens + cache_creation_input_tokens + cache_read_input_tokens, and blocks left in place still count as sent. OpenAI's equivalent, stream_options.include_usage, appends one final chunk before data: [DONE] whose choices array is always empty, and 'If the stream is interrupted, you may not receive the final usage chunk'. DSH handles the Anthropic case correctly: its projection replaces a step's prior sample and lets llm/retry-started open a new slot so a retried step 'contributes another billed attempt'. Limitation: both are vendor docs; the failure is observable only when a stream breaks or a fallback fires, and I did not reproduce it locally.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-otel-cache-double-count",
+      "kind": "claim",
+      "title": "OTel GenAI counts cache-read tokens as part of input_tokens, so double counting is the default mistake",
+      "body": "The GenAI semantic conventions define gen_ai.usage.input_tokens, output_tokens, cache_read.input_tokens and cache_creation.input_tokens, and state that cached tokens are 'Part of input_tokens'. An instrumentation that adds cache_read on top of input, or a consumer that sums every usage attribute it sees, therefore overstates prompt tokens by the cache share, which on this machine's workload is 25.8x the uncached input. The convention also renamed the metrics to gen_ai.client.inference.usage.{input_tokens,output_tokens,cache_read.input_tokens,cache_write.input_tokens} counters, deleting the gen_ai.client.token.usage histogram and its gen_ai.token.type attribute, and replaced gen_ai.system with gen_ai.provider.name at v1.37 while old emitters still send gen_ai_system. Limitation: this is a specification, not a measurement; which conventions a given exporter emits depends on its version, and loom emits no OTel at all today.",
+      "source": "https://raw.githubusercontent.com/Mandark-droid/genai_otel_instrument/refs/heads/main/docs/reference/semantic-conventions.md",
+      "confidence": 0.7,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-subagent-attribution-hole",
+      "kind": "failure",
+      "title": "Subagent spend lives in sibling files the parent omits, and one telemetry pipeline priced it at $0",
+      "body": "grafana/agento11y PR #918: 'Live Claude Code capture was pricing spawned subagents at $0 even when Claude Code itself reported real cost.' Cause: 'Claude Code writes a subagent's model turns (and token usage) to sibling files at <sessionID>/subagents/agent-<id>.jsonl. The parent transcript only records the Agent tool_use / tool_result pair.' The observed split was claude-code with cost and claude-code/subagent at $0 while the provider-side total showed the spend. A second tool reports Claude Code workflow runs writing 'a full session transcript - including usage tokens - that lives entirely outside the main session JSONL' with '~3.18M tokens in one session'. Limitation: on this machine the hole is latent, not active - all 437 loom attempt sessions spawn zero subagents (0 nested sessions under any attempt), so looping per-attempt usage is currently complete.",
+      "source": "https://github.com/grafana/agento11y/pull/918",
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-publisher-api-not-realtime",
+      "kind": "claim",
+      "title": "Provider usage and cost APIs are reconciliation tools with holes, not a live meter a loop can budget on",
+      "body": "Anthropic's Admin API splits usage (bucket_width 1m/1h/1d, max 1440/168/31 buckets) from cost, and the cost endpoint accepts 1d buckets only, max 31. Amounts arrive in minor units and must be divided by 100, the endpoints are 'designed for historical analysis, not real-time monitoring', and 'Priority Tier costs use a different billing model and will never appear in the cost endpoint'. OpenAI's reference says its Usage API 'may not always reconcile perfectly with the Costs' and recommends the Costs endpoint for financial purposes. On this machine that gap is measurable: the local ledger's cost $59.485 against apiCost $28.384 leaves 52.3% of 'cost' as local estimate, and three provider-model pairs report apiCost exactly 0 while carrying $27.29 of local cost. Limitation: these are admin-scope APIs needing an org key the loop does not have, so this bounds what a background loop can verify, not what an operator can.",
+      "source": "https://platform.claude.com/cookbook/observability-usage-cost-api",
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-chars4-undercount",
+      "kind": "number",
+      "title": "chars/4 undercounts tokens 40-45%; real transcripts measure 2.22 bytes per token",
+      "body": "claude-context-cost 1.7.0 reports 'The usual shortcut, characters / 4, counts 40 to 45% too few tokens (-45% in the author's sessions, mostly in Portuguese; -40% in one in English)', validated on 457 transcripts and 91,347 responses with '0 where the sources differ from the usage', and measures a median 2.22 bytes per token. DSH's own README concedes the same direction: 'CJK text and JSON schemas underprice badly at four characters per token'. Loom's CHARS_PER_TOKEN = 4 therefore tilts every unpriced round downward even before it omits the preamble. Limitation: the author's corpus is one person's sessions dominated by Portuguese, the English figure rests on a single session, and both ratios are corpus-specific, so 2.22 is a warning sign rather than a constant to hardcode.",
+      "source": "https://pypi.org/project/claude-context-cost/1.7.0/",
+      "confidence": 0.8,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-correct-attribution-design",
+      "kind": "analysis",
+      "title": "Correct per-attempt attribution is one join plus a versioned price row per call, not a new meter",
+      "body": "The evidence supports a concrete design. (1) Read usage from the assistant/message events of the attempt's own session, not from a meter that reports occupancy; the blocks exist in 99.65% of loom child logs. (2) Key the price row by the request header's provider and model at call time, and version the table, because this machine's ledger recorded nine reprices in a month and a longest-prefix model match once overcharged 3x. (3) Price all four buckets, cache writes included, since a write is 1.25-2x base input while a read is 0.1x. (4) Carry the attempt id onto the attribution row so per-accepted-change is one grouped sum over attempts, with failed attempts in the numerator. (5) Reconcile weekly against the provider cost endpoint and publish the residual; here that residual would be 52.3%. Limitation: this still cannot attribute the human review time that dominates fully loaded cost per accepted change, and it assumes the provider reports cache writes at all.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-reported-cost-is-estimate",
+      "kind": "claim",
+      "title": "Most reported agent cost is an estimate in a measurement's clothes: 52.3% is unpriced locally",
+      "body": "The cost-meter plugin on this machine sums 24 days, 36,061 calls, 145,664,855 uncached input, 24,141,355 output and 3,760,157,964 cache reads. Its cost field totals $59.485 while its apiCost field, filled only where a provider actually reported a charge, totals $28.384. So 52.3% of the headline 'cost' is local arithmetic over a price table, and three provider-model pairs (open-design:deepseek-v4.1-flash $19.59, opencode-go:deepseek-v4.1-flash $7.13, open-design:claude-haiku-5.5 $0.56) report apiCost exactly 0. cacheWrite is 0 on every single day, so that bucket is untested across the whole window. Limitation: apiCost 0 legitimately means a flat-rate or subscription route where marginal cost really is zero, so 52.3% is an upper bound on estimation, not proof that half the bill is fiction.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-metering"
+    },
+    {
+      "id": "w4-metering-attempt-cost-caveat-claims",
+      "kind": "analysis",
+      "title": "A per-attempt dollar figure needs three caveats beside it or the loop optimises the wrong number",
+      "body": "The measurements on this machine produce three distinct errors that a single number hides: the token source (fallback vs provider usage, 246x on cost), the price table (DEFAULT versus observed card, 2.78x the other way), and the missing preamble (unmeasured). A loop that promotes on 'cheaper' using any one of these would be selecting on an artefact. The safe shape is a triple: tokens by bucket from the provider, priced at a versioned card, with an explicit estimated/measured flag per attempt, plus one reconciliation delta against the publisher's cost endpoint. Loom already has the flag (usageEstimated) but sets it to true on 277 of 449 attempts and to false on 58 that are all-zero, which is exactly backwards for the reader who trusts it. Limitation: a triple costs more plumbing than a scalar and still cannot rank two attempts whose real costs differ by less than the 1.36x median within-round spread.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-metering"
+    }
+  ],
+  "edges": [
+    {
+      "from": "w4-metering-246x-undercount",
+      "rel": "measures",
+      "to": "w4-metering-reported-cost-is-estimate",
+      "note": "The 246x figure is the size of the gap between what loom records and what the provider metered for the same attempts."
+    },
+    {
+      "from": "w4-metering-246x-undercount",
+      "rel": "contradicts",
+      "to": "w4-metering-attempt-cost-caveat-claims",
+      "note": "A 246x error makes any selection rule that consumes the recorded scalar meaningless until the token source is fixed."
+    },
+    {
+      "from": "w4-metering-comment-false-usage-exists",
+      "rel": "contradicts",
+      "to": "w4-metering-meter-wrong-argument",
+      "note": "The fallback existed to cover a gap the comment claimed; the gap does not exist, and the fallback is reached only because the meter call fails."
+    },
+    {
+      "from": "w4-metering-meter-wrong-argument",
+      "rel": "requires",
+      "to": "w4-metering-meter-not-billing",
+      "note": "Calling the meter correctly would still not yield a bill, only an occupancy figure, so fixing the argument alone is insufficient."
+    },
+    {
+      "from": "w4-metering-meter-not-billing",
+      "rel": "requires",
+      "to": "w4-metering-correct-attribution-design",
+      "note": "The design must read the tokenUsage projection or the raw events, because the meter's public return cannot support cost."
+    },
+    {
+      "from": "w4-metering-cache-read-95pct",
+      "rel": "supports",
+      "to": "tri-cache-input-share",
+      "note": "Independent stream reaches the same conclusion: cached input, not fresh input, is where the token volume and the bill live."
+    },
+    {
+      "from": "w4-metering-cache-read-95pct",
+      "rel": "contradicts",
+      "to": "w4-metering-fallback-blind-preamble",
+      "note": "A fallback that hardcodes cacheRead to 0 cannot represent 95.3% of the tokens the attempt actually consumed."
+    },
+    {
+      "from": "w4-metering-cache-write-unpriced",
+      "rel": "refines",
+      "to": "tri-token-cut-cost-rise",
+      "note": "That study decomposes cost into cache creation plus cache reads; loom prices only one of those two buckets."
+    },
+    {
+      "from": "w4-metering-price-table-inverted",
+      "rel": "contradicts",
+      "to": "tri-harness-cost-3x",
+      "note": "The 3x harness gap assumed a working price structure; here the price table itself moves the same tokens by 2.78x, so harness comparisons inherit that error."
+    },
+    {
+      "from": "w4-metering-price-table-inverted",
+      "rel": "refines",
+      "to": "w4-metering-reported-cost-is-estimate",
+      "note": "One concrete mechanism behind the 52.3% estimated share: a default table whose ratios are inverted against the observed card."
+    },
+    {
+      "from": "w4-metering-fallback-blind-preamble",
+      "rel": "derived-from",
+      "to": "tri-harness-cost-3x",
+      "note": "The 16,581 / 7,025 / 829 token preambles are the quantity the brief-only fallback cannot see."
+    },
+    {
+      "from": "w4-metering-fallback-blind-preamble",
+      "rel": "contradicts",
+      "to": "w4-metering-tokensof-drops-cache",
+      "note": "Both omissions point the same way: the recorded number is a strict undercount of the prompt side."
+    },
+    {
+      "from": "w4-metering-tokensof-drops-cache",
+      "rel": "fails-at",
+      "to": "tri-budget-blind",
+      "note": "Budget awareness research shows models stop poorly; a harness whose own token counter is 21.5x low cannot compensate."
+    },
+    {
+      "from": "w4-metering-cap-never-bound",
+      "rel": "contradicts",
+      "to": "w2-meta-gap-no-matched-budget-headtohead",
+      "note": "The gap asks for a matched budget head-to-head; this machine shows the cap machinery has never once bound, so no such comparison exists here."
+    },
+    {
+      "from": "w4-metering-cap-never-bound",
+      "rel": "requires",
+      "to": "w4-metering-246x-undercount",
+      "note": "The cap cannot bind because the spent counter it compares against is two orders of magnitude too small."
+    },
+    {
+      "from": "w4-metering-zero-dollar-attempts",
+      "rel": "supports",
+      "to": "w4-metering-246x-undercount",
+      "note": "37.6% of real spend recorded as exactly zero is the mechanism by which the aggregate error reaches 246x."
+    },
+    {
+      "from": "w4-metering-cost-per-accepted-change",
+      "rel": "measures",
+      "to": "exp-score-001",
+      "note": "The promoted-round count is the denominator any score-per-dollar reading of the campaign has to use."
+    },
+    {
+      "from": "w4-metering-cost-per-accepted-change",
+      "rel": "requires",
+      "to": "w4-metering-attempt-cost-caveat-claims",
+      "note": "Cost per accepted change inherits every error in the per-attempt number that feeds it."
+    },
+    {
+      "from": "w4-metering-cost-per-accepted-change",
+      "rel": "refines",
+      "to": "w3-cheapwin-patch-size-cost",
+      "note": "Patch size affects cost per attempt; this adds that 43% of that spend lands on patches that never promote."
+    },
+    {
+      "from": "w4-metering-within-round-cost-spread",
+      "rel": "contradicts",
+      "to": "tri-session-cost-variance",
+      "note": "That methodology found session totals varying +-58%; here the same variance appears inside one round as a 1.36x median spread between two candidates."
+    },
+    {
+      "from": "w4-metering-within-round-cost-spread",
+      "rel": "applies-to",
+      "to": "w2-decide-gap-false-accept-cost-unmeasured",
+      "note": "The unmeasured cost of a false accept has a lower bound: the spread between the two candidates that round actually paid for."
+    },
+    {
+      "from": "w4-metering-streaming-usage-split",
+      "rel": "requires",
+      "to": "w4-metering-correct-attribution-design",
+      "note": "Any attribution that reads the last stream event loses the cache-creation bucket, so the design must fold message_start and message_delta."
+    },
+    {
+      "from": "w4-metering-otel-cache-double-count",
+      "rel": "contradicts",
+      "to": "w4-metering-cache-read-95pct",
+      "note": "The convention's 'cache read is part of input_tokens' invites exactly the addition that would erase the distinction this measurement depends on."
+    },
+    {
+      "from": "w4-metering-subagent-attribution-hole",
+      "rel": "fails-at",
+      "to": "w4-metering-correct-attribution-design",
+      "note": "Per-attempt attribution is only complete when attempt sessions spawn no subagents, which holds here but is not guaranteed."
+    },
+    {
+      "from": "w4-metering-publisher-api-not-realtime",
+      "rel": "contradicts",
+      "to": "tri-budget-blind",
+      "note": "Budget-aware agents need a live number; the publisher's own cost endpoint is daily-only and omits whole service tiers."
+    },
+    {
+      "from": "w4-metering-publisher-api-not-realtime",
+      "rel": "supports",
+      "to": "w4-metering-reported-cost-is-estimate",
+      "note": "If the authoritative endpoint is 31 daily buckets and unreconciled with usage, locally computed cost is the only near-real-time option and is an estimate by construction."
+    },
+    {
+      "from": "w4-metering-chars4-undercount",
+      "rel": "supports",
+      "to": "w4-metering-fallback-blind-preamble",
+      "note": "The 4-chars heuristic is wrong by 40-45% even on the text it does see, compounding the omission of what it does not see."
+    },
+    {
+      "from": "w4-metering-chars4-undercount",
+      "rel": "contradicts",
+      "to": "w4-metering-246x-undercount",
+      "note": "A -40% character bias cannot by itself explain a 246x gap; the gap is dominated by omitting the preamble and cache traffic."
+    },
+    {
+      "from": "w4-metering-correct-attribution-design",
+      "rel": "supersedes",
+      "to": "w4-metering-attempt-cost-caveat-claims",
+      "note": "The design replaces the caveat list with three concrete requirements: bucket-complete usage, a versioned price row, and an attempt id on the row."
+    },
+    {
+      "from": "w4-metering-correct-attribution-design",
+      "rel": "requires",
+      "to": "w4-metering-cost-per-accepted-change",
+      "note": "Grouping attributed rows by promoted round is what turns per-attempt cost into per-accepted-change cost."
+    },
+    {
+      "from": "w4-metering-reported-cost-is-estimate",
+      "rel": "supports",
+      "to": "w4-metering-price-table-inverted",
+      "note": "The estimated share is partly explained by a table whose output and cache-read ratios are inverted."
+    },
+    {
+      "from": "w4-metering-reported-cost-is-estimate",
+      "rel": "applies-to",
+      "to": "exp-goodhart-001",
+      "note": "A cost metric that is 52% arithmetic invites optimising the arithmetic rather than the spend, which is the Goodhart failure this node records."
+    },
+    {
+      "from": "w4-metering-attempt-cost-caveat-claims",
+      "rel": "refines",
+      "to": "tri-cost-per-solved-task",
+      "note": "That result prices per resolved task; this adds that the same task's cost per attempt varies 1.36x within a single round."
+    },
+    {
+      "from": "w4-metering-attempt-cost-caveat-claims",
+      "rel": "applies-to",
+      "to": "exp-human-001",
+      "note": "A human reviewing a cost claim needs the measured/estimated flag to be trustworthy, and on this machine it is inverted on 58 attempts."
+    }
+  ],
+  "gaps": [
+    "What fraction of a coding agent's real bill is the fixed per-call preamble, measured by differencing two harnesses on identical tasks rather than by reading their prompt files?",
+    "Does any harness publicly publish a per-attempt cost attribution that has been reconciled against the publisher's cost endpoint, and what is the residual?",
+    "How large is the within-round cost spread between two candidates on a task set with a fixed step budget, as opposed to this workload's 1.36x median?",
+    "If cache reads are 95% of tokens, does an attribution that prices only input and output produce a ranking that differs from one that prices all four buckets, or does the ratio cancel?",
+    "What share of loom's 246x undercount survives if the same attempts are replayed on a provider whose adapter reports cache writes nonzero?",
+    "Can a background loop enforce a spend cap using only the provider's daily cost endpoint, and what is the worst-case overshoot in a single day?",
+    "What is the human checkpoint time per promoted round on this design, which the 90% non-token share of cost per accepted change implies but nobody has measured here?"
+  ]
+}

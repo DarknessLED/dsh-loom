@@ -1,0 +1,67 @@
+{
+ "nodes": [
+  {
+   "id": "exp-graded-001",
+   "kind": "number",
+   "title": "A declared metric turns four indistinguishable states into three distinct scores, and the existing gate rule accepts the improvements and rejects the regression",
+   "body": "Built a throwaway workspace where the verifier exits 0 in every state and the only signal is a printed QUALITY= number (research/exp/graded-live/: lib.mjs with two of four behaviours deliberately naive, check.mjs that prints the fraction correct and always exits 0). Drove four honest states through the real runVerifier and the real scoreAttempt + the loop's own minGain rule (research/exp/graded-live/sweep.mjs): untouched quality 0.500 score 0.65; pad fixed 0.750 score 0.825; both fixed 1.000 score 1.000; clip re-broken 0.750 score 0.825. With the metric declared, bestPriorScore/minGain accepts the first two improvements (+0.175 each, minGain 0.05) and rejects the regression (-0.175). With the metric NOT declared, all four states score exactly 1.0 and every transition is rejected as no-gain. So the entire pathology in exp-score-001/exp-gate-001 is reachable by changing the task declaration, with zero code change, and the code path that would produce a graded score is verified working end to end rather than unit-tested in isolation.",
+   "source": "research/exp/graded-live/sweep.mjs + src/exec/verifier.js + src/gate/gate.js",
+   "confidence": 0.95,
+   "topic": "graded",
+   "tags": [
+    "experiment",
+    "graded",
+    "gate",
+    "actionable"
+   ]
+  },
+  {
+   "id": "exp-graded-002",
+   "kind": "analysis",
+   "title": "The graded path is only safe when the measured number cannot be written by the candidate, and here it cannot",
+   "body": "The one real risk in exp-graded-001 is w4-graded-metric-regex-shadowing: a candidate that prints its own QUALITY line wins the round. That risk is absent in this fixture for a reason worth naming rather than assuming: check.mjs computes the number from cases declared in the same file it imports, and the candidate's edit surface is lib.mjs only, so moving the number means making a behaviour actually correct. In a real task that property has to be enforced, and the cheapest enforcement is the pattern already in the repo: a no-test-edit check plus a check that the measuring file is unmodified in the diff. So the recommendation ordering is (1) prefer metrics computed by the runner from behaviour it observes, (2) forbid the diff from touching the measurer, (3) only then allow a self-reported number.",
+   "source": "research/exp/graded-live/ + w4-graded-metric-regex-shadowing",
+   "confidence": 0.9,
+   "topic": "graded",
+   "tags": [
+    "analysis",
+    "graded",
+    "attack-surface"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-graded-001",
+   "rel": "supports",
+   "to": "exp-score-003",
+   "note": "end-to-end proof, not just unit-test shape"
+  },
+  {
+   "from": "exp-graded-001",
+   "rel": "contradicts",
+   "to": "exp-gate-001",
+   "note": "the gate's inertness is a declaration problem, not an unfixable one"
+  },
+  {
+   "from": "exp-graded-001",
+   "rel": "applies-to",
+   "to": "ana-009"
+  },
+  {
+   "from": "exp-graded-002",
+   "rel": "requires",
+   "to": "exp-graded-001"
+  },
+  {
+   "from": "exp-graded-002",
+   "rel": "supports",
+   "to": "w4-graded-metric-regex-shadowing"
+  },
+  {
+   "from": "exp-graded-002",
+   "rel": "refines",
+   "to": "exp-graded-001"
+  }
+ ]
+}

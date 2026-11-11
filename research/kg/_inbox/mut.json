@@ -1,0 +1,60 @@
+{
+ "nodes": [
+  {
+   "id": "exp-mut-002",
+   "kind": "failure",
+   "title": "Our knowledge and gate suites pin down 10-43% of their modules' behaviour, so a promoted patch can break them silently",
+   "body": "Ran a 10-mutation text audit (true->false, === -> !==, >= -> >, <= -> <, && -> ||, || -> &&, +1 -> +2, null -> 0, Math.min -> Math.max, drop a return) against four core modules with their own specs, using the real verifier runner (research/exp/e29.mjs): src/knowledge/select.js killed 1/10 (score 0.100), src/knowledge/impact.js 1/10 (0.100), src/gate/gate.js 3/7 (0.429), src/runtime/selector.js 5/6 (0.833). Contrast with src/runtime/deferred.js at 11/12 (0.917, exp-mut-001). The two worst are the modules that decide what the loop learns and what it promotes: a mutation that flips a comparison inside selectLessons or scoreAttempt leaves every spec green. The spread is the useful part - deferred.js was written against its spec, select.js grew organically - so 'we have 157 passing test files' says nothing about whether the gate's arithmetic is pinned. Caveat: text mutations include equivalent mutants (no behaviour change), which inflates the survivor count; the wave4 hand-written audit of gate.js found 16/22 real mutants killed (0.727), so treat 0.429 as a lower bound and 0.100 on the knowledge modules as the real signal.",
+   "source": "research/exp/e29.mjs (33 mutants across 4 modules)",
+   "confidence": 0.9,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "mutation",
+    "test-strength"
+   ]
+  },
+  {
+   "id": "exp-mut-003",
+   "kind": "analysis",
+   "title": "Test count and test strength are unrelated here, so 'the suite is green' is not evidence the gate works",
+   "body": "Three numbers side by side make the point: 157 passing test files, 0.100 mutation score on the module that ranks lessons, and 0.429 on the module that computes the score the loop promotes on. A green suite is a set of witnessed behaviours, and the loop's decisions run through behaviours nobody wrote a witness for. This is why the 'held-out non-regression' instinct is insufficient on its own: if the held-out suite is as weak as the held-in suite, it certifies nothing. The cheap fix is per-module mutation auditing as a standing check - it needs no model, runs in seconds, and produces a number that goes down when someone adds a real assertion and stays flat when someone adds a padding one.",
+   "source": "research/exp/e29.mjs + exp-mut-001 + w4-graded-mutation-resists-padding",
+   "confidence": 0.9,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "mutation",
+    "gate-validity"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-mut-002",
+   "rel": "refines",
+   "to": "exp-mut-001",
+   "note": "one module at 0.917 was not representative"
+  },
+  {
+   "from": "exp-mut-002",
+   "rel": "supports",
+   "to": "w4-graded-mutation-0-727-gate"
+  },
+  {
+   "from": "exp-mut-002",
+   "rel": "applies-to",
+   "to": "ana-003"
+  },
+  {
+   "from": "exp-mut-003",
+   "rel": "derived-from",
+   "to": "exp-mut-002"
+  },
+  {
+   "from": "exp-mut-003",
+   "rel": "requires",
+   "to": "exp-guard-001"
+  }
+ ]
+}

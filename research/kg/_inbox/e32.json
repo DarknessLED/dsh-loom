@@ -1,0 +1,66 @@
+{
+ "nodes": [
+  {
+   "id": "exp-gate-002",
+   "kind": "failure",
+   "title": "14 of 114 promotions carried no patch, and every one of them is a no-op round the gate had no way to refuse",
+   "body": "Cross-tabulated all 208 gate evaluations against their inputs (research/exp/e32.mjs): verifierOk 136, testsClean 159, hasPatch 146, noop 14, holdout true 84 / false 9 / absent 115, promoted 114. Zero promotions lacked a verifier pass, but 14 promotions had no patch at all - exactly the noop count. That is the empty-patch path I patched earlier at the apply step; the gate still counts a no-op as promotable because checks.hasPatch is not required when checks.noop is true. The second finding is that checks.baseFailed is absent on 192 of 208 evaluations (present true on 12, false on 1), so the 'did the base tree already pass' signal exists in the evaluator but was almost never recorded - which is why the holdout branch in round.js can only ever see the 13 evaluations that recorded it. Third: holdout was absent entirely on 115 of 208 evaluations, i.e. the holdout abstains more than half the time, and exp-guard-002 already showed a holdout rejection is mislabelled as no-gain. The gate's inputs are recorded inconsistently enough that none of its decisions can be audited after the fact.",
+   "source": "research/exp/e32.mjs (208 gate.evaluated records)",
+   "confidence": 0.93,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "gate",
+    "audit"
+   ]
+  },
+  {
+   "id": "exp-fail-004",
+   "kind": "failure",
+   "title": "The campaigns that never pass are the ones killed by missing diagnostics, not the ones that tried and failed",
+   "body": "Six campaigns have two or more gate evaluations and fail every time (loom-acc1, loom-acc3, loom-acc6, loom-bal4, loom-claim-live, loom-demo-plan). None of them failed because a patch did not satisfy the verifier in a recorded way: loom-acc3's twelve gates all have hasPatch false, and its attempt records carry the literal error string 'child session ended in error with no diagnostic (parent or provider unavailable)' or 'dispatcher disposed' with patchLen 68 (an empty diff header). So the honest answer to 'why do 9 of 26 campaigns sit at 0% pass' is not 'the task is too hard' - it is 'the attempt process died and the loop recorded the death as a zero'. This is the same 42%-of-failures string from exp-fail-002 seen from the other end: the dominant failure mode of the harness is invisible in the score, and a loop that improves on scores will never fix it, because dying looks identical to failing.",
+   "source": "research/exp/e32.mjs + exp-fail-002 (attempt records in loom-acc3)",
+   "confidence": 0.9,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "failure-modes",
+    "diagnostics"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-gate-002",
+   "rel": "refines",
+   "to": "exp-guard-002",
+   "note": "baseFailed absent on 192 of 208, so the holdout branch sees only 13 evaluations"
+  },
+  {
+   "from": "exp-gate-002",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "exp-gate-002",
+   "rel": "requires",
+   "to": "ana-004"
+  },
+  {
+   "from": "exp-fail-004",
+   "rel": "supports",
+   "to": "exp-fail-002"
+  },
+  {
+   "from": "exp-fail-004",
+   "rel": "refines",
+   "to": "exp-slot-006",
+   "note": "the 0% campaigns are harness deaths, not task difficulty"
+  },
+  {
+   "from": "exp-fail-004",
+   "rel": "applies-to",
+   "to": "exp-stop-001"
+  }
+ ]
+}

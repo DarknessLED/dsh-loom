@@ -1,0 +1,344 @@
+{
+  "nodes": [
+    {
+      "id": "w4-graded-mutation-0-727-gate",
+      "kind": "number",
+      "title": "Our gate module's own suite kills 16 of 22 hand-written mutants, score 0.727, in 2.7 s",
+      "body": "22 single-operator mutants against src/gate/gate.js, scored by the focused spec tests/gate.test.mjs (78 assertions): 16 killed, mutation score 0.727. Survivors: clamp-low-ge (gate.js:17), clamp-high-ge (:18), roundscore-noclamp (:38), sortunverified (:157), meantask-noclamp (:93), slack-default-one (:231). The whole sweep costs 2.69 s wall clock, mean 0.122 s per mutant, against a 146.9 ms baseline test run (n=20, sd 15.0). That is the shape of a graded signal needing no new infrastructure: mutate a module, run the command the task already declares, count non-zero exits. It ranks verifiers where a pass/fail bit cannot, and exp-mut-001 showed the same probe separating a real spec from an always-pass stub (0.917 vs 0.000). Limitation: one 285-line module, 22 hand-written mutants from a single operator set, one machine; the number is only comparable against the same mutant list, and a different operator set moves it several points either way.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-equivalent-mutants-14pct",
+      "kind": "number",
+      "title": "Three of six surviving mutants are behaviourally equivalent, so the honest score is 0.842 not 0.727",
+      "body": "Differential fuzz of each survivor against the original: 20,000 generated calls per mutant across the three exported entry points, feeding nulls, NaN, Infinity, string numerics and out-of-range scores. clamp-low-ge, clamp-high-ge and sortunverified produced zero differing outputs. roundscore-noclamp differed 1,401 times, meantask-noclamp 105, slack-default-one 53. Effective non-equivalent mutation score is 16/19 = 0.842, so 14% of the naive score is noise from mutants no test can kill, and the noise is one-directional: it makes a suite look worse than it is. That matters twice — a fixed mu* floor wastes a candidate's improvement budget, and a candidate can add equivalent mutants of its own to depress a rival's number if the mutant list is editable. Limitation: 20k random cases is not a proof of equivalence; sortunverified's inconsistent comparator could still diverge on a tie pattern the generator never produced, and the fuzzer only knew the exported functions.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-coverage-naive-100",
+      "kind": "failure",
+      "title": "V8 byte coverage reports 100.0% for the same module that escapes 27% of mutants",
+      "body": "Ran NODE_V8_COVERAGE over src/gate/gate.js for two suites: tests/gate.test.mjs alone, and all 29 test files in the repo. Both report 9,859 of 9,859 bytes covered = 100.0%, and that 100%-covered file still escapes 27.3% of mutants. Under innermost-range semantics (a byte counts only if the smallest range containing it has count>0) the honest figure is 9,732/9,859 = 98.71%, leaving 127 bytes never executed across 9 source lines. Five of the six surviving mutants sit on lines the suite does execute: clamp-high-ge :18, roundscore-noclamp :38, sortunverified :157, meantask-noclamp :93, slack-default-one :231. Coverage saturates before discrimination does, so it cannot serve as the graded signal even where it is honestly computed. Limitation: byte coverage of one ES module on one runtime; line and branch semantics differ, and the qualitative point is unchanged by which exact percentage you print.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-coverage-pays-for-deletion",
+      "kind": "failure",
+      "title": "Coverage as reward pays for deleting defensive code: +0.77 points with all 78 assertions still green",
+      "body": "Replaced the 17-line defensive idOf() in src/gate/gate.js with a 4-line version that drops every null and non-string id branch. The file shrank 9,859 to 9,697 bytes, V8 byte coverage rose 0.9871 to 0.9948 (+0.77 pt), and all 78 assertions still passed with exit 0. No behaviour improved; the score improved because untested defensive branches, the ones that only run on malformed input, stopped existing. This is the mechanism Inozemtseva and Holmes measured (ICSE 2014, DOI 10.1145/2568225.2568271): once suite size is fixed, coverage stops tracking effectiveness, and here the cheapest way to raise it is subtraction. Any coverage-graded loop therefore rewards a candidate that deletes the error handling nobody tests. Limitation: one module with a hand-made deletion; a real agent may not find that edit unprompted, and a coverage-of-diff metric would price the same patch very differently.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-partial-credit-narrow-band",
+      "kind": "number",
+      "title": "Per-assertion partial credit puts a total behavioural break at 0.833-0.987, inside minGain noise",
+      "body": "Counting passing assertions as partial credit compresses almost everything into the top 17 points. For the 16 mutants the 78-assertion gate spec kills, the broken tree still passes 65 to 77 assertions: partial credit 0.833 to 0.987, mean 0.944. mintasks-gt, which disables the minTasks guard, scores 0.833; infinity-default and complete-truthy-loose, each killed by exactly one assertion, score 0.987. So a patch that removes a promotion guard and a patch that is correct differ by 0.013 to 0.167 on this scale while the gate's default minGain is 0.05. A graded signal is only useful if its scale resolves around the threshold you gate on; this one concentrates all real differences below it. Limitation: assertion counts are only comparable within one file, a suite written as four fat assertions would produce a different curve, and nothing here establishes that per-assertion weighting matches defect severity.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-padding-buys-partial-credit",
+      "kind": "failure",
+      "title": "100 no-op assertions lift a broken tree's partial credit by 0.7 points at zero behaviour change",
+      "body": "Appending 100 `ok(true, ...)` no-ops to tests/gate.test.mjs leaves the intact tree at 1.0000 and lifts a deliberately broken tree from 0.9872 to 0.9944. The exploit needs no knowledge of the code under test, only write access to the suite, which the loop has; exp-goodhart-001 counted 1.6% of our 437 promoted patches touching tests/ already, concentrated in campaigns with no no-test-edit check. Per-assertion credit rewards the count of green lines, which is exactly the human failure the IntelliGame replication measured: more tests written, test-smell ratio 0.13 vs 0.03 (p=0.013). Once the reward is a fraction of assertions, the cheapest increment is an assertion that cannot fail. Limitation: arithmetic on a TAP-like tally rather than an observed agent exploit; a harness weighting assertions by mutation-kill contribution would not be paddable this way, and we did not test whether an agent finds the trick unprompted.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-mutation-resists-padding",
+      "kind": "claim",
+      "title": "The same 100 padding assertions move mutation score by exactly zero, unlike partial credit",
+      "body": "Ran the identical 100-no-op padding against the mutation sweep: 16 of 22 mutants killed before and after, 0.727 both times, mutant by mutant identical. Mechanism: a mutant dies on a failing assertion, so an assertion that passes under every mutant adds neither kills nor denominator — padding is score-neutral by construction, whereas a per-assertion tally grows its numerator. This is the only measured result in this batch that favours mutation over its cheaper alternatives, and it argues that the choice of graded signal matters more than its cost. It also means the two channels disagree about what a patch is worth: under partial credit the padded broken tree beats the unpadded one, under mutation they are indistinguishable. Limitation: neutral to this attack only — mutation score remains movable by editing the mutant list, by adding code no operator targets, and by the equivalent-mutant floor, so the claim is narrow, not a general robustness result.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-metric-regex-shadowing",
+      "kind": "failure",
+      "title": "A candidate that prints its own QUALITY line before the harness wins the round: 0.475 to 1.000",
+      "body": "The only graded channel the design actually has is a stdout regex, and the candidate writes to stdout. runVerifier (src/exec/verifier.js:110-130) applies RegExp.exec and keeps the first match of a pattern such as QUALITY=([0-9.]+). A candidate module that prints `QUALITY=1.0` at import time, before the harness prints its own honest `QUALITY=0.25`, yields metrics.quality=1 instead of 0.25: scoreAttempt returns 1.000 instead of 0.475 and decidePromotion promotes with delta 0.525 against minGain 0.05. Behaviour was byte-identical, the same single check passed, no test or gate file was touched, and no existing guard looks at stdout. The patch simply talked first. Limitation: reproduced with a two-file fixture driven through the real runVerifier, not by a live agent; anchoring the pattern, taking the last match, or reading a report file the harness owns closes this instance but not the class.",
+      "source": null,
+      "confidence": 0.95,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-candidate-computed-metric",
+      "kind": "failure",
+      "title": "When the code under test computes the metric, a one-line change buys the whole grade: 0.30 vs 0.65 vs 1.00",
+      "body": "Same class, without needing to know the harness. Three trees: baseline passed its check and reported quality 0.25 (score 0.475); a one-line forge, identical behaviour, printed 1.0 (score 1.000); a tree that genuinely added a function reported 0.5 (score 0.650). rankAttempts put the forge first, ahead of the real improvement, and decidePromotion promoted it with delta 0.525. A metric defined as the candidate's self-report is a specification of what the candidate should print, not a measurement — the extremal Goodhart case in Manheim and Garrabrant's taxonomy (arXiv:1803.04585), and the exact risk carried by exp-score-003's otherwise encouraging 5-valued demo. Limitation: a synthetic three-tree fixture; our tasks declare no metrics at all (0 of 168 verify specs), so this is a hazard of the proposed fix rather than an incident we have observed in the ledger.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-suite-breadth-kills-nothing",
+      "kind": "number",
+      "title": "Adding the other 28 test files kills zero additional mutants on this module; breadth is not discrimination",
+      "body": "Ran the same 22 gate.js mutants two ways: against the focused spec alone, and against all 29 test files in the repo. Both kill exactly 16 of 22, and no other file kills a mutant the focused file misses. The concentrated file has 78 assertions over 285 lines; the other 28 files add no kills on this module at all. That is the size confound Papadakis et al. (ICSE 2018) documented and w2-verify-mutation-score-size-confound records: suite size is a common cause, so a score raiseable by writing more tests measures writer effort rather than verifier strength. It also predicts that a loop optimising an absolute score will spend its budget on breadth it cannot cash. Limitation: cross-file kills are only plausible where modules interact and gate.js has almost no importers, so the result is demonstrated for a leaf module, not for a hub — a shared util with twenty importers might well be killed from elsewhere.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-killset-concentration",
+      "kind": "number",
+      "title": "Only 34 of 78 assertions ever kill a mutant, and two mutants depend on a single assertion each",
+      "body": "Of the 78 assertions in tests/gate.test.mjs only 34 (43.6%) kill any of the 22 mutants; the other 44 are dead weight for discrimination. Kill-set sizes range 1 to 13; two mutants are killed by exactly one assertion each — infinity-default by 'missing minTasks counts as unsatisfiable', complete-truthy-loose by 'null input reports incomplete evidence' — and the single most load-bearing assertion accounts for six kills. So the graded signal rests on a handful of points of failure: delete or reword one assertion and the score moves discretely, and a candidate that edits tests (1.6% of our promoted patches) could retire the two single-point killers and lose almost nothing else. A score whose variance lives in one line is easier to move by editing that line than by improving code. Limitation: one 285-line module and one hand-made mutant list; a module with wide fan-out would spread kills across more assertions, and 43.6% is not a general property of suites.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-task-scores-mean-dilution",
+      "kind": "failure",
+      "title": "Uniform taskScores turn a total integration failure into 0.95 by declaring 100 trivially-passing sub-tasks",
+      "body": "scoreAttempt (src/gate/gate.js:87-97 and 121-137) averages taskScores uniformly, so the denominator is a choice rather than a measurement. A tree failing its only real check, {integration: 0}, scores 0.0. Adding one trivially-passing sub-score makes it 0.5, five make it 0.833, twenty make it 0.952, a hundred make it 0.990 — with no behaviour change at all. Whoever writes the eval task, or the loop itself, which can edit the chain, can convert a total failure into a 0.95 by declaring lint or formatting sub-tasks. A uniform mean is not a graded signal; it is a weighted vote whose weights live in a file the optimiser can reach. Limitation: reproduced by calling the real exported function with hand-built inputs, so it establishes the arithmetic, not that anyone would do it; a rule that every declared sub-score must clear its own floor would make this specific arithmetic unavailable.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-ledger-two-distinct-values",
+      "kind": "number",
+      "title": "Ledger: 449 scored attempts hold exactly two values, and 0 of 168 verify specs declare metrics",
+      "body": "Walked all 69 campaign directories under the loom home: 449 attempt-like records carry a numeric score, with exactly two distinct values, 0.0 (232 records) and 1.0 (217). Of 168 records that carry a verify{cmd}, zero declare a metrics block. The graded path exp-score-003 demonstrated is therefore real at unit level and unused in practice: every round's reachable margins are still 0 and 1, minGain 0.05 is satisfied by 1 and rejected by 0, and the gate is a pass/fail test wearing a continuous delta. This extends exp-score-001 (227 rounds, two values, only 8.5% of campaign-task series ever changed) to a larger ledger with the same verdict, and it locates the defect in the eval-set declaration rather than in the scoring code. Limitation: the walk counts every dict carrying a score field, so it may include non-attempt records; and zero adoption is a fact about our eval sets, not evidence that graded scoring fails elsewhere.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-llm-suite-correlation-regime",
+      "kind": "analysis",
+      "title": "Coverage predicts LLM test effectiveness on clean code (r=0.821) but not when the goal is to expose a bug",
+      "body": "The best current evidence on whether coverage and mutation track effectiveness for LLM-written tests is regime-dependent, and our loop sits in the bad regime. Zhao, Zhou and Cohen (PACMSE/ISSTA 2026, arXiv:2607.22880) used 11 LLMs in 13 settings over 318 buggy focal methods from 17 Defects4J v3.0 projects, 8,268 suites and more than 100,000 tests. On bug-free regression-style code both metrics carry signal across models: branch-coverage Pearson r=0.821 (p=0.001), Kendall tau 0.641, MCC about 0.54-0.63, and little evidence that suite size is the dominant confounder for LLM tests. But when the code is buggy and the goal is to expose that bug, coverage is unreliable and mutation analysis is not even applicable, because it needs a green suite first. Limitation: Java and Defects4J, tests an LLM wrote about code it did not write, no agentic loop; our tasks are 'make a spec pass', which is neither regime.",
+      "source": "https://arxiv.org/abs/2607.22880",
+      "confidence": 0.8,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-pseudo-tested-anti-correlation",
+      "kind": "number",
+      "title": "Coverage and oracle emptiness anti-correlate (r=-0.67), yet only 23-30% of flagged gaps earn a test",
+      "body": "Coverage can be high while the assertions do nothing. Vera-Perez, Danglot, Monperrus and Baudry (Empirical Software Engineering 2019, arXiv:1807.05030) defined pseudo-tested methods as covered but undetected when the body is emptied, across 21 open-source Java projects and more than 28,000 methods using Descartes on PITest. The pseudo-tested rate ran 1% to 46%, with 14 of 21 projects below 7%, and the project-level Pearson correlation between coverage ratio and pseudo-tested ratio was -0.67 (p<0.01). Reviewing 101 flagged methods with the developers, only about 30 (23-30%) were judged worth an extra test; the rest were generated code, debug and exception-message builders, trivial delegators. So the oracle gap is real, measurable at scale, and mostly not actionable, and no exit code can see it. Limitation: Java, Maven and JUnit; extreme body-emptying can create equivalent variants; the 23-30% figure rests on 101 hand-reviewed methods.",
+      "source": "https://arxiv.org/abs/1807.05030",
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-gamified-count-smells",
+      "kind": "number",
+      "title": "A count-based testing scoreboard bought 4x the test smells (0.13 vs 0.03, p=0.013) in 174 participants",
+      "body": "Straubinger, Fulcini, Garaccione, Ardito and Fraser replicated IntelliGame with 174 participants on TypeScript (PACMSE/ISSTA 2025, arXiv:2504.19294). The gamified group wrote more tests and executed them more often, but its test-smell ratio was 0.13 against 0.03 for controls (p=0.013), and participants reported more time pressure. The transferable claim is narrower than 'gamification works': a scoreboard whose increments are countable behaviours, tests written or assertions added or lines covered, reliably moves those counts and degrades the property that was not counted. For a loop this is the prediction that per-assertion partial credit converges on assertion-shaped noise, and that the loss shows up in exactly the dimension the score omits. Limitation: humans in an IDE earning achievements, not an agent with a shell verifier; the smell ratio is a static heuristic; and the study never tested a mutation-based scoreboard, so it cannot rank the alternatives.",
+      "source": "https://arxiv.org/abs/2504.19294",
+      "confidence": 0.8,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-rubric-dropout-proxy-gap",
+      "kind": "number",
+      "title": "LLM-rubric rewards diverge from gold while still rising: the proxy-gold gap grows 29% to 44%",
+      "body": "If the graded signal is a rubric scored by a model, the proxy improves after gold stops. 'Rubric Dropout' (arXiv:2608.11669) reports gold score rising, peaking and then declining while the proxy keeps climbing: the proxy-gold gap widened from 29% to 44% on HealthBench-Hard and ResearchQA gold fell 22 points from its peak. The proposed fix is one line — drop a random fraction f of the rubric criteria at each optimisation step so the optimiser cannot learn the fixed rubric — which is the rubric analogue of holdout rotation, and is the only intervention in this literature that costs nothing to adopt. It reframes a rubric as a sampling device rather than a fixed objective, and explains why a static rubric inside a loop degrades even when each individual judgement is accurate. Limitation: open-ended answer quality graded by a model judge, not code; there is no code-task replication, and the paper evaluates its own fix on the same two benchmarks it criticises.",
+      "source": "https://arxiv.org/abs/2608.11669",
+      "confidence": 0.75,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-judge-bias-floor",
+      "kind": "analysis",
+      "title": "26 judge models on 5,352 code triplets: half the point-wise verdicts are ties and order swaps change accuracy",
+      "body": "LLM judges are the weakest graded channel available. CodeJudgeBench (ACL 2026, arXiv:2507.10535) tests 26 judge models on 5,352 curated (instruction, good, bad) triplets drawn from 1,055 LiveCodeBench-v6 problems, execution-free judging of generation, repair and test-writing. Every judge scores far below its JudgeBench near-ceiling, about 50% of point-wise verdicts are ties, swapping response order changes accuracy substantially, and a Qwen3-8B thinking model beats judge-tuned models up to 70B. Separately (arXiv:2505.16222), surface text moves verdicts: self-declared correctness shifts LLaMA-3.1-70B by +24.7 points on correct code and -23.5 on wrong code, renaming variables alone moves Claude-3.5-Sonnet by plus or minus 12.6, and generating tests before scoring does not remove the bias. Limitation: execution-free judging of contest-style code; a judge that also runs tests is a different system, and none of this measures a judge used as a reward inside a loop that can learn its biases.",
+      "source": "https://arxiv.org/abs/2507.10535",
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-benchmark-binary-resolved",
+      "kind": "analysis",
+      "title": "The reference benchmark grades binary resolved, so the field has no validated graded alternative to copy",
+      "body": "SWE-bench's headline number is binary `resolved`: a submission counts only if every FAIL_TO_PASS test passes and every PASS_TO_PASS test still passes, with no partial credit and no ranking among failures. Every graded scheme this batch examines is therefore an ad hoc addition, not a scaled-down version of a validated benchmark metric. That matters because the contamination signals are themselves frequency counts that a graded score would absorb silently: a vendor blog estimate (cubic.dev) puts verbatim reference fixes in 6.7% of Verified submissions, and issue-only file localisation reaches 76% on Verified against 53% off-benchmark, which reads as benchmark familiarity leaking into the measurement. A continuous score computed over such a set would average a leak rather than expose it. Limitation: the binary definition is documented in the harness while the 6.7% and 76/53 figures come from a blog post, not a peer-reviewed study, so the contamination numbers are indicative only.",
+      "source": null,
+      "confidence": 0.65,
+      "topic": "w4-graded"
+    },
+    {
+      "id": "w4-graded-smallest-credible",
+      "kind": "analysis",
+      "title": "Smallest credible graded signal: a harness-side mutant delta, 20 mutants per round, no per-assertion credit",
+      "body": "From the measurements: keep one command per task, and add a harness-side mutant sweep over the touched module — 22 mutants cost 2.69 s, 0.122 s each, against a 146.9 ms test run, so a 20-mutant budget per round is nearly free. Score killed/(total minus equivalent), computed by the harness from exit codes, never parsed from candidate stdout; require a green baseline before mutating; gate on the mutation delta rather than the absolute score; and keep minGain coarser than the sampling error, which binomial arithmetic puts at 0.107 for 22 mutants and 0.05 for 100. Do not add per-assertion credit (0.83-0.99 band, paddable) and do not add a judge rubric (ties, order and surface bias). What this buys is one channel the patch cannot write to, at a cost below the existing verifier's noise. Limitation: the composition is unvalidated end to end; no run yet shows a mutation-delta gate promoting more real improvements than a pass/fail gate at equal budget.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-graded"
+    }
+  ],
+  "edges": [
+    {
+      "from": "w4-graded-equivalent-mutants-14pct",
+      "rel": "refines",
+      "to": "w4-graded-mutation-0-727-gate",
+      "note": "The raw 0.727 is corrected upward to 0.842 once three behaviourally equivalent survivors are excluded by differential fuzzing."
+    },
+    {
+      "from": "w4-graded-mutation-0-727-gate",
+      "rel": "derived-from",
+      "to": "exp-mut-001",
+      "note": "Same probe, larger mutant set: exp-mut-001's 12-mutant audit gave 0.917 for the real spec and 0.000 for an always-pass stub; this is 22 mutants on gate.js with a partial-credit and coverage comparison attached."
+    },
+    {
+      "from": "w4-graded-mutation-0-727-gate",
+      "rel": "measures",
+      "to": "w2-verify-test-command-partial-oracle",
+      "note": "Mutation score is the operational form of that node's discrimination claim: it counts how many controlled defects the assertion set can detect, rather than how many assertions exist."
+    },
+    {
+      "from": "w4-graded-equivalent-mutants-14pct",
+      "rel": "supports",
+      "to": "w2-verify-meta-ach-equivalent-mutant-filter",
+      "note": "Meta's 73% acceptance at 0.95 precision is the industrial version of what the 20k-case fuzz did here: filter mutants that no test can distinguish before scoring, or the score carries a fixed downward bias."
+    },
+    {
+      "from": "w4-graded-coverage-naive-100",
+      "rel": "supports",
+      "to": "w2-verify-mutation-score-size-confound",
+      "note": "Both results say the same thing from opposite ends: coverage and suite size are common causes that saturate, while mutation at least continues to separate suites after coverage reaches 1.0."
+    },
+    {
+      "from": "w4-graded-coverage-pays-for-deletion",
+      "rel": "refines",
+      "to": "w4-graded-coverage-naive-100",
+      "note": "Adds direction to saturation: the cheapest way to raise a coverage score is to delete the untested defensive branches, measured at +0.77 points with the suite still green."
+    },
+    {
+      "from": "w4-graded-coverage-pays-for-deletion",
+      "rel": "refines",
+      "to": "exp-goodhart-001",
+      "note": "exp-goodhart-001 found little optimisation pressure toward verifier hacking at a 1.6% rate; this shows a pressure that needs no test edit at all, only deletion, and would not appear in that 1.6% count."
+    },
+    {
+      "from": "w4-graded-partial-credit-narrow-band",
+      "rel": "supports",
+      "to": "w4-graded-padding-buys-partial-credit",
+      "note": "The narrow 0.83-0.99 band is exactly the space padding exploits: because every broken tree already scores above 0.83, a 0.7-point pad is enough to cross into the top of the range."
+    },
+    {
+      "from": "w4-graded-mutation-resists-padding",
+      "rel": "contradicts",
+      "to": "w4-graded-padding-buys-partial-credit",
+      "note": "Direct measured contrast: the same 100 no-op assertions moved partial credit +0.7 points and mutation score +0.0 kills, so the two channels disagree about whether padding is an attack."
+    },
+    {
+      "from": "w4-graded-candidate-computed-metric",
+      "rel": "supports",
+      "to": "w4-graded-metric-regex-shadowing",
+      "note": "The general class and its cheapest instance: any metric the patch or its harness prints is candidate-authored, and the stdout regex is the loosest way to read one."
+    },
+    {
+      "from": "w4-graded-metric-regex-shadowing",
+      "rel": "refines",
+      "to": "w2-verify-impossiblebench-cheating-rate",
+      "note": "ImpossibleBench catalogued test edit, overload comparison, call count and special cases; printing a better metric line before the harness is a mode its taxonomy does not contain, and it needs no test edit."
+    },
+    {
+      "from": "w4-graded-metric-regex-shadowing",
+      "rel": "contradicts",
+      "to": "exp-score-003",
+      "note": "Not that the plumbing is missing — exp-score-003 is right that no code change is needed — but that the channel it reads is written by the candidate, so enabling the graded path also enables the forge measured at 0.475 to 1.000."
+    },
+    {
+      "from": "w4-graded-ledger-two-distinct-values",
+      "rel": "supports",
+      "to": "exp-score-001",
+      "note": "Independent recount on the current ledger (449 scored attempts) reproduces exp-score-001's verdict on 227 rounds: exactly two distinct scores, so the continuous gate has no margin to measure."
+    },
+    {
+      "from": "w4-graded-task-scores-mean-dilution",
+      "rel": "supports",
+      "to": "w4-graded-partial-credit-narrow-band",
+      "note": "The task-declaration side of the same defect: a uniform mean over declared items compresses severity whether the items are assertions or sub-task scores."
+    },
+    {
+      "from": "w4-graded-killset-concentration",
+      "rel": "supports",
+      "to": "w4-graded-mutation-0-727-gate",
+      "note": "Explains where the 16 kills come from: 34 of 78 assertions carry all the discrimination, two mutants hang on a single assertion each, so the score is a few lines wide."
+    },
+    {
+      "from": "w4-graded-suite-breadth-kills-nothing",
+      "rel": "supports",
+      "to": "w2-verify-mutation-score-size-confound",
+      "note": "A direct within-repo test of the size confound: 28 additional files, 0 additional mutant kills, which is what a common-cause account predicts and a discrimination account forbids."
+    },
+    {
+      "from": "w4-graded-suite-breadth-kills-nothing",
+      "rel": "contradicts",
+      "to": "w2-verify-evalplus-80x-passk-drop",
+      "note": "EvalPlus moved pass@k 19.3-28.9% with 80x more tests while 28 extra files moved 0 of 22 mutants here; the difference is that EvalPlus added new oracles for uncovered behaviour, not more tests of the same behaviour."
+    },
+    {
+      "from": "w4-graded-llm-suite-correlation-regime",
+      "rel": "contradicts",
+      "to": "w2-verify-mutation-score-size-confound",
+      "note": "For LLM-generated suites the paper finds little evidence that suite size is the dominant confounder, directly contradicting the human-written-test consensus that node records — the correlation structure itself depends on who wrote the tests."
+    },
+    {
+      "from": "w4-graded-pseudo-tested-anti-correlation",
+      "rel": "supports",
+      "to": "w4-graded-coverage-naive-100",
+      "note": "Provides the field-scale version of the ceiling effect: coverage ratio and oracle emptiness anti-correlate across 21 projects, so a covered line is not a checked line."
+    },
+    {
+      "from": "w4-graded-gamified-count-smells",
+      "rel": "supports",
+      "to": "w4-graded-padding-buys-partial-credit",
+      "note": "Independent human evidence for the same incentive: reward the count of tests or assertions and the count rises while the unmeasured quality ratio worsens 0.03 to 0.13."
+    },
+    {
+      "from": "w4-graded-rubric-dropout-proxy-gap",
+      "rel": "applies-to",
+      "to": "w4-graded-judge-bias-floor",
+      "note": "Both are the model-judged channel: one shows the reward drifting from gold under optimisation, the other shows the per-verdict noise floor that makes such drift undetectable in a single round."
+    },
+    {
+      "from": "w4-graded-smallest-credible",
+      "rel": "requires",
+      "to": "w4-graded-mutation-0-727-gate",
+      "note": "The 2.69 s sweep and 0.122 s per-mutant figures are what make a 20-mutant per-round budget affordable next to a 146.9 ms test run."
+    },
+    {
+      "from": "w4-graded-smallest-credible",
+      "rel": "requires",
+      "to": "w4-graded-equivalent-mutants-14pct",
+      "note": "Scoring killed/(total minus equivalent) needs the 14% equivalent-mutant correction, otherwise a fixed floor consumes most of a 0.10 gain threshold."
+    },
+    {
+      "from": "w4-graded-smallest-credible",
+      "rel": "contradicts",
+      "to": "w4-graded-partial-credit-narrow-band",
+      "note": "Explicitly rejects per-assertion credit for the measured reason: the 0.833-0.987 band sits below or inside minGain, so it cannot order patches the gate must order."
+    },
+    {
+      "from": "w4-graded-smallest-credible",
+      "rel": "applies-to",
+      "to": "exp-gate-001",
+      "note": "The minGain resolution argument carries over: a delta threshold smaller than the score's sampling error is unreadable, and binomial SE is 0.107 at 22 mutants, so either raise the mutant count toward 100 or set minGain at 0.10 or coarser."
+    }
+  ],
+  "gaps": [
+    "Has anyone run a head-to-head where the same agent budget is spent under a pass/fail gate and a mutation-delta gate, so that 'graded scoring produces more real progress' is measured rather than assumed?",
+    "How often does a coding agent told that mutation score is the reward write equivalent mutants or unkillable glue code to move the number, rather than changing behaviour?",
+    "What is the minimum mutant count that gives a stable per-round delta at a 0.10 threshold on a real repository, and is that count affordable every round?",
+    "Is 'the harness computes the metric' a durable defence when the loop can edit the eval set, the verifier and the chain, i.e. when the harness itself sits inside the optimisation surface?",
+    "Does the equivalent-mutant floor we measured (0.727 raw vs 0.842 effective) replicate on other modules, or is one 285-line file too small to fix the size of the correction?",
+    "Does random rubric-criterion dropout help for code rubrics the way it does for HealthBench-style answer rubrics, and does it survive a loop that can see which criteria were dropped?"
+  ]
+}

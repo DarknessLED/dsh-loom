@@ -1,0 +1,489 @@
+{
+  "nodes": [
+    {
+      "id": "n-mast-taxonomy",
+      "kind": "source",
+      "title": "MAST: 14 failure modes in 3 categories, human kappa 0.88, LLM judge F1 0.80",
+      "body": "MAST (Cemri et al., arXiv:2503.13657, NeurIPS 2025 spotlight) is the reference error taxonomy for agentic runs: 200+ traces from 7 multi-agent frameworks, 6 expert annotators, 14 failure modes grouped into specification issues, inter-agent misalignment, and task verification. Human inter-annotator agreement took three rounds to stabilize (Cohen kappa 0.24, then 0.92, then 0.84) and the headline figure is kappa 0.88 on 15 triple-annotated traces, with 0.79 on unseen systems. An o1 LLM judge validates at 0.89 accuracy / 0.62 recall / 0.68 precision / 0.64 F1 / 0.58 kappa zero-shot, rising to 0.94 / 0.77 / 0.833 / 0.80 / 0.77 few-shot. Its central claim is exactly ours: failures are organizational and design-level, not base-model limits. But note the judge's recall, 0.62 to 0.77: two to four in ten failures are missed, and the taxonomy's own category set has no bucket for a dead parent session or a worktree that failed to create.",
+      "source": "arXiv:2503.13657 (Cemri et al., NeurIPS 2025), 200+ traces, 7 MAS frameworks, 14 modes / 3 categories, human kappa 0.88 headline (0.24 -> 0.92 -> 0.84 over rounds), o1 judge F1 0.64 zero-shot / 0.80 few-shot; github.com/multi-agent-systems-failure-taxonomy/MAST",
+      "confidence": 0.92,
+      "topic": "attribution",
+      "tags": ["taxonomy", "mast", "multi-agent", "human-agreement", "llm-judge"]
+    },
+    {
+      "id": "n-trail-taxonomy",
+      "kind": "source",
+      "title": "TRAIL is the only published taxonomy with explicit infrastructure categories, and the best model scores 11%",
+      "body": "TRAIL (Deshpande et al., Patronus AI, arXiv:2505.08638v3) is the taxonomy that matters for a harness: 148 human-annotated traces, 1987 OpenTelemetry spans of which 575 carry at least one error, drawn from GAIA and SWE-bench. Its three top areas are reasoning, planning/coordination, and system execution, and it is explicit that system execution includes API errors and task orchestration errors, i.e. the infrastructure bucket that MAST and the software-engineering taxonomies fold into nothing. The benchmark is brutally hard: gemini-2.5-pro, the best of o3, claude-3.7-sonnet and gemini-2.5-pro, reaches only 11% joint accuracy on predicting both the error category and its span location. That 11% is the honest ceiling for LLM-as-judge failure triage on structured traces, and it is measured on a task easier than ours because the trace format is already normalized.",
+      "source": "arXiv:2505.08638v3 (Deshpande et al., Patronus AI), 148 traces, 1987 OTel spans, 575 error spans, taxonomy includes API and Task Orchestration errors, gemini-2.5-pro 11% joint category+location accuracy, huggingface.co/datasets/PatronusAI/TRAIL",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["taxonomy", "trail", "infrastructure", "llm-judge", "otel"]
+    },
+    {
+      "id": "n-stage-taxonomy",
+      "kind": "claim",
+      "title": "Human-labelled cause split: 65% flawed reasoning, 25% knowledge, 10% environment",
+      "body": "Liu et al. (arXiv:2509.13941) hand-labelled 150 failures sampled from 329 failed SWE-bench-Verified instances (95% confidence, 5% margin) into 3 phases (Location, Repair, Iteration & Validation), 9 categories and 25 subcategories, with Cohen kappa 0.72-0.77 across 4 annotators and under 8% of disagreements escalated to a senior adjudicator. Their cause distribution is the number our topic needs: flawed reasoning about 65%, knowledge deficiency about 25%, environmental friction about 10%. That 10% is the human estimate of non-model fault for a well-instrumented benchmark, and it is roughly consistent with dsh-loom's own 13.6% infra-flagged share of failures, which is the first evidence that the ledger's narrow label is not wildly wrong, only incomplete. They also show that the same backbone (Claude-3.5-Sonnet) scores 53.0% under OpenHands, 50.8% under Agentless and 49.0% under a tool-augmented Claude, a 4.0-point harness gap with the model held fixed.",
+      "source": "arXiv:2509.13941 (Liu et al., Beihang), 150 of 329 failed instances labelled, kappa 0.72-0.77, cause split 65/25/10, OpenHands 53.0% / Agentless 50.8% / Tools+Claude 49.0% on the same backbone",
+      "confidence": 0.88,
+      "topic": "attribution",
+      "tags": ["taxonomy", "swa-bench", "human-labels", "environment"]
+    },
+    {
+      "id": "n-edit-quality-modal",
+      "kind": "claim",
+      "title": "The modal failure is not 'cannot find the code' but 'edited the right place wrongly' (60-69%)",
+      "body": "TRAJEVAL / Coherence Collapse (arXiv:2603.24631v2) analyses 16,758 trajectories over 3 architectures (SWE-Agent, OpenHands, LiveSWEAgent) and 7 models from 8B to 480B on SWE-bench Verified and PolyBench Verified, and finds that 60-69% of failures on SWE-Agent and OpenHands reach and edit the correct functions yet produce an incorrect patch. The effect persists at 57-68% on bash-only LiveSWEAgent, so it is not a tool-schema artifact. Coherence Collapse is the largest sub-theme at 39.7% of 914 hand-analysed failures on SWE-bench Verified and 32.3% on PolyBench (Java 36.3%, JavaScript 42.1%). Five cases produced a patch bit-identical to gold mid-trajectory and then destroyed it; an edit-commit checkpoint recovers all five. For attribution this is decisive: the failure is neither localization (the agent was in the right place) nor a harness fault, so any classifier that keys on 'found the right file' will mislabel two-thirds of capability failures as progress.",
+      "source": "arXiv:2603.24631v2 (Kim et al., 2026), 16,758 trajectories, 3 scaffolds, 7 models 8B-480B, 60-69% edit-quality modal failure (57-68% bash-only), Coherence Collapse 39.7% SWE-bench / 32.3% PolyBench, 5 bit-identical-then-destroyed patches recovered by checkpointing",
+      "confidence": 0.86,
+      "topic": "attribution",
+      "tags": ["trajectory", "edit-quality", "coherence-collapse"]
+    },
+    {
+      "id": "n-verifier-false-positive",
+      "kind": "number",
+      "title": "63.75% of 'resolved' SWE-bench patches are suspicious; filtering drops 12.47% to 3.97%",
+      "body": "SWE-Bench+ (Aleithan et al., arXiv:2410.06992) manually screened SWE-Agent+GPT-4 resolved instances and found 160 of 251 patches (63.75%) suspicious: 32.67% had the solution leaked into the issue text or comments, and 31.08% were weak-test passes, i.e. incorrect or incomplete fixes that nonetheless went green, with 24.70% of suspicious fixes attributable to weak tests specifically. Filtering both drops the solve rate from 12.47% to 3.97%, a 68% reduction, and over 94% of issues predate the model's knowledge cutoff so leakage is not a memorization story. This is the verifier as a false-positive source, which is the opposite direction from the usual 'the test was flaky and rejected a good patch' story: a verifier that passes a bad patch corrupts the ledger's labels silently, and a loop that learns from its verifier will learn to satisfy the verifier rather than the task.",
+      "source": "arXiv:2410.06992 (Aleithan et al., 2024), 251 SWE-Agent+GPT-4 patches, 160 (63.75%) suspicious, 32.67% answer leak, 31.08% weak tests, 12.47% -> 3.97% after filtering, >94% issues predate cutoff",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["verifier", "label-noise", "false-positive", "swe-bench"]
+    },
+    {
+      "id": "n-verifier-structure",
+      "kind": "claim",
+      "title": "Verifier error structure beats verifier error rate: learnable false positives collapse the loop",
+      "body": "Checking the Checkers (Gupta & Joshi, AISSA 2026, arXiv:2610.17824) surveys 58 studies of verifier noise in RLVR and reaches a claim that reorganises this whole topic: the structure of a verifier error matters more than its rate. Random errors mostly slow learning down, but false positives that the policy can learn to trigger cause plateau or even collapse, and they do so at low initial error rates. Whether a verifier wrongly rejects or wrongly accepts depends on what it checks and who built it, not on its family (unit test, LLM judge, static check). Applied to dsh-loom: our 8 literal '0/0 passed' attempts and 23 failureKind=ok-but-verifierOk=false attempts are not symmetric noise, they are a specific structure, and the vacuous-collection case is exactly the learnable kind because a worker that emits no tests inherits a green-looking exit path in some harness versions.",
+      "source": "arXiv:2610.17824 (Gupta & Joshi, AISSA 2026), survey of 58 RLVR studies, claim: error structure (learnable false positives) dominates error rate, false positives cause plateau/collapse at low rates",
+      "confidence": 0.8,
+      "topic": "attribution",
+      "tags": ["verifier", "rlvr", "reward-hacking", "label-noise"]
+    },
+    {
+      "id": "n-attribution-ceiling",
+      "kind": "number",
+      "title": "Automated failure attribution tops out near 53% on which agent, ~14% on which step",
+      "body": "Three independent results bracket the ceiling. Who&When (Zhang et al., ICML 2025, arXiv:2505.00212) collects 127 multi-agent failure logs with fine-grained annotations and finds the best of three automated methods at 53.5% accuracy for identifying the responsible agent and only 14.2% for the decisive error step; some methods fall below random, hand-crafted systems drop to 8.77% step accuracy, and the authors call o1 and DeepSeek-R1 not practically usable. AgenTracer (arXiv:2509.03312) reports state-of-the-art reasoning LLMs below 10% on agentic failure attribution. AgentChaos (ASE 2026, DOI 10.1145/3832783.3837437) finds existing fault diagnosis methods below 53% on fault type and below 56% on fault step under injected API faults. So a 53% ceiling is not one paper's bad day, it is the current state, and it means an LLM-judge triage layer cannot be the primary attribution mechanism for a loop that must decide where to spend.",
+      "source": "arXiv:2505.00212 (Who&When, ICML 2025) 127 logs, 53.5% agent / 14.2% step, 8.77% hand-crafted; arXiv:2509.03312 (AgenTracer) SOTA <10%; AgentChaos ASE 2026 DOI 10.1145/3832783.3837437 <53% type / <56% step",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["attribution-accuracy", "who-and-when", "agenttracer", "ceiling"]
+    },
+    {
+      "id": "n-spectrum-cheap",
+      "kind": "project",
+      "title": "FAMAS: spectrum-based suspiciousness beats 12 baselines without an LLM in the loop",
+      "body": "FAMAS (Ge et al., arXiv:2509.13782, Nanjing University / PolyU) is the first spectrum-based failure attribution method for multi-agent systems, and it is the strongest evidence that attribution does not need a model. It replays trajectories systematically, abstracts them into agent-behaviour and action-behaviour groups, and ranks suspects with a suspiciousness formula borrowed from spectrum-based fault localisation (the same lineage as Tarantula/Ochiai). It beats 12 baselines on Who&When, including the LLM-judge methods that the 53.5%-and-below numbers above describe. The mechanism is the one a ledger naturally has: a set of passed and failed executions over sharing components, and a statistic on how often each component appears in failures but not in passes. dsh-loom already records exactly the substrate FAMAS needs (attempt id, model, chain position, patch paths, verifier outcome), which makes this the cheapest credible upgrade path and the one worth prototyping first.",
+      "source": "arXiv:2509.13782 (Ge et al., 2025), spectrum-based failure attribution for MAS, systematic trajectory replay + abstraction, suspiciousness over agent-behaviour and action-behaviour groups, beats 12 baselines on Who&When",
+      "confidence": 0.82,
+      "topic": "attribution",
+      "tags": ["famas", "spectrum-based", "cheap-classifier", "non-llm"]
+    },
+    {
+      "id": "n-harness-first-order",
+      "kind": "number",
+      "title": "Scaffold choice moves scores 29.8 points while the model gap between top entries is 8.8",
+      "body": "Coding Agents Have Converged (Liu et al., arXiv:2609.17394, ADMA 2026) analyses 254 SWE-bench submissions without running a single model. On Verified the top two entries each resolve 396/500; the top ten share 285 successes and 51 failures, leaving 164 instances that actually distinguish them, and frontier solution sets have median nesting 0.935 against a score-implied baseline of 0.774. The decisive number for attribution is that within-model scaffolds spread 29.8 percentage points while the top thirty entries spread only 8.8 points overall, so the harness is a larger cause of score than the model is. Six of nine cell-mean interaction tests stay significant after Holm correction, yet exact paired McNemar separates none of the 29 adjacent Verified top-thirty pairs at alpha 0.05. Translation: harness dominates in aggregate but is invisible pairwise on this task set, which is precisely why a loop that blames the model for a harness fault will chase a difference its own evaluation cannot resolve.",
+      "source": "arXiv:2609.17394 (Liu et al., 15 Sep 2026, ADMA 2026), 254 SWE-bench submissions, top two 396/500, within-model scaffold range 29.8 pp vs 8.8 pp top-thirty spread, 6/9 interaction tests significant after Holm, 0/29 adjacent pairs separated by McNemar",
+      "confidence": 0.88,
+      "topic": "attribution",
+      "tags": ["harness", "scaffold", "swe-bench", "variance"]
+    },
+    {
+      "id": "n-eval-noise-floor",
+      "kind": "number",
+      "title": "Single-run pass@1 swings 2.2-6.0 points, with standard deviation above 1.5 points at temperature 0",
+      "body": "On Randomness in Agentic Evals (Bjarnason, Silva, Monperrus, arXiv:2602.07150) runs 60,000 trajectories on SWE-bench Verified (3 models x 2 scaffolds x 2 temperatures, 25.58B tokens) and finds that single-run pass@1 estimates fluctuate between 2.2 and 6.0 percentage points depending on the run, with standard deviation above 1.5 points even at temperature 0, because trajectories diverge within the first few percent of tokens. The paper recommends multi-run pass@1, power analysis, pass@k and pass^k. For attribution this sets a floor: any classifier whose action changes outcomes by less than roughly 2-3 points is indistinguishable from re-sampling, so an attribution rule cannot be validated by a single A/B pair of rounds, and the loop's binary 0/1 score plus 2 attempts per round cannot resolve an effect that small in any realistic campaign length.",
+      "source": "arXiv:2602.07150 (Bjarnason, Silva, Monperrus, Feb 2026), 60,000 trajectories, 3 models x 2 scaffolds x 2 temperatures, 25.58B tokens, single-run pass@1 swing 2.2-6.0 pp, sd >1.5 pp at temp 0",
+      "confidence": 0.88,
+      "topic": "attribution",
+      "tags": ["noise", "eval-variance", "power-analysis"]
+    },
+    {
+      "id": "n-2x2-design",
+      "kind": "concept",
+      "title": "The minimal valid attribution design is a 2x2 model-by-harness grid on a fixed task set",
+      "body": "A harness-card note (arXiv:2605.23950) states the protocol precisely: variance decomposition becomes attribution only when the same model runs under at least two harnesses and the same harness under at least two models, on a fixed task set, holding task order, environment, eval script, API parameters and stopping rules constant. The minimal valid design is a 2x2 model-by-harness grid. Everything cheaper than that is a confounded single cell. Artificial Analysis's Coding Agent Index v1.5 applies the same logic at benchmark scale: equal-weight pass@1 over DeepSWE v1.1 (113 tasks), Terminal-Bench 4.0 (66) and SWE-Atlas-QnA (124), 303 tasks x 3 attempts, so a single agent number is an average over three axes rather than one measurement. dsh-loom currently has no such grid: 451 attempts carry a model name on about 24 of them, and modelsTried has length 1 for 303 attempts and length 0 for 142, so the ledger cannot even populate the model axis.",
+      "source": "arXiv:2605.23950 harness-card note (2x2 model-by-harness grid, held task order/env/eval script/API params/stopping rules); Artificial Analysis Coding Agent Index v1.5 (303 tasks x 3 attempts)",
+      "confidence": 0.75,
+      "topic": "attribution",
+      "tags": ["experimental-design", "variance-decomposition", "2x2"]
+    },
+    {
+      "id": "n-flaky-build-base-rate",
+      "kind": "number",
+      "title": "67.73% of rerun CI builds are flaky; 15 failure categories; log-only detection gains 20.3% F1",
+      "body": "Understanding and Detecting Flaky Builds in GitHub Actions (Ge & Zhang, arXiv:2602.02307) studies rerun data from 1,960 open-source Java projects and finds 3.2% of builds are rerun, of which 67.73% exhibit flaky behaviour, affecting 1,055 projects (51.28%). Fifteen distinct flaky-failure categories emerge, with flaky tests, network issues and dependency resolution the most prevalent, and the authors build a machine-learning detector at the job level that improves F1 by up to 20.3% over a strong baseline. Two lessons transfer: (a) the conditional probability that a rerun is infrastructure is about two in three, which is the empirical prior a loop should start from when deciding how much to distrust a single failure; (b) the classification problem is well-posed at the job level from logs alone, but even a 20.3% relative F1 gain leaves the detector far from certain, so the output must be a probability that gates an action, not a verdict that excuses a failure.",
+      "source": "arXiv:2602.02307 (Ge & Zhang, 2 Feb 2026), 1,960 Java projects, 3.2% builds rerun, 67.73% of rerun builds flaky, 1,055 projects (51.28%), 15 categories, job-level detector +20.3% F1",
+      "confidence": 0.86,
+      "topic": "attribution",
+      "tags": ["flaky", "ci", "base-rate", "classifier"]
+    },
+    {
+      "id": "n-openstack-flake-cost",
+      "kind": "number",
+      "title": "OpenStack: cross-project flakiness hits 55% of projects, 89% of inconsistent cases are CI race conditions",
+      "body": "Cross-Project Flakiness (Xiao et al., arXiv:2602.09311v2) analyses 649 OpenStack projects over a year: 29,175 closed reviews, 73,707 patch sets, 439,618 comments, 139,768 Zuul outcome comments, 29,911 flaky builds across 1,651 jobs. Cross-project flakiness affects 378 projects, about 55%, and 70% of unit tests show it, contradicting the assumption that unit tests are insulated. The causal analysis is the part that matters for infrastructure attribution: race conditions in the CI process account for 89% of inconsistent flakiness, with mismatched CI configuration and dependency management together contributing 21%. Cost figures carried in the paper: Google spends 2% to 16% of compute re-running flaky tests, Herzig et al. estimate about $7.2M for a single Microsoft product, and 1 in 11 GitHub commits has at least one flaky-caused failure. So infrastructure fault is not a rare tail; it is a fifth to a half of observed failure signal in mature shops.",
+      "source": "arXiv:2602.09311v2 (Xiao et al., 2026), 649 OpenStack projects, 29,911 flaky builds / 1,651 jobs, 55% of projects affected, 89% race conditions, 2-16% Google compute on re-runs, ~$7.2M single Microsoft product, 1-in-11 commits",
+      "confidence": 0.87,
+      "topic": "attribution",
+      "tags": ["flaky", "openstack", "infrastructure", "cost"]
+    },
+    {
+      "id": "n-datadog-error-mix",
+      "kind": "number",
+      "title": "Provider errors are 5% of LLM spans and 60% of those are rate limits",
+      "body": "Datadog's State of AI Engineering 2026 (CC BY-ND 4.0) reports telemetry from more than 1,000 customers over February and March 2026: 5% of all LLM call spans reported an error in February, and 60% of those errors were exceeded rate limits; by March the span error rate fell to 2% with rate limits still about a third of them, roughly 8.4 million rate-limit errors. The same report finds 69% of all input tokens are system prompts, only 28% of call spans show any cached-read tokens, and 59% of agentic requests make a single service call with only 18% making three or more. The mechanism it describes is a cascade: a long ReAct loop plus a shared quota plus a retry policy produces sustained failure that looks like the model giving up. For dsh-loom this says the dominant provider-side fault is quota exhaustion, which is silent, time-correlated, and indistinguishable from a capability failure without external telemetry.",
+      "source": "Datadog State of AI Engineering 2026 (CC BY-ND 4.0), >1,000 customers, Feb 2026 5% span error rate / 60% rate limits, Mar 2026 2% / ~1/3, ~8.4M rate-limit errors, 69% input tokens are system prompts, 59% single-call requests",
+      "confidence": 0.8,
+      "topic": "attribution",
+      "tags": ["provider", "rate-limit", "telemetry", "datadog"]
+    },
+    {
+      "id": "n-swebench-infra-audit",
+      "kind": "failure",
+      "title": "SWE-bench's own maintainers: an audit found 62.5% of unsolved-by-all instances were environment-broken",
+      "body": "SWE-bench issue #586 reports an audit of the 281-instance unsolved-by-all bucket where all 9 published baselines fail: 5 of 8 sampled instances (62.5%) failed during test-pipeline setup, before any model patch could be applied, so the harness logged them as model-unsolved rather than infrastructure-unreachable. The failure classes are mundane: a missing node module (Cannot find module 'spider-detector') and absent test files. PR #594 then added a pre-flight environment verification plus a ResolvedStatus.INFRA_FAILURE enum, and the maintainer rewrite records the two traps: the pre-flight check wrongly failed about 3% of instances because some test files are created by the test patch itself, and removing broken instances from the score makes scores look higher than they are. The merged compromise reads the run log afterwards, counts broken instances as unresolved so the score is unchanged, and flagged 50 instances where the browser failed to start. That is the design pattern dsh-loom should copy: classify from logs after the fact, and never let the classification change the denominator.",
+      "source": "github.com/SWE-bench/SWE-bench/issues/586 (281 unsolved-by-all, 5/8 = 62.5% environment-broken) and pull/594 (pre-flight wrongly failed ~3%, INFRA_FAILURE kept out of numerator, broken instances stay unresolved, 50 browser-startup failures flagged)",
+      "confidence": 0.85,
+      "topic": "attribution",
+      "tags": ["swe-bench", "infrastructure", "audit", "pre-flight", "denominator"]
+    },
+    {
+      "id": "n-auth-storm-illusion",
+      "kind": "failure",
+      "title": "Auth stalls manufacture sub-90-second 'losses' that look exactly like giving up",
+      "body": "june.kim's run of all 728 eligible SWE-bench Pro instances (694 resolved, 95.3%) documents the failure mode better than any paper: an auth stall or a starved quota produces a sub-90-second failure over a 0-byte patch that is numerically indistinguishable from the model abandoning a hard bug, so scoring it as a loss depresses the number by infrastructure wearing the model's face. Losses clustered hard at 19:00-21:00 UTC (US working hours) and went near-zero overnight, same boxes, same code, same instances, tracking other people's chat sessions; three provider-side OAuth rotations produced waves of sub-90-second losses carrying Failed to authenticate / API Error: 401 over 0-byte patches, roughly 310 of the 728 instances billed to paid API because of that tail. The defence is procedural, not statistical: predeclare the fault class with four invariants (verbatim 401 string, 0-byte patch, a wave of at least three instances, resolution by a fresh credential) and freeze it before any re-dispatched verdict lands, otherwise 'that one was infrastructure' becomes a post-hoc filter.",
+      "source": "june.kim/how-not-to-run-swebench-pro (728 instances, 694 resolved 95.3%, sub-90s auth-stall failures over 0-byte patches, losses 19:00-21:00 UTC and near-zero overnight, ~310 instances on the paid-API tail, four pre-registered invariants for the infra class)",
+      "confidence": 0.78,
+      "topic": "attribution",
+      "tags": ["auth", "provider", "preregistration", "harness-ops"]
+    },
+    {
+      "id": "n-loom-failure-taxonomy",
+      "kind": "analysis",
+      "title": "dsh-loom has one enum that absorbs provider death, harness breakage and unclassified error: died",
+      "body": "Over 69 campaign state files (451 attempts, 228 rounds, 235 failures) the failureKind census is: died 162, ok 141 (of which 23 have verifierOk false), timeout 25, crash 9, and no failureKind at all on attempts recorded before the field existed. The classifier at src/dispatch/session.js:38-46 returns ok for stopReason completed, timeout on timedOut, tokens on max-tokens, context or tokens on a MODEL_LIMIT regex match, and died for everything else, so a dead parent session, a disposed dispatcher, a failed git worktree, a provider 500 and a genuinely unclassified error all land in one bucket. Downstream, src/runtime/model-health.js:59-95 then re-buckets died/timeout/exhausted as NO_DELIVERY (deliberately excluding crash, context and tokens) and demoteChain moves all-fail model refs to the back of the chain. The information needed to attribute is destroyed at the first hop and cannot be recovered later, which is why every cheap rule below is tested against a label rather than against truth.",
+      "source": "computed over ~/.dsh/loom/campaigns/*/views/state.json (69 campaign dirs, 451 attempts, 235 failures): died 162, ok 141, timeout 25, crash 9; src/dispatch/session.js:38-46 classifyResult; src/runtime/model-health.js:59-95 NO_DELIVERY set",
+      "confidence": 0.93,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "ledger", "schema", "failurekind", "one-bucket"]
+    },
+    {
+      "id": "n-loom-died-three-things",
+      "kind": "number",
+      "title": "The 162 died attempts are three populations: 32 infra, 56 abandoned, 74 unknown",
+      "body": "Unpacking the single died bucket is the whole exercise. Of 162 died attempts, 32 carry infra:true and have textChars 0, stopReason error, duration median 1318 ms, and all 32 are exactly the 32 attempts with infraRetry true (a 1:1 overlap). Another 56 are abandoned, 40 of them with reason solved-by-sibling, i.e. a sibling attempt won and the child was cancelled on purpose; src/runtime/model-health.js already prefers abandoned over failureKind with the comment that an aborted child is true about the child and false about the provider. The remaining 74 have no infra flag, no abandoned flag and no diagnostic that distinguishes them from either population. So 88 of 162 (54.3%) are definitively not the model's fault (32 infra plus 56 abandoned), 74 (45.7%) are unattributable, and the true infrastructure share of all 235 failures is somewhere between 13.6% (the 32 flagged) and about 37% (32 plus some fraction of the 74 unknown).",
+      "source": "computed over 451 ledger attempts: died 162 = infra 32 + abandoned 56 (40 solved-by-sibling) + unlabelled 74; infra 32/32 have infraRetry true, textChars 0, stopReason error, median duration 1318 ms; 32/235 = 13.6% of failures flagged infra",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "ledger", "measurement", "died"]
+    },
+    {
+      "id": "n-loom-infra-label-narrow",
+      "kind": "failure",
+      "title": "dsh-loom's infra bit means 'silent', so 20 real harness faults are never flagged",
+      "body": "src/dispatch/session.js:459-497 sets `const silent = stopReason === 'error' && !diagnostic` and then `const infra = silent`: the infra flag is true only when a child died with nothing to say and no message could be recovered from its own session log. That is a proxy for one specific death (dead parent or provider), not for harness fault. The consequence is measurable. Twenty attempts carry unmistakably harness-origin error strings (13 dispatcher disposed, 6 cannot get property \"sessions\" without inject, 1 git worktree add failed: fatal: failed to read .git/wor...), and none of the 20 has infra set (all 20 have the key absent); 11 have no failureKind and 9 are crash, spread over 9 campaigns (loom-self 6, loom-acc1/2/3 2 each, loom-self2/3/4, loom-ui6, loom-probe). Symmetrically, 48 of the 80 'child session ended in error with no diagnostic (parent or provider unavailable)' attempts carry no infra flag at all, and those 48 are byte-identically shaped, so the label is not even stable within its own population. The 20 harness faults are the only textual ground truth for a harness-vs-capability classifier in the whole ledger, and 20 is a small training set.",
+      "source": "src/dispatch/session.js:459-497 (silent -> infra); computed over the ledger: 20 attempts with harness-origin strings (dispatcher disposed x13, without inject x6, worktree add failed x1), infra key absent on all 20, failureKind None x11 / crash x9, 9 campaigns; 80 no-diagnostic attempts split infra 32 / unflagged 48",
+      "confidence": 0.92,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "harness-fault", "label-error", "session.js"]
+    },
+    {
+      "id": "n-loom-cheap-rule-precision",
+      "kind": "number",
+      "title": "Six cheap predicates top out at 0.40 precision against the ledger's own infra label",
+      "body": "Tested against infra:true (32 positives) with the defensible negative set of died and neither flagged infra nor abandoned (74), and also scored over all 451 attempts: (A) duration under 5000 ms and textChars 0 gives tp 32, fp 66, fires 112, precision 0.327; (B) A plus stopReason error gives tp 32, fp 66, fires 98, precision 0.327; (C) textChars 0 and stopReason error gives tp 32, fp 72, fires 104, precision 0.308; (D) error string contains no diagnostic gives tp 32, fp 48, fires 80, precision 0.400; (E) duration under 2000 ms gives tp 32, fp 52, fires 98, precision 0.381; (F) textChars 0 alone gives tp 32, fp 72, fires 322, precision 0.308. Every rule achieves recall 1.0 by construction, because the 32 positives are all silent and fast, and the best precision is 0.40. Meanwhile source/latency: the corpus is 451 attempts, so the rule fires on roughly a fifth of the whole ledger to catch 7% of it, which means an action keyed on any of these predicates is wrong more often than right.",
+      "source": "computed over 451 ledger attempts, positives infra:true n=32, negatives died and not infra and not abandoned n=74; six predicates, best precision 0.400 (error string contains no diagnostic), all recall 1.0, fire counts 80-322",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "classifier", "precision", "measurement"]
+    },
+    {
+      "id": "n-loom-schema-variance",
+      "kind": "failure",
+      "title": "Half the fields a classifier would need are absent: textChars on 305/451, heartbeat on 0/451",
+      "body": "Schema drift is the hidden reason the classifiers above cannot be improved on this corpus. textChars is present on only 305 of 451 attempts, in 52 campaigns, so 146 attempts report no output volume at all; stdoutTail is empty on 178 attempts and agentTail on 205; retried is true on 0 attempts and heartbeat is present on 0 attempts, both fields existing in the record schema (src/runtime/round.js around line 1528) but never populated in this data; modelSwitch is set on 4 attempts, salvaged on 4, and modelsTried has length 1 for 303 attempts, length 0 for 142 and length 2 for only 4. Worse, textChars is not a proxy for work: its median among successes is 0 and 121 of the 323 attempts with textChars 0 scored 1, so a classifier that reads silence as failure is reading a field that does not mean what it looks like. Every byte of the schema variance above is a place where a 0 could mean 'did not happen' or 'was not recorded', and a loop that trains on such a column learns the recording policy, not the world.",
+      "source": "computed over 451 ledger attempts: textChars present 305 (52 campaigns), stdoutTail empty 178, agentTail empty 205, retried true 0, heartbeat present 0, modelSwitch 4, salvaged 4, modelsTried length 1 for 303 / 0 for 142 / 2 for 4; success median textChars 0, 121 of 323 textChars==0 attempts scored 1; src/runtime/round.js attempt record fields",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "schema-drift", "missing-data", "instrument"]
+    },
+    {
+      "id": "n-loom-exit0-passes",
+      "kind": "failure",
+      "title": "22 failures exited 0 with tests passing and still scored 0, because the session died first",
+      "body": "src/runtime/round.js:1486 sets verifierOk to gateOk, and gateOk at line 1461 is `(ver.ok && lean.ok && outcomeKind === 'ok') || salvaged`, where salvaged requires stoppedByDeadline and outcomeKind timeout. So when the verifier passes but the child's session ended in error, gateOk is false and the whole attempt scores 0 even though the tests went green. The ledger contains 22 such attempts: score 0, verifierOk false, exitCode 0, failureKind died 16 and timeout 6, with stdoutTail showing real green output such as ok 1..ok 3 then 3/3 passed. Seven of the 22 have a non-empty patch; 15 have patchBytes 0, meaning the tree was clean but the verifier still exited 0, which is its own separate anomaly. Spread: loom-life 14, loom-acc2 6, loom-acc1 1, loom-tri6 1, mean duration 200.9 s. This is a pure attribution bug rather than a measurement limit: the verifier's verdict exists, is positive, and is discarded because a different component's state is used as a conjunction term. It is the cheapest fix in this entire report and it is worth more than any classifier.",
+      "source": "src/runtime/round.js:1461 gateOk = (ver.ok && lean && outcomeKind==='ok') || salvaged; round.js:1486 verifierOk: gateOk; ledger: 22 attempts score 0 / exitCode 0 / failureKind died 16 + timeout 6, stdoutTail '3/3 passed', 7 with patch, loom-life 14, loom-acc2 6, loom-acc1 1, loom-tri6 1, mean duration 200.9 s",
+      "confidence": 0.93,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "verifier", "gate", "bug", "exit-code"]
+    },
+    {
+      "id": "n-loom-vacuous-verifier",
+      "kind": "number",
+      "title": "8 attempts report '0/0 passed' and exit 1: the verifier collected zero tests and still failed",
+      "body": "A second verifier-side population is the vacuous pass: 8 attempts have stdoutTail containing the literal 0/0 passed, all 8 in loom-bal4 (4) and loom-chaos (4), and all 8 score 0. A test runner that collected zero tests and exited 1 was read as a failure of the attempt, when it is a failure of the check. A related group is the 23 attempts with failureKind ok and verifierOk false, 19 of which have an empty stdoutTail: the child completed happily, the verifier produced no output, and the attempt was recorded as a capability failure. And 44 of the 141 exit-code-1 failures have the word passed somewhere in the 15-line stdoutTail, so a non-trivial share of verifier failures are not clean test failures. None of this is accessible to a classifier that only reads failureKind, and all of it is visible in the text fields that exist on 273 of 451 attempts.",
+      "source": "computed over 451 ledger attempts: 8 with '0/0 passed' in stdoutTail (loom-bal4 4, loom-chaos 4, all score 0), 23 failureKind ok with verifierOk false (19 empty stdoutTail), 44 of 141 exitCode-1 failures mention 'passed' in stdoutTail",
+      "confidence": 0.88,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "verifier", "vacuous", "zero-tests"]
+    },
+    {
+      "id": "n-loom-retry-never-converts",
+      "kind": "failure",
+      "title": "The built-in infra remedy fired 32 times and recovered 0: model-switching cannot fix a harness fault",
+      "body": "src/dispatch/session.js:248-276 retries an infra attempt when `res?.infra && !infraRetried && noAlternative && survivedEnough`, and the unusable test at :281-305 treats context, tokens, infra and timeout as reasons to fall over to the next model in the chain. The ledger shows what that bought: all 32 infra attempts have infraRetry true, 16 of the 32 had a later attempt in the same round, and 0 of those 16 later attempts scored 1; all 16 rounds containing an infra attempt failed to promote (16 of 16 unpromoted, 32 attempts, all score 0). A code comment in the same file records that across 22 campaigns the rebuild-parent retry fired 32 times and converted a silent death exactly never. That is the cost of mis-attribution measured directly: the loop applied a model-layer remedy to a non-model fault 16 times and the remedy's success rate was 0/16. Note the sample: 16 trials with zero successes puts the 95% upper bound on any true recovery rate at 17.1%, so the honest statement is 'below 17%', and 16 is too few to distinguish 0% from a small positive rate.",
+      "source": "src/dispatch/session.js:248-276 (infra retry condition) and :281-305 (unusable -> model fallback, comment: rebuild-parent retry fired 32 times across 22 campaigns and 'converted a silent death exactly never'); ledger: 32/32 infra attempts have infraRetry, 16 had a later same-round attempt, 0/16 scored 1, 0/16 rounds promoted; 0/16 -> 95% upper bound 17.1%",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "retry", "model-switch", "mis-attribution", "cost"]
+    },
+    {
+      "id": "n-loom-wasted-rounds",
+      "kind": "number",
+      "title": "40.4% of rounds produce no usable attempt; delivery failures take 41% of the spend",
+      "body": "The economic frame for attribution: of 228 rounds in the ledger, 92 (40.4%) produce no usable attempt at all, i.e. every attempt in the round was died, timeout, crash or abandoned. Total recorded spend is $0.109 over 431 priced attempts, of which $0.044 (41%) went to delivery-failure attempts (died, timeout, crash), so the loop spends two-fifths of its money learning nothing. Median round cost is $0.00042 and median round duration 82.8 s, so a retry is cheap in dollars but not in wall clock; promoted attempts have median duration 223.7 s against 27.3 s for failures. Campaigns are also short, 69 of them with median 2 rounds and median 4 attempts, which is the binding constraint on any statistics below: at 2 attempts per round and a binary 0/1 score, most campaigns cannot detect anything. Per-campaign pass rate has median 0.5 with 8 campaigns at 0.0, so the corpus is bimodal and a pooled classifier will mostly learn which campaign it is looking at.",
+      "source": "computed over 451 attempts / 228 rounds: 92 rounds (40.4%) with no usable attempt, $0.109 total over 431 priced attempts, $0.044 (41%) on delivery failures, median round $0.00042 and 82.8 s, promoted median duration 223.7 s vs failed 27.3 s, 69 campaigns median 2 rounds / 4 attempts, per-campaign pass rate median 0.5 with 8 at 0.0",
+      "confidence": 0.9,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "cost", "waste", "rounds"]
+    },
+    {
+      "id": "n-breakeven-precision",
+      "kind": "analysis",
+      "title": "Break-even precision is 0.5 for a symmetric excuse and 0.75 if a bad lesson persists",
+      "body": "Formalise the action. Let b be the value of correctly excusing a true infrastructure failure (one saved retry: median 82.8 s and $0.00042 in this ledger) and h the cost of wrongly excusing a capability failure (one unlearned failure, which delays the streak that demotes a bad model, plus the lesson written from a misread round). Acting on a classifier is worth it when precision p satisfies p*b > (1-p)*h, i.e. p > h/(h+b). With h = b the break-even precision is 0.5. If a misattributed lesson is injected into future worker prompts (the ledger holds 100 lessons and notesShown is nonzero on 49 attempts), one bad lesson contaminates several later rounds, so h is plausibly 3b and the break-even precision rises to 0.75. The best cheap predicate available is at 0.40 (n-loom-cheap-rule-precision), which is below even the optimistic 0.5 bar, so on this corpus the loop may not act on any of the six rules, and the LLM-judge ceiling of 14.2% on identifying the failing step is far below it too.",
+      "source": "decision-theoretic derivation on ledger costs: median round duration 82.8 s and median round cost $0.00042, 100 lessons total, notesShown nonzero on 49 attempts; break-even p = h/(h+b) = 0.5 symmetric, 0.75 at h=3b; best cheap rule precision 0.400; LLM-judge step attribution 14.2% (arXiv:2505.00212)",
+      "confidence": 0.8,
+      "topic": "attribution",
+      "tags": ["decision-theory", "precision-threshold", "cost-of-error", "analysis"]
+    },
+    {
+      "id": "n-sample-size-adequate",
+      "kind": "analysis",
+      "title": "32 labelled positives can certify 91% precision, not 99%; the rule is binding, not the sample",
+      "body": "How much evidence does the threshold need? With n independently labelled positives and zero observed errors, the 95% upper bound on the error rate is 1 - 0.05^(1/n), so 32 positives certify precision at or above 91.1%, 74 positives certify 96.0%, and reaching 99% requires 299. The ledger's 32 infra-flagged attempts are therefore enough to certify a 91% rule today and not enough for 99%, but the current best rule sits at 40%, so the sample is not the binding constraint; the rule is. Two caveats make even the 91% number weaker than it looks: the 32 positives are not independent draws (they cluster in 16 rounds and a handful of campaigns, and a per-round correlation inflates the effective sample size deficit), and the labels come from the same code path the classifier is meant to replace, so a rule that reproduces 'silent' perfectly would score 1.0 while learning nothing. Any real evaluation needs the 20 harness-origin and 48 unflagged no-diagnostic attempts hand-adjudicated first.",
+      "source": "binomial upper bound 1 - 0.05^(1/n) applied to ledger counts: 32 positives -> 8.9% error bound (91.1% precision), 74 -> 4.0% (96.0%), 99% needs n=299; 32 infra attempts cluster in 16 rounds; 20 harness-origin and 48 unflagged no-diagnostic attempts available for hand adjudication",
+      "confidence": 0.85,
+      "topic": "attribution",
+      "tags": ["statistics", "sample-size", "confidence-bound", "label-provenance"]
+    },
+    {
+      "id": "n-cheapest-classifier",
+      "kind": "analysis",
+      "title": "The cheapest classifier that clears break-even is not a predicate on the record but a replay against a known-good tree",
+      "body": "Every predicate over the attempt record fails for a structural reason: the discriminant between a harness fault and a capability fault is not in the record, because src/dispatch/session.js collapses it into died before the record is written, and the one field that could carry it (infra) is set only on the silent path. The cheapest classifier that can clear 0.5 precision is therefore a differential replay, not a text rule: take an attempt whose verifier failed, re-run the same verifier against the same base commit with no patch applied, and again with the gold or previously-promoted patch applied. If the clean tree fails the verifier, the fault is the task or the harness; if the clean tree passes and the gold tree passes but the attempt failed, the fault is the patch, i.e. capability. This costs one to three verifier runs, and the verifier default timeout is 10 minutes (src/exec/verifier.js:10), so a bounded replay is $0 in model tokens and minutes in wall clock, which is cheaper than the 82.8 s median round it is deciding about only if it is run selectively. The seed for it already exists: 22 exit-0 attempts prove the verifier can pass on a tree the gate rejected.",
+      "source": "src/dispatch/session.js:38-46 and :459-497 (discriminant destroyed before write); src/exec/verifier.js:10 (10-minute default verify timeout); ledger: 22 attempts reached verifier exit 0 while scoring 0, 7 with a patch; FAMAS (arXiv:2509.13782) as the precedent that replay-based attribution beats LLM judging",
+      "confidence": 0.72,
+      "topic": "attribution",
+      "tags": ["dsh-loom", "replay", "cheap-classifier", "proposal", "verifier"]
+    }
+  ],
+  "edges": [
+    {
+      "from": "n-mast-taxonomy",
+      "rel": "refines",
+      "to": "n-stage-taxonomy",
+      "note": "MAST's task-verification category and Liu's Iteration & Validation phase describe the same failure surface from different literatures; MAST adds coordination, Liu adds the code-repair stages a harness actually sees."
+    },
+    {
+      "from": "n-trail-taxonomy",
+      "rel": "refines",
+      "to": "n-mast-taxonomy",
+      "note": "TRAIL extends MAST with explicit system-execution categories (API errors, task orchestration), which is exactly the bucket a loop needs and MAST does not offer."
+    },
+    {
+      "from": "n-trail-taxonomy",
+      "rel": "supports",
+      "to": "n-attribution-ceiling",
+      "note": "11% joint category+location accuracy for the best model on a normalised OTel trace is an independent confirmation of the ~53% agent-level / 14% step-level ceiling."
+    },
+    {
+      "from": "n-edit-quality-modal",
+      "rel": "refines",
+      "to": "n-stage-taxonomy",
+      "note": "Liu's 65% flawed-reasoning and TRAJEVAL's 60-69% edit-quality modal failure agree that localization is not the dominant failure; TRAJEVAL rules out the harness explanation by holding on bash-only scaffolds."
+    },
+    {
+      "from": "n-verifier-false-positive",
+      "rel": "supports",
+      "to": "n-verifier-structure",
+      "note": "SWE-Bench+'s 31.08% weak-test passes are the concrete instance of the learnable false positive that Checking the Checkers says collapses a loop at low rates."
+    },
+    {
+      "from": "n-verifier-structure",
+      "rel": "applies-to",
+      "to": "n-loom-vacuous-verifier",
+      "note": "The 8 vacuous 0/0-passed attempts are the learnable-false-positive structure in miniature: the check collects nothing, the loop reads a failure, and the next attempt optimises the runner rather than the task."
+    },
+    {
+      "from": "n-verifier-false-positive",
+      "rel": "applies-to",
+      "to": "n-loom-exit0-passes",
+      "note": "Both are verifier-label corruption in opposite directions: SWE-Bench+ has tests that pass a bad patch, dsh-loom has a passing verifier whose verdict is discarded before it reaches the label."
+    },
+    {
+      "from": "n-harness-first-order",
+      "rel": "supports",
+      "to": "n-2x2-design",
+      "note": "A 29.8-point within-model scaffold range is the empirical reason a 2x2 model-by-harness grid is the minimum design for attributing score; a single-cell run cannot separate the axes."
+    },
+    {
+      "from": "n-harness-first-order",
+      "rel": "applies-to",
+      "to": "n-loom-retry-never-converts",
+      "note": "If scaffold dominates model, then a remedy that only changes the model (demoteChain, model fallback) is aimed at the smaller axis; 0/16 recovery is that prediction measured on the ledger."
+    },
+    {
+      "from": "n-eval-noise-floor",
+      "rel": "requires",
+      "to": "n-2x2-design",
+      "note": "A 2.2-6.0-point single-run swing means each cell of the grid must be multi-run before the grid's interaction term is interpretable."
+    },
+    {
+      "from": "n-eval-noise-floor",
+      "rel": "refines",
+      "to": "n-breakeven-precision",
+      "note": "The precision threshold must be met by a rule whose effect exceeds the 2-3-point noise floor, otherwise acting on it is indistinguishable from re-sampling."
+    },
+    {
+      "from": "n-flaky-build-base-rate",
+      "rel": "supports",
+      "to": "n-openstack-flake-cost",
+      "note": "Two independent ecosystems put infrastructure fault at a fifth to two-thirds of observed failure: 67.73% of rerun builds flaky in GitHub Actions, 55% of OpenStack projects hit by cross-project flakiness."
+    },
+    {
+      "from": "n-flaky-build-base-rate",
+      "rel": "applies-to",
+      "to": "n-loom-cheap-rule-precision",
+      "note": "The +20.3% F1 log-level detector is the realistic ceiling for log-only triage, and it is still far from the precision a loop needs before excusing a failure; it also shows the prior (about 2 in 3) is high enough to be useful."
+    },
+    {
+      "from": "n-datadog-error-mix",
+      "rel": "supports",
+      "to": "n-auth-storm-illusion",
+      "note": "60% of LLM span errors being rate limits is the population-level version of june.kim's auth storms: the dominant provider fault is quota, and it is silent and time-correlated."
+    },
+    {
+      "from": "n-auth-storm-illusion",
+      "rel": "applies-to",
+      "to": "n-loom-retry-never-converts",
+      "note": "Both are model-layer remedies applied to provider faults: the ledger's model fallback went 0/16, and retrying an auth stall never fixed it either (the fix was off-peak scheduling and credential rotation)."
+    },
+    {
+      "from": "n-swebench-infra-audit",
+      "rel": "contradicts",
+      "to": "n-loom-died-three-things",
+      "note": "A 62.5% environment-broken rate in the unsolved-by-all bucket is far above the ledger's 13.6%-to-37% estimate, so either dsh-loom's tasks are healthier than SWE-bench Pro or its label is missing most of the infrastructure fault; the audit's method (read the log afterwards) is what would settle it."
+    },
+    {
+      "from": "n-2x2-design",
+      "rel": "applies-to",
+      "to": "n-loom-schema-variance",
+      "note": "The design cannot be instantiated here yet: the model axis is empty because model is null on 143 died attempts and modelsTried has length 1 or 0 on all but 4 attempts."
+    },
+    {
+      "from": "n-attribution-ceiling",
+      "rel": "requires",
+      "to": "n-spectrum-cheap",
+      "note": "If LLM judging caps at 53% agent and 14% step, the only remaining route is a non-LLM statistic; FAMAS is the reported state of that art."
+    },
+    {
+      "from": "n-spectrum-cheap",
+      "rel": "supports",
+      "to": "n-cheapest-classifier",
+      "note": "Spectrum-based suspiciousness over pass/fail executions is the precedent for the proposed differential replay: both decide attribution from execution evidence rather than from a narrative about the run."
+    },
+    {
+      "from": "n-loom-failure-taxonomy",
+      "rel": "derived-from",
+      "to": "n-loom-died-three-things",
+      "note": "The three-population split is obtained by intersecting failureKind=died with the infra and abandoned flags; it is not a new measurement, it is the existing columns read correctly."
+    },
+    {
+      "from": "n-loom-infra-label-narrow",
+      "rel": "derived-from",
+      "to": "n-loom-failure-taxonomy",
+      "note": "The narrow meaning of infra follows from reading where the flag is set in session.js, not from any ledger statistic; it explains why harness-origin strings carry no flag."
+    },
+    {
+      "from": "n-loom-cheap-rule-precision",
+      "rel": "derived-from",
+      "to": "n-loom-infra-label-narrow",
+      "note": "All six predicates are scored against infra:true, so their precision measures agreement with the silent-path label, not agreement with the truth about the fault."
+    },
+    {
+      "from": "n-loom-schema-variance",
+      "rel": "fails-at",
+      "to": "n-loom-cheap-rule-precision",
+      "note": "The classifier cannot be improved on this corpus because the discriminating columns are missing on a third to a half of rows and textChars is uncorrelated with output volume."
+    },
+    {
+      "from": "n-loom-exit0-passes",
+      "rel": "derived-from",
+      "to": "n-loom-failure-taxonomy",
+      "note": "The 22 exit-0-score-0 attempts are found by crossing exitCode 0 with score 0; they exist only because gateOk conjoins the verifier verdict with outcomeKind === ok, a term the taxonomy does not expose."
+    },
+    {
+      "from": "n-loom-vacuous-verifier",
+      "rel": "derived-from",
+      "to": "n-loom-failure-taxonomy",
+      "note": "The 0/0-passed and ok-but-verifierOk-false attempts are failureKind=ok rows whose label disagrees with the verifier, so they are invisible to any bucket census."
+    },
+    {
+      "from": "n-loom-retry-never-converts",
+      "rel": "derived-from",
+      "to": "n-loom-died-three-things",
+      "note": "0/16 recovery is computed by walking the infra attempts' same-round successors, which requires first resolving died into its three populations."
+    },
+    {
+      "from": "n-loom-wasted-rounds",
+      "rel": "derived-from",
+      "to": "n-loom-failure-taxonomy",
+      "note": "The 40.4% empty-round rate and 41% delivery-failure spend are the aggregate cost of the died/timeout/crash population the taxonomy defines."
+    },
+    {
+      "from": "n-breakeven-precision",
+      "rel": "requires",
+      "to": "n-loom-cheap-rule-precision",
+      "note": "The break-even bar is only meaningful against a measured precision, and the 0.40 best rule is what makes the verdict 'do not act yet' concrete rather than rhetorical."
+    },
+    {
+      "from": "n-sample-size-adequate",
+      "rel": "refines",
+      "to": "n-breakeven-precision",
+      "note": "The threshold question and the evidence question are separate: 32 positives can certify a 91% rule, so the gap to 0.75 is a rule-quality gap, not a data-quantity gap."
+    },
+    {
+      "from": "n-cheapest-classifier",
+      "rel": "requires",
+      "to": "n-breakeven-precision",
+      "note": "A replay classifier is only worth building if its achievable precision clears the break-even bar, which for a replay against a known-good tree it plausibly does because the control arm is nearly deterministic."
+    },
+    {
+      "from": "n-cheapest-classifier",
+      "rel": "supersedes",
+      "to": "n-loom-cheap-rule-precision",
+      "note": "A predicate on a record whose discriminant was deleted before writing cannot be repaired by a better predicate; the measurement has to be re-run against a control tree instead."
+    },
+    {
+      "from": "n-cheapest-classifier",
+      "rel": "applies-to",
+      "to": "n-loom-exit0-passes",
+      "note": "The 22 exit-0 attempts are the existence proof that a differential replay would have returned a positive control and flipped the attribution from 'died' to 'verifier/gate fault' at zero model cost."
+    }
+  ],
+  "gaps": [
+    "What is the true count of harness-origin failures in dsh-loom? Only 20 attempts carry a diagnostic string that names the harness (dispatcher disposed, missing inject, worktree add failed), and 74 died attempts carry no evidence either way; hand-adjudicating those 74 against their child session logs is the single cheapest experiment that would move this from estimate to measurement.",
+    "Does the infra flag predict anything? All 32 flagged attempts share the same outcome (score 0, round unpromoted), so the label has never been tested against a case where it could have been wrong in a recoverable way. A controlled replica of the silent path (kill the parent mid-turn on a task with a known-good patch) would supply labelled positives the loop did not generate itself.",
+    "Would a differential replay actually separate the four causes? The proposal (verify the clean tree, verify the gold tree, compare with the attempt's verdict) has not been run even once; the 22 exit-0 attempts suggest it would work, but a 20-attempt pilot on the 20 harness-origin errors is needed before any design change.",
+    "How much does a misattributed lesson cost downstream? The ledger holds 100 lessons and notesShown is nonzero on 49 attempts, but there is no measurement of whether an incorrect lesson changes a later attempt's behaviour, so h in the break-even formula (p > h/(h+b)) is an assumption, not a number.",
+    "Is the 0.40 precision a property of the rules or of the labels? All six predicates were scored against a label defined by one code path, so their precision is a lower bound on nothing in particular; re-scoring against 20 hand-adjudicated harness faults and 48 unflagged no-diagnostics would answer it.",
+    "Does model identity matter at all in this ledger? model is null on 143 died attempts and modelsTried has length 1 or 0 on all but 4 attempts, so the model axis of the 2x2 design is unpopulated and per-model failure rates cannot be estimated; a deliberate same-task two-model run is required before demoteChain has any empirical basis.",
+    "Is the 40.4% empty-round rate a harness property or a task property? Campaigns are short (median 2 rounds) and bimodal (median pass rate 0.5, 8 campaigns at 0.0), so the empty rounds could be concentrated in a few broken campaigns; a per-campaign breakdown of empty rounds against task size would separate 'the loop wastes rounds' from 'a few campaigns were misconfigured'.",
+    "What does the verifier's 10-minute timeout do to attribution? A timeout is recorded as infrastructure-adjacent (failureKind timeout, and timeout is in NO_DELIVERY) but is a property of the task's test suite; the 25 timeout attempts and the 4 timeout-with-verifierOk-true attempts are the population to check against suite runtime.",
+    "Would an LLM judge trained on MAST's 14 modes even represent a dead parent session? None of the published taxonomies has a category for 'the dispatcher was disposed' or 'the worktree could not be created', so the 20 harness-origin attempts are out-of-distribution for every judge in the literature; a judge's accuracy on them is unmeasured and probably at chance."
+  ]
+}

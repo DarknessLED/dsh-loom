@@ -1,0 +1,323 @@
+{
+  "nodes": [
+    {
+      "id": "n-zim-3pct",
+      "kind": "number",
+      "title": "Only 3.4% of 622 cross-project defect predictions cleared 0.75 on recall, precision and F-measure at once",
+      "body": "Zimmermann et al. ran 622 cross-project predictions over 12 real applications and found that just 3.4% of the pairs achieved more than 0.75 recall, precision AND F-measure simultaneously; within-project models trained on the same project did far better. The authors frame the finding as data vs domain vs process: the failure is not random noise but a systematic mismatch in the distributions the learner keys on. This is the canonical measurement of cross-project transfer failure in software engineering and it sets the prior for any dsh-loom claim that a lesson earned in repo A will help repo B: the base rate for naive transfer is a few percent, not a majority. It also tells us the right control condition — a within-campaign baseline — because absolute success rates hide the gap entirely.",
+      "source": "Zimmermann, Nagappan, Gall, Giger, Murphy, 'Cross-project defect prediction: a large scale experiment on data vs. domain vs. process', ESEC/FSE 2009, pp. 91-100, doi:10.1145/1595696.1595713 (622 predictions, 12 applications, 3.4%)",
+      "confidence": "high",
+      "topic": "cross-project-failure",
+      "tags": ["transfer-failure", "base-rate", "defect-prediction"]
+    },
+    {
+      "id": "n-domainshift-apr",
+      "kind": "number",
+      "title": "APR models lose 11.82% (TFix) and 22-26% (CodeXGLUE) Exact Match when tested on projects not in training",
+      "body": "A TOSEM 2024 study defines domain shift for automated program repair and measures it on 2,672 bugs from 12 projects. Training and testing on the same projects is the standard protocol; when the test project is unseen, TFix-Large drops 11.82% Exact Match and CodeXGLUE drops 22.28% on average (26.13% in the reported headline pair), while TFix-Small drops only 1.47%. Re-adapting on the target project recovers +13.05% for TFix-Large and +48.78% for CodeXGLUE; adapting with synthetic bugs alone (no target data) recovers +5.76% and +17.62%. Two lessons for dsh-loom: the drop is real but model-size dependent, and most of the loss is recoverable by exposure to the target, which is exactly what a per-repo lesson store is trying to fake without retraining.",
+      "source": "A. Shirafuji et al., 'Improving Automated Program Repair with Domain Adaptation', ACM TOSEM 33(3), 2024, doi:10.1145/3631972 (2,672 bugs, 12 projects; -11.82% TFix-Large, -26.13% CodeXGLUE, +13.05%/+48.78% after adaptation, +5.76%/+17.62% zero-shot synthetic)",
+      "confidence": "high",
+      "topic": "cross-project-failure",
+      "tags": ["domain-shift", "apr", "measured-drop"]
+    },
+    {
+      "id": "n-linevul-crossdataset",
+      "kind": "number",
+      "title": "LineVul scores 94.52 F1 on Juliet but 10.73 on BigVul; high accuracy hides near-zero vulnerability recall",
+      "body": "A cross-dataset study of vulnerability detectors reports LineVul at F1 94.52 trained and tested on Juliet, then 53.95 on Devign, 10.73 on BigVul and 51.22 on ICVul. On BigVul in-distribution, ReVeal, Devign and VulBERTa reach accuracies of 87.45, 94.09 and 94.39 while their F1 is only 23.58, 16.90 and 0.19 — the models predict the majority class. The mechanism matters for lesson transfer: what looked like learned structure was mostly a prior over label frequency, so it evaporates when the target base rate differs. Any dsh-loom transfer metric built on binary 0/1 scores with a ~25% promotion rate is exposed to the same trap, and accuracy-style aggregates will overstate transfer.",
+      "source": "Cross-dataset evaluation reported in 'the models can learn predictive patterns under matched training and testing conditions' (semanticscholar reader c786edee967c30ed2a1c4427302a4465634a47b8) — LineVul 94.52 Juliet -> 53.95 Devign / 10.73 BigVul / 51.22 ICVul; ReVeal/Devign/VulBERTa acc 87.45/94.09/94.39 vs F1 23.58/16.90/0.19",
+      "confidence": "medium",
+      "topic": "cross-project-failure",
+      "tags": ["base-rate", "f1-vs-accuracy", "vulnerability-detection"]
+    },
+    {
+      "id": "n-swe-skills-bench",
+      "kind": "number",
+      "title": "92 of 98 public agent skills had no statistically significant effect; the worst cost 17.0 points",
+      "body": "SWE-Skills-Bench takes 98 public SWE skills, pairs each with a real GitHub repo pinned at a commit, derives executable requirements, and runs 3,920 paired evaluations (with/without the skill) across four agent-model configurations. Result: 92 of 98 skills are statistically indistinguishable from no skill, and the average pass ratio moves from 76.6% to 76.9%. The few Golden skills gain up to +17.7 points by supplying a procedure the agent would otherwise skip; Harmful skills lose up to -17.0 points because they anchor the agent on their own template and override the task's explicit instructions. This is the strongest negative evidence available that packaged natural-language knowledge transfers by default — and it isolates the failure mode as over-anchoring, not missing information.",
+      "source": "Han, Zhang, Song, Fang, Chen, Sun, Hu, 'SWE-Skills-Bench: Do Agent Skills Actually Help in Real-World Software Engineering?', arXiv:2603.15401 (98 skills, 3,920 paired evaluations, 92/98 n.s., 76.6%->76.9%, +17.7/-17.0 points)",
+      "confidence": "high",
+      "topic": "cross-project-failure",
+      "tags": ["skills", "null-result", "anchoring"]
+    },
+    {
+      "id": "n-swe-skills-harm",
+      "kind": "failure",
+      "title": "The dominant failure of injected knowledge is anchoring: the agent follows the stored template instead of the task",
+      "body": "The Harmful class in SWE-Skills-Bench is not noise — the authors attribute the -17.0 point losses to skills whose guidance overrides the issue's explicit instructions and substitutes the skill's own template for the repository's actual conventions. That is a specific, reversible design error, and it is the one most likely to be reproduced by dsh-loom today: a lesson is injected into the worker prompt as prose (select.js returns lesson text), with no instruction that the repository wins on conflict and no mechanism to detect that the lesson hijacked the attempt. XRepoSkill's prompt framing is the direct countermeasure — rules are presented as guidance to verify against the actual code before acting, never as instructions to execute.",
+      "source": "arXiv:2603.15401 (Harmful class, up to -17.0 points; mechanism stated as anchoring on skill template and overriding task instructions); contrast XRepoSkill arXiv:2609.36807 Appendix A.3 ('each step must be verified against the actual code before acting')",
+      "confidence": "medium",
+      "topic": "cross-project-failure",
+      "tags": ["anchoring", "prompt-framing", "failure-mode"]
+    },
+    {
+      "id": "n-xreposkill",
+      "kind": "number",
+      "title": "Rules verified across repositories gave +10.3 points on DeepSWE with zero repository overlap between learning and test",
+      "body": "XRepoSkill learns from public SWE-bench Verified trajectories (12 Python repos, 12 LLMs), then evaluates on SWE-bench Pro (200 tasks, 11 repos) and DeepSWE (113 tasks) with none of those repos in the learning pool. The skill is a list of 36 transferable rules; a rule is retained only if the same behavior is independently verified in at least two repositories, after repository-specific variants are merged. On DeepSWE it beats the same agent with no skill by 10.3 percentage points and the best of three skill-learning baselines by 5.0. All source trajectories are Python and the gains hold on Go/JS/TS/Rust tasks, which is evidence that what transfers is action-level procedure, not code or identifiers.",
+      "source": "Guo, Zhou, Zhang, Zhang, Liu, Chen, Lin, Dong, Zhang, Chen, 'XRepoSkill: Learning Transferable Skills for Software Engineering Agents', arXiv:2609.36807 (+10.3pp DeepSWE vs no-skill, +5.0pp vs best baseline, 36 rules, 12 source repos, no eval repo in pool)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["rules", "cross-repo", "verified-transfer"]
+    },
+    {
+      "id": "n-rule-predicate",
+      "kind": "concept",
+      "title": "The transferable unit is (action, precondition) plus an executable predicate — a fact without a predicate is never allowed to transfer",
+      "body": "XRepoSkill's Stage 1 emits each candidate rule as JSON with an action, a 'when', and an executable predicate over abstract actions (before(run_test, first_edit), action-occurred, action-count). Stage 2 then partitions the trajectory pool by that predicate and computes a Mantel-Haenszel stratified gain within issues, so a rule that only co-occurs with easy issues scores zero. Two filters are decisive for our design: a candidate that states a fact about the code instead of prescribing an action carries no predicate, cannot be verified, and 'never enters the transferable skill'; and a candidate is rejected outright if it contains a file path followed by a line number or three or more rare symbols. The stored representation is therefore deliberately de-referenced and action-shaped.",
+      "source": "arXiv:2609.36807, Sections 2.3-2.4 and Appendix A.1-A.2 (predicate example before(run_test, first_edit); facts without predicates excluded; rejection on path+line or 3+ rare symbols; Mantel-Haenszel gain, eq. 1)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["representation", "predicate", "de-referencing"]
+    },
+    {
+      "id": "n-xreposkill-selection",
+      "kind": "number",
+      "title": "Of 36 transferable rules, 5 carried half the selections and 17 were rarely or never used",
+      "body": "Across the 939 issue x backbone combinations in the main results, only 19 of the 36 rules were selected at least 30 times. S0 ('reproduce the reported failure before touching source') was selected in 58.4% of combinations and S5 ('inventory call sites and tests before modifying shared behavior') in 40.0%; the top 5 rules account for half of all selections and the top 11 for 80%, while four rules were never selected and eight fewer than ten times. Where a rule was selected, the delta over the no-skill agent was positive for 18 of 19 rules and ranged 2.9 to 14.3 points. A large verified skill corpus is therefore mostly dead weight at inference time — storage volume is not the bottleneck, selection precision is.",
+      "source": "arXiv:2609.36807, Appendix C (939 combinations; S0 58.4%, S5 40.0%, top 5 = 50%, top 11 = 80%, 4 never selected, 8 under 10; delta +2.9 to +14.3pp, positive for 18/19 rules)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["selection", "long-tail", "inference-time"]
+    },
+    {
+      "id": "n-awm",
+      "kind": "number",
+      "title": "Induced workflows gave +24.6% and +51.1% relative success and widened their lead as the train-test gap grew",
+      "body": "Agent Workflow Memory induces reusable routines (workflows) from past trajectories and injects the relevant ones; on Mind2Web and WebArena (1000+ tasks, 200+ domains) that is +24.6% and +51.1% relative success rate, with fewer steps on WebArena. The transfer-relevant number is the generalization sweep: online AWM beats baselines by 8.9 to 14.0 absolute points on cross-task, cross-website and cross-domain splits, and the margin grows as the train-test distribution gap widens. That is the opposite of the usual transfer-decay curve and suggests that once experience is abstracted to a procedure, a bigger domain gap can leave more headroom for the procedure rather than less.",
+      "source": "Wang, Mao, Fried, Neubig, 'Agent Workflow Memory', arXiv:2409.07429 / ICML 2025 (+24.6% Mind2Web, +51.1% WebArena relative; +8.9 to +14.0 absolute points as distribution gaps widen)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["workflows", "cross-domain", "relative-gain"]
+    },
+    {
+      "id": "n-rem",
+      "kind": "number",
+      "title": "Same experience as a summary or raw trajectory did not improve resolution even when retrieval was oracle-perfect",
+      "body": "REM consolidates each trajectory into a phase-structured document about two orders of magnitude smaller than the trajectory, injects it at task start, withholds the implementation record until an in-loop gate detects struggle, and evicts after one exposure. On SWE-ContextBench Lite it retrieves the related trajectory at 68.7% match@1 versus 55.6% for the best prior memory system, and raises end-task resolution 27.6% vs 24.9% at 17% lower cost; ablating any of the three decisions lowers resolution. The sharp finding is the control: injecting the same experience as a summary or as the raw trajectory, even when oracle-retrieved, does not improve resolution. So representation is not cosmetic — a summary loses the phase structure and a raw trajectory buries the signal, and neither survives the move.",
+      "source": "Chen et al., 'REM: What to Store, When to Recall, What to Forget in Experience Memory for Coding Agents', arXiv:2610.27377 (68.7% vs 55.6% match@1; 27.6% vs 24.9% resolution at -17% cost; summary/raw-trajectory controls fail even with oracle retrieval)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["representation-matters", "phase-structure", "control"]
+    },
+    {
+      "id": "n-expel",
+      "kind": "number",
+      "title": "Cross-task insight extraction raised 40.3% to 60.4% across rounds where plain reflexion reached 54.4%",
+      "body": "ExpeL gathers success and failure trajectories, extracts natural-language insights, and at inference retrieves insights plus similar trajectories rather than retrying the same task. On its task suite, ReAct+Reflexion climbs 40.3 -> 47.8 -> 52.2 -> 54.4 over four rounds while ExpeL retrieve-only reaches 54.5 -> 57.5 -> 59.7 -> 60.4, and ExpeL+Reflexion 59.0 -> 64.2. The authors frame the distinction as inter-task versus intra-task learning: Reflexion improves the task it failed, ExpeL is supposed to improve the next, different task. The gains are real but modest (+6 points over the strongest intra-task baseline), which is the honest scale for prose-insight transfer — comparable to, not better than, the +5 to +10 point band reported for verified rules.",
+      "source": "Zhao, Huang, Xu, Lin, Liu, Huang, 'ExpeL: LLM Agents Are Experiential Learners', AAAI 2024, doi:10.1609/aaai.v38i17.29936 (R0-R3: 40.3/47.8/52.2/54.4 vs 54.5/57.5/59.7/60.4 vs 59.0/60.4/63.4/64.2)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["insights", "inter-task", "nl-strategy"]
+    },
+    {
+      "id": "n-voyager",
+      "kind": "number",
+      "title": "Voyager's library stores executable code, gets 3.3x items and 15.3x faster milestones, and works in a fresh world",
+      "body": "Voyager's third component is an ever-growing skill library whose entries are executable programs, each admitted only after self-verification passed in the environment. It obtains 3.3x more unique items, travels 2.3x longer distances and unlocks tech-tree milestones up to 15.3x faster than prior state of the art, and — the transfer claim — it can use the learned library in a new Minecraft world to solve novel tasks from scratch where other techniques struggle. This is the strongest existing case for storing the artifact in runnable form rather than as description: the library is indexable by embedding of its description, but what executes is code, so nothing is lost in restatement. Its domain is closed and its verifier is the game, which is why it transfers at all.",
+      "source": "Wang, Xie, Jiang, Mandlekar, Xiao, Zhu, Fan, Anandkumar, 'Voyager: An Open-Ended Embodied Agent with Large Language Models', arXiv:2305.16291 (3.3x unique items, 2.3x distance, 15.3x faster milestones, library usable in a new world)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["executable-skills", "closed-world", "self-verification"]
+    },
+    {
+      "id": "n-tbar",
+      "kind": "number",
+      "title": "A literature-mined fix-pattern library fixed 43 of 128 Defects4J bugs (74 with perfect localization)",
+      "body": "TBar collects, summarizes and labels recurrently used fix patterns from the APR literature, then applies them systematically. With perfect fault localization it correctly/plausibly fixes 74/101 bugs; under a standard practical pipeline it correctly fixes 43, which the authors call unprecedented at the time across template, stochastic-mutation and synthesis-based APR. Two things matter for transfer: the patterns were mined from other projects and other benchmarks and still work on Defects4J, so edit-level pattern reuse across projects is real; but 85 of 128 bugs remain, and the paper attributes the residue to missing patterns plus bad localization/donor retrieval. Pattern reuse transfers the edit shape, not the location or the ingredient.",
+      "source": "Liu, Koyuncu, Kim, Bissyande, 'TBar: Revisiting Template-based Automated Program Repair', ISSTA 2019, arXiv:1903.08409 (74/101 with perfect localization, 43 correct under practical pipeline, Defects4J)",
+      "confidence": "high",
+      "topic": "patch-reuse",
+      "tags": ["fix-patterns", "defects4j", "template-apr"]
+    },
+    {
+      "id": "n-par",
+      "kind": "number",
+      "title": "PAR mined 10 templates from human patches and fixed 27 of 119 bugs across five Java projects",
+      "body": "PAR (Kim et al., ICSE 2013) manually analyzed human-written patches to derive a small set of fix templates, then generated candidates by matching templates against buggy statements and validating with the test suite. Applied to 119 real bugs from Rhino, AspectJ, log4j, Math, Lang and Collections it fixed 27, and its patches were more acceptable to developers than GenProg's. The library is tiny (on the order of ten patterns) and cross-project by construction: the templates came from patches in repositories that are not necessarily the target. That is the oldest evidence that a compressed, action-shaped pattern set transfers, and the ceiling — 22.7% — is a useful reminder that pattern coverage, not representation, becomes the binding constraint once the shape is right.",
+      "source": "Kim, Nam, Song, Kim, 'Automatic Patch Generation Learned from Human-Written Patches', ICSE 2013, pp. 802-811 (PAR, 119 bugs, 5 Java projects, 27 fixed)",
+      "confidence": "high",
+      "topic": "patch-reuse",
+      "tags": ["templates", "apr", "cross-project-by-construction"]
+    },
+    {
+      "id": "n-codephage",
+      "kind": "number",
+      "title": "CodePhage moved real code between 7 donor and 7 recipient applications and killed 10 errors — because both process the same input",
+      "body": "CodePhage transfers correct code from donor applications into a recipient that processes the same inputs, working from stripped binaries with no source or symbol information. Using seven donor applications it eliminated ten errors in seven recipients, covering out-of-bounds access, integer overflow and divide-by-zero. It is the most literal form of cross-project transfer in the literature — actual code, different language, different authors — and it works only under a precondition that generalizes poorly: donor and recipient must consume the same input format, and the needed check must be extractable and replayable. The lesson shape here is 'a guard for input class X', not 'a fix for bug Y'; the transfer succeeds because the trigger is shared, not because the repositories are similar.",
+      "source": "Sidiroglou-Douskos, Lahtinen, Long, Rinard, 'Automatic Error Elimination by Horizontal Code Transfer Across Multiple Applications', PLDI 2015, doi:10.1145/2813885.2737988 (7 donors, 10 errors in 7 recipients, binary donors)",
+      "confidence": "high",
+      "topic": "patch-reuse",
+      "tags": ["code-transfer", "precondition", "binary-donors"]
+    },
+    {
+      "id": "n-concrete-diff",
+      "kind": "claim",
+      "title": "Concrete diffs are the least portable representation and the most portable evidence — the edit script is what should be stored",
+      "body": "Every successful patch-transfer system stores something smaller than the diff: PAR stores ten templates, TBar stores labelled patterns, AvATAR stores fix patterns mined from static-analysis violations matched against AST nodes, and CodePhage stores a replayed check. The raw diff never transfers, because it encodes repository-specific identifiers, call sites and formatting; but the diff is the only artifact that proves a change was actually accepted. The design implication is a split: keep the diff as immutable evidence (for audit and for re-mining), and store the extracted edit script plus its triggering context as the retrievable unit. Storing the diff as the lesson, which is what a commit-message-style lesson effectively does, gets the worst of both — unportable and unverifiable.",
+      "source": "Synthesis of Kim et al. ICSE 2013 (templates), Liu et al. ISSTA 2019 arXiv:1903.08409 (labelled patterns), Liu et al. TSE 2021 AvATAR doi:10.1145/3599692 (fix patterns matched to AST nodes), Sidiroglou-Douskos et al. PLDI 2015 (replayed check)",
+      "confidence": "medium",
+      "topic": "patch-reuse",
+      "tags": ["diff-vs-edit-script", "evidence-vs-unit", "synthesis"]
+    },
+    {
+      "id": "n-locagent",
+      "kind": "number",
+      "title": "A symbol/dependency graph index reached 92.7% file-level localization where BM25 reached 61.7% and code embeddings 84.7%",
+      "body": "LocAgent parses a codebase into a directed heterogeneous graph of files, classes, functions and their imports/invocations/inheritance, then lets an agent search it with multi-hop reasoning. On SWE-bench Lite file-level localization it reaches 92.7% (Acc@5), against 61.7% for BM25 and 84.7% for the CodeRankEmbed dense retriever; it also improves downstream Pass@10 issue resolution by 12% and cuts cost roughly 86% versus proprietary-model baselines. The gap between 61.7 (text) and 92.7 (graph) is the clearest measurement that a symbol-level index is not a luxury for localization. For lesson retrieval the analogy is exact: a lesson keyed on 'the function that reads config' needs a symbol index; a lesson keyed on 'config handling' can live in text.",
+      "source": "Chen et al., 'LocAgent: Graph-Guided LLM Agents for Code Localization', arXiv:2503.09089 / ACL 2025 (92.7% file-level vs BM25 61.7% Acc@5 vs CodeRankEmbed 84.7%; +12% Pass@10; ~86% cost reduction)",
+      "confidence": "high",
+      "topic": "retrieval-index",
+      "tags": ["graph-index", "symbol-level", "localization"]
+    },
+    {
+      "id": "n-metarag",
+      "kind": "number",
+      "title": "Summarizing the codebase by 79.8% before retrieval gave 84.67% file-level and 53.0% function-level localization",
+      "body": "Meta-RAG condenses a codebase into a structured natural-language summary layer — an average 79.8% size reduction — and then runs retrieval plus an LLM agent over the summary rather than over raw code. On SWE-bench Lite it reports 84.67% file-level and 53.0% function-level correct localization. Two readings matter here. First, a lossy text index can outperform raw-code retrieval for the coarse stage, so a two-stage index (summary for candidates, symbols for confirmation) is the natural design. Second, the function-level number (53.0%) is 31.7 points below the file-level number, i.e. the compression that helps at file granularity destroys exactly the detail needed to pick the edit site — the same summary-versus-structure tradeoff REM measured for lessons.",
+      "source": "Tawosi, Alamir, Gharibi, Mohammadi, 'Meta-RAG on Large Codebases Using Code Summarization', arXiv:2508.02611 (79.8% average condensation, 84.67% file-level, 53.0% function-level on SWE-bench Lite)",
+      "confidence": "high",
+      "topic": "retrieval-index",
+      "tags": ["summary-index", "granularity", "two-stage"]
+    },
+    {
+      "id": "n-repocoder",
+      "kind": "number",
+      "title": "Iterative text-similarity retrieval improved zero-shot repository-level completion by over 10% relative in every setting",
+      "body": "RepoCoder pairs a similarity-based retriever with a pretrained code LM and iterates retrieval and generation, using the model's own partial output as the next query. Across line, API-invocation and function-body completion on RepoEval it improves zero-shot performance by more than 10% relative in all settings, with one retrieval-generation iteration usually enough. This is the text-level baseline: no symbol graph, no AST, just chunk similarity — and it works, which is why the symbol-index results have to be read as 'symbols add X over a strong text baseline', not 'text fails'. For dsh-loom the practical consequence is that a cheap lexical retrieval over lessons is a legitimate first implementation, and the symbol index only earns its cost on localization-shaped lessons.",
+      "source": "Zhang, Chen, Zhang, Liu, Li, 'RepoCoder: Repository-Level Code Completion Through Iterative Retrieval and Generation', EMNLP 2023, arXiv:2303.12570 (>10% relative zero-shot improvement across all settings on RepoEval)",
+      "confidence": "high",
+      "topic": "retrieval-index",
+      "tags": ["text-index", "iterative-retrieval", "baseline"]
+    },
+    {
+      "id": "n-loom-shape",
+      "kind": "number",
+      "title": "Measured in the live ledger: 100 lessons, all kind=fact, median 240 chars, 27% name a path, 47% a symbol, and 0 ever used",
+      "body": "Parsing every lesson.added event under C:/Users/Darkness/.dsh/loom/campaigns gives 100 records in 55 campaigns (69 campaign dirs, 458 attempt.finished events). All 100 have kind='fact'; claim length is min 13, median 240, max 240 characters; 27 mention a file path or .js file, 47 mention a call-shaped symbol, 51 contain a digit; confidence is 0.5 for 99 of 100 and 0.96 for one; ttlRounds is 12 for all; useCount is 0 and gainSum is 0 for all 100. There are 72 distinct families and exactly 1 family spans more than one campaign. So the current representation is a short natural-language fact with optional file/symbol references, carrying no measured effect and no confidence signal that varies.",
+      "source": "C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl, lesson.added events parsed 2026-11-12 (n=100 lessons, 69 campaigns, 458 attempt.finished; field census as stated)",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["census", "measured", "representation"]
+    },
+    {
+      "id": "n-loom-key",
+      "kind": "claim",
+      "title": "The lesson key is campaign-local: family defaults to task.id and tags are empty in 100/100 records",
+      "body": "matchReason() (src/knowledge/select.js:75-96) admits a lesson only on family equality, taskIds.includes(target.id), non-empty tag overlap, or family === '*'. deriveLesson() (src/knowledge/impact.js:258) sets family = task.family ?? task.id ?? '*' and taskIds = [task.id], both campaign-local identifiers. With tags empty in all 100 records, no record using '*', and only 1 family spanning two campaigns, the achievable cross-campaign match set on the current corpus is one family. A global lesson file would change nothing on its own: the retrieval key has to be re-expressed in something a foreign campaign can produce — a repo-relative path glob, a symbol kind, an action verb — before sharing helps.",
+      "source": "C:/Projects/RSI/src/knowledge/select.js:75-96,138-176; C:/Projects/RSI/src/knowledge/impact.js:258-307; corpus census in this file (n-loom-shape)",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["retrieval-key", "code-verified", "cross-campaign"]
+    },
+    {
+      "id": "n-loom-power",
+      "kind": "analysis",
+      "title": "With binary 0/1 scores at a 25% promotion rate, 452 attempts can only resolve effects of about 12 points or larger",
+      "body": "The ledger has 452 recorded attempts, 114 promotions (25.2%) and binary scores, so any lesson-effect estimate is a difference of two proportions. At alpha=0.05 two-sided and 80% power, n per arm = 2*(1.96+0.84)^2*p(1-p)/d^2, which at p=0.25 gives roughly 294 attempts per arm for a 10-point absolute effect, 1,176 per arm for 5 points and 130 per arm for 15 points. Splitting 452 attempts into a treated and a control arm yields about 226 each, i.e. a minimum detectable effect near 12 points. Consequences: dsh-loom can honestly test 'does this rule help at all' at the TBar/CodePhage scale of effect, and cannot test the 2.9-5 point deltas that XRepoSkill and ExpeL report without roughly five times the ledger.",
+      "source": "Derived from ledger counts (452 attempt.finished, 114 promotions = 25.2%, binary 0/1 scores) with the standard two-proportion power formula n = 2*(z_{1-a/2}+z_{1-b})^2*p(1-p)/d^2",
+      "confidence": "high",
+      "topic": "dsh-loom-ledger",
+      "tags": ["statistical-power", "minimum-detectable-effect", "binary-reward"]
+    },
+    {
+      "id": "n-form-ranking",
+      "kind": "analysis",
+      "title": "Ranked by surviving evidence, the transferable forms are: action rule with predicate > executable procedure > edit pattern > prose insight > raw diff",
+      "body": "Ordering the forms by the strength of cross-repository evidence: (1) action rule plus executable predicate — XRepoSkill, +10.3 points on repos never seen, verified on at least two repositories before admission; (2) executable procedure — Voyager's code library and AWM's workflows, +24.6%/+51.1% relative but in closed or web domains where execution verifies admission; (3) edit pattern — TBar 43/128 and PAR 27/119, transferable across projects but capped by coverage; (4) prose insight — ExpeL +6 points over reflexion, and SWE-Skills-Bench finds 92/98 packaged skills indistinguishable from nothing; (5) raw diff — no system in this set retrieves a diff as its unit, and CodePhage only transfers code under a shared-input precondition. The gradient is consistent: the more the stored unit resembles a checkable action, the better it travels.",
+      "source": "Synthesis of arXiv:2609.36807, arXiv:2305.16291, arXiv:2409.07429 (AWM), arXiv:1903.08409 (TBar), Kim et al. ICSE 2013 (PAR), AAAI 2024 ExpeL, arXiv:2603.15401 (SWE-Skills-Bench), PLDI 2015 CodePhage",
+      "confidence": "medium",
+      "topic": "transfer-form",
+      "tags": ["ranking", "synthesis", "evidence-strength"]
+    },
+    {
+      "id": "n-store-spec",
+      "kind": "analysis",
+      "title": "What repo A should hand repo B: a preconditioned action rule, scope-bounded by mechanism class, with the diff kept only as evidence",
+      "body": "Concretely, a lesson record should carry: (a) an imperative action and its trigger, phrased over abstract action types (read, search, edit, run test) plus a repository-relative path glob or symbol kind rather than a filename; (b) a precondition predicate that is evaluable on a trajectory without an LLM call, so admission and later re-verification are mechanical; (c) scope = the mechanism class that makes it valid (e.g. 'module init order', 'test-in-isolation'), not the campaign name and not the repo; (d) evidence = the source diff or patch hash, immutable, never injected; (e) a measured gain with a confidence interval, plus repository count, used only for selection ordering. This is XRepoSkill's record minus its trajectory machinery plus our diff ledger, and it is testable in our corpus today because 47/100 existing claims already name a callable symbol.",
+      "source": "Design synthesis of arXiv:2609.36807 (record fields, predicate, two-repository admission, rejection of path+line and 3+ rare symbols) applied to the dsh-loom record shape measured in this file (n-loom-shape, n-loom-key)",
+      "confidence": "medium",
+      "topic": "dsh-loom-design",
+      "tags": ["record-schema", "design", "testable"]
+    },
+    {
+      "id": "n-test-plan",
+      "kind": "analysis",
+      "title": "The transfer test we can actually run: leave-one-campaign-out with paired same-family tasks, and a predicate arm",
+      "body": "Design: take the 452 attempts and the 100 lessons; for each target attempt, retrieve only lessons from other campaigns (dropping the 1 family that spans campaigns removes leakage). Arms: (A) no lesson, (B) current prose lesson, (C) the same lesson rewritten as action+predicate per n-store-spec. Primary outcome is the binary score; to reach a 10-point minimum detectable effect the split must be paired within family, which raises power. Falsification is built in: (C) must beat (A) and (B) must not beat (A) for the representation claim to stand, and a null on (C) is publishable evidence that cross-campaign transfer does not exist here. Secondary: replay each (C) predicate on all 452 historical trajectories and check that satisfying it correlates with promotion — a zero-cost retrospective that needs no new rounds.",
+      "source": "Protocol derived from ledger counts in this file (452 attempts, 100 lessons, 72 families, 25.2% promotion) and the verification method of arXiv:2609.36807 Section 2.4 (predicate partition, Mantel-Haenszel gain, two-repository admission)",
+      "confidence": "medium",
+      "topic": "dsh-loom-design",
+      "tags": ["experiment-design", "paired", "falsifiable"]
+    },
+    {
+      "id": "n-gap-repo-variation",
+      "kind": "question",
+      "title": "Open gap: the ledger has no repository variation, so 'cross-repo' cannot be measured — only cross-task",
+      "body": "All 69 campaigns appear to operate on the same checkout (C:/Projects/RSI), and the 72 families are task-shaped or campaign-shaped, not repo-shaped. That means the evidence available in-house is cross-task transfer within one repository, which is the regime where RepoCoder-style text retrieval and TBar-style pattern reuse already work; it says nothing about the domain-shift regime that costs TFix 11.82 points or the skills regime where 92/98 skills are null. Before any cross-repo claim, the ledger needs a repository axis on campaigns and at least two repositories whose task families overlap. Recommendation: record repo identity per campaign and per lesson now, even with one repo, so the field exists before the second repo arrives.",
+      "source": "Ledger inspection 2026-11-12: 69 campaign dirs under C:/Users/Darkness/.dsh/loom/campaigns, 72 lesson families, 1 family spanning two campaigns; no repository field observed on lesson or campaign records; contrast arXiv:3631972 domain-shift and arXiv:2603.15401 skill-null regimes",
+      "confidence": "medium",
+      "topic": "dsh-loom-ledger",
+      "tags": ["gap", "confound", "repository-axis"]
+    },
+    {
+      "id": "n-ace-playbook",
+      "kind": "number",
+      "title": "Incremental playbook curation beat rewrite-style contexts by 10.6% on agents and 8.6% on finance tasks",
+      "body": "ACE treats the context as an evolving playbook updated by generate/reflect/curate, with structured incremental deltas rather than whole-context rewrites. It reports +10.6% on agent benchmarks and +8.6% on finance tasks, works without labeled supervision using execution feedback, and matches a top production agent on AppWorld average while beating it on the harder challenge split with a smaller open model. The named failure modes are brevity bias (summaries drop domain insight) and context collapse (iterative rewriting erodes detail) — both are representation failures, not retrieval failures. For dsh-loom the transferable mechanic is append-only, attributed deltas: a lesson library that is edited by accretion cannot silently forget the detail that made an earlier lesson work.",
+      "source": "Zhang et al., 'Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models', arXiv:2510.04618 / ICLR 2026 (+10.6% agents, +8.6% finance, brevity bias and context collapse named)",
+      "confidence": "high",
+      "topic": "transfer-form",
+      "tags": ["playbook", "append-only", "context-collapse"]
+    },
+    {
+      "id": "n-multiswe-lang",
+      "kind": "number",
+      "title": "Issue resolution collapses across languages: Claude-3.5-Sonnet 32.35% Python, 5.35% Java, 6.14% JS",
+      "body": "Multi-SWE-bench evaluates issue resolving on 1,632 instances across Java, TypeScript, JavaScript, Go, Rust, C and C++. The per-language spread is the finding: Claude-3.5-Sonnet scores 32.35 Python and 7.69 Java; o3-mini-high 21.52 Python and 5.18 Java; DeepSeek-V3 18.97 Python and 5.16 Java; Claude-3.7-Sonnet reaches 55.51 on Go and 55.79 on C while sitting at 26-38 elsewhere. Since Python dominates the trajectories that skill-learning methods train on, these numbers bound how much of a Python-earned lesson can survive an ecosystem change: XRepoSkill's cross-language gains are real but small relative to the 25+ point language gap.",
+      "source": "Zan, Huang, Liu et al., 'Multi-SWE-bench: A Multilingual Benchmark for Issue Resolving', arXiv:2504.02605 (1,632 instances; per-model per-language resolve rates as quoted)",
+      "confidence": "high",
+      "topic": "cross-project-failure",
+      "tags": ["language-gap", "ecosystem", "benchmark"]
+    }
+  ],
+  "edges": [
+    {"from": "n-zim-3pct", "rel": "supports", "to": "n-form-ranking", "note": "Establishes the naive-transfer base rate (3.4%) that any representation has to beat"},
+    {"from": "n-domainshift-apr", "rel": "supports", "to": "n-form-ranking", "note": "11.82-26.13% drop on unseen projects is the cost of ignoring target-specific structure"},
+    {"from": "n-linevul-crossdataset", "rel": "supports", "to": "n-swe-skills-bench", "note": "Same failure mode: a learned prior over label frequency looks like knowledge until the base rate shifts"},
+    {"from": "n-swe-skills-bench", "rel": "contradicts", "to": "n-expel", "note": "Packaged skills are 92/98 null while ExpeL reports +6 points; the difference is admission testing, not prose vs prose"},
+    {"from": "n-swe-skills-bench", "rel": "refines", "to": "n-xreposkill", "note": "Both measure injected text; XRepoSkill's gains hold only because rules are predicate-verified and cross-repo filtered"},
+    {"from": "n-swe-skills-harm", "rel": "fails-at", "to": "n-loom-key", "note": "dsh-loom injects lesson prose with no 'repository wins' framing, reproducing the anchoring failure"},
+    {"from": "n-rule-predicate", "rel": "derived-from", "to": "n-xreposkill", "note": "The predicate is the mechanism that makes the +10.3 point result credible"},
+    {"from": "n-xreposkill-selection", "rel": "refines", "to": "n-xreposkill", "note": "Qualifies the headline: 17 of 36 rules were nearly unused, so selection precision dominates corpus size"},
+    {"from": "n-xreposkill", "rel": "applies-to", "to": "n-store-spec", "note": "Supplies the record fields: action, when, predicate, two-repository admission"},
+    {"from": "n-rem", "rel": "supports", "to": "n-form-ranking", "note": "Summary and raw trajectory both fail even with oracle retrieval, so form is causal not cosmetic"},
+    {"from": "n-awm", "rel": "supports", "to": "n-form-ranking", "note": "Procedure-level abstraction widens its lead as the train-test gap grows (+8.9 to +14.0 absolute)"},
+    {"from": "n-voyager", "rel": "supports", "to": "n-form-ranking", "note": "Executable entry admitted by self-verification is the top of the form gradient in a closed world"},
+    {"from": "n-voyager", "rel": "requires", "to": "n-codephage", "note": "Both need an executable verifier or a shared input trigger; without one neither transfers"},
+    {"from": "n-codephage", "rel": "requires", "to": "n-concrete-diff", "note": "Code transfers only because the trigger context is shared, not because the diff is portable"},
+    {"from": "n-codephage", "rel": "fails-at", "to": "n-store-spec", "note": "Its precondition (same input format, extractable check) is too narrow to be the general lesson shape"},
+    {"from": "n-tbar", "rel": "supports", "to": "n-concrete-diff", "note": "Storing labelled patterns instead of diffs fixed 43/128; the edit script is the portable unit"},
+    {"from": "n-par", "rel": "supports", "to": "n-tbar", "note": "Same mechanism six years earlier: ten templates, 27/119, templates usable across five projects"},
+    {"from": "n-locagent", "rel": "supports", "to": "n-form-ranking", "note": "A symbol graph beats text retrieval 92.7 vs 61.7 at file level, so index shape changes what is findable"},
+    {"from": "n-metarag", "rel": "contradicts", "to": "n-locagent", "note": "A 79.8%-condensed summary index also beats raw retrieval at file level, so graph dominance is granularity-specific"},
+    {"from": "n-repocoder", "rel": "supports", "to": "n-metarag", "note": "Cheap text similarity already yields >10% relative, making the symbol index an incremental not foundational win"},
+    {"from": "n-loom-shape", "rel": "measures", "to": "n-loom-key", "note": "Empty tags, one cross-campaign family and zero useCount are the measured inputs to the key argument"},
+    {"from": "n-loom-shape", "rel": "contradicts", "to": "n-store-spec", "note": "Current records are facts without triggers or predicates, the exact form XRepoSkill excludes"},
+    {"from": "n-loom-power", "rel": "applies-to", "to": "n-test-plan", "note": "Fixes the minimum detectable effect at ~12 points, which dictates paired design"},
+    {"from": "n-loom-key", "rel": "requires", "to": "n-gap-repo-variation", "note": "Re-keying for transfer is blocked on a repository axis the ledger does not record"},
+    {"from": "n-test-plan", "rel": "derived-from", "to": "n-loom-power", "note": "Paired same-family arms are chosen because the unpaired minimum detectable effect is too coarse"},
+    {"from": "n-test-plan", "rel": "requires", "to": "n-store-spec", "note": "Arm C is only runnable once the record carries an evaluable predicate"},
+    {"from": "n-ace-playbook", "rel": "refines", "to": "n-rem", "note": "Both find lifecycle/update discipline decisive; ACE adds that append-only deltas prevent context collapse"},
+    {"from": "n-multiswe-lang", "rel": "supports", "to": "n-zim-3pct", "note": "A 25+ point Python-to-Java gap is the ecosystem-scale version of the cross-project decay"}
+  ],
+  "gaps": [
+    "No study in this set isolates representation form as the treatment while holding the lesson content fixed across repositories; REM's summary/raw-trajectory control is the closest and it is single-benchmark.",
+    "There is no measurement of whether a lesson earned on one repository ever gets retrieved and applied on another in any production self-improving coding loop; XRepoSkill and SWE-Exp both train on trajectories rather than accumulating an audited per-repo ledger.",
+    "How should a predicate be expressed when the lesson is about a process (e.g. test-in-isolation) rather than a trajectory action? No paper here evaluates predicates over non-action, non-trajectory evidence.",
+    "What is the half-life of a transferable rule inside one repository — does it decay as the codebase drifts, and does the 12-round TTL used by dsh-loom match any measured decay curve? Untested anywhere in this set.",
+    "Does the two-repository admission rule of XRepoSkill survive when the two repositories share an author or a framework? No ablation separates repository diversity from framework diversity.",
+    "The cross-language gains of XRepoSkill (Python-learned rules helping Go/TS/Rust tasks) are reported without per-language deltas, so their size relative to Multi-SWE-bench's 25+ point language gap is unknown.",
+    "dsh-loom's ledger has one repository and a 25% promotion rate, so the cross-repo claim cannot be tested in-house until a second repository with overlapping task families exists."
+  ]
+}

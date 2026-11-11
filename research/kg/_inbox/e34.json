@@ -1,0 +1,72 @@
+{
+ "nodes": [
+  {
+   "id": "exp-slot-008",
+   "kind": "number",
+   "title": "Between-campaign variance is 74% of the variance in task outcomes, and the repeated tasks are the hard ones",
+   "body": "Eleven task ids were attempted in two or more campaigns - same specification, different campaign, different base tree, different sample - which is the only repeat this ledger owns. Decomposing their outcomes (research/exp/e34.mjs, method of moments): mean within-campaign variance 0.0349, mean between-campaign variance 0.0999, so 74.1% of the variance is between campaigns. The composition is also stark: tasks that got repeated have a mean pass rate of 0.244, tasks attempted in one campaign only average 0.777. The loop, left alone, works on easy tasks once and retries hard tasks many times - which is exactly backwards for measurement: the hard tasks are the ones where the treatment effect would be visible, but they are also the ones whose verifier is least likely to be passed at all, so the sample is biased toward the region where the instrument saturates at 0. This revises ana-012: the missing quantity is not one number but two, and the between-campaign term dominates, so a repeat has to be a repeat of the *campaign* (same base tree, same task) to be informative.",
+   "source": "research/exp/e34.mjs (11 tasks across 2+ campaigns, 452 attempts)",
+   "confidence": 0.9,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "variance",
+    "curriculum"
+   ]
+  },
+  {
+   "id": "exp-curric-001",
+   "kind": "failure",
+   "title": "Task selection is emergent and inverted: the loop retries what it cannot do and abandons what it can",
+   "body": "The same decomposition answers the curriculum question from the ledger side. Of the 100 distinct task ids, the 11 attempted across campaigns are the low-rate ones (mean 0.244) and the 89 single-campaign tasks average 0.777. card-actions was attempted 48 times across 7 campaigns for 2 passes (0.042); head-dot 40 times across 7 for 4 passes (0.100). Meanwhile plateau and deferred were each attempted 12 times in one campaign and passed 11. The selection policy in src/runtime/selector.js prefers unsolved tasks, so it keeps re-queueing the tasks at 0% and never revisits the ones at 92% - and exp-slot-006 showed those 0% campaigns are dominated by harness deaths rather than capability limits (exp-fail-004). The curriculum the loop actually runs is therefore 'retry the infrastructure failures', which is the worst possible task order for both learning and measurement: it burns attempts on the region where the verifier cannot distinguish a good patch from a dead process.",
+   "source": "research/exp/e34.mjs + exp-fail-004 + selector.js preference for unsolved tasks",
+   "confidence": 0.88,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "curriculum",
+    "selection"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-slot-008",
+   "rel": "refines",
+   "to": "ana-012",
+   "note": "the missing quantity is two variances, and the between-campaign one dominates"
+  },
+  {
+   "from": "exp-slot-008",
+   "rel": "contradicts",
+   "to": "w2-decide-mde-formula-agent-sigma",
+   "note": "11-36 repeats at sigma 0.7-1.8pp assume within-task sampling; our variance is between-campaign"
+  },
+  {
+   "from": "exp-slot-008",
+   "rel": "supports",
+   "to": "exp-slot-006"
+  },
+  {
+   "from": "exp-curric-001",
+   "rel": "derived-from",
+   "to": "exp-slot-008"
+  },
+  {
+   "from": "exp-curric-001",
+   "rel": "supports",
+   "to": "exp-fail-004"
+  },
+  {
+   "from": "exp-curric-001",
+   "rel": "contradicts",
+   "to": "ana-009",
+   "note": "adaptive branching assumes the task is at the learning boundary; ours sit at 0 and 92 percent"
+  },
+  {
+   "from": "exp-curric-001",
+   "rel": "applies-to",
+   "to": "w6-stopping"
+  }
+ ]
+}

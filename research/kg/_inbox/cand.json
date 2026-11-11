@@ -1,0 +1,65 @@
+{
+ "nodes": [
+  {
+   "id": "exp-cand-001",
+   "kind": "failure",
+   "title": "The second-candidate gate computes a zero tail from the ledger, so it always says the hedge is free",
+   "body": "secondCandidateGate(rounds) reads each measured round's attempts, takes the gap between the slowest attempt and the median as the tail price, and averages those gaps. Probed against the shape our ledger actually produces (research/exp/_cand_probe.mjs, three graded rounds of ~86s with attempts at 62/78s, 70/88s, 69/85s): result {admit:true, ev:13858, p:0.2, roundMs:86615, tailMs:0, rounds:3}. tailMs is 0 because with two attempts the 'slowest minus median' is one of them and in these rounds the median IS a published value - sorted[floor(n/2)] for n=2 is the larger element, so max(0, slowest - median) = 0 always. With n=2 the tail is mathematically always zero, so EV = p*(1-p)*roundMs > 0 for any p in (0,1), so the gate admits a second candidate unconditionally. The formula was fitted on rounds with more attempts than the loop ever buys. The same function called directly with realistic numbers (p=0.5, roundMs=82845, tailMs=45000) correctly refuses: ev=-24288, tail-exceeds-ev. So the bug is not the economics, it is the measurement feeding it: for n=2 the median must be the mean or the lower order statistic, or the tail must be the cost of the second attempt itself.",
+   "source": "research/exp/_cand_probe.mjs against src/runtime/candidates.js secondCandidateGate (n=2 rounds)",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "measurement",
+    "candidates",
+    "cost"
+   ]
+  },
+  {
+   "id": "exp-cand-002",
+   "kind": "analysis",
+   "title": "Three decision rules, one measurement each: the loop's policies are broken in the same way, at the point where a number is read",
+   "body": "Three independent probes now land on the same shape. (1) The gate's minGain never changes a decision because the score it compares is binary (exp-gate-001). (2) The graded path cannot promote because earned is computed from a boolean baseFailed that an always-exit-0 metric forces to false (exp-graded-003). (3) The second-candidate hedge always says 'admit' because its tail price is structurally zero at n=2 (exp-cand-001). In each case the decision logic is defensible, the unit tests pass, and the number it consumes is either absent or degenerate. That is one bug class, not three: this codebase builds policies against quantities it never validates at the boundary where the quantity enters. The general fix is a cheap invariant per policy input - 'minGain acts on a non-binary score', 'an always-exit-0 verifier must supply a baseline metric', 'a tail price at n=2 must be the second attempt's own cost' - checked by a test that fails when the input degenerates, rather than a test that feeds the policy a well-formed number and checks the arithmetic.",
+   "source": "exp-gate-001 + exp-graded-003 + exp-cand-001 (three policy probes, 2026-11-12)",
+   "confidence": 0.92,
+   "topic": "tri",
+   "tags": [
+    "analysis",
+    "policies",
+    "measurement"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-cand-001",
+   "rel": "supports",
+   "to": "exp-cost-003"
+  },
+  {
+   "from": "exp-cand-001",
+   "rel": "contradicts",
+   "to": "exp-slot-005",
+   "note": "the sequential policy is the right shape but the gate that would switch to it always admits parallel"
+  },
+  {
+   "from": "exp-cand-002",
+   "rel": "derived-from",
+   "to": "exp-cand-001"
+  },
+  {
+   "from": "exp-cand-002",
+   "rel": "derived-from",
+   "to": "exp-graded-003"
+  },
+  {
+   "from": "exp-cand-002",
+   "rel": "supports",
+   "to": "ana-011"
+  },
+  {
+   "from": "exp-cand-002",
+   "rel": "requires",
+   "to": "ana-003"
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "nodes": [
+  {
+   "id": "exp-fail-002",
+   "kind": "failure",
+   "title": "63% of genuine attempt failures are opaque: the loop is told 'error with no diagnostic' and cannot act on it",
+   "body": "Canonicalised all 189 attempt failures across 69 campaigns into classes (research/exp/e24.mjs). Only 8 classes exist, and the distribution defeats any failure-driven improvement: 80 (42%) are the literal string 'child session ended in error with no diagnostic (parent or provider unavailable)'; 40 are 'abandoned: solved-by-sibling' and 22 'abandoned: interrupted' (not failures at all); 25 are timeouts; 14 are 'dispatcher disposed' (host shutdown); 6 are the cordis inject bug; 1 worktree corruption; 1 host-restart. Excluding the 62 abandonments, 80 of 127 genuine failures (63%) carry no information about what went wrong. Any loop that clusters failures to propose fixes - the Self-Harness signature recipe - receives an empty string for the majority of its evidence, and would cluster 80 unrelated provider deaths into one signature and 'fix' it.",
+   "source": "research/exp/e24.mjs (189 failures, 69 campaigns)",
+   "confidence": 0.95,
+   "topic": "prod",
+   "tags": [
+    "measurement",
+    "failures",
+    "diagnosability"
+   ]
+  },
+  {
+   "id": "exp-fail-003",
+   "kind": "analysis",
+   "title": "The loop's failure taxonomy is dominated by its own plumbing, not by the task, so failure-driven self-improvement would optimise the harness",
+   "body": "Of the diagnostic failures that do carry text, the biggest actionable class is timeouts (25, 13%), followed by host-lifecycle events (14 dispatcher disposed, 1 host-restart) and our own bugs (6 inject errors, 1 worktree corruption). Not one of the 189 failures is 'the model produced a wrong patch' as an error - wrong patches arrive as verifierOk false with a diagnostic-free empty error, which is why they look like non-events. So if we built a proposer over error strings, 100% of its input would be harness failures, and improving it would make the harness more robust while leaving task success untouched. This is a concrete instance of the outside-the-loop principle in reverse: an in-loop improver sees the loop, not the work.",
+   "source": "research/exp/e24.mjs",
+   "confidence": 0.9,
+   "topic": "prod",
+   "tags": [
+    "analysis",
+    "failures",
+    "goodhart"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-fail-002",
+   "rel": "supports",
+   "to": "exp-fail-001",
+   "note": "3.965 attempts per promotion, and most failures say nothing"
+  },
+  {
+   "from": "exp-fail-002",
+   "rel": "contradicts",
+   "to": "w3-falsify-metr-selection",
+   "note": "not a contradiction of the substance; the METR claim is about selection effects, this is about missing diagnostics"
+  },
+  {
+   "from": "exp-fail-003",
+   "rel": "refines",
+   "to": "exp-fail-002"
+  },
+  {
+   "from": "exp-fail-003",
+   "rel": "applies-to",
+   "to": "ana-002",
+   "note": "L2 must not be fed error strings as if they described the work"
+  },
+  {
+   "from": "exp-fail-003",
+   "rel": "requires",
+   "to": "w2-horizon-context-not-primary-bottleneck"
+  }
+ ]
+}

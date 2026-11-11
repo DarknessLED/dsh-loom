@@ -1,0 +1,323 @@
+{
+  "nodes": [
+    {
+      "id": "w4-curriculum-selector-is-roundrobin",
+      "kind": "failure",
+      "title": "Task selection is round-robin modulo the unsolved pool, not a bandit, VOI rule, or difficulty target",
+      "body": "src/runtime/selector.js:48-55: pickTask filters the eval set to tasks where isSolved(taskId,best) is false (score >= 1), then takes open[(round-1) % open.length]. There is no difficulty term, no cost term, no expected-gain term, no randomness, and no exploration bonus. Two consequences follow mechanically. First, the registration order of the eval set IS the curriculum: index 0 runs in round 1, index 1 in round 2, and nothing about measured outcomes can reorder them. Second, the selector computes poolSize and solvedCount and discards them - no round records why a task was chosen, so selection quality is unattributable after the fact. A second, competing selector exists at src/runtime/sampling.js:31 with the same modulo rule plus a holdoutEvery cadence, but holdoutEvery is null in all 69 real campaigns, so that path never fires. Limitation: this is one repository's code and one 231-round ledger; the ledger cannot separate bad selection from bad candidate generation, because both produce an identical zero-score round.",
+      "source": null,
+      "confidence": 0.93,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-starvation-43of59",
+      "kind": "number",
+      "title": "43 of 59 multi-task campaigns (72.9%) never attempted at least one task in their own eval set",
+      "body": "Over 69 campaigns in C:/Users/Darkness/.dsh/loom/campaigns/*/events.jsonl, ever-attempted rate by registration index collapses: index 0 attempted in 69/69 campaigns (100%), index 1 in 43/59 (72.9%), index 2 in 11/35 (31.4%), index 3 in 1/6 (16.7%). Thirty of 69 campaigns ran fewer rounds than their eval set has tasks (loom-ui: 3 tasks, 0 rounds; loom-holdout-live: 4 tasks, 2 rounds; loom-ab: 2 tasks, 1 round). The mechanism is not adversarial: round-robin advances one task per round, so any campaign that stops after k rounds has touched only the first k tasks, and median rounds per campaign is 2. Coverage is therefore a function of campaign lifetime, not of difficulty. Limitation: this counts attempts, not value; a starved task may be correctly starved, and the early-stop decision that causes starvation is itself unexplained in the ledger, so n is 59 campaigns that mostly ran 1-3 rounds.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-round-one-decides",
+      "kind": "number",
+      "title": "84 of 114 promotions land in a task's first round; only 8 of 40 round-1 failures ever promote",
+      "body": "Splitting the 124 (campaign,task) slots by their first round's outcome: 84 slots promoted in round 1 and all 84 of those first rounds promoted; of the 40 slots whose first round failed, only 8 (20%) ever promoted later. Promotions earned in rounds >= 2 total 20, spread across 10 slots (loom-self3/exposure alone promoted in rounds 6,7,8,9). Round-level persistence is equally sharp: P(next round produces a verifying attempt | this round did) = 32/36 = 0.889, versus 9/67 = 0.134 after a failing round. So one round of evidence about a task carries most of the information the loop will ever get about it, and the loop currently spends it by moving to the next index anyway. Limitation: round 1 always picks eval index 0, so first-round success partly encodes 'the index-0 task is the easy one'; this pattern cannot separate task identity from earliness, and a within-task randomised order experiment is missing.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-hazard-collapse",
+      "kind": "number",
+      "title": "Verify probability falls from 0.69 on a fresh task to 0.04 after three consecutive failures",
+      "body": "Conditioning each attempt on the number of immediately preceding consecutive non-verifying attempts on the same (campaign,task) slot: 0 prior failures -> 183/265 = 0.691; 1 -> 26/60 = 0.433; 2 -> 8/31 = 0.258; 3 -> 1/23 = 0.043; 4 -> 1/16 = 0.062; 5 -> 0/15; 6 or more -> 0/42. Overall 219/452 = 0.485, and 102 of 124 slots verify at least once while 22 never do. This is the shape a selector needs: after three failures the expected yield of another pull is near zero and the correct action is to reallocate, which round-robin cannot express. Limitation: the hazard is conditional on observed failures only - attempts abandoned before finishing, and the 127 attempts (28% of 452) that errored, are not counted as failures here; and the loop may have been lowering its own patch quality as budget ran down, so the collapse may be campaign fatigue wearing a task-difficulty costume rather than a property of the task.",
+      "source": null,
+      "confidence": 0.82,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-repeat-decay-not-position",
+      "kind": "analysis",
+      "title": "Re-attempt decay tracks repetition count, not eval-set position - and is confounded with campaign age",
+      "body": "Two cross-tabs on the same 452 attempts. By repeat index (nth round on that campaign+task): 0 -> 152/247 = 0.615, 1 -> 35/95 = 0.368, 2 -> 16/48 = 0.333, 3 -> 6/28 = 0.214, 4 -> 10/34 = 0.294. By registration index: 0 -> 115/242 = 0.475, 1 -> 69/148 = 0.466, 2 -> 24/46 = 0.522, 3 -> 8/10 = 0.800. There is no monotone difficulty gradient by position, so registration order is not a hidden difficulty prior; the only monotone signal is that repeating a task gets worse. That is the empirical case for a discard rule and against an easy-to-hard ordering, and it also means a bandit's job here is mostly retiring arms, not ranking them. Limitation: repeat index and campaign age are collinear under round-robin (the 5th round on a slot is also a late campaign round), so this cannot distinguish task saturation from budget exhaustion, and 23 interrupted rounds plus 127 errored attempts sit inside the same window.",
+      "source": null,
+      "confidence": 0.78,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-bimodal-difficulty",
+      "kind": "number",
+      "title": "Per-task pass rates are bimodal: 22 slots never verify and 51 always do, out of 124 slots",
+      "body": "Across the 124 slots with at least two attempts, 22 have an all-fail rate (0.0) and 51 an all-pass rate (1.0); the remaining 51 sit in between but are thinly sampled (attempts per slot: 2 on 77 slots, 4 on 23, 6 on 10, 8 on 5, 10+ on 9). The 32 slots that never promoted consumed 108 of 227 rounds, 47.6% of all rounds. Because the verifier is binary, a hard task and an impossible task produce the same observation until someone runs the counterfactual, which the loop never does. Bayesian arm models do not rescue this: Beta(1,9) versus Beta(9,1) is exactly re-discovering the mode, and with 2-6 pulls per arm the posterior on a genuinely 0.4 task is indistinguishable from the posterior on a 0.05 task. Limitation: with a median of 2 attempts per slot the middle of the distribution is unobservable by construction, so bimodality is partly a measurement artefact of tiny n rather than a property of the task population.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-retirement-savings",
+      "kind": "number",
+      "title": "Retiring a task after one non-promoted round would skip 91 of 231 rounds and 31% of round spend",
+      "body": "Replaying three retirement rules over the same ledger: retire after K consecutive non-promoted rounds. K=1 skips 91 of 231 rounds ($0.034 of $0.108 round spend); K=2 skips 53 ($0.0186); K=3 skips 29 ($0.0093). Cost per verified attempt is $0.00049 over 452 attempts. Separately, 108 of 231 rounds (46.8%) occur after the campaign's last promotion and cost $0.0465 plus 5.47 wall-clock hours - so 'retire the campaign' and 'retire the task' are large and partly overlapping savings. The K=1 number is the aggressive end: because 84 of 114 promotions are first-round promotions, one non-promoted round is already a 0.8-probability signal of no future promotion. Limitation: this is a replay on the ledger that generated the policy, with no counterfactual - 20 real promotions were earned in rounds >= 2 and would have been lost, so the savings figure is an upper bound on value and a lower bound on cost.",
+      "source": null,
+      "confidence": 0.75,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-landed-never-set",
+      "kind": "failure",
+      "title": "The landed flag exists only in a projection, so the selector's solve test may never fire at runtime",
+      "body": "bestScores at src/runtime/selector.js:17 begins with 'if (round?.landed !== true) continue', and isSolved returns true only when a finite score >= 1 exists. In the raw event log, round.finished carries no landed field at all - 231 of 231 missing - and src/core/reduce.js:236 shows autopilot.applied is the only writer that sets r.landed = true, with round.unlanded setting it false. Projecting C:/Users/Darkness/.dsh/loom/campaigns/*/views/state.json gives 226 rounds: landed true 81, missing 140, false 5; 27 rounds are promoted-but-not-landed; 44 of 124 slots have no landed round at all; and 16 rounds re-picked a task that had already been promoted. Mechanism: any promotion that does not route through autopilot.applied leaves the task permanently unsolved, so the round-robin pool never shrinks and the loop keeps re-running solved work. Limitation: state.json is a view, not the runtime's memory, so I cannot exclude another in-memory writer of landed that the event schema does not surface - the claim is about what the log can prove, not about what the process did.",
+      "source": null,
+      "confidence": 0.72,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-incumbent-score-lost",
+      "kind": "failure",
+      "title": "113 of 114 gate evaluations carry a null incumbent score, so minGain is compared against nothing",
+      "body": "Of 208 gate.evaluated events, 114 record promoted=true and exactly one of those carries a numeric incumbentScore (loom-self3 round 10, value 1); the other 113 are null. loom-self3 promoted its 'exposure' task in rounds 3, 6, 7, 8 and 9 with incumbentScore null each time, then at round 10 an incumbent of 1 finally appears and the gate refuses (both rounds 10 and 11 score 1, promoted false, status no-gain). With a binary score and minGain 0.05, 'beats the incumbent' is a comparison between the candidate and a missing operand, so the gate degenerates to 'candidate verified and produced a patch' - which is also why already-solved work can be promoted repeatedly. Limitation: null may be a serialisation default for zero rather than a true absence, so I can prove the log cannot reconstruct the comparison but not that the runtime lacked the value; the one numeric case is a single observation.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-holdout-as-task",
+      "kind": "failure",
+      "title": "43 of 69 eval sets register the holdout suite as a task, shrinking the real pool to 1-4 tasks",
+      "body": "Forty-three of 69 evalset.registered events include an entry {id:'suite', prompt:'Holdout: the whole repository suite. Not a task to work on.', verify:{cmd:'...scripts/test-all.mjs', timeoutMs:300000}} and declare holdout:['suite']; 29 declare an empty holdout list and 1 declares three ids. 'suite' never appears among the 227 round.started taskIds, so it is a registration-side decoy that inflates the perceived pool while contributing nothing. Excluding it, eval sets are 1 task (26 campaigns), 2 (33), 3 (11), 4 (3) - i.e. the curriculum a bandit would have to work with has a median of 2 arms. The separate holdout cadence in src/runtime/sampling.js:31 is dead anyway because holdoutEvery is null in all 69 campaigns, and holdout runs actually occur through the 50 holdout.selected events instead. Limitation: I can show the pool is smaller than it looks but not that the decoy changed any outcome; a one-task pool already makes round-robin and any bandit behaviourally identical, which is the more damaging fact and cannot be attributed to this bug.",
+      "source": null,
+      "confidence": 0.83,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-no-cross-campaign-state",
+      "kind": "claim",
+      "title": "No task-level state crosses campaigns: 180 registered entries, 148 distinct prompts, no difficulty field",
+      "body": "The eval task schema is exactly {id, prompt, verify, family} - there is no difficulty, tags, cost or duration field, and family is null in 143 of 171 entries. Across 180 registered entries only 148 distinct first-400-character prompt hashes appear; 13 hashes are reused, covering 45 entries (suite x43, card-actions x9, head-dot x9, queue-wait x6). Only 3 prompt hashes were ever attempted in two or more campaigns, and all three are all-or-nothing: loom-acc5 0/8 versus loom-acc6 0/10 (both never verify); loom-acc5 0/6 versus loom-acc6 0/8 (both never verify); loom-claim-live2 1/2 versus loom-claim-live3 1/2 (both always verify). So a new campaign starts with zero prior on every arm, re-derives difficulty from scratch, and cannot inherit 'this task never verifies' from a sibling campaign that already spent ten attempts learning it. Limitation: 400-character prompt hashing is a proxy that would merge near-duplicates and split trivial edits; the transfer sample is n=3 pairs with perfectly separated outcomes, which is anecdote, not an estimate of transfer.",
+      "source": null,
+      "confidence": 0.86,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-bandit-evidence-mismatch",
+      "kind": "concept",
+      "title": "Every bandit-curriculum success was measured at 10^5+ samples; this loop gets ~1.8 attempts per task",
+      "body": "The two canonical positive results both live in sample-rich regimes. Graves et al. 2017 (PMLR 70:1311-1320) halve time-to-threshold with a nonstationary bandit over learning-progress rewards, on LSTM curricula trained for millions of steps with each task sampled many times per phase. Schaul et al. 2019 (arXiv:1912.06910) run 15 Atari games at >=5 seeds, i.e. 75+ full training runs, to compare allocation policies that differ by a few percent. This ledger has 452 attempts total over 28 wall-clock hours, 124 slots, mean 1.83 rounds per slot, and $0.00049 per verified attempt. A nonstationary bandit needs enough pulls per arm to see the reward drift it is designed to track; at 1.83 pulls there is nothing to track and the estimator is the prior. Limitation: this is a sample-count argument, not a result - nobody has run a bandit selector in a dollars-per-sample coding loop, so the honest claim is that the evidence does not transfer, not that the method fails here.",
+      "source": "https://proceedings.mlr.press/v70/graves17a",
+      "confidence": 0.8,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-stationary-bandit-worse-than-uniform",
+      "kind": "number",
+      "title": "Stationary UCB and Thompson sampling were sometimes significantly worse than uniform allocation",
+      "body": "Schaul, Borsa et al. 2019 (arXiv:1912.06910, DeepMind) replaced a hand-tuned schedule with a nonstationary bandit over behaviour modulations on Atari 2600, 15 games, >=5 seeds: 113+/-2% median human-normalised score versus 118+/-6% for the tuned fixed reference across 57 games. Inside that result is the warning this design needs: stationary UCB and Thompson sampling were 'sometimes significantly worse than uniform', because they 'prematurely lock into using modulations that may be good initially, but don't help for long-term performance'. Their Figure 5 metric shows a fixed arm chosen from the first 10% of a run losing substantially to the hindsight-best arm. Read against our ledger: round-robin is close to uniform, and the first-round evidence that a task always verifies (51 of 124 slots all-pass) is exactly the kind of early signal a stationary bandit would lock onto, then keep pulling a solved arm. Limitation: the arms there are behaviour modulations inside one training run, not tasks across rounds, and 'sometimes' means the regression is not universal - this bounds the naive fix, it does not refute bandit selection done with discounting.",
+      "source": "https://arxiv.org/abs/1912.06910",
+      "confidence": 0.84,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-irt-assumption-break",
+      "kind": "analysis",
+      "title": "IRT adaptive testing's 90% item reduction assumes a fixed examinee; this loop's examinee mutates every round",
+      "body": "ATLAS (arXiv:2511.04689) calibrates a 3PL IRT model on 3,467-4,680 models per benchmark and selects items by Fisher information with randomesque top-5 exposure control: HellaSwag matched with 39 of 5,608 items at 0.154 MAE, ARC 0.099 MAE with 77 items, 90% item reduction at maintained precision. Three of its own numbers are adversarial to importing it. 3.2-5.7% of items have NEGATIVE discrimination, i.e. difficulty estimates wrong in sign (WinoGrande item 247: 0.89 accuracy, a_i = -0.43). Twelve percent of models must be excluded because EAP is undefined on all-correct/all-incorrect patterns. And the model is explicitly unidimensional with a calibration population that goes stale as architectures evolve. Our loop violates all three preconditions at once: the examinee is the agent being edited between rounds, every task is multidimensional, and the ability estimate changes precisely because the previous round succeeded. Item parameters estimated before a promotion are stale by construction after it. Limitation: no one has tested whether IRT item parameters transfer when the examinee is the loop's own edited artifact, so the assumption break is argued from the model's own stated scope, not measured in this setting.",
+      "source": "https://ar5iv.labs.arxiv.org/html/2511.04689",
+      "confidence": 0.76,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-85-percent-rule",
+      "kind": "claim",
+      "title": "The 85% success-rate rule has no prediction for a learner that remembers every trial it has seen",
+      "body": "Wilson et al. 2019, Nature Communications 10:4646, derives the difficulty that maximises learning rate as ER* = 15.87% for Gaussian noise (18.39% Laplacian, 25% Cauchy), and shows that clamping the error rate makes precision grow like sqrt(t) while holding difficulty fixed grows it like sqrt(log t) - 'exponentially slower'. That is the best available argument for targeting a difficulty band instead of working whatever is next. But the same paper proves the sweet spot is an artefact of gradient noise: a Bayesian learner with perfect memory has a posterior independent of trial ORDER (their Eq. 22), so difficulty sequencing does nothing for it. Our loop re-serves the identical prompt with the identical verify command, so its 'learner' has perfect memory of every failure - which is why the observed repeat decay (0.615 -> 0.214 across repeat index) cannot be explained by the 85% mechanism at all. Limitation: the theory is derived for gradient learners under specific noise families; LLM agents are neither, so the paper constrains the justification for difficulty targeting without telling us what the right band is for a patch-generating agent.",
+      "source": "https://www.nature.com/articles/s41467-019-12552-4",
+      "confidence": 0.74,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-curriculum-not-monotone",
+      "kind": "number",
+      "title": "Easy-to-hard sequencing was worse than shuffling; only a mixed hybrid schedule beat baseline",
+      "body": "Nair et al. 2024 (arXiv:2407.10194) train a 1M-parameter NanoGPT on 1.2M generated Python snippets (400k each easy/medium/hard, difficulty OM = (cyclomatic complexity + Halstead difficulty)/2) under four orders. Code execution accuracy: shuffled baseline 74.58%, Sequential easy-to-hard 62.56% (worse than baseline), Incremental 76.79%, Hybrid 79.23%; on the hard test set 67.22% baseline versus 74.04% hybrid; training on hard-only reached just 61.78% on hard versus 74.04% for hybrid. Code completion was near-null: token-level 81.23% baseline versus 75.64% sequential (worse), 81.27% incremental, 81.13% hybrid; line-level 41.74% versus 42.04%. Their own surprise: conditionals were harder than loops, so a static difficulty metric mispredicted the ordering. Two lessons transfer: monotone easy-to-hard is actively harmful, and mixing beats both monotone directions. Limitation: this is gradient training on 1.2M samples where difficulty is computable from source text; this loop pays dollars per sample and has 1-4 tasks, so ordering effects measured at that scale bound nothing here directly.",
+      "source": "https://arxiv.org/abs/2407.10194",
+      "confidence": 0.79,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-bestofk-artifact-not-ranking",
+      "kind": "number",
+      "title": "Best-of-3 attempts buys +0.008 AUC while run-to-run SD is 0.011 - promotion is coin-flipping",
+      "body": "Arino de la Rubia and Pafka 2026 (arXiv:2609.33812) run 584 benchmark runs, 312 of them with everything fixed (3 agents x 2 models x 52 runs). Median run-to-run SD over compliant runs is 0.0107 AUC, while the total spread between the six pairing means is 0.0095 - the noise exceeds the signal it is supposed to resolve. Three-run comparisons put the weaker pairing ahead 28-44% of the time; 39-113 runs per arm are needed to resolve the observed differences; 10 of 312 runs broke the task's data rules and included the 7 highest scores, so excluding them drops the best score 0.8293 -> 0.7695. The direct analogue of this design: the best compliant artifact of three attempts beats a single attempt by +0.0081 holdout AUC (95% CI 0.0063-0.0098), i.e. best-of-k buys a real but tiny margin. A planned larger-model upgrade worth +0.0091 AUC (7.1 SE) still lost in one-run-each comparisons 28% of the time. Limitation: the task family is tabular ML artifacts graded by holdout AUC, not repository patches graded by a shell exit code, and +0.0081 is best-of-3 after filtering non-compliant runs - the best-of-2 promotion in this loop has never been measured against a same-task no-promotion control.",
+      "source": "https://arxiv.org/html/2609.33812v1",
+      "confidence": 0.87,
+      "topic": "w4-curriculum"
+    },
+    {
+      "id": "w4-curriculum-voi-unobservable",
+      "kind": "analysis",
+      "title": "Value of information is unobservable in this ledger: rounds log score, promotion and cost only",
+      "body": "A value-of-information selector needs, per arm, the distribution of what a pull teaches conditional on what is already known - including the case where the patch is worthless and the attempt still resolves a belief about the task. The round and attempt schemas here cannot express that: round.finished records n, status, score, promoted, costUsd, durationMs, tokens and counts; attempt.finished records verifierOk, score, error, phase, exitCode, abandoned, metrics and diff stats. Nothing records a verifier re-run on the same commit, so verifier false-negative rate is unmeasured; nothing records the outcome of an unattempted task, so the counterfactual is missing. The single trace with information value and no patch value is the 19 rounds whose recorded score was 1 with status no-gain, and the 127 errored attempts (28% of 452) which carry zero of both. Consequence: any VOI selector shipped now would be unfalsifiable, because the loop's own gate cannot score the information it claims to have gained. Limitation: unobservability is not zero VOI - the loop may already be harvesting information and simply not recording it, so this argues for instrumentation, not for abandoning information-aware selection.",
+      "source": null,
+      "confidence": 0.77,
+      "topic": "w4-curriculum"
+    }
+  ],
+  "edges": [
+    {
+      "from": "w4-curriculum-starvation-43of59",
+      "rel": "derived-from",
+      "to": "w4-curriculum-selector-is-roundrobin",
+      "note": "Coverage collapse by registration index is the direct arithmetic consequence of the modulo rule over a shrinking pool plus short campaign lifetimes."
+    },
+    {
+      "from": "w4-curriculum-selector-is-roundrobin",
+      "rel": "supports",
+      "to": "exp-score-001",
+      "note": "A free choice among tasks with no difficulty term, combined with a binary score, explains why each (campaign,task) series has exactly one promotable transition."
+    },
+    {
+      "from": "w4-curriculum-round-one-decides",
+      "rel": "supports",
+      "to": "w4-curriculum-retirement-savings",
+      "note": "One-round decisiveness is the empirical basis for retiring after K=1; the retire replay is the cost side of the same statistic."
+    },
+    {
+      "from": "w4-curriculum-hazard-collapse",
+      "rel": "supports",
+      "to": "w4-curriculum-bimodal-difficulty",
+      "note": "The hazard's near-zero tail after three failures is the time-series image of the all-fail modes at 0.0 pass rate."
+    },
+    {
+      "from": "w4-curriculum-repeat-decay-not-position",
+      "rel": "measures",
+      "to": "w2-decide-gap-eval-set-decay-under-reuse",
+      "note": "Repeat-index decay (0.615 to 0.214) is the closest thing in this corpus to a measurement of eval-set decay under adaptive reuse, though confounded with campaign age."
+    },
+    {
+      "from": "w4-curriculum-bimodal-difficulty",
+      "rel": "contradicts",
+      "to": "exp-gate-001",
+      "note": "The gate's minGain comparison presumes a continuous score with resolvable deltas; a 0/1 score makes every delta exactly 1.0 or 0, so the noise budget argument never engages."
+    },
+    {
+      "from": "w4-curriculum-landed-never-set",
+      "rel": "supports",
+      "to": "exp-score-001",
+      "note": "Explains the 19 verified-but-unpromoted rounds: without a landed marker the solved test cannot fire, so taskBest stays null and the score never advances."
+    },
+    {
+      "from": "w4-curriculum-retirement-savings",
+      "rel": "requires",
+      "to": "w4-curriculum-landed-never-set",
+      "note": "Any retirement rule keyed on the solved flag is inert until landed is written on the promotion path; fixing the retire policy without fixing this changes nothing."
+    },
+    {
+      "from": "w4-curriculum-incumbent-score-lost",
+      "rel": "supports",
+      "to": "exp-gate-001",
+      "note": "The gate cannot compute a delta against a missing incumbent, which is the concrete form of the point-estimate critique."
+    },
+    {
+      "from": "w4-curriculum-holdout-as-task",
+      "rel": "supports",
+      "to": "w3-holdout-pool-is-one-id",
+      "note": "43 of 69 eval sets declare a single holdout id whose prompt says it is not a task, so the one-element pool is a registration artefact rather than a policy choice."
+    },
+    {
+      "from": "w4-curriculum-holdout-as-task",
+      "rel": "supports",
+      "to": "w3-holdout-gate-is-binary-not-score",
+      "note": "The holdout suite is registered as a task with a shell cmd and no scoring path, which is consistent with the gate never comparing holdout scores."
+    },
+    {
+      "from": "w4-curriculum-no-cross-campaign-state",
+      "rel": "requires",
+      "to": "w4-curriculum-bandit-evidence-mismatch",
+      "note": "A bandit needs per-arm reward history; with no cross-campaign task state every campaign restarts at the prior, which is the mechanism behind the sample-count mismatch."
+    },
+    {
+      "from": "w4-curriculum-bandit-evidence-mismatch",
+      "rel": "supports",
+      "to": "w4-curriculum-stationary-bandit-worse-than-uniform",
+      "note": "If early evidence is all the loop will get, the failure mode Schaul et al. document - premature lock-in from a first-10% estimate - is the one to expect, not a benign one."
+    },
+    {
+      "from": "w4-curriculum-stationary-bandit-worse-than-uniform",
+      "rel": "supports",
+      "to": "w4-curriculum-selector-is-roundrobin",
+      "note": "Uncomfortable for us: round-robin is near-uniform, and the one controlled comparison available says a naive stationary bandit can be worse than near-uniform, so the selector is not obviously the first thing to replace."
+    },
+    {
+      "from": "w4-curriculum-irt-assumption-break",
+      "rel": "refines",
+      "to": "w2-decide-irt-selective",
+      "note": "That node found IRT chose 100 of 14,000 items without cutting variance; this one supplies the reason it cannot: item parameters assume a fixed examinee and a unidimensional trait, both of which the loop violates by construction."
+    },
+    {
+      "from": "w4-curriculum-85-percent-rule",
+      "rel": "supports",
+      "to": "w4-curriculum-repeat-decay-not-position",
+      "note": "Targeting an intermediate success rate is the only principled argument for moving off a task; the repeat decay is the phenomenon such a rule would exploit."
+    },
+    {
+      "from": "w4-curriculum-curriculum-not-monotone",
+      "rel": "contradicts",
+      "to": "w4-curriculum-85-percent-rule",
+      "note": "The 85% rule implies a monotone difficulty schedule should help; the one measured coding curriculum found sequential easy-to-hard below shuffled baseline (62.56 vs 74.58) and only a mixed schedule above it."
+    },
+    {
+      "from": "w4-curriculum-bestofk-artifact-not-ranking",
+      "rel": "supports",
+      "to": "exp-gate-001",
+      "note": "Independent evidence that a promotion decision drawn from a handful of runs sits inside the noise band the MDE formula describes."
+    },
+    {
+      "from": "w4-curriculum-bestofk-artifact-not-ranking",
+      "rel": "refines",
+      "to": "w4-curriculum-round-one-decides",
+      "note": "Best-of-2 candidate selection buys roughly +0.008 while task identity explains 84 of 114 promotions, so the loop's leverage is in which task it picks, not which of two candidates it keeps."
+    },
+    {
+      "from": "w4-curriculum-voi-unobservable",
+      "rel": "supports",
+      "to": "exp-fail-001",
+      "note": "The 28% errored-attempt share is pure loss on both axes - no patch and no information - and the ledger cannot even net it out because information value is unrecorded."
+    },
+    {
+      "from": "w4-curriculum-voi-unobservable",
+      "rel": "requires",
+      "to": "w4-curriculum-no-cross-campaign-state",
+      "note": "VOI is defined relative to what is already known; without a task-level belief carried across campaigns there is no state to compute an expected gain against."
+    },
+    {
+      "from": "w4-curriculum-retirement-savings",
+      "rel": "supports",
+      "to": "ana-001",
+      "note": "46.8% of rounds run after the last promotion produce nothing for a human to attend to, which is the concrete waste of the scarce resource that node names."
+    },
+    {
+      "from": "w4-curriculum-bimodal-difficulty",
+      "rel": "applies-to",
+      "to": "w4-curriculum-hazard-collapse",
+      "note": "The hazard curve is what the bimodal pass-rate distribution looks like when a single task is followed through time rather than aggregated."
+    },
+    {
+      "from": "w4-curriculum-starvation-43of59",
+      "rel": "contradicts",
+      "to": "w4-curriculum-no-cross-campaign-state",
+      "note": "Counter-pressure worth recording: if most tasks are never attempted even once, the missing cross-campaign difficulty registry costs little today and would matter only after coverage is fixed."
+    }
+  ],
+  "gaps": [
+    "Does any selection rule beat round-robin when the median campaign runs 2 rounds over a 2-task pool, and by how much on which metric - promotions, cost per promotion, or human minutes?",
+    "What is the false-negative rate of a single shell verifier run on a fixed commit: how often is a genuinely correct patch scored 0, and does it differ by task family?",
+    "How fast does a coding-agent eval set's discriminative power decay under repeated accept/reject, and is the decay faster or slower than the sqrt(2 ln k / n) holdout bound?",
+    "How many observations per task does a nonstationary bandit need before its allocation beats uniform, when every observation also edits the agent that generates the next one?",
+    "Is task difficulty a stable property of the (task, repository, harness) triple or of the (task, current agent) pairing, and how many attempts separate the two hypotheses?",
+    "Can patch value and information value be separated by any measurement the loop currently records, or must a VOI selector add instrumentation before it can even be scored?",
+    "What retirement rule stays correct when 28% of attempts error for transport reasons and 19 rounds recorded a verified score of 1 without a promotion?",
+    "Do human checkpoints concentrate on a small set of tasks, and would a selection rule that minimises checkpoint count pick a materially different curriculum?",
+    "Is there any measured case in which pruning or retiring part of a coding-agent eval set improved downstream performance rather than merely reducing spend?"
+  ]
+}

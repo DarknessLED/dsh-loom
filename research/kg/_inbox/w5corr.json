@@ -1,0 +1,60 @@
+{
+ "nodes": [
+  {
+   "id": "ana-010",
+   "kind": "analysis",
+   "title": "My own 198x meter number was wrong by 2.8x because I priced with the repo's table instead of the real card",
+   "body": "I measured the metering gap as 198x (exp-meter-002) and the wave4 agent as 246x (w4-metering-246x-undercount), and both used loom's own DEFAULT_PRICING. A wave5 agent re-priced the same 431 sessions against the DeepSeek card actually billed (0.15 miss / 0.003 hit / 0.60 output per 1M off-peak) and got $7.703 = 71x, not $21.39 = 198x (w5-tokenbudget-undercount-71x-at-true-card). The repo table over-prices cache reads 9.3x and under-prices output 30%, so my constant was an artefact of the measuring instrument, not of the system measured. The lesson generalises past this number: when the bug is 'the meter does not count', and the check is 'compare recorded to billed', then the comparison inherits every error in the price table, and a headline ratio silently multiplies two errors. The correct discipline is to publish the ratio twice - once at the repo's own table, to size the internal inconsistency, and once at the provider card, to size the money - and never to quote the sum as one number. 71x is still two orders of magnitude, so the finding survives; what does not survive is the precision I gave it.",
+   "source": "w5-tokenbudget-undercount-71x-at-true-card + exp-meter-002 + node research/wave5/w5-measure4.mjs",
+   "confidence": 0.95,
+   "topic": "metering",
+   "tags": [
+    "correction",
+    "self-criticism",
+    "cost"
+   ]
+  },
+  {
+   "id": "ana-011",
+   "kind": "analysis",
+   "title": "Three of my own measurements shared one flaw: I measured the ledger with the ledger's own definitions",
+   "body": "The 198x price error (ana-010) is one instance of a pattern that also produced exp-slot-001 and exp-graded-001's first attempt. In each case I computed a quantity from data whose definition was itself the thing under suspicion: I priced tokens with the loop's price table, I measured 'lesson effect' with the loop's own arm labelling, and I first measured 'graded scoring works' with a fixture whose states were not independent. Each time the fix was to bring in an outside referent - the provider's rate card, the raw attempt/slot cross-tab, a fixture whose states provably differ. So the working rule for this codebase: any measurement of the loop must name a referent that the loop does not produce. If there is none, the measurement is a consistency check and must be labelled as one, not as a finding about the world.",
+   "source": "ana-010 + exp-slot-001 + research/exp/graded-live/",
+   "confidence": 0.9,
+   "topic": "rsi",
+   "tags": [
+    "analysis",
+    "method",
+    "self-criticism"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "ana-010",
+   "rel": "contradicts",
+   "to": "exp-meter-002",
+   "note": "same data, real rate card, 71x not 198x"
+  },
+  {
+   "from": "ana-010",
+   "rel": "refines",
+   "to": "w5-tokenbudget-undercount-71x-at-true-card"
+  },
+  {
+   "from": "ana-011",
+   "rel": "derived-from",
+   "to": "ana-010"
+  },
+  {
+   "from": "ana-011",
+   "rel": "requires",
+   "to": "exp-slot-001"
+  },
+  {
+   "from": "ana-011",
+   "rel": "applies-to",
+   "to": "ana-003"
+  }
+ ]
+}

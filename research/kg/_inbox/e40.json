@@ -1,0 +1,65 @@
+{
+ "nodes": [
+  {
+   "id": "exp-human-007",
+   "kind": "number",
+   "title": "The whole ledger's promotion queue is 6,684 changed lines across 114 patches, and 17 of the promotions re-solve an already-solved task",
+   "body": "Measured the review bill from the patches themselves rather than from reports (research/exp/e40.mjs, all 114 promotions have their patch file on disk): 6,684 changed lines, 187 files touched, mean 58.6 lines per promotion, median 42, p90 146, max 264, and 14 of the 114 are no-op promotions with no change at all. At a generous 20 changed lines per minute of competent review that is 334 minutes of reading for the entire history; at a one-minute-per-promotion floor it is 114. 17 promotions land on a task the same campaign had already promoted, and only 95 distinct task ids were ever promoted. So the review bill for 68 campaigns and 28 hours of wall clock is roughly one focused afternoon - which is why the human-in-the-loop design is viable at all, and also why exp-human-003's median of 32 lines matters: most of that afternoon is a dozen small diffs, not a few large ones. The 14 no-ops are the part that should never have reached a queue.",
+   "source": "research/exp/e40.mjs (114 promotions, patch files on disk, 6,684 changed lines)",
+   "confidence": 0.93,
+   "topic": "prod",
+   "tags": [
+    "measurement",
+    "human-attention",
+    "review"
+   ]
+  },
+  {
+   "id": "exp-human-008",
+   "kind": "analysis",
+   "title": "The review queue is affordable; what is unaffordable is that 14 of 114 items in it are empty",
+   "body": "The promotion queue is small enough that a human could read all of it (334 minutes of line-review for the entire history, exp-human-007). That changes the human-in-the-loop argument: the constraint is not total review volume, it is the rate at which the queue asks for attention and the trustworthiness of each item. Both of those are hurt by the same defect - 14 no-op promotions (exp-gate-002) sitting in a queue whose stated contract is 'a verified change you should look at'. A reviewer who finds empty items learns to skim, and exp-human-002's finding that gated campaigns promoted 33% versus 71% silent becomes unsurprising: the gate's items were less informative. The cheap fix is not fewer checkpoints, it is refusing to queue an item with no diff, and routing no-ops to a different channel (a count, not a card). Measured against the 97%-approval / seconds-per-answer evidence (w2-human-approval-rubber-stamp, exp-human-001), the binding resource is attention per item, so item quality is the lever.",
+   "source": "exp-human-007 + exp-gate-002 + exp-human-001 + w2-human-approval-rubber-stamp",
+   "confidence": 0.91,
+   "topic": "prod",
+   "tags": [
+    "analysis",
+    "human-attention",
+    "review"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-human-007",
+   "rel": "refines",
+   "to": "exp-human-003"
+  },
+  {
+   "from": "exp-human-007",
+   "rel": "supports",
+   "to": "exp-human-001"
+  },
+  {
+   "from": "exp-human-007",
+   "rel": "contradicts",
+   "to": "w3-humanminutes-rubber-stamp-seconds",
+   "note": "queue latency was measured before; this is the actual reading volume, and it is small"
+  },
+  {
+   "from": "exp-human-008",
+   "rel": "derived-from",
+   "to": "exp-human-007"
+  },
+  {
+   "from": "exp-human-008",
+   "rel": "supports",
+   "to": "exp-gate-002"
+  },
+  {
+   "from": "exp-human-008",
+   "rel": "refines",
+   "to": "ana-001"
+  }
+ ]
+}

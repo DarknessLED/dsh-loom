@@ -1,0 +1,567 @@
+{
+ "nodes": [
+  {
+   "id": "w5-interface-panel-row-258chars-no-evidence",
+   "kind": "failure",
+   "title": "A sidebar queue row carries ~258 chars and no diff, cost or evidence pointer",
+   "body": "Measured on our own panel: build a two-campaign payload (4 open checkpoints aged 4/37/190/900 min, with each campaign's reviews array) and call panel.pending() with a fixed now. Result: 4 rows, 1,034 chars total, ~258 per row; keys are campaign,id,kind,risk,riskSource,summary,help,waitMs,deferred,deferUntil,actions. The union of verbs is approve/reject/snooze - no batch verb, no set-defer-until verb - and no row carries a diff hunk, a cost figure or a link to the verifier output that justifies the claim. A supervisor deciding from the queue therefore sees one summary line, a risk chip and a wait time; everything needed to check the claim is one click away, which is exactly the click the 60-second budget cannot afford. Method: local run of /tmp/panel3.mjs (imports tests/ui/harness.mjs, now fixed at 2026-11-12T03:00Z). Caveat: measured on a fixture payload, not live host traffic.",
+   "source": "local: node /tmp/panel3.mjs",
+   "confidence": 0.85,
+   "topic": "w5-interface",
+   "tags": [
+    "local-measurement",
+    "panel",
+    "queue-row",
+    "evidence"
+   ]
+  },
+  {
+   "id": "w5-interface-pending-cell-disagrees-with-queue",
+   "kind": "failure",
+   "title": "The header can read 0 waiting while the queue renders 3 rows, because two sources count it",
+   "body": "panel.metrics() derives the pending cell from overview().open, which sums each campaign's numeric open field; the queue rows are built independently from c.openCheckpoints. Feeding one campaign with three open checkpoints and no open field gives 3 queue rows but a pending cell of value '0', hot false, primary false; setting open:3 makes it 3/hot/primary. Live traffic is consistent today only because the host sends both (src/panel/api.js:235 `open: open.length`), so the numbers agree by convention rather than by construction. queueOf() already defends the total with max(listed rows, openCount) precisely because the host trims what it sends; metrics() does not reuse that defence. Measured with /tmp/panel4.mjs. This is a small bug with a general lesson: any dashboard that recomputes a count from a second field has two numbers for one quantity.",
+   "source": "local: node /tmp/panel4.mjs",
+   "confidence": 0.85,
+   "topic": "w5-interface",
+   "tags": [
+    "local-measurement",
+    "failure",
+    "header",
+    "consistency"
+   ]
+  },
+  {
+   "id": "w5-interface-tricorder-0.8pct-actionable",
+   "kind": "number",
+   "title": "Google's analysis fleet produced 93,000 findings a day and humans acted on 716 of them (0.8%)",
+   "body": "Tricorder (Sadowski et al., ICSE 2015) Fig. 9, 90-day medians for a large Google codebase: 93K findings/day, of which 716 drew a PLEASE FIX click (416 of them from linters) and 48 drew NOT USEFUL; 14 findings per changelist. So roughly 0.8% of surfaced findings received any positive human action, and the not-useful share is at most 6.3% (48/(48+716); APPLY FIX counts are not published, so that is an upper bound). The team's stated bar: not-useful ratio = NOT USEFUL/(NOT USEFUL+PLEASE FIX+APPLY FIX); at 10% an analyzer goes on probation, above 25% it may be switched off immediately; code-review checks were allowed up to 10% effective false positives, compiler checks ~zero. Design consequence for a loop card: the honest action rate for machine-generated findings is ~1%, so surfacing every round's result is a firehose whose read rate is set by that number, not by how interesting the round was.",
+   "source": "https://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/43322.pdf",
+   "confidence": 0.85,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "tricorder",
+    "actionable-rate",
+    "thresholds"
+   ]
+  },
+  {
+   "id": "w5-interface-tricorder-dashboard-failed",
+   "kind": "failure",
+   "title": "Of three ways Google tried to surface static analysis, the standing dashboard was the one nobody used",
+   "body": "The CACM April 2018 retrospective on three failed FindBugs integrations: (1) a 2006 nightly-run bug dashboard drew little use because it sat outside the developer workflow and 'distinguishing between new and existing static-analysis issues was distracting'; (2) manual triage that filed bug reports - in Fixit week 3,954 of 9,473 warnings were reviewed (42%), 1,746 reports were filed (44% of reviewed), and 640 were fixed (16%); (3) a code-review integration, discontinued in 2011 when the review tool was replaced, after effective false positives destroyed developer confidence. What survived put findings where the change already is. For an always-available sidebar this is the single most relevant failure on record: the design we are shipping is the one Google abandoned, and the specific defect was that the reader could not tell new from old - which is also why a card must date every claim it shows.",
+   "source": "https://cacm.acm.org/research/lessons-from-building-static-analysis-tools-at-google/",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "failure",
+    "dashboard",
+    "new-vs-old",
+    "placement"
+   ]
+  },
+  {
+   "id": "w5-interface-autocommenter-changed-lines-only",
+   "kind": "number",
+   "title": "80% of an automated reviewer's comments landed on unchanged lines; filtering to the diff cut them 6% to 1.3%",
+   "body": "AutoCommenter (Vijayvergiya et al., AIware '24, arXiv:2405.13565), per-URL thresholds, greedy decoding: violations detected in 6% of changed files, but '80% of comments would have been posted on lines of code not modified by the author. Developers typically do not take action on unchanged code.' Restricting output to changed lines cut the comment rate to 1.3%; beam search (n=4) raised it to 3.9% and improved diversity (top-10 URLs 41% of comments vs 80% for greedy) at 2 s median latency, so the IDE kept greedy. The transferable rule: the actionable unit of a change is its diff, and anything the loop says about code the round did not touch is noise by construction. This is also the cheapest available precision win - a measured 4.6x inflation from including unchanged context in what you surface.",
+   "source": "https://arxiv.org/pdf/2405.13565v1",
+   "confidence": 0.85,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "diff-scope",
+    "precision",
+    "autocommenter"
+   ]
+  },
+  {
+   "id": "w5-interface-autocommenter-useful-ratio-80",
+   "kind": "number",
+   "title": "An automated reviewer needed an 80% useful rate before Google would widen it; it shipped at 54-60%",
+   "body": "AutoCommenter's useful ratio from explicit developer feedback plateaued at ~54%; an independent 15-rater study over ~370 commented samples scored the same comments 60%, both 'well below our target of 80% for wider deployment'. Suppressing 17 non-actionable rule URLs moved the historical ratio 54->66% (developer feedback) and 60->74% (raters); rewriting summaries for frequently posted URLs closed the gap. Raters' failure taxonomy is directly reusable as a card checklist: multi-topic or dense linked docs, missing or scraped summaries that 'failed to adequately explain the relevance of the cited guideline', subjective guidelines, systematic model error, and 'correct but low-value comments' such as a missing period. Also: explicit feedback is not a usable instrument - about 10% of review comments and 2% of IDE diagnostics got a thumbs response, while developers hovered ~50% of IDE diagnostics.",
+   "source": "https://arxiv.org/pdf/2405.13565v1",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "useful-ratio",
+    "target",
+    "feedback-sparsity"
+   ]
+  },
+  {
+   "id": "w5-interface-autocommenter-ab-null",
+   "kind": "number",
+   "title": "A production automated reviewer shipped to half of Google and changed review duration by nothing measurable",
+   "body": "AutoCommenter A/B, July 2023, randomised by SHA256 of the email address, groups verified balanced on tenure, seniority, language and org: 'We did not detect any statistically significant change in any of the following: total duration of code reviews, time developers actively spent on the code review, the number of comment-response iterations between the author and the reviewer. We did, however, detect a slight improvement in coding speed.' Deployed to all developers Oct 2023. The consequence for interface design is sharp: adding better findings to a review does not shorten it. A card that promises 'decide faster because the evidence is better' has no support from the one large randomised production deployment we have; what shortens a review is removing items from it, not improving the items. Caveat: one company, one review tool, duration measured inside that tool, and the reviewer population is professional Google engineers.",
+   "source": "https://arxiv.org/pdf/2405.13565v1",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "ab-test",
+    "null-result",
+    "review-duration"
+   ]
+  },
+  {
+   "id": "w5-interface-coderabbit-56-rejected",
+   "kind": "number",
+   "title": "Only 36.4% of 31,073 agent review comments were accepted; 56.3% were rejected outright",
+   "body": "arXiv:2607.03316 mines 31,073 CodeRabbit review comments paired with developer feedback across 10,191 PRs in 239 GitHub repos: 36.4% accepted, 7.3% triggered discussion, 56.3% rejected. Rejections clustered on invalid suggestions (false positives, redundant, out of scope) plus misalignment with developer intent and local practice. A companion study (arXiv:2603.15911; 278,790 review conversations across 300 OSS projects) finds reviewers exchange 11.8% more rounds on AI-generated code than on human code, and adopted AI suggestions raise code size and complexity more than human ones. So an agent's claim reaching a human is more likely to be argued with than taken, and the argument is about scope and intent - exactly the two things a one-line summary cannot carry. Caveat: public GitHub feedback is sparse and self-selected, so 56.3% is a rate over commented-on items, not over all items.",
+   "source": "https://arxiv.org/abs/2607.03316",
+   "confidence": 0.75,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "agent-review",
+    "acceptance-rate",
+    "2026"
+   ]
+  },
+  {
+   "id": "w5-interface-eemua-1-alarm-per-10min",
+   "kind": "number",
+   "title": "Process-industry standard: >10 alarms per 10 minutes is a flood, and the design target is ~1 per 10 minutes",
+   "body": "ANSI/ISA-18.2 and EEMUA 191 define an alarm flood as more than 10 alarms per 10 minutes per operating position, ending when the rate drops below 5; the design target is of order 1 alarm per 10 minutes (~6/hour), justified by an operator needing about 10 minutes per alarm while also doing other work (several secondary sources quote EEMUA 191 p.3 this way; the standard itself is paywalled, so the flood definition is well attested and the exact target is second-hand). Field measurements show what the ceiling means in practice: a 21-bed surgical ICU averaged 152.5 (SD 42.2) alarms per bed per day with 69.55 (SD 31.12) flood conditions per day (JMIR 2021, PMC8196351, abstract read directly), and a North Sea platform's topside went from 202 alarms/hour to 25 after an alarm-management programme (quoted in a 2006 NTNU conference PDF found via search, not line-verified here). The standard is broken by an order of magnitude in systems that still function, so the flood number is a design ceiling, not a description of reality.",
+   "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8196351/",
+   "confidence": 0.7,
+   "topic": "w5-interface",
+   "tags": [
+    "standard",
+    "alarm-rate",
+    "ceiling",
+    "second-hand-target"
+   ]
+  },
+  {
+   "id": "w5-interface-human-unit-cost-10to14min",
+   "kind": "claim",
+   "title": "Two fields price a human decision at 10-14 minutes, so a 60-second decision is a pattern match",
+   "body": "EEMUA/ISA-18.2 assume roughly 10 minutes to process one alarm; di Biase et al. (PeerJ CS 2019;5:e193) timed a ~100-line, 7-file change at 13-14 net reviewer minutes (median 831 s control vs 759 s decomposed, p=0.66), with cost dominated by building a mental model rather than by diff volume. Converted locally (python: 3600//sec items per hour) - a 60 s budget allows 60 items/hour and 480 in an 8-hour day; 13.5 min per decision allows ~4.4/hour and ~35/day; 10 min allows 6/hour. Therefore a sub-minute decision on a novel change cannot be a review of it. It can only be a classification the human already trusts ('this shape is safe'), which is a legitimate thing for a card to license - and is exactly what an exception list must never pretend to be. The 60-second target is achievable only if the card's job is to certify a class, not to describe an instance.",
+   "source": "https://doi.org/10.7717/peerj-cs.193",
+   "confidence": 0.75,
+   "topic": "w5-interface",
+   "tags": [
+    "derived",
+    "unit-cost",
+    "decision-budget",
+    "convergence"
+   ]
+  },
+  {
+   "id": "w5-interface-exception-sampling-floor-59",
+   "kind": "number",
+   "title": "Certifying a step at <5% defects with 95% confidence needs 59 clean items; a spot check proves nothing",
+   "body": "Zero-defect acceptance sampling: n = ln(1-confidence)/ln(1-tolerable rate). Computed locally (python one-liner, transcript): 95% confidence at a 5% tolerable defect rate needs 58.4, so 59 clean items; 10% needs 29; 2% needs 149; 90% confidence at 5% needs 45; 99% at 5% needs 90. If a loop auto-approves rounds and the supervisor looks at one, the sampling plan is one item against a large population and the supervisor's own pass says nothing about the items not shown - and that arithmetic is independent of how good the loop is. Design consequence for review-by-exception: it needs either a stated sample rate with the confidence it buys, or a stated cap on how many unexamined exceptions may accumulate. The shipped panel carries neither: the row has no field for how many sibling rounds were auto-approved unseen.",
+   "source": "local: python -c 'math.log(1-conf)/math.log(1-p)'",
+   "confidence": 0.9,
+   "topic": "w5-interface",
+   "tags": [
+    "derived",
+    "sampling",
+    "review-by-exception",
+    "confidence"
+   ]
+  },
+  {
+   "id": "w5-interface-sre-burn-rate-tiers",
+   "kind": "number",
+   "title": "Page at 14.4x burn over 1h, ticket at 6x and 1x: the SRE answer to 'which single number do I show'",
+   "body": "SRE Workbook ch.5 multiwindow multi-burn-rate table, 99.9% SLO over 30 days: PAGE when the 1h burn exceeds 14.4x and the 5m burn also exceeds 14.4x (fires after ~2% of budget consumed, clears ~5 min after resolution); TICKET at 6h/30m with burn 6 (5% of budget) and at 3d/6h with burn 1 (10%). Burn 1 exhausts the budget in 30 days, burn 10 in 3 days, burn 1000 in 43 minutes. Why one number is not enough, measured across the chapter's tables: a 10-minute immediate window detected a total outage in 0.6 s but 'you could receive up to 144 alerts per day ... and still meet the SLO'; a single 36h window detected in 2m10s and then 'continue[d] to fire for the next 36 hours'; a fixed `for: 1h` duration alerts on a 100% outage and a 0.2% outage at the same moment. Transfer: show budget consumed per unit time (a rate) and require a fast and a slow window to agree before paging a human.",
+   "source": "https://sre.google/workbook/alerting-on-slos/",
+   "confidence": 0.85,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "sre",
+    "burn-rate",
+    "two-window"
+   ]
+  },
+  {
+   "id": "w5-interface-sre-actionable-1to1",
+   "kind": "concept",
+   "title": "SRE's actionable-only rule is a ratio plus a cap: ~1 alert per incident, 2 per 12h shift",
+   "body": "SRE Book ch.11: 'All paging alerts should also be actionable'; fan-out should approach 'a 1:1 alert/incident ratio', and 'noisy alerts that systematically generate more than one alert per incident should be tweaked'. Handling one incident (RCA, remediation, postmortem, follow-up fixes) costs about 6 hours, so the stated cap is 2 incidents per 12-hour shift with 'a likely median value of 0'; overload symptoms are given as counts (daily tickets < 5, paging events per shift < 2) and underload is also treated as failure. Workbook ch.14 adds the three-tier split that transfers most directly - P1 page now and be SLO-impacting, P2 next business day by email, P3 informational in dashboards and passive mail - plus playbook pairing for every alert, and Evernote's case: a 2-per-shift pager budget against an actual 5, a third of shifts over budget, 'some engineers left the team'.",
+   "source": "https://sre.google/sre-book/being-on-call/",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "sre",
+    "actionable-only",
+    "cap",
+    "tiers"
+   ]
+  },
+  {
+   "id": "w5-interface-override-tracks-ppv",
+   "kind": "number",
+   "title": "Override tracks alarm precision, and ~90% of people probability-match rather than ignore or fully trust",
+   "body": "Two mechanisms say a low-precision surface trains a low response rate. (a) van der Sijs et al., JAMIA 2006;13:138-147 (PMID 16357358), 17 papers: 'Drug safety alerts are overridden by clinicians in 49% to 96% of cases', overriding 'may often be justified', and the named error-producing conditions are low specificity, low sensitivity, unclear information content and unnecessary workflow disruption. (b) Bliss, Gilson & Deaton, Ergonomics 1995;38(11):2300-2312 (PMID 7498189), 138 participants at 25/50/75% alarm reliability: 'about 90% ... match their response rates to the expected probability of true alarms (probability matching)', with ~10% all-or-none. So a card whose precision is p buys roughly a p response rate, and the human is behaving rationally rather than carelessly; raising precision is the only lever that raises attention, and reducing volume at constant precision buys nothing. Caveat: neither study is software review, and both use alarms rather than decisions.",
+   "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1447540/",
+   "confidence": 0.75,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "precision",
+    "probability-matching",
+    "override"
+   ]
+  },
+  {
+   "id": "w5-interface-radiology-session-50to100",
+   "kind": "number",
+   "title": "Reader cost falls 9-23% within a session and sensitivity drops after ~50-100 cases, not after each item",
+   "body": "Taylor-Phillips et al., J Digit Imaging 2015;28(1):32-40 (PMC4305061) re-analysed six lesion-enriched reader studies (8-22 participants, 27-100 cases per session): 'Time taken per case decreased 9-23% as the reading session progressed (p<0.005 for every study)'. Sensitivity fell (or specificity rose) across 100 chest x-rays (p=0.005), 60 bone-fracture x-rays (p=0.03) and 100 chest CTs (p<0.0001) - but not in the shorter 27- or 50-case mammography sessions. The vigilance decrement was 'first observed over a 30 min session in World War II radar operators' and is steeper under high event rate, high working-memory load and low signal salience. Read for a sidebar: the degrading variable is session length or items-per-sitting (~50-100), not the interval between items - so the queue should track how many decisions this human has already made today, a number our payload does not carry.",
+   "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4305061/",
+   "confidence": 0.7,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "vigilance",
+    "session-length",
+    "threshold"
+   ]
+  },
+  {
+   "id": "w5-interface-interp-5x-faster-17pct-worse",
+   "kind": "number",
+   "title": "Pre-registered n=119: explanation panels made practitioners 5x faster and 17% less accurate",
+   "body": "'Interpretability Gone Bad' (CSCW 2024, pre-registered; n=119 ML practitioners; conditions: control pipeline, GAM, SHAP, and two interactive toolkits - Microsoft Explanation Dashboard and Google What-if Tool). Verbatim conclusion: 'people who rely on visual explanations from interpretability tools spend 5x less time on the task, resulting in a 17% lower accuracy in answering questions about the data and model', and interactivity 'increases cognitive burden to the extent that people satisfice - seemingly out of frustration - instead'. Verified in the extracted text at /tmp/interp.txt lines 1136-1140. Direct hazard for a decision card: a why-panel that shortens the decision is not thereby improving it; the measured effect of a comfortable explanation surface is satisficing, and the paper argues designers should assume 'people never pay attention to all the information available to them'. It is also a warning against reading any latency win as a quality win.",
+   "source": "https://harmanpk.github.io/Papers/CSCW2024_Interpretability_BoundedRationality.pdf",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "pre-registered",
+    "satisficing",
+    "explanations"
+   ]
+  },
+  {
+   "id": "w5-interface-groundability-missing-item",
+   "kind": "number",
+   "title": "Diff-only review accepted 9 of 9 real omissions; adding a 'what is missing' line moved catch 0.53 to 1.00",
+   "body": "Groundability study (23 pp.; 411 execution-labelled traces plus 101 controlled cases) holds the reviewer fixed and changes only the evidence. Patch-only review 'misses omissions because it only shows what changed': on nine real omissions Llama-8B accepted 9/9 from the diff alone and GPT-4.1 caught 0.27; the full raw trace was worse than every alternative for all six reviewers (Qwen-32B caught 0.17), so more text did not help. Adding one construction-known 'what is missing' item raised catch from 0.53 to 1.00 (GPT-4.1) and from 0.07 to 1.00 (Llama-8B) on 15 synthetic partial-logic omissions, and an empty-section control showed the named omission rather than the layout carried the gain. The cost is real: on real traces the same structure raised over-rejection too (GPT-4.1 catch 0.91 while rejecting 0.86 of acceptable patches), and only official execution evidence separated catch from false alarm - which is the argument for carrying a verifier exit code on the row.",
+   "source": "https://lavaei.ieor.berkeley.edu/LLM_2026_3.pdf",
+   "confidence": 0.8,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "diff-vs-claim",
+    "omissions",
+    "evidence-format"
+   ]
+  },
+  {
+   "id": "w5-interface-vac-oracle-0pct",
+   "kind": "number",
+   "title": "Rebuilt from executor ground truth, an approval card cut attack success 68-100% to 0%",
+   "body": "Verifiable Action Card (arXiv:2609.18411v2, 18 pp.): a 24-scenario benchmark covering confused-deputy attacks, Lies-in-the-Loop dialog forging, indirect injection, adaptive action substitution, provenance evasion and legitimate tasks. Without a gate, attack success across the evaluated models ranges 68-100% (GPT-4.1 80%, Gemini-2.5-Flash 68%, Qwen3.6-27B 100%); a naive HITL prompt still lets 72% through because the human approves the disguised action; VAC - descriptor rebuilt out of band from the pending action, plus provenance fencing, default-deny and dispatch-time re-verification - drove attack success to 0% with 78% legitimate-task completion, 0 false blocks and 0.94 confirmations per legitimate task. Critical caveat, stated by the authors: 'the human is a transparent per-arm oracle rather than a recruited participant', so this isolates interface faithfulness and not human catch rate. It is the strongest argument that the card must be built from what will execute, never from the agent's narration.",
+   "source": "https://arxiv.org/pdf/2609.18411v2",
+   "confidence": 0.7,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "oracle-human",
+    "ground-truth-card",
+    "provenance"
+   ]
+  },
+  {
+   "id": "w5-interface-allow-rule-81pct-silent",
+   "kind": "number",
+   "title": "The standard fatigue fix - persist an allow-rule - gave 81% silent goal completion after one approval",
+   "body": "arXiv:2610.22987 (Oct 2026), 'From Approval to Abuse': context planted in a repository reliably steers an agent into requesting a plausibly justified but dangerously broad allow-rule. Across production platforms including Claude Code and Codex CLI, agents elicited the target rule in 58% of experimental instances; the acquired rule covered 56.9% of category-specific capability test cases; conditional on approval, the exploit achieved verified silent goal completion in 47 of 58 eligible instances (81.0%). This is the measured cost of the standard anti-fatigue design: 'approve once, stop asking' converts a per-action checkpoint into a permanent one, and that single approval is the last look anyone takes. For a loop card it bounds any 'approve all future rounds of this shape' verb, which is precisely the verb a 1,000-round unattended loop wants most.",
+   "source": "https://arxiv.org/abs/2610.22987",
+   "confidence": 0.75,
+   "topic": "w5-interface",
+   "tags": [
+    "measured",
+    "allow-rule",
+    "fatigue-fix",
+    "oversight-erosion"
+   ]
+  },
+  {
+   "id": "w5-interface-bilibili-quota-1000to74",
+   "kind": "number",
+   "title": "Chinese alert-governance teams set a per-person weekly quota, not a 'reduce noise' aspiration: 1000 to 74",
+   "body": "Bilibili's next-gen alerting platform (original Chinese, my.oschina.net/5129714/blog/10321815, 2023-12-14) reports roughly six months of governance: median alerts per person per week 1000 -> 74 (7.4% of the original); total notifications 3M+ -> 220K (7%); per-person notifications 1600+ -> 140 (8.8%, -91.2%); root-cause analysis at 20,652 per day with 87.9% accuracy, 77.5% recall, mean 4 s (p95 10 s). The target was written as a number: cut the previous >1000 alerts/week to 80/week. ByteDance's frontend alert governance (original Chinese, juejin.cn/post/7459286862831484979, 2025-01-13) states the before as 1000+/day with >80% being API request errors and 40+ dashboards at 3 per person, the success criterion as an ACK rate >= 90% with P50 ack under 30 minutes, and reports recall of real incidents moving 0% -> 60%. Both are vendor self-reports with no control group; the transferable part is that the quota and the ACK rate are numbers, agreed before the work started.",
+   "source": "https://my.oschina.net/5129714/blog/10321815",
+   "confidence": 0.6,
+   "topic": "w5-interface",
+   "tags": [
+    "chinese-original",
+    "vendor-self-report",
+    "quota",
+    "ack-rate"
+   ]
+  },
+  {
+   "id": "w5-interface-speed-is-not-decision-quality",
+   "kind": "claim",
+   "title": "'Decide in under a minute' is satisfiable by satisficing, and the panel cannot tell the two apart",
+   "body": "Synthesis of four measured results: (a) explanation surfaces cut task time 5x while cutting accuracy 17% (CSCW 2024, n=119); (b) queued reviewers approve in seconds, which our graph already reads as queue clearing rather than review; (c) per-case reading time falls 9-23% within a session while sensitivity falls after ~50-100 cases; (d) one human decision on a ~100-line change costs 13-14 net minutes. A queue designed to a 60-second target therefore selects the decisions that can be pattern-matched, and any metric that reports only seconds-to-decision improves when the human stops reading. A defensible card must pair its latency with three other numbers: how many items were shown, how many were accepted unseen, and a periodic audit sample with its confidence - the acceptance-sampling number, not the stopwatch. Our row currently carries none of the three, and the header carries only the count.",
+   "source": "local synthesis of w5-interface-interp-5x-faster-17pct-worse + w3-humanminutes-rubber-stamp-seconds",
+   "confidence": 0.7,
+   "topic": "w5-interface",
+   "tags": [
+    "synthesis",
+    "metric-design",
+    "satisficing",
+    "latency"
+   ]
+  },
+  {
+   "id": "w5-interface-gerrit-attention-set-design-only",
+   "kind": "claim",
+   "title": "Gerrit's Attention Set is design consensus with a Google pedigree and no published latency number",
+   "body": "The Gerrit Attention Set design pages name the failure they fix: without a single owner per change, reviewers add more reviewers than necessary, 'check the dashboard and bolded changes repeatedly or abandon the dashboard completely'. Google's internal Critique shipped it in 2015 and it 'has become a vital part of the code review system'. The same pages report that per-change email for every message, patchset and CI result is 'spammy', that research found 'users have trouble identifying relevant messages', yet users rely on that mail as 'a natural queue of things to work on'; the Reviewed flag was rarely used and flipped back to unreviewed on apparently random events, so it made a bad action-required signal. The acceptance criteria are stated but unmeasured: changes needing action must be prominent on the dashboard, and the change page must say at top whose action is required. Treat as design consensus, not evidence - no A/B latency or error number could be found.",
+   "source": "https://www.gerritcodereview.com/design-docs/attention-set-use-cases.html",
+   "confidence": 0.5,
+   "topic": "w5-interface",
+   "tags": [
+    "design-doc",
+    "unmeasured",
+    "attention-set",
+    "queue"
+   ]
+  },
+  {
+   "id": "w5-interface-weco-run-rules",
+   "kind": "concept",
+   "title": "Don't alert on a single point: standard run rules need 2-of-3 or 8-in-a-row before a metric is out of control",
+   "body": "NIST/SEMATECH e-Handbook control charts: 3-sigma limits (k=3) plus the Western Electric rules for declaring a process out of control - any point beyond 3 sigma; 2 of the last 3 beyond 2 sigma; 4 of the last 5 beyond 1 sigma; 8 consecutive points on one side of the centre line. The run rules exist because a single deviation is expected variation and acting on it is the textbook false alarm, while a sustained shift is the signal. Transfer to a loop dashboard: a per-metric threshold should fire on a run (two consecutive worse rounds, or eight rounds on one side of a baseline), not on one bad round. That also supplies the principled answer to 'why did you not tell me about round 12' - the answer is that one bad round is not a signal, and the card can say which rule fired. Nothing here is measured on software loops; it is a transfer of an established SPC convention.",
+   "source": "https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc32.htm",
+   "confidence": 0.65,
+   "topic": "w5-interface",
+   "tags": [
+    "concept",
+    "spc",
+    "run-rules",
+    "thresholds"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "w5-interface-panel-row-258chars-no-evidence",
+   "rel": "supports",
+   "to": "w3-attention-queue-not-card",
+   "note": "the row is thinner than the card the graph already measured: no diff, no cost, no evidence pointer in 258 chars"
+  },
+  {
+   "from": "w5-interface-panel-row-258chars-no-evidence",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-card-vs-diff-decision-time",
+   "note": "instantiates the unmeasured comparison: our card is a one-line claim, the alternative is the raw diff"
+  },
+  {
+   "from": "w5-interface-pending-cell-disagrees-with-queue",
+   "rel": "supports",
+   "to": "w3-attention-no-agreed-burden-metric",
+   "note": "one panel, two counts of the same quantity, is concrete evidence that no agreed burden measure exists"
+  },
+  {
+   "from": "w5-interface-tricorder-0.8pct-actionable",
+   "rel": "applies-to",
+   "to": "w3-attention-no-agreed-burden-metric",
+   "note": "supplies a denominator for burden: the actionable share of surfaced findings, ~0.8%"
+  },
+  {
+   "from": "w5-interface-tricorder-dashboard-failed",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-dashboard-open-rate",
+   "note": "the closest evidence there is on whether a dashboard gets opened: at Google, the nightly dashboard drew little use"
+  },
+  {
+   "from": "w5-interface-autocommenter-changed-lines-only",
+   "rel": "supports",
+   "to": "w5-interface-tricorder-0.8pct-actionable",
+   "note": "same rule as Tricorder's changed-lines default, now with a measured 4.6x inflation from including unchanged context"
+  },
+  {
+   "from": "w5-interface-autocommenter-useful-ratio-80",
+   "rel": "refines",
+   "to": "w5-interface-tricorder-0.8pct-actionable",
+   "note": "Tricorder's 10% false-positive probation rule and AutoCommenter's 80% useful target are the same bar from opposite ends"
+  },
+  {
+   "from": "w5-interface-autocommenter-ab-null",
+   "rel": "supports",
+   "to": "w3-humanminutes-size-does-not-predict-latency",
+   "note": "review duration is not driven by the obvious variable; adding an automated reviewer left it unchanged"
+  },
+  {
+   "from": "w5-interface-coderabbit-56-rejected",
+   "rel": "contradicts",
+   "to": "w3-attention-approval-rate-95",
+   "note": "gates that approve 93-96% coexist with comment streams rejected 56.3% of the time; the unit of approval (permission vs claim) decides which number you get"
+  },
+  {
+   "from": "w5-interface-eemua-1-alarm-per-10min",
+   "rel": "supports",
+   "to": "w5-interface-human-unit-cost-10to14min",
+   "note": "the ~10 min per alarm assumption is the process-industry version of the same unit cost"
+  },
+  {
+   "from": "w5-interface-human-unit-cost-10to14min",
+   "rel": "derived-from",
+   "to": "w3-humanminutes-di-biase-100loc-13min",
+   "note": "13-14 net minutes for a ~100-line change converted into items per hour"
+  },
+  {
+   "from": "w5-interface-human-unit-cost-10to14min",
+   "rel": "supports",
+   "to": "w3-attention-batch-threshold-3x",
+   "note": "if one decision costs 10-14 min, a 3x/day batch holds a handful of decisions; an hourly one still lands inside a work block"
+  },
+  {
+   "from": "w5-interface-human-unit-cost-10to14min",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-no-cadence-ab",
+   "note": "gives the cost model a cadence experiment would need to report against"
+  },
+  {
+   "from": "w5-interface-exception-sampling-floor-59",
+   "rel": "requires",
+   "to": "gap-w4-035",
+   "note": "a canary/SLO protocol for a self-modifying loop needs a stated sample size and confidence, not an inspection of one round"
+  },
+  {
+   "from": "w5-interface-sre-burn-rate-tiers",
+   "rel": "applies-to",
+   "to": "gap-w4-035",
+   "note": "multiwindow burn rate is the transferable template for 'how bad is bad' in a self-modifying loop"
+  },
+  {
+   "from": "w5-interface-sre-actionable-1to1",
+   "rel": "refines",
+   "to": "w3-attention-batch-threshold-3x",
+   "note": "SRE does not batch: it splits channels by latency (page/email/passive) and holds a 1:1 alert-per-incident ratio"
+  },
+  {
+   "from": "w5-interface-sre-actionable-1to1",
+   "rel": "refines",
+   "to": "w3-attention-no-agreed-burden-metric",
+   "note": "gives measurable overload symptoms (paging events per shift) instead of a feeling"
+  },
+  {
+   "from": "w5-interface-override-tracks-ppv",
+   "rel": "supports",
+   "to": "w3-falsify-alert-fatigue",
+   "note": "supplies the mechanism behind the observed acceptance decline: response rate tracks precision"
+  },
+  {
+   "from": "w5-interface-override-tracks-ppv",
+   "rel": "supports",
+   "to": "w2-human-approval-rubber-stamp",
+   "note": "a 97% approval rate is what probability matching predicts for a high-precision stream, not evidence of diligence"
+  },
+  {
+   "from": "w5-interface-radiology-session-50to100",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-no-cadence-ab",
+   "note": "separates session length from cadence: the degradation is per sitting, which is a different dial than batching"
+  },
+  {
+   "from": "w5-interface-interp-5x-faster-17pct-worse",
+   "rel": "contradicts",
+   "to": "w5-interface-groundability-missing-item",
+   "note": "structured evidence raised catch in one study; an explanation surface raised speed and lowered accuracy in the other - the difference is whether the evidence is checkable"
+  },
+  {
+   "from": "w5-interface-interp-5x-faster-17pct-worse",
+   "rel": "supports",
+   "to": "w3-humanminutes-rubber-stamp-seconds",
+   "note": "satisficing is the measured mechanism behind seconds-long approvals"
+  },
+  {
+   "from": "w5-interface-groundability-missing-item",
+   "rel": "refines",
+   "to": "w3-attention-gap-card-vs-diff-decision-time",
+   "note": "the nearest measured answer: with the reviewer fixed, evidence format changes catch, so the comparison is worth running"
+  },
+  {
+   "from": "w5-interface-vac-oracle-0pct",
+   "rel": "contradicts",
+   "to": "w2-human-catch-rate-13-6",
+   "note": "0% attack success holds only for an oracle user; real humans caught 13.6%, so the VAC number is an upper bound, not a forecast"
+  },
+  {
+   "from": "w5-interface-vac-oracle-0pct",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-card-vs-diff-decision-time",
+   "note": "shows what a card built from executor ground truth can do when the human is perfect"
+  },
+  {
+   "from": "w5-interface-allow-rule-81pct-silent",
+   "rel": "supports",
+   "to": "w2-human-flooding-attack",
+   "note": "both are attacks that win by making the human approve something that removes future checkpoints"
+  },
+  {
+   "from": "w5-interface-allow-rule-81pct-silent",
+   "rel": "contradicts",
+   "to": "w3-attention-batch-threshold-3x",
+   "note": "batching advice assumes the approval does not persist; persisting one approval bought 81% silent completion"
+  },
+  {
+   "from": "w5-interface-bilibili-quota-1000to74",
+   "rel": "refines",
+   "to": "w3-attention-no-agreed-burden-metric",
+   "note": "practitioners do have a metric: a per-person weekly volume quota plus an ACK rate, both agreed before the work"
+  },
+  {
+   "from": "w5-interface-speed-is-not-decision-quality",
+   "rel": "supports",
+   "to": "w3-humanminutes-rubber-stamp-seconds",
+   "note": "explains why seconds-to-approve is a failure signal rather than a success one"
+  },
+  {
+   "from": "w5-interface-speed-is-not-decision-quality",
+   "rel": "requires",
+   "to": "w5-interface-exception-sampling-floor-59",
+   "note": "any latency claim needs a paired audit sample to distinguish a fast decision from an unseen one"
+  },
+  {
+   "from": "w5-interface-speed-is-not-decision-quality",
+   "rel": "applies-to",
+   "to": "w3-attention-gap-card-vs-diff-decision-time",
+   "note": "proposes the three numbers that study should report besides time-to-decision"
+  },
+  {
+   "from": "w5-interface-gerrit-attention-set-design-only",
+   "rel": "applies-to",
+   "to": "w3-attention-queue-not-card",
+   "note": "attention-set is the shipped version of 'whose turn is it', and the graph's queue finding is about the same primitive"
+  },
+  {
+   "from": "w5-interface-gerrit-attention-set-design-only",
+   "rel": "supports",
+   "to": "w3-attention-gap-dashboard-open-rate",
+   "note": "reports that reviewers abandon the dashboard entirely when ownership is unclear - qualitative support for the unmeasured open rate"
+  },
+  {
+   "from": "w5-interface-weco-run-rules",
+   "rel": "refines",
+   "to": "w3-attention-repeat-not-volume",
+   "note": "run rules turn 'repeat' into an operational test: 8 in a row on one side, or 2 of 3 beyond 2 sigma"
+  }
+ ],
+ "gaps": [
+  "No study compares a one-line claim plus a verifier exit code against the full diff for the same decision, so the cost of our 258-character row is unmeasured.",
+  "Nobody has measured whether a per-person weekly decision quota (the EEMUA/Bilibili move) changes override or false-accept rates in an agent supervision loop.",
+  "No field data says whether a risk-first queue order finds more high-risk items than an age-first order, or whether either reduces missed decisions.",
+  "What is the item count at which a supervisor's defect catch on agent-authored diffs falls - the radiology 50-100 case figure has no software analogue.",
+  "No measurement of how often a human opens an embedded sidebar card versus a full dashboard, so the attention cost of the embedded surface is unknown.",
+  "The precision-to-response-rate curve (probability matching) has never been measured for code review or approval queues, only for psychomotor alarms.",
+  "No experiment tests whether showing a supervisor their own recent approval record reduces rubber-stamping or increases it through anchoring.",
+  "Nobody has measured the naturalistic rate at which persisted allow-rules are granted by real users and later cover actions they would have refused.",
+  "No randomised trial shows that a burn-rate-style budget meter on a loop dashboard changes human intervention behaviour rather than merely being readable.",
+  "Whether an audit-sample confidence statement ('59 clean rounds to claim under 5% defects') is understood or acted on by practitioners is untested."
+ ]
+}

@@ -1,0 +1,75 @@
+{
+ "nodes": [
+  {
+   "id": "exp-gate-003",
+   "kind": "number",
+   "title": "Only 22 of 208 gates rejected a verified attempt, and 5 of the 6 no-gain rejections were the ceiling the task had already reached",
+   "body": "Classified every gate rejection that followed a verifier pass (research/exp/e35.mjs, e36.mjs): 22 of 208. By cause: no-gain 13 (plus 3 no-patch+no-gain), holdout-failed 3, tests-edited 2, unknown 1. Reconstructing bestPriorScore exactly as src/runtime/round.js does, 5 of the 6 no-gain rejections had a prior promoted score of 1.0 for the same task in the same campaign - i.e. the task was already solved and the gate was structurally unable to accept anything more for it. The remaining one (loom-self2 round 15, task sampling) had no prior promotion, which is the interesting anomaly rather than the rule. So the gate is not rejecting good work: it rejects 22 attempts, of which the largest single class is 'you already solved this'. That is a curriculum problem dressed as a gate problem, and it is the same inversion exp-curric-001 measured from the other side.",
+   "source": "research/exp/e35.mjs + e36.mjs (208 gates, 6 no-gain rejections reconstructed)",
+   "confidence": 0.92,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "gate",
+    "ceiling"
+   ]
+  },
+  {
+   "id": "exp-gate-004",
+   "kind": "analysis",
+   "title": "A binary score plus a per-task best makes every task a one-shot opportunity, so the gate's job is to ration nothing",
+   "body": "Put three measurements together. Scores are binary (exp-score-001: 208 gates, only 0 and 1). bestPriorScore compares against the same task's best landed score, so after a task reaches 1.0 every later pass is a no-gain rejection (exp-gate-003: 5 of 6 no-gain cases were exactly this). And the loop re-queues unsolved tasks (exp-curric-001), which are dominated by harness deaths (exp-fail-004). The composite behaviour: a task can be promoted at most once, and the loop spends its remaining budget re-attempting tasks whose verifier never ran. The gate threshold, the candidate count, the stopping rule and the holdout are all decision machinery for a regime the ledger never occupies. This is why exp-gate-001 found that sweeping minGain across seven values changes zero decisions: there is no continuous quantity for it to act on. The single change that would make the rest of this codebase meaningful is a task that declares a graded metric (exp-score-003 / exp-graded-001 already prove the machinery works) - not another decision rule.",
+   "source": "exp-score-001 + exp-gate-001 + exp-gate-003 + exp-curric-001 + exp-graded-001",
+   "confidence": 0.94,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "gate",
+    "graded-score"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-gate-003",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "exp-gate-003",
+   "rel": "refines",
+   "to": "exp-gate-001"
+  },
+  {
+   "from": "exp-gate-003",
+   "rel": "supports",
+   "to": "exp-curric-001"
+  },
+  {
+   "from": "exp-gate-004",
+   "rel": "derived-from",
+   "to": "exp-gate-003"
+  },
+  {
+   "from": "exp-gate-004",
+   "rel": "derived-from",
+   "to": "exp-gate-001"
+  },
+  {
+   "from": "exp-gate-004",
+   "rel": "supports",
+   "to": "exp-graded-001"
+  },
+  {
+   "from": "exp-gate-004",
+   "rel": "requires",
+   "to": "ana-004"
+  },
+  {
+   "from": "exp-gate-004",
+   "rel": "contradicts",
+   "to": "ana-002",
+   "note": "L2 policy optimisation has no continuous signal to optimise until scores are graded"
+  }
+ ]
+}

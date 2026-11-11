@@ -1,0 +1,319 @@
+{
+  "nodes": [
+    {
+      "id": "n-agentic-token-multiplier",
+      "kind": "number",
+      "title": "Agentic coding burns 3,500x the tokens of single-round reasoning",
+      "body": "OpenHands on SWE-bench Verified (8 models x 4 runs, 500 instances) measures agentic coding tasks consuming roughly 3,500x the tokens of single-round code reasoning and roughly 1,200x the tokens of multi-round chat. The multiplier is structural, not incidental: every tool call re-sends a growing transcript, so the unit of billing is the turn, not the answer. For dsh-loom this reframes the 452-attempt ledger: an attempt is not one prompt plus one patch but a multi-thousand-to-multi-million-token episode, so any budget must be calibrated from measured attempts rather than from a prompt-count heuristic. It also means a per-attempt cap and a per-campaign cap are different instruments and both are needed.",
+      "source": "arXiv:2604.22750v3 (Bai et al., 'How Do AI Agents Spend Your Money?'), OpenHands + SWE-bench Verified, 8 models x 4 runs",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["token-cost", "swe-bench", "openhands", "budgeting"]
+    },
+    {
+      "id": "n-input-dominance",
+      "kind": "claim",
+      "title": "Input tokens dominate agent spend even with caching on",
+      "body": "Across all eight models and 500 SWE-bench instances, input tokens dominate consumption, and the Sonnet-4.5 phase case study shows cache reads dominating both token volume and dollar cost in every phase even though output is priced roughly 80x a cache read. Interpretation: the expensive thing is re-reading the transcript, not writing code. For dsh-loom the controllable lever is therefore the size of the replayed prefix (task text plus accumulated lessons plus repo digest plus prior attempt output), not the length of the model's answer. Capping output tokens is a weak instrument; capping and stabilising the prefix is the strong one, and it is also what makes caching work.",
+      "source": "arXiv:2604.22750v3 §4-§5; cost formula Cost_round = Input_noncached*r_in + Output*r_out + CacheCreation*r_cache_create + CacheRead*r_cache_read",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["input-tokens", "cache-reads", "prefix", "lever"]
+    },
+    {
+      "id": "n-30x-variance",
+      "kind": "number",
+      "title": "The same task, same model, same setup varies up to 30x in tokens",
+      "body": "Repeated runs of one instance with one model differ by up to 30x in total tokens, and the most expensive problem averages about 7 million more tokens than the cheapest one. Difficulty predicts spend only weakly (expert-difficulty vs tokens Kendall tau_b = 0.32): 6.7% of tasks labelled 15-minute cost more than the average greater-than-1-hour task, while 11.1% of greater-than-1-hour tasks cost less than the average 15-minute task. For dsh-loom with 452 binary-scored attempts, this is a statement about the distribution: the mean attempt price is a bad planning number and the tail sets the bill, so a night's budget must be modelled as a heavy-tailed sum with a hard stop, not as attempts x average.",
+      "source": "arXiv:2604.22750v3, 8 models x 4 runs x 500 instances; Kendall tau_b = 0.32; 6.7% / 11.1% crossover rates",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["variance", "tail-risk", "difficulty", "planning"]
+    },
+    {
+      "id": "n-inverse-test-time-scaling",
+      "kind": "claim",
+      "title": "Accuracy saturates while cost keeps climbing: inverse test-time scaling",
+      "body": "Ordering configurations from cheapest to most expensive, accuracy rises from MinCost to LowerCost and then saturates while spend continues to increase; extra spend past the saturation point buys nothing. Kimi-K2 is the worst case (highest cost, lowest accuracy) and Kimi-K2 plus Claude Sonnet-4.5 consume more than 1.5M extra tokens versus GPT-5 on the same tasks, with the gap persisting on the shared-success and shared-failure subsets, which rules out task difficulty as the explanation and points at model behaviour. On failures GPT-5/GPT-5.2 add only about 0.5M tokens while Kimi-K2 adds about 2M. Applied to dsh-loom: a stalled attempt does not fail cheaply, it fails by spending more, so 'let it keep trying' is the most expensive possible default.",
+      "source": "arXiv:2604.22750v3, model-pair comparisons on shared success/failure subsets",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["test-time-scaling", "saturation", "failure-cost", "model-choice"]
+    },
+    {
+      "id": "n-repeated-file-actions",
+      "kind": "failure",
+      "title": "Half of file actions in high-cost models are repeats on the same file",
+      "body": "Roughly 50% of file actions in the high-cost models are repeated actions on the same file, which is the sub-threshold version of the runaway loop: no single step is wrong, but the agent re-reads and re-writes the same target instead of advancing. This is the mechanism that turns a 30x token variance from a statistical curiosity into an operational hazard, because it is invisible in a success-rate metric (the attempt may still finish) and invisible in a per-step log (each step looks reasonable). For dsh-loom, the cheap detector is a per-attempt counter of distinct-file ratio and max repeats-per-file, with a hard stop at a threshold; the expensive non-detector is reviewing transcripts after the fact.",
+      "source": "arXiv:2604.22750v3 (approximately 50% repeated file actions in high-cost models)",
+      "confidence": "high",
+      "topic": "failure-modes",
+      "tags": ["repetition", "loop", "detector", "file-actions"]
+    },
+    {
+      "id": "n-phase-cost-shape",
+      "kind": "number",
+      "title": "Cost is phase-shaped and spikes whenever new content enters context",
+      "body": "The Sonnet-4.5 case study splits a run into Setup 9.98%, Explore 30.37%, Fix 33.53%, Validate 16.59%, Closeout 9.53% of cost, and per-round cost is non-monotonic: it spikes exactly when new content enters the context, i.e. repo exploration, file creation, test execution output, and summarisation. So the two-thirds spent before and after the edit (Explore plus Validate plus Setup plus Closeout = 66.5%) is where overnight money goes, and the spikes are the budget events. For dsh-loom this predicts that a retry of the same attempt with a fresh checkout is far more expensive than a retry that reuses a warm prefix, and that swallowing raw test logs into context is a cost decision, not a formatting one.",
+      "source": "arXiv:2604.22750v3 §5 case study (Sonnet-4.5): Setup 9.98%, Explore 30.37%, Fix 33.53%, Validate 16.59%, Closeout 9.53%",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["phases", "spikes", "test-output", "context-entry"]
+    },
+    {
+      "id": "n-review-stage-dominates",
+      "kind": "number",
+      "title": "59.4% of tokens go to the iterative review stage, not to writing code",
+      "body": "Tokenomics instruments ChatDev with GPT-5 reasoning over 30 tasks: the iterative code review stage absorbs 59.4% of all tokens on average, and input tokens are 53.9% of consumption. The conclusion is that the primary cost driver is automated refinement and verification, not initial code generation, which inverts the usual mental model of 'the model writes the patch'. For dsh-loom this is directly relevant because the loop is verifier-heavy: verify and review rounds are the product, so the token bill is essentially the price of re-reading the diff plus the verifier's output on every review iteration. That makes review-round count, not patch size, the cost variable, and it argues for a single well-specified review pass over several cheap ones.",
+      "source": "arXiv:2601.14470 (Salim, Latendresse, Khatoonabadi, Shihab, 'Tokenomics'), ChatDev + GPT-5 reasoning, 30 tasks, 20 Jan 2026",
+      "confidence": "high",
+      "topic": "token-economics",
+      "tags": ["review", "verification", "chatdev", "rounds"]
+    },
+    {
+      "id": "n-harness-effect",
+      "kind": "number",
+      "title": "Orchestration change beats model change: -41% cost at equal quality",
+      "body": "A controlled swap over 22 locked tasks x 6 models x 2 orchestration layers moved cost per task from $0.21 to $0.12 (-41%), median wall-clock 48s to 27s (-44%), tokens per task 14.2k to 8.8k (-38%), and quality 0.78 to 0.81 (parity at n=22), i.e. quality per dollar +82% (3.71 to 6.75) and completions per Mtok 54.9 to 92.0. Per-model cuts range from -33% (Gemini 3.1) to -61% (Flash 3.5), and the harness lever exceeds the model lever: swapping to the cheapest capable model saves at most 36%. Of 48 capability-model cells, 30 improve, 11 are unchanged and 7 regress, with all 7 regressions on the three smaller models (6 of 7 in MCP/Playbooks/Presentations), so the harness needs a capability floor.",
+      "source": "arXiv:2607.06906v2 (Sayed Ali et al., Writer Inc., 'The Harness Effect'), 22 tasks x 6 models x 2 layers, Oct 2026",
+      "confidence": "high",
+      "topic": "orchestration",
+      "tags": ["harness", "cost-reduction", "quality-parity", "model-choice"]
+    },
+    {
+      "id": "n-cache-effective-price",
+      "kind": "concept",
+      "title": "List price overstates input cost by up to 10x once prefix caching sticks",
+      "body": "The effective input price is p_in_eff = p_in * (1 - h * (1 - kappa)) where h is the cache-hit fraction and kappa the cache-read-to-write ratio, about 0.1, so a hit fraction near 1 means paying roughly one tenth of list on the dominant term. The paper measures 7,876 of 7,886 prompt tokens (99.9%) served as cache reads on an identical-prefix call. Vendor terms: Anthropic charges 1.25x to write and 0.10x to read with break-even at 1.4 reads, OpenAI discounts cached input automatically, Gemini gives 75% off with a one-hour TTL floor on 32K+ prompts. Implication for dsh-loom: any cost model built on list prices overestimates the stable prefix by up to 10x and therefore systematically under-budgets the non-cacheable tail, which is exactly where runs explode.",
+      "source": "arXiv:2607.06906v2 (p_in^eff formula; 99.9% cache reads); Anthropic/OpenAI/Google cache pricing terms",
+      "confidence": "high",
+      "topic": "pricing",
+      "tags": ["caching", "effective-price", "list-price", "budget-error"]
+    },
+    {
+      "id": "n-quadratic-prefix-growth",
+      "kind": "concept",
+      "title": "Uncompacted transcript cost grows quadratically in turn count",
+      "body": "Total input tokens for a naive harness grow as kS + k(k-1)/2 * mbar + kGbar + sum R_i over k turns with static prefix S, per-turn message mass mbar, generated Gbar and retrieval R_i, i.e. quadratically in k, and production agents report input-to-output ratios near 100:1. The baseline in the study replayed a 49KB monolithic system prompt every turn, used destructive middle truncation, and added polling waits. This is the arithmetic behind every overnight cost surprise: a 40-turn attempt pays for its own history 40 times. For dsh-loom, the counter is structured incremental compaction at about 80% of the input budget keeping a 4-12 message live tail under 30% of budget, plus context offload to files rather than a bigger window.",
+      "source": "arXiv:2607.06906v2 (quadratic input-token model; 49KB prompt replay; 100:1 input:output; compaction at 80% budget, 4-12 message tail <=30%)",
+      "confidence": "high",
+      "topic": "orchestration",
+      "tags": ["context", "compaction", "quadratic", "turns"]
+    },
+    {
+      "id": "n-runaway-retry-27m",
+      "kind": "failure",
+      "title": "One sub-agent retried the same command 300+ times and burned 27M tokens",
+      "body": "anthropics/claude-code issue #15909 (filed 2025-12-31, Opus 4.5, macOS): a general-purpose Task sub-agent re-issued the identical command 'npm install -D @vitest/coverage-v8' more than 300 times over about 4.6 hours, each attempt dying on 'Request timed out', consuming roughly 27 million tokens. There was no circuit breaker and no retry limit, and the user asked for reimbursement. At GPT-5 list input pricing of $1.250 per million that is about $33.75, at a 0.125 cached rate roughly $3.4 plus output, which is a 16x to 280x multiple of a $0.12-0.21 well-behaved task. The money is not the main loss: 4.6 hours of the night burned and the night produced zero accepted changes.",
+      "source": "github.com/anthropics/claude-code issue #15909 (Opus 4.5, macOS, filed 2025-12-31)",
+      "confidence": "high",
+      "topic": "failure-modes",
+      "tags": ["runaway", "retry-loop", "circuit-breaker", "claude-code"]
+    },
+    {
+      "id": "n-unlimited-session-turns",
+      "kind": "failure",
+      "title": "Default turn limits are often infinite, so nothing stops a loop but a human",
+      "body": "The runaway-loop writeup records Gemini CLI shipping maxSessionTurns with a default of -1, meaning no limit, alongside YOLO-style approval modes that remove the human approval gate; the entry is rated severity high and verified 2026-10-29. The pattern generalises: the agent runtime optimises for not interrupting a long task, while the operator's interest is stopping a bad task early, and the default sits on the runtime's side. For dsh-loom, the analogous defaults to audit are unlimited repair rounds, unlimited retries per attempt, and an autopilot that applies patches without a human checkpoint. Each of those is a per-attempt budget in disguise, and the safe default is a finite number chosen from the ledger's own distribution.",
+      "source": "AIWiki runaway-agent-loops entry (severity high, verified_at 2026-10-29), citing Gemini CLI maxSessionTurns default -1 and YOLO approval modes; secondary source, low-to-medium confidence",
+      "confidence": "low",
+      "topic": "failure-modes",
+      "tags": ["defaults", "turn-limit", "gemini-cli", "secondary-source"]
+    },
+    {
+      "id": "n-spot-interruption-rate",
+      "kind": "number",
+      "title": "Median spot interruption is 8% per hour, i.e. a coin flip over a night",
+      "body": "An instrumented study of 40 production deployments and 12,000 interruption events reports a median interruption rate of 8% per hour for popular families (m5/m6/c5/c6) during US business hours, worst case 22% per hour (m5.xlarge in us-east-1 on one Tuesday afternoon) and best 1.8% per hour (r6gd eu-west-1 over a month). GPU instances interrupt 2-3x more often, with p4d.24xlarge at 25-40% per hour. Notice is 2 minutes. Rates are per hour, so an 8-hour unattended night against an 8%/hr rate has a 1 - 0.92^8 = 48.7% chance of at least one interruption, which is the number that matters when the work unit is the night rather than the job.",
+      "source": "LeanOps, 'Spot Instances in 2026: We Tracked 12,000 Interruptions' (Ravi Kanani, 16 May 2026), 40 deployments, 12,000 events",
+      "confidence": "medium",
+      "topic": "spot-infra",
+      "tags": ["spot", "interruption", "aws", "per-hour-rate"]
+    },
+    {
+      "id": "n-spot-net-loss",
+      "kind": "number",
+      "title": "41% of spot workloads lost money after recovery costs",
+      "body": "The same 12,000-interruption study finds 41% of workloads lost money on spot once recovery costs are counted, because the headline 70-90% discount masked 80-110% recovery cost in those cases. Their 100-node walkthrough: naive spot-everywhere claims $3,694/month of savings but incurs $2,800/month of recovery, netting $894; a smart 65/35 spot-on-demand split lands at $6,909/month versus $12,312 all on-demand, a real 44% saving. CI/CD runners are 95% fine on spot; single-job-at-a-time long tasks without checkpoints are where spot loses, e.g. a 6-hour ETL losing 5 hours. Mapping to agents: work that checkpoints per attempt (an attempt is short and restartable) suits spot, work that checkpoints per night does not, and the split ratio is the design decision.",
+      "source": "LeanOps, 'Spot Instances in 2026: We Tracked 12,000 Interruptions' (Ravi Kanani, 16 May 2026); 100-node cost walkthrough",
+      "confidence": "medium",
+      "topic": "spot-infra",
+      "tags": ["spot", "recovery-cost", "checkpointing", "allocation"]
+    },
+    {
+      "id": "n-oncall-cost",
+      "kind": "number",
+      "title": "Human coverage costs $540/week per rotation slot, dwarfing a night of tokens",
+      "body": "A survey of 200+ organisations puts the average weekday on-call rate at $540 per week, with weekend on-call paid about 2x weekday, individual flat payments spanning $5-1,000/month, 71% on fixed pay versus 2% paid per incident, and a $150 loaded hourly cost benchmark. Three rotation slots at $540 x 52 is an $84,240/year floor, and one hour per month of reconciliation adds about $1,800/year. Dividing $540 by 7 gives about $77 per night of coverage, which is 15x to 25x the model spend of a 24-attempt night at $0.12-0.21 per attempt. A Catchpoint SRE Report 2025 citation adds that about 70% of SREs say on-call stress contributed to burnout or attrition, so the real cost also includes turnover.",
+      "source": "incident.io on-call compensation survey, 200+ orgs, 8 Sept 2026; devops.com citing Catchpoint SRE Report 2025 (~70% burnout link)",
+      "confidence": "medium",
+      "topic": "human-cover",
+      "tags": ["on-call", "compensation", "$540/week", "burnout"]
+    },
+    {
+      "id": "n-metr-horizon",
+      "kind": "number",
+      "title": "Models are ~100% reliable under 4 minutes and under 10% past 4 hours",
+      "body": "METR's task-horizon work uses 170 tasks with 800+ human baselines: models succeed near 100% of the time on tasks under about 4 minutes and under 10% of the time on tasks over about 4 hours, with the 50%-success horizon doubling roughly every 7 months historically (1-4 doublings per year, about 196 days or 6.5 months in Time Horizon 1.1 with 228 tasks), while the SWE-Bench Verified human-time variant shows a faster sub-3-month doubling. The operational reading for an overnight run is blunt: an 8-hour unattended unit is two orders of magnitude past the reliable horizon, so the night must be decomposed into short verified units with checkpoints, and 'let it run all night' is not a capability question but an evidence question already answered.",
+      "source": "METR, 'Measuring AI Ability to Complete Long Software Tasks' (19 Mar 2025); Time Horizon 1.1 (228 tasks, ~196-day doubling, Jan 2026)",
+      "confidence": "high",
+      "topic": "capability-horizon",
+      "tags": ["metr", "task-horizon", "reliability", "decomposition"]
+    },
+    {
+      "id": "n-context-rot",
+      "kind": "failure",
+      "title": "Performance decays with input length at constant difficulty, and structure makes it worse",
+      "body": "Chroma evaluated 18 LLMs over 194,480 calls with 0.035% refusals (69 cases): performance degrades as input length grows even when task difficulty is held fixed, degradation is steeper for lower needle-question similarity, a single distractor already hurts and four compound, and structurally coherent haystacks perform consistently worse than shuffled ones across all 18 models. In LongMemEval, full prompts averaging about 113k tokens versus focused prompts averaging about 300 tokens produce significantly worse results for every model, with Claude models abstaining most and GPT models hallucinating most. For dsh-loom the consequence is that an attempt which accumulates a large transcript does not just cost more, it becomes less able to judge its own work, so long attempts fail while looking busy.",
+      "source": "Chroma Research, 'Context Rot: How Increasing Input Tokens Impacts LLM Performance' (Hong, Troynikov, Huber, 14 Jul 2025), 18 models, 194,480 calls",
+      "confidence": "high",
+      "topic": "failure-modes",
+      "tags": ["context-rot", "longmemeval", "distractors", "abstention"]
+    },
+    {
+      "id": "n-mast-taxonomy",
+      "kind": "source",
+      "title": "MAST: 14 failure modes across 1,600+ annotated multi-agent traces",
+      "body": "MAST-Data annotates more than 1,600 traces across 7 multi-agent frameworks; the taxonomy itself was built from 150 traces with inter-annotator kappa = 0.88 and lands on 14 failure modes in 3 categories: system design issues, inter-agent misalignment, and task verification. The third category is the one that matters for unattended economics, because verification failures are precisely the ones that do not raise an error: the run completes, the artefact is wrong, and the spend is booked as a legitimate attempt. For dsh-loom, whose scores are binary 0/1, a verification failure is indistinguishable from a hard failure in the ledger, which is why the ledger needs a separate outcome class (crashed, timed out, produced-but-rejected) rather than one bit.",
+      "source": "arXiv:2503.13657, 'Why Do Multi-Agent LLM Systems Fail?' (Cemri et al., v1 17 Mar 2025, v3 26 Oct 2025), MAST-Data, kappa = 0.88",
+      "confidence": "high",
+      "topic": "failure-modes",
+      "tags": ["mast", "taxonomy", "verification", "multi-agent"]
+    },
+    {
+      "id": "n-credential-expiry",
+      "kind": "failure",
+      "title": "Credentials expire mid-night: 6-hour re-auth and a 720-hour dead session",
+      "body": "Two documented cases: OpenClaw issue #86583 reports an xAI OAuth refresh token stored but never auto-renewed, forcing manual re-authentication roughly every 6 hours on a headless Linux VPS; paperclipai/paperclip issue #20457 reports warm Codex sessions never writing refreshed credentials back to the tenant connection, a session that ran about 720 hours with the tenant grant drifting to needs_reauthorization. Both are cheap to fix and expensive to discover, because the failure is silent until a call returns 401 and the run stops mid-attempt with tokens already spent. For dsh-loom, the night must include a pre-flight auth probe with a token-lifetime check against the expected run duration, and a 401 handler that fails fast and loudly rather than retrying with the same dead credential.",
+      "source": "github OpenClaw issue #86583; github paperclipai/paperclip issue #20457; blog-level reports, low-to-medium confidence",
+      "confidence": "low",
+      "topic": "failure-modes",
+      "tags": ["auth", "oauth", "expiry", "preflight"]
+    },
+    {
+      "id": "n-disk-fill",
+      "kind": "failure",
+      "title": "Disk fill is a wedged-host failure, not a clean error",
+      "body": "A recorded incident (2026-10-19) hit 11 GB free at 99% utilisation, at which point Docker Desktop wedged and 'docker info' hung for 13 minutes rather than returning an error, and the largest reclaimable lever was build output accumulated in idle worktrees, about 0.2 GB freed per worktree. The important detail is the shape of the failure: a full disk does not fail fast, it makes every command hang, so an unattended run silently converts into a very expensive sleep. For dsh-loom, the corresponding controls are a pre-flight free-space floor, a per-attempt worktree teardown that is verified rather than fire-and-forget, and a watchdog that kills any single command exceeding a wall-clock threshold instead of trusting it to return.",
+      "source": "suna project learnings entry 2026-10-19 (disk-full incident: 11 GB free / 99%, docker info hung 13 min, ~0.2 GB per worktree); project log, medium confidence",
+      "confidence": "medium",
+      "topic": "failure-modes",
+      "tags": ["disk", "worktrees", "hung-command", "watchdog"]
+    },
+    {
+      "id": "n-worktree-accumulation",
+      "kind": "failure",
+      "title": "246 of 289 worktrees were kept only for untracked droppings",
+      "body": "An upgrade audit found that on one agent 246 of 289 worktrees were retained solely because they contained untracked files, i.e. unbounded growth of a .worktrees directory with no per-worktree teardown, and that the stale-worktree reaper failed closed on any git error so the leak compounded silently. This is the classic unattended-mode leak: nothing errors, nothing pages anyone, and the resource grows monotonically until it manifests as the disk-fill hang above. For dsh-loom, which by design creates a worktree per attempt, this predicts a per-night residue; the testable quantity is worktrees created minus worktrees removed per round, and the correct behaviour is to fail open (reclaim) on git error with a logged warning rather than to keep everything.",
+      "source": "instar project upgrade notes (246 of 289 worktrees retained for untracked files; reaper fail-closed on git error); project notes, medium confidence",
+      "confidence": "medium",
+      "topic": "failure-modes",
+      "tags": ["worktrees", "leak", "fail-closed", "teardown"]
+    },
+    {
+      "id": "n-cache-and-offpeak-pricing",
+      "kind": "number",
+      "title": "The discount stack: cache reads at 10%, off-peak at 50-75%, and a TTL trap",
+      "body": "Cache mechanics: Anthropic charges 1.25x list to write a cache entry and 0.10x to read it, so break-even is 1.4 subsequent reads; OpenAI discounts cached input automatically at roughly 50%; Gemini discounts 75% with a minimum one-hour TTL for prompts of 32K+ tokens. Time-of-day pricing exists too: DeepSeek runs off-peak windows 16:30-00:30 UTC daily with V3 at 50% off and R1 at 75% off (announced 2025-02-25/26), and proxies such as LiteLLM expose an off_peak_pricing model key that tracks clock windows. For dsh-loom the scheduling consequence is concrete: an overnight job is already in the cheap window for some providers, but only if the prefix is stable enough to hit cache, since a 1-hour TTL means a 40-minute pause silently drops the discount for the rest of the night.",
+      "source": "Anthropic/OpenAI/Google prompt-caching terms; DeepSeek off-peak announcement 2025-02-25/26 (16:30-00:30 UTC, V3 50%, R1 75%); LiteLLM off_peak_pricing docs",
+      "confidence": "medium",
+      "topic": "pricing",
+      "tags": ["caching", "off-peak", "ttl", "deepseek"]
+    },
+    {
+      "id": "n-per-fix-prices",
+      "kind": "number",
+      "title": "Published per-fix prices: $10.92 (Devin), $1.3-$6 (Claude Code eval runs)",
+      "body": "Devin prices at $500/month for 250 included ACUs at about $2 each (Core is $20/month with ACUs at $2.25), 1 ACU is roughly 15 minutes of active work, and unassisted SWE-bench pass rate near 45.8% implies about 2.5 ACUs per fix, so a well-scoped successful fix lands near $10.92. Claude Code with Sonnet 4.5 at 77.2% SWE-Bench Verified costs about $1.3 per evaluation run versus Opus 4.7 at 87.6% for about $6 (codesota, April 2026). Third-party estimates put a resolved issue at $15-50 for an agent versus $300-1,500 for a human, with $2-10 of inference per task. These are vendor or list-price figures for a single clean task and carry no allowance for retries, failed attempts or a human on call.",
+      "source": "Devin pricing ($500/mo Team, 250 ACUs ~$2, 1 ACU ~15 min, 45.8% unassisted SWE-bench); codesota pricing note April 2026 (Sonnet 4.5 77.2% ~$1.3/run, Opus 4.7 87.6% ~$6/run); third-party per-issue estimates",
+      "confidence": "medium",
+      "topic": "pricing",
+      "tags": ["devin", "claude-code", "acu", "swe-bench", "list-price"]
+    },
+    {
+      "id": "n-promotion-base-rate",
+      "kind": "number",
+      "title": "Our own ledger: 114 promotions over 452 attempts is a 25.2% base rate",
+      "body": "dsh-loom's recorded history is 452 attempts, 231 rounds, 68 campaigns, 114 promotions and all scores binary 0/1. Derived: 1.96 attempts per round, 3.4 rounds per campaign, 6.6 attempts per campaign, 114/452 = 25.2% of attempts promote, 114/231 = 49.4% of rounds produce at least one promotion (assuming one promotion per round), and 1.68 promotions per campaign. The 25.2% figure is the single most important multiplier in this file: it means a real cost per accepted change is about 4x the cost per attempt, so a $0.12 attempt becomes $0.48 per accepted change and a $0.21 attempt becomes $0.83. It also means 75% of the token spend buys evidence rather than output, which is a legitimate purchase only if the evidence is recorded.",
+      "source": "dsh-loom internal ledger (452 attempts, 231 rounds, 68 campaigns, 114 promotions, binary 0/1 scores); derived ratios",
+      "confidence": "high",
+      "topic": "ledger-method",
+      "tags": ["dsh-loom", "base-rate", "promotion", "unit-economics"]
+    },
+    {
+      "id": "n-all-in-per-accepted",
+      "kind": "analysis",
+      "title": "All-in cost per accepted change for one night: about $0.7-1.1 in tokens, $13-20 with a human on call",
+      "body": "Worked example, one worker, 8-hour night, 24 attempts at $0.12-0.21 each: model spend $2.88-5.04. Infra: an on-demand worker at $0.096-0.192/hour costs $0.77-1.54, a spot equivalent $0.23-0.49 before recovery. Applying the ledger's 25.2% promotion rate, 24 attempts yield about 6 accepted changes. So compute-only cost per accepted change is $0.61-1.10. Adding the on-call human at $540/week divided by 7 is $77/night, pushing all-in to ($3 + $1 + $77)/6 = about $13.5 per accepted change, and $154/night on a weekend gives about $26. The conclusion is that token price is not the binding constraint; coverage is. A single 27M-token runaway ($3.4 cached to $33.75 list) adds up to 30x the night's model spend, which is why the budget must be ring-fenced per attempt rather than per campaign.",
+      "source": "Analysis over arXiv:2604.22750v3, arXiv:2607.06906v2, incident.io on-call survey ($540/week), LeanOps spot rates, and the dsh-loom ledger base rate (114/452)",
+      "confidence": "medium",
+      "topic": "unit-economics",
+      "tags": ["all-in", "worked-example", "on-call", "per-accepted-change", "key-answer"]
+    },
+    {
+      "id": "n-waste-ranking",
+      "kind": "analysis",
+      "title": "Which failure wastes the most money: silent decay in expectation, runaway in the tail",
+      "body": "Ranking failure modes by expected dollars wasted per night, at $0.12-0.21 per attempt and 24 attempts/night. (1) Silent context rot or unattended repetition: pay full price for attempts that cannot pass, with no alert and no error; at a 25.2% baseline promotion rate, a decaying run trends toward 0% while still billing $2.88-5.04, and it happens most nights rather than once, so its expectation is the largest. (2) Runaway loop: the largest single event, 27M tokens ($3.4 cached, $33.75 list) plus 4.6 hours of the night plus likely a human wake worth a whole $77 coverage night, but bounded once a circuit breaker exists. (3) Spot interruption: an 8%/hour rate gives a 48.7% chance of at least one event over 8 hours, yet each costs only one attempt's tokens unless the job lacks checkpoints. (4) Credential expiry or disk fill: dollars are trivial (idle hours at $0.03-0.19) but the attention cost is a wake-up, and the host may wedge rather than error. Verdict: spend governance should target silent decay first and runaway second.",
+      "source": "Analysis over arXiv:2604.22750v3 (repeats, 30x variance), arXiv:2503.13657 (verification failures), claude-code #15909, LeanOps spot data, Chroma context rot, incident.io on-call cost",
+      "confidence": "medium",
+      "topic": "unit-economics",
+      "tags": ["waste", "ranking", "expectation", "key-answer"]
+    },
+    {
+      "id": "n-ledger-instrumentation",
+      "kind": "analysis",
+      "title": "How to test all of this in our own 452-attempt ledger",
+      "body": "Four tests, ordered by cost. (A) Heavy tail: compute tokens per attempt across all 452; if the ledger has no token field, instrument forward and use the next 100 attempts. The prediction from arXiv:2604.22750v3 is a 30x spread and a top-decile share of 30-50% of spend, so the test is a Gini or top-10% share, not a mean. (B) Decay: regress binary promotion on attempt index within a campaign. With 3.4 rounds per campaign the within-campaign power is low, so the better test needs a wall-clock field and asks whether promotion rate falls across a night's sequence; a drop from 25% to 10% over 24 attempts would show as 6 versus 2 promotions. (C) Harness versus model: the 25.2% base rate gives the null, and detecting a shift of 25% to 35% at 80% power and 5% alpha needs about 300 attempts per arm, so 452 attempts supports roughly one comparison at a 20 percentage-point effect (about 75 per arm), not a 5-point one. (D) Failure spend: classify every attempt as promoted, rejected, crashed, timed out or abandoned; if more than 20% of tokens sit in the last three classes, the loop is paying for outages rather than for evidence.",
+      "source": "Analysis; dsh-loom ledger (452 attempts, 231 rounds, 68 campaigns, 114 promotions, binary 0/1); power calculation for two-proportion comparison at p=0.25",
+      "confidence": "medium",
+      "topic": "ledger-method",
+      "tags": ["test-plan", "statistical-power", "instrumentation", "dsh-loom"]
+    }
+  ],
+  "edges": [
+    {"from": "n-input-dominance", "rel": "refines", "to": "n-agentic-token-multiplier", "note": "The multiplier is large, but it is concentrated in input/cache-read volume, not output generation, so the control is prefix size."},
+    {"from": "n-agentic-token-multiplier", "rel": "supports", "to": "n-all-in-per-accepted", "note": "Sets the per-attempt scale that the worked example multiplies by attempt count."},
+    {"from": "n-input-dominance", "rel": "supports", "to": "n-cache-effective-price", "note": "If input dominates, the cache-hit fraction on input is the dominant price term."},
+    {"from": "n-cache-and-offpeak-pricing", "rel": "supports", "to": "n-cache-effective-price", "note": "Supplies the write/read multiples and the TTL trap behind the effective-price formula."},
+    {"from": "n-cache-effective-price", "rel": "supports", "to": "n-harness-effect", "note": "Explains why prefix stability is the mechanism that produced the -41% cost move."},
+    {"from": "n-quadratic-prefix-growth", "rel": "derived-from", "to": "n-phase-cost-shape", "note": "The per-round spikes when new content enters context are the mbar terms that make the turn sum quadratic."},
+    {"from": "n-harness-effect", "rel": "derived-from", "to": "n-quadratic-prefix-growth", "note": "Compaction at 80% of input budget with a 4-12 message tail exists specifically to break the quadratic term."},
+    {"from": "n-review-stage-dominates", "rel": "supports", "to": "n-harness-effect", "note": "If 59.4% of tokens are refinement, orchestration of the review pass is the highest-leverage cost control."},
+    {"from": "n-harness-effect", "rel": "supports", "to": "n-all-in-per-accepted", "note": "Provides the optimised $0.12 per-task figure used in the worked example."},
+    {"from": "n-30x-variance", "rel": "contradicts", "to": "n-per-fix-prices", "note": "Vendor per-fix prices assume a clean single task; a 30x same-task spread makes a fixed price per fix statistically indefensible."},
+    {"from": "n-30x-variance", "rel": "supports", "to": "n-waste-ranking", "note": "Heavy tails are why the tail failure modes dominate expectation."},
+    {"from": "n-inverse-test-time-scaling", "rel": "supports", "to": "n-waste-ranking", "note": "A stalled attempt fails by spending more, which is the mechanism behind silent decay."},
+    {"from": "n-repeated-file-actions", "rel": "derived-from", "to": "n-inverse-test-time-scaling", "note": "Repetition is the observable signature of spending without progress."},
+    {"from": "n-repeated-file-actions", "rel": "same-as", "to": "n-runaway-retry-27m", "note": "Same mechanism at two intensities: sub-threshold repeats per file versus an unbounded retry of one command."},
+    {"from": "n-unlimited-session-turns", "rel": "supports", "to": "n-runaway-retry-27m", "note": "An infinite turn default is the missing stop that let the retry loop run 4.6 hours."},
+    {"from": "n-runaway-retry-27m", "rel": "supports", "to": "n-waste-ranking", "note": "Provides the single-event ceiling and its dollar range."},
+    {"from": "n-spot-interruption-rate", "rel": "supports", "to": "n-spot-net-loss", "note": "Per-hour rates convert into the 48.7% per-night chance that produces recovery costs."},
+    {"from": "n-spot-net-loss", "rel": "supports", "to": "n-waste-ranking", "note": "Quantifies the interruption branch as small in dollars unless checkpoints are missing."},
+    {"from": "n-oncall-cost", "rel": "supports", "to": "n-all-in-per-accepted", "note": "The $540/week rate divided by 7 nights is the term that dominates the all-in figure."},
+    {"from": "n-oncall-cost", "rel": "applies-to", "to": "n-waste-ranking", "note": "A human wake-up prices a failure at a whole coverage night, not at the tokens it burned."},
+    {"from": "n-metr-horizon", "rel": "refines", "to": "n-waste-ranking", "note": "Explains why long unattended runs decay rather than fail: 8 hours is two orders of magnitude past the reliable horizon."},
+    {"from": "n-context-rot", "rel": "supports", "to": "n-metr-horizon", "note": "Both document degradation with accumulated length or duration at constant difficulty."},
+    {"from": "n-context-rot", "rel": "supports", "to": "n-waste-ranking", "note": "Supplies the mechanism and measurements for the silent-decay branch (113k versus 300 tokens)."},
+    {"from": "n-mast-taxonomy", "rel": "supports", "to": "n-waste-ranking", "note": "Verification failures complete without error, which is what makes decay invisible in a binary ledger."},
+    {"from": "n-credential-expiry", "rel": "supports", "to": "n-waste-ranking", "note": "Documents the low-dollar, high-attention class of unattended failure."},
+    {"from": "n-worktree-accumulation", "rel": "supports", "to": "n-disk-fill", "note": "Unbounded per-attempt worktrees are the growth that ends in the wedged-host disk incident."},
+    {"from": "n-disk-fill", "rel": "applies-to", "to": "n-waste-ranking", "note": "Full-disk behaviour is the fourth failure class, whose cost is hung time rather than spend."},
+    {"from": "n-per-fix-prices", "rel": "supports", "to": "n-all-in-per-accepted", "note": "Provides the published per-fix anchors the modelled all-in number is compared against."},
+    {"from": "n-promotion-base-rate", "rel": "supports", "to": "n-all-in-per-accepted", "note": "The 25.2% promotion rate is the divisor that turns per-attempt price into per-accepted-change price."},
+    {"from": "n-promotion-base-rate", "rel": "supports", "to": "n-ledger-instrumentation", "note": "Supplies the null hypothesis and the p=0.25 base for the power calculation."},
+    {"from": "n-ledger-instrumentation", "rel": "measures", "to": "n-30x-variance", "note": "Test A: top-decile share of tokens per attempt across the 452 recorded attempts."},
+    {"from": "n-ledger-instrumentation", "rel": "measures", "to": "n-waste-ranking", "note": "Test D: share of tokens in crashed, timed-out and abandoned attempts bounds failure spend."},
+    {"from": "n-waste-ranking", "rel": "refines", "to": "n-all-in-per-accepted", "note": "Separates the median-case cost of silent decay from the tail-case cost of a runaway."}
+  ],
+  "gaps": [
+    "How many of dsh-loom's 452 recorded attempts have token counts or wall-clock durations recorded at all, and if none do, what is the minimum instrumentation needed to get a usable heavy-tail measurement within 100 attempts?",
+    "Is the 25.2% promotion rate stable across campaign age (first 3 campaigns versus last 3), or does it decay as a campaign runs longer, which would be the ledger-level signature of context rot?",
+    "Does a stage boundary deliberately introduced in the middle of an attempt (fresh verifier sub-agent reading only the diff, no transcript) recover quality on long attempts, and at what token cost?",
+    "What is the actual cache hit fraction in dsh-loom's own runs given that it injects freshly retrieved lessons into the prefix on every round, which breaks prefix stability by construction?",
+    "How often has a human been woken by an unattended dsh-loom night, and what was the token spend of the attempt that caused the wake (the incident-cost distribution)?",
+    "Do worktrees created per attempt get removed at a measured rate, and what is the observed disk growth per night, given 246 of 289 worktrees leaked in one comparable system?",
+    "Which provider does dsh-loom actually bill against, and is its off-peak window aligned with the overnight scheduling window, or is the cheap window being missed entirely?",
+    "What is the cheapest observable proxy for a runaway attempt before it reaches 10x median tokens: repeated identical command, repeated file path, or flat progress with rising turns?"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+ "nodes": [
+  {
+   "id": "exp-dura-002",
+   "kind": "number",
+   "title": "32 patches written by interrupted rounds are still on disk and the ledger has no record of any of them",
+   "body": "Cross-checked attempt.finished records against the artifacts directory in all 69 campaigns (research/exp/e28.mjs): 452 attempts, 431 record a patch path and all 431 files exist (0 dangling references), 437 patch files exist of which 6 have no attempt record at all. Of 19 interrupted rounds covering 38 attempts, 32 have a patch file on disk and 0 of the 38 attempts recorded verifierOk - so a host death between 'worker wrote a verifiable patch' and 'gate evaluated it' leaves the artifact and loses the verdict. The 6 orphan patches are the same window seen from the other side. What this means for restart safety: the expensive part (an agent's whole attempt) survives as bytes, but the cheap part (a verifier run over those bytes) is not retried, so recovery throws away work it could re-check in seconds.",
+   "source": "research/exp/e28.mjs (452 attempts, 69 campaigns)",
+   "confidence": 0.92,
+   "topic": "restart-safety",
+   "tags": [
+    "measurement",
+    "durability",
+    "recovery"
+   ]
+  },
+  {
+   "id": "exp-dura-003",
+   "kind": "analysis",
+   "title": "Re-verifying orphan patches is the cheapest recovery win available: seconds of verifier time against a whole attempt",
+   "body": "Sizing it from our own numbers: a verified attempt costs $0.0421 and 4 minutes of model time (exp-cost-001, exp-fail-001); a verifier run costs one subprocess and typically under 10 seconds (research/exp/graded-live/sweep.mjs ran 4 full sweeps in seconds). exp-dura-002 shows 32 already-verified-shaped patches sitting on disk with no verdict, plus 6 patches with no record. A recovery pass that walks artifacts/, applies each unrecorded patch to a scratch worktree, runs the task's verify command, and writes a recovered attempt record would convert an entire lost round into a cheap re-check, and it needs no model. This is the concrete instance of ana-006's rule: the frozen blob is the durable thing, so every decision should be recomputable from blobs.",
+   "source": "research/exp/e28.mjs + research/exp/graded-live/",
+   "confidence": 0.85,
+   "topic": "restart-safety",
+   "tags": [
+    "analysis",
+    "recovery",
+    "cost"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-dura-002",
+   "rel": "supports",
+   "to": "w3-restart-atomic-js-unhardened",
+   "note": "no torn values at the record layer; the gap is semantic not structural"
+  },
+  {
+   "from": "exp-dura-002",
+   "rel": "refines",
+   "to": "exp-dura-001"
+  },
+  {
+   "from": "exp-dura-003",
+   "rel": "supports",
+   "to": "ana-006"
+  },
+  {
+   "from": "exp-dura-003",
+   "rel": "requires",
+   "to": "exp-dura-002"
+  },
+  {
+   "from": "exp-dura-003",
+   "rel": "applies-to",
+   "to": "exp-cost-001"
+  }
+ ]
+}

@@ -1,0 +1,281 @@
+{
+  "nodes": [
+    {
+      "id": "w4-parallel-collision-98",
+      "kind": "number",
+      "title": "98% of same-round candidate pairs edit the same files, so the pair is one hypothesis twice",
+      "body": "Across 117 rounds with two non-empty candidate diffs, 115 (98%) share at least one file; Jaccard median 1.00 and p90 1.00; 73 pairs have an identical file set; of 40 pairs where both are single-file, 39 touch the same single file. Collisions concentrate in src/runtime/round.js (50 pairs), client/index.js (25), src/core/reduce.js (19), src/tools/index.js (16). Mechanism: the brief names one failing spec, and the spec lives in one file, so both candidates are steered to the same locus; the second slot explores a different implementation of the same edit, not a different hypothesis. Limitation: measured inside one repository (396 tracked files) under a binary 0/1 score gate, so it says nothing about a repo where one task legitimately spans several modules.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-speedup-145",
+      "kind": "number",
+      "title": "Concurrency bought a median 1.45x round speedup, not the 2x the pool size implies",
+      "body": "On 134 rounds after the concurrent-dispatch change, speedup against a reconstructed serial round (serial = wall - union + sum of attempt intervals) has median 1.45, p25 1.21, p75 1.59, max 2.00; 71% of rounds are at least 1.30 and 10% are at most 1.02, i.e. no gain at all. Attempt-interval union covers only 0.56 of round wall (median), against 0.98 before, so the pool genuinely overlaps, but 44% of the round sits outside any attempt: planning (planMs is 0.27 of wall in rounds that plan), then promotion, guard and commit. The shortfall from 2.0 to 1.45 is that residual serial work, which no amount of candidate parallelism removes. Limitation: the serial counterfactual is arithmetic on ledger intervals, not a re-run, so it assumes the two attempts would have taken the same time dispatched one after the other - plausible only because they are near-equal in length (min/max duration ratio median 0.93).",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-round-wall-grew",
+      "kind": "number",
+      "title": "Round wall time rose from 236s to 630s across the same change, so faster rounds meant a slower loop",
+      "body": "Rounds with two candidates and wall above 5s after the change have median wall 630s; the 60 pre-change two-attempt rounds have median 236s. Both statements hold at once: per-round speedup improved to a 1.45 median while the median round got 2.7x longer in absolute terms, because attempts themselves grew (attemptMs median 618s) and work was reorganised into two-candidate rounds. Throughput per wall-clock hour therefore cannot be read off the speedup ratio; the honest denominator is tasks landed per hour, which nothing in this ledger computes. Limitation: pre and post differ in task mix, model and attempt deadline, so the 236-to-630 move is confounded - it is reported as a warning against citing 1.45 alone, not as a causal claim about parallelism.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-fleet-ceiling-8",
+      "kind": "number",
+      "title": "An external replay study finds parallel wall clock bottoms out at N=4 and gets worse by N=16",
+      "body": "worktree-fleet replays real commits as parallel agents through a tested merge queue over five Python histories (591 windows, 1328 tasks at N=16). Makespan in agent rounds divided by N: 0.59 at N=2, 0.44 at N=4, 0.44 at N=8, 0.49 at N=16, against 1.00 serial. Past N=8 every extra agent adds more redos than it saves rounds. Our configuration (cap 2) sits at the steep part of that curve, which is the only configuration this external evidence actually endorses. Limitation: wall clock is counted in agent rounds rather than seconds, a redo is charged a full round, and the agents replay human commits instead of reasoning, so the curve's shape may shift when generations differ in cost.",
+      "source": "https://github.com/hammasbuilds/worktree-fleet",
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-throwaway-425",
+      "kind": "number",
+      "title": "At 16 parallel agents 42.5% of first attempts are thrown away and only 13.7% touch code",
+      "body": "Same study: first attempt discarded in 9.0/18.7/31.4/42.5% of tasks at N=2/4/8/16, and of those only 3.6/5.9/10.2/13.7% touched a .py line. The rest are changelogs, CI configs and lock files - 'files nobody would describe in a task'. Marking CHANGES*/CHANGELOG* as merge=union drops the totals to 6.4/12.3/21.9/30.5%. The mechanism is that conflict probability scales with files touched per change, and a handful of high-traffic housekeeping files dominate that count, so the cost of parallelism is set by repository hygiene rather than by task difficulty. Limitation: replay cherry-picks, so 'thrown away' means 'does not apply to the stale base'; a real agent from a stale base would instead collide later at merge time, making this a lower bound on real cost rather than a measurement of it.",
+      "source": "https://github.com/hammasbuilds/worktree-fleet",
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-semantic-11",
+      "kind": "number",
+      "title": "Clean-merge-then-fail is 1.1% because 20 of 22 breakages need a file the pair never shared",
+      "body": "Of 6,339 merge candidates the queue tested that real history never contained, 81 broke a test that passed on main and on the task's own commit: 1.1% at N=16 and 0.0/0.3/0.9% at N=2/4/8. Twenty of the 22 distinct causes were stale-base - a test-only commit landing before the code it tests, sharing no file - and one was a genuine interaction (more-itertools d17d077 chunked_even plus 6ccc5d7 docstring rewrite merged cleanly into a SyntaxError, an unterminated docstring). This is why file-overlap prediction cannot see the expensive class and why an executable gate is not optional. Limitation: one genuine interaction in a replayed corpus is a fact about these five histories, not a rate for independent agents, and the authors state replay cannot manufacture interactions that history lacked.",
+      "source": "https://github.com/hammasbuilds/worktree-fleet",
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-predictor-serializes",
+      "kind": "failure",
+      "title": "The only cheap conflict predictor degenerates into a serial scheduler at 0.97 of serial wall time",
+      "body": "Given task text plus repository, a predictor that holds back tasks likely to overlap cuts thrown-away attempts from 42.5% to 1.0% at N=16 - and lands at wall-clock 0.97, i.e. it serialises nearly everything, because CHANGES.rst is touched by most changes so almost every pair is separated. Hiding the changelog from it gives 15.4% thrown away at 0.71 wall: better, but it then misses half the collisions, since the files that actually collide (uv.lock, .pre-commit-config.yaml, CI workflows, requirements/*.txt) are never named in a task. Oracle file knowledge reaches 0.4%/0.55 and oracle hunks 0.5%/0.43 - the ceiling, and unavailable before the run. Limitation: five repositories whose changelog convention is the mechanism; a monorepo without a CHANGES file would sit somewhere else on this curve, and nobody has measured where.",
+      "source": "https://github.com/hammasbuilds/worktree-fleet",
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-index-lock-29of30",
+      "kind": "number",
+      "title": "Two concurrent add+commit into one repository failed 29 of 30 attempts on the git index lock",
+      "body": "I ran a probe on a scratch repository: pairs of processes each write a file, then run git add -A and git commit, concurrently. At N=2, 15 of 15 batches had at least one failed git command (29 failing commands of 30); at N=3 and N=4, 12 of 12 batches each. Every failure was fatal: Unable to create '.git/index.lock': File exists. Serial commits: 20 of 20 clean. git does not retry, and the failure exits 128. So any two writers to one checkout - two campaigns promoting, autopilot plus a human approval - race on a resource that no worktree isolates. Limitation: this is a synthetic repo with no backoff, and our promote-to-commit window is short (median 1.1s, p90 26.7s), so real exposure is the overlap of those windows, which I measured as 2 cross-campaign round overlaps in 227 rounds.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-second-slot-9pct",
+      "kind": "number",
+      "title": "The second candidate is the only passing one in 9% of rounds, for 2x the attempt spend",
+      "body": "Across 225 two-candidate rounds: both pass 83 (37%), a1 fails and a2 passes 21 (9%), a1 passes and a2 fails 30 (13%), both fail 91 (40%). The marginal value of the second slot is therefore 21/225 = 9% of rounds; in 37% it duplicates a candidate that already passed, and in 40% neither works. Duplicated second attempts account for $0.0112 of $0.1076 total two-candidate spend (10.4%) and 5.8 hours of agent wall time. Simultaneous failure in 40% of rounds also says the pair is not a hedge against flakiness - the candidates fail together, which is what a shared model and a shared brief predict. Limitation: score is binary 0/1 for all 452 attempts, so 'both pass' is an undifferentiated tie and the data cannot say whether the second candidate was ever better but merely unpreferred.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-tiebreak-a1",
+      "kind": "analysis",
+      "title": "When both candidates pass, the tie-break is the attempt id, so a1 won 43 of 43 promotions",
+      "body": "gate.rankAttempts sorts by score, then verifierOk, then id ascending. With a 0/1 verifier, two passing candidates are exactly tied and the comparator returns a1. In the ledger all 83 rounds where both candidates passed scored 1 and 1, and of the 43 that produced a named promotion, 43 promoted the a1 slot and 0 promoted a2 - despite a2 carrying the larger patch in 25 of those rounds. The practical consequence is that 'best of two' is lexicographic in a third of rounds, so the selection is not choosing quality at all there; it is choosing a filename. Limitation: this is a property of a binary gate plus a deterministic comparator, not of the design's intent; with a graded score or a cost tie-break the same code would decide differently, and I did not test that variant.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-branch-litter-490",
+      "kind": "number",
+      "title": "The repository carries 490 undeleted loom/* branches and 501 refs, growing with every attempt",
+      "body": "git for-each-ref reports 501 refs, 490 of them refs/heads/loom/*, one per attempted candidate; no code path in src/ deletes a branch (no branch -D, no deleteBranch). Worktree directories are removed, branches are not. Creating a worktree still takes 0.44-0.97s on the real repo, so no slowdown is measurable yet. The risk is monotonic growth of refs and packed-refs (35KB now) inside a repository the loop rewrites for thousands of rounds, plus 490 names that make git branch output useless to a human reviewer trying to see what is in flight. Limitation: I did not measure worktree-add or gc cost as a function of ref count on this repo, so 'it will get slow' is an inference from 501 refs, not a measured curve.",
+      "source": null,
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-worktree-add-clean",
+      "kind": "number",
+      "title": "Concurrent worktree creation never failed: 0 of 62 adds at N=2..32 with unique branch names",
+      "body": "The failure the code guards against - prune deleting a sibling's admin directory mid-creation - did not reproduce: 2, 4, 8, 16 and 32 simultaneous git worktree add -B with unique branch names gave 0 failures, wall 0.25/0.29/0.57/1.00/2.13s. The only failure I could force was a duplicate branch name ('b0 is already used by worktree at ...') at N>=4 when names were reused, which is a naming bug rather than a git race. Our 452 attempts used 452 distinct branch names and 452 distinct worktree paths, so that hazard is currently avoided by construction rather than by design. Limitation: a one-commit scratch repo on one filesystem; the real hazard window is a few milliseconds of gitdir-file creation and would need a much larger sample, or a slower disk, to hit.",
+      "source": null,
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-junction-mutates-shared",
+      "kind": "failure",
+      "title": "A write through the junctioned node_modules landed in the shared repo tree and in no patch",
+      "body": "linkDependencies makes worktree/node_modules a junction to repo/node_modules. I wrote a file through a worktree's junction; it appeared immediately at C:/Projects/RSI/node_modules/@deepseek-ai/probe.txt, so a candidate's filesystem write mutated the shared dependency tree. makePatch excludes node_modules by pathspec, which means the mutation is invisible to the patch, to the verifier diff and to any guard, and it persists into the next candidate and the next campaign. A dependency install, a lockfile rewrite or a tool cache write by any attempt edits state every other attempt reads, and nothing in the loop can detect it. Limitation: my probe was a plain file write, and I found no instance in the 437 artifact patches or in any ledger event where a candidate really modified the shared tree, so the exposure is demonstrated rather than observed.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-suite-contention",
+      "kind": "number",
+      "title": "The suite takes 246s alone and 358s with two running, so the verifier is a serial floor",
+      "body": "In a worktree with a junctioned dependency tree, scripts/test-all.mjs (157 suites) takes 245.8s alone. Two concurrent runs in two worktrees: 358.0 and 358.3s. Four concurrent: 405.5 to 411.0s. Doubling the work costs 1.46x wall (capacity gain 1.37x) and quadrupling costs 1.67x, so contention is real but sublinear and there is a hard per-suite serial component. In the ledger, test-all as a guard has median 44.7s and max 79.4s over only 12 runs, while spec-level verifiers are 157ms median; the guard tail is what dominates a round that uses it. Limitation: one host with 32 logical CPUs and no CPU pinning, so a 4-core machine would degrade far more, and most real verifiers here are single-spec rather than the full suite.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-dirty-untracked-blocks",
+      "kind": "failure",
+      "title": "Nine promotions were blocked by untracked files a human or a sibling agent had just written",
+      "body": "applyPatch refuses to touch a dirty workspace: 9 checkpoint.raises with reason workspace-dirty, plus 2 more recorded in attempt text. The dominant cause is not a candidate: untracked research notes and specs written by a person or a sibling research agent into the shared checkout - loom-life2 '?? research/balance-2026-11.md', loom-tri13 '?? research/dag-2026-11.md', loom-plan2 '?? tests/ui/policy-visible.test.mjs'. Each becomes an anomaly checkpoint, so typing a scratch note into the repo stalls the autonomous loop until someone answers. One case was self-referential: loom-self3 r7a1 reported ' M src/exec/patch.js' and ' M src/runtime/round.js', i.e. it observed a live modification to its own apply path. Limitation: 9 instances over 69 campaigns, and authorship is inferred from path prefixes (research/, tests/ui/), not from any recorded writer identity, because the ledger does not record who wrote an untracked file.",
+      "source": null,
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-approved-swept-research",
+      "kind": "failure",
+      "title": "One approved promotion committed a research note beside its code because commitWorkspace stages everything",
+      "body": "commitWorkspace runs git add -A and then commits whatever is dirty. Of 71 promotion commits whose artifact patch still exists, 0 carried files absent from that patch - but the human-approved path behaves differently: 49942ea 'loom loom-tri13: apply approved promotion' committed research/dag-2026-11.md (49 lines changed) next to src/runtime/round.js, and no patch in loom-tri13/artifacts mentions research/ at all. Across all 114 loom commits it is the single commit not explained by its campaign's own patches. That is a demonstrated instance of a promotion sweeping another party's uncommitted work into a commit the loop then treats as its own landing. Limitation: n=1, it went through human approval rather than autopilot, and the swept file was an untracked note rather than another campaign's code, so it proves the mechanism and not a rate.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-concurrency-masked",
+      "kind": "analysis",
+      "title": "63 campaigns share one workspace with no mutex, but only 4 rounds ever overlapped in time",
+      "body": "63 of 69 campaigns declare workspace C:/Projects/RSI, and 430 campaign pairs have overlapping time windows. Yet over 227 rounds with both start and finish, only 4 round pairs overlapped, 2 of them cross-campaign, and at most 2 rounds were ever in flight at once. runtime.tick() has no workspace mutex - it only skips a campaign that already has a round in flight - so the invariant is currently held by session.maxConcurrent defaulting to 2, a budget that one two-candidate round consumes entirely. Raise the cap, or make rounds shorter, and two campaigns will apply and commit into the same checkout concurrently, which my probe shows fails hard. Limitation: 227 rounds is a small sample, and round-window overlap understates risk because apply and commit occupy only the final seconds of a round while I measured overlap of whole rounds.",
+      "source": null,
+      "confidence": 0.75,
+      "topic": "w4-parallel"
+    },
+    {
+      "id": "w4-parallel-busy-099",
+      "kind": "number",
+      "title": "Campaigns are busy 99% of their own span, so removing human latency would not speed the loop",
+      "body": "For 68 campaigns, the sum of round walls divided by first-to-last round span has median 0.99 (p25 0.98): the machine is essentially never idle waiting for anything. 50 checkpoints were raised, with raised-to-answered median 2,835s and p90 274,239s, totalling 924.5 cumulative hours of open-checkpoint time - yet that time is not lost throughput, because other campaigns kept running rounds throughout. End-to-end wall clock is therefore set by what happens inside a round (attempts plus the 44% residual), not by the human, which weakens the case for batching checkpoints as a latency win. Limitation: 'busy' means at least one round in flight in that campaign, which counts a round whose attempts are all dead as busy; 4 of 68 campaigns sit under 0.5, so the aggregate hides a stalled minority.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "w4-parallel"
+    }
+  ],
+  "edges": [
+    {
+      "from": "w4-parallel-collision-98",
+      "rel": "supports",
+      "to": "w4-parallel-second-slot-9pct",
+      "note": "If both candidates edit the same files, the pair can differ only in implementation; the measured 9% rescue rate is what that predicts."
+    },
+    {
+      "from": "w4-parallel-collision-98",
+      "rel": "refines",
+      "to": "w4-parallel-throwaway-425",
+      "note": "Our pairs collide on files 98% of the time but are never merged - only the winner's patch is applied - so textual conflict surfaces as patch-apply failure (9 workspace-dirty, 3 check-failed), not as merge conflict."
+    },
+    {
+      "from": "w4-parallel-speedup-145",
+      "rel": "measures",
+      "to": "exp-wall-001",
+      "note": "Round wall-clock accounting is the same instrument; this node supplies the post-concurrency value for it."
+    },
+    {
+      "from": "w4-parallel-speedup-145",
+      "rel": "supports",
+      "to": "orch-004",
+      "note": "Our measured 1.45x median round speedup sits below the 2.6x wall-time figure reported there, and both rest on a counterfactual serial baseline rather than a re-run."
+    },
+    {
+      "from": "w4-parallel-round-wall-grew",
+      "rel": "contradicts",
+      "to": "w4-parallel-speedup-145",
+      "note": "In absolute terms the same change made rounds 2.7x longer, so the ratio alone would mislead anyone reading it as throughput."
+    },
+    {
+      "from": "w4-parallel-fleet-ceiling-8",
+      "rel": "applies-to",
+      "to": "w4-parallel-speedup-145",
+      "note": "Their 0.59 makespan at N=2 is the same order as our 1.45 round speedup (0.69), from an independent corpus and metric."
+    },
+    {
+      "from": "w4-parallel-throwaway-425",
+      "rel": "contradicts",
+      "to": "w4-parallel-collision-98",
+      "note": "Their cost accrues at merge time across different tasks; our candidates never merge, so their 42.5% cannot be transferred as our conflict rate."
+    },
+    {
+      "from": "w4-parallel-semantic-11",
+      "rel": "supports",
+      "to": "w4-parallel-fleet-ceiling-8",
+      "note": "The 1.1% clean-merge-breaks-tests figure is why the executable gate, not the overlap check, is what catches the expensive class."
+    },
+    {
+      "from": "w4-parallel-predictor-serializes",
+      "rel": "fails-at",
+      "to": "w4-parallel-fleet-ceiling-8",
+      "note": "The only predictor cheap enough to run before dispatch serialises the fleet, so it cannot recover the wall clock that collisions cost."
+    },
+    {
+      "from": "w4-parallel-index-lock-29of30",
+      "rel": "requires",
+      "to": "w4-parallel-concurrency-masked",
+      "note": "The missing workspace mutex is safe only while at most one round is in flight; two commits into one checkout failed 29 of 30."
+    },
+    {
+      "from": "w4-parallel-index-lock-29of30",
+      "rel": "supports",
+      "to": "orch-010",
+      "note": "A single-repo index lock is exactly the resource worktrees do not isolate, which is that ADR's argument for leases and fencing tokens."
+    },
+    {
+      "from": "w4-parallel-worktree-add-clean",
+      "rel": "refines",
+      "to": "orch-010",
+      "note": "The worktree plumbing that ADR relies on does work at 32-way concurrency; the hazard it must guard is commit, not creation."
+    },
+    {
+      "from": "w4-parallel-junction-mutates-shared",
+      "rel": "fails-at",
+      "to": "exp-mut-001",
+      "note": "The write falls outside the patch pathspec, so no mutation, diff or guard instrument inside the loop observes it."
+    },
+    {
+      "from": "w4-parallel-dirty-untracked-blocks",
+      "rel": "derived-from",
+      "to": "w4-parallel-approved-swept-research",
+      "note": "Both come from the same add -A staging rule: one refuses to apply because of the stray file, the other commits it."
+    },
+    {
+      "from": "w4-parallel-approved-swept-research",
+      "rel": "supports",
+      "to": "w4-parallel-dirty-untracked-blocks",
+      "note": "The same untracked-file class that blocks promotion on the dirty check once got committed by the approved-apply path."
+    },
+    {
+      "from": "w4-parallel-tiebreak-a1",
+      "rel": "supports",
+      "to": "w4-parallel-second-slot-9pct",
+      "note": "a2 cannot win a tie, so its only routes to promotion are the 9% of rounds where a1 failed outright."
+    },
+    {
+      "from": "w4-parallel-busy-099",
+      "rel": "refines",
+      "to": "exp-human-001",
+      "note": "Human latency is large in absolute terms yet does not idle the machine when 69 campaigns share it, so its cost is not lost throughput."
+    },
+    {
+      "from": "w4-parallel-branch-litter-490",
+      "rel": "fails-at",
+      "to": "w4-parallel-worktree-add-clean",
+      "note": "No measured cost yet, but 490 live branches are the residue the clean-creation result did not cover."
+    }
+  ],
+  "gaps": [
+    "No published measurement exists of wall-clock speedup for two real LLM agents working the same task in two worktrees of one repository, including merge and rework cost; the only study's model arm is still pending.",
+    "Nobody has measured how often a coding agent writes into a shared, symlinked dependency tree (install, cache, lockfile update) and whether any verifier or patch diff can see that write.",
+    "The conflict rate between two agents given the identical task is unmeasured; every published rate (9-42.5%) is for agents on different tasks, which is not the regime this loop runs in."
+  ]
+}

@@ -1,0 +1,318 @@
+{
+  "nodes": [
+    {
+      "id": "w5-tokenbudget-route-is-deepseek-flash",
+      "kind": "claim",
+      "title": "Every loom attempt bills on DeepSeek-V4.1-Flash, not Anthropic; all attempts carry provider command-code",
+      "body": "Decoding 333 attempt sessions from ~/.dsh/sessions/*/session.v4.jsonl.zstd (zstd frame-concatenated, split on 28 b5 2f fd, zstdDecompressSync per frame) and reading subagent/descriptor plus request/header on every one: provider=command-code, model=deepseek/deepseek-v4.1-flash, contextWindow=1000000. Zero Anthropic requests in the corpus. Consequence: every existing pricing node in this graph that keys off an Anthropic card (1.00 in / 10.00 out / 0.10 cache-read / 1.25 cache-write per 1M) is pricing a vendor we never call, so its 198x/246x undercount numbers are a joint artefact of a code bug AND a wrong table. Reproduce: node research/wave5/w5-measure.mjs",
+      "source": "node research/wave5/w5-measure.mjs (reads ~/.dsh/sessions/*/session.v4.jsonl.zstd, subagent/descriptor + request/header)",
+      "confidence": 0.95,
+      "topic": "w5-tokenbudget",
+      "tags": ["provider", "attribution", "measured", "deepseek"]
+    },
+    {
+      "id": "w5-tokenbudget-undercount-71x-at-true-card",
+      "kind": "number",
+      "title": "Recorded spend is 71x low at the real card, not 198x: the larger figure is a price-table artefact",
+      "body": "Same 431 attempt sessions, same recorded spend, two price tables. Recorded: $0.108. At loom DEFAULT_PRICING (0.28 in / 0.42 out / 0.028 cache-read): $21.3868, i.e. 198x. At the DeepSeek published card actually billed (0.15 miss / 0.003 hit / 0.60 output per 1M off-peak): $7.703, i.e. 71x. Command: node research/wave5/w5-measure4.mjs. So the metering bug is real and severe (71x is still two orders of magnitude) but the graph's 198x/246x headline conflates an omission bug with a 2.78x price-table error, and any fix tuned to 198x will over-correct. Direction of the table error is non-obvious: loom over-prices cache reads 9.3x (0.028 vs 0.003) while under-pricing output 30% (0.42 vs 0.60).",
+      "source": "node research/wave5/w5-measure4.mjs; contradicts exp-meter-002 and w4-metering-price-table-inverted",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["undercount", "measured", "pricing-table", "reconciliation"]
+    },
+    {
+      "id": "w5-tokenbudget-loom-table-overstates-278x",
+      "kind": "failure",
+      "title": "Fixing the token selector alone would over-bill 2.78x, because loom's default table inflates the real route",
+      "body": "$21.3868 at loom DEFAULT_PRICING vs $7.703 at the published DeepSeek card for byte-identical usage: the default table overstates the route we actually run on by 2.78x. The two errors run in opposite directions and partly cancel inside the current 71x, which is why a naive fix looks plausible and is still wrong. The table is also internally inconsistent with the route: it has a cache-write line (0.028) that DeepSeek does not sell, prices cache reads 9.3x too high, and prices output 30% too low. Any correct-attribution design must carry the provider identity next to the numbers, not just a price vector.",
+      "source": "node research/wave5/w5-measure4.mjs; refines w4-metering-price-table-inverted",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["pricing-table", "measured", "failure-mode"]
+    },
+    {
+      "id": "w5-tokenbudget-no-cache-write-line",
+      "kind": "concept",
+      "title": "DeepSeek sells cache hit vs miss with no write line, so cacheWrite=0 is provider design, not luck",
+      "body": "The DeepSeek pricing page lists exactly three token lines (cache hit, cache miss, output) plus a flat search fee; there is no cache-creation price, and a first request that introduces new prefix pays the miss rate rather than a write premium. Measured: 493,791,540 cache-read tokens and exactly 0 cache-write tokens across 333 attempts and 431 sessions, 24 ledger days. So w4-metering-cache-write-unpriced describes an unreachable branch on this route: cacheWrite is zero because the provider does not emit it, not because the field is dropped. The same code ported to an Anthropic-shaped adapter becomes a live 12.5x-of-read-cost line that nothing prices. Source: https://api-docs.deepseek.com/quick_start/pricing",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing + node research/wave5/w5-measure5.mjs",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["cache-write", "provider-design", "measured", "portability"]
+    },
+    {
+      "id": "w5-tokenbudget-dollar-split-45-36-19",
+      "kind": "number",
+      "title": "Output is 45.1% of dollars on 1.1% of tokens; the 95.3% of tokens that are cache reads buy 19.2%",
+      "body": "333 attempts, $7.703 total. Output $3.474 (5,789,395 tok at 0.60/M) = 45.1%. Cache miss $2.748 (18,318,281 tok at 0.15/M) = 35.7%. Cache hit $1.481 (493,791,540 tok at 0.003/M) = 19.2%. Token shares: 1.1% / 3.5% / 95.3%. Command: node research/wave5/w5-measure5.mjs. This inverts both of the graph's competing beliefs at once: cache reads are not 72.9% of cost (tri-cache-input-share) and output is not 69% (tri-output-share). Neither is wrong about its own workload; both are describing a card, not an agent. Volume-to-dollars mapping is set by the price vector, so the useful question is the ratio, not the share.",
+      "source": "node research/wave5/w5-measure5.mjs; contradicts tri-cache-input-share and tri-output-share",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["cost-split", "measured", "contradiction"]
+    },
+    {
+      "id": "w5-tokenbudget-price-ratio-drives-split",
+      "kind": "claim",
+      "title": "Which token class dominates the bill is set by the output:cache-read price ratio, not by agent behaviour",
+      "body": "DeepSeek off-peak output/cache-read = 0.60/0.003 = 200x; the Sonnet-class 5-min card is roughly 15/0.30 = 50x, and arXiv:2604.22750 section 5.2 states its ratio as about 80x and concludes cache reads dominate dollar cost in every phase. Our measured trajectory has 85.3x more cache-read tokens than output tokens and 27.0x more than miss tokens (493.79M / 5.79M, / 18.32M). That volume is enough to win at 80x and not at 200x: the same shape of run produces opposite conclusions on the two cards. So every published 'where the money goes' claim is a claim about a price ratio wearing an agent's clothes, and must be quoted with the card attached.",
+      "source": "arXiv:2604.22750v3 section 5.2 (https://arxiv.org/html/2604.22750v3) + https://api-docs.deepseek.com/quick_start/pricing + node research/wave5/w5-measure5.mjs",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["price-ratio", "measured", "mechanism", "arxiv"]
+    },
+    {
+      "id": "w5-tokenbudget-per-hour-and-per-promotion",
+      "kind": "number",
+      "title": "A correctly metered unattended loop runs at $0.266 per attempt-hour and $0.074 per landed promotion",
+      "body": "333 attempts spanning 28.98 attempt-hours cost $7.703: $0.266 per attempt-hour, $0.0179 per attempt, $0.074 per promotion (104 promotions). Unattended wall clock across 68 campaigns is 38.9h of which 28.98h is inside attempts (utilShare 0.748), so the bill per unattended hour of loop operation is $0.198. Campaign span median 0.37h, p90 0.95h, max 9.73h (loom-life, 28 attempts, 14 rounds). Commands: node research/wave5/w5-measure2.mjs and w5-measure5.mjs. At this scale a campaign costs about as much as a coffee refill, which is precisely why a 71x metering error went unnoticed for 68 campaigns.",
+      "source": "node research/wave5/w5-measure2.mjs + w5-measure5.mjs",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["per-hour", "unit-economics", "measured"]
+    },
+    {
+      "id": "w5-tokenbudget-ttl-never-expires-intra-attempt",
+      "kind": "claim",
+      "title": "The 5-minute cache TTL never expires inside an attempt: p99 gap 120s, zero of 8,596 gaps over 300s",
+      "body": "8,596 inter-request gaps measured inside 333 attempts: median 6s, p90 23s, p99 120s, and exactly zero gaps above 300s or 3600s. Because cache lifetime resets on each hit (https://code.claude.com/docs/en/prompt-caching, lastModified 2026-11-10), a monotonically active attempt keeps its prefix warm indefinitely, so TTL is not a cost driver for intra-attempt traffic at all. This directly contradicts tri-cache-input-share's finding that a full day of replay is needed before 5-minute TTL matches infinite caching: that result is about agent turns separated by human think time, and does not transfer to a loop that fires the next request 6 seconds later.",
+      "source": "node research/wave5/w5-measure.mjs; contradicts tri-cache-input-share",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["cache-ttl", "measured", "contradiction"]
+    },
+    {
+      "id": "w5-tokenbudget-ttl-risk-lives-between-attempts",
+      "kind": "claim",
+      "title": "TTL exposure sits between attempts and between rounds, where 68/384 and 71/163 gaps exceed 300s",
+      "body": "Inter-attempt gap within the same campaign: n=384, median 20s, p90 640s, p99 1542s, 68 gaps over 300s, 1 over 1h. Inter-round gap: n=163, median 239s, p90 867s, 71 over 300s. Each such gap means the next attempt's first request enters with a cold prefix and pays miss rate on all of it (median first-block input 2,894 tok, mean preamble estimate 26,857 tok), plus the cacheRead column that would have been charged at 0.003 is charged at 0.15 instead, a 50x step. This is the only place a longer TTL could move the bill, and it is unmeasured because the DeepSeek route exposes no TTL choice to test.",
+      "source": "node research/wave5/w5-measure2.mjs + w5-measure3.mjs",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["cache-ttl", "measured", "between-rounds"]
+    },
+    {
+      "id": "w5-tokenbudget-preamble-39pct-of-reads",
+      "kind": "number",
+      "title": "One fixed preamble re-sent on all 8,897 requests is 39.0% of all cache-read volume and $0.577 of the bill",
+      "body": "Mean preamble length 107,575 characters, estimated 26,857 tokens; mean first-block cacheRead 21,634 tokens; 8,897 requests re-send it, totalling 192,476,683 preamble-read tokens out of 493,791,540 total cache-read tokens = 39.0%. At the 0.003/M hit rate that is $0.577, i.e. 7.5% of the $7.703 bill for a single static string, and it is 38.9% of all cache-hit dollars. Only the first request of each attempt pays miss rate on it; the remaining ~26 requests per attempt pay hit rate. This is the largest non-waste lever found: it is paid on 100% of requests and could be shortened once, or moved out of the per-request message entirely.",
+      "source": "node research/wave5/w5-measure5.mjs (answers gap-w4-016)",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["preamble", "measured", "fixed-cost", "lever"]
+    },
+    {
+      "id": "w5-tokenbudget-half-spend-buys-nothing",
+      "kind": "number",
+      "title": "49.3% of the measured bill ($3.801 of $7.703) is attempts that produced no promotion, from 37.8% of attempts",
+      "body": "126 of 333 attempts produced no landed promotion and carry $3.801, i.e. 49.3% of total spend, against 104 promotions costing $0.074 each. That is the cost of a wasted round measured end to end, verifier run included. Caveat, stated because it is a real inconsistency in my own instrumentation: the sub-bucket dollars (verifier-fail, error, abort) were computed on overlapping attempt sets by two different scripts and do not sum to $3.801, so only the total is used here; per-cause attribution of waste is still unmeasured. Compare exp-fail-001: 452 attempts, 231 rounds, 3.965 attempts per landed promotion, verifier fail rate 52%.",
+      "source": "node research/wave5/w5-measure5.mjs; applies-to exp-fail-001",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["waste", "measured", "verifier", "retry"]
+    },
+    {
+      "id": "w5-tokenbudget-omission-is-96pct-of-tokens",
+      "kind": "claim",
+      "title": "The meter drops 96.4% of input-side tokens, so no price-table fix recovers the bill before the selector",
+      "body": "src/runtime/round.js:785-790 returns inputTokens + outputTokens only, giving 24.1M counted against 517.9M actual, a 21.5x token-level omission, and cache-read hits are 96.4% of input-side volume (493.79M / (493.79M + 18.32M)). Because the omitted class is 95.3% of all tokens, dollar accuracy is dominated entirely by whether cacheRead is summed at all; a corrected price table applied to the current selector would still be 21.5x short. Order of fixes is therefore token selector, then provider-keyed table, then cacheWrite emission. Supports w4-metering-tokensof-drops-cache with a corrected magnitude.",
+      "source": "node research/wave5/w5-measure.mjs; supports w4-metering-tokensof-drops-cache",
+      "confidence": 0.9,
+      "topic": "w5-tokenbudget",
+      "tags": ["metering", "measured", "fix-order"]
+    },
+    {
+      "id": "w5-tokenbudget-offpeak-is-a-free-2x",
+      "kind": "claim",
+      "title": "Off-peak pricing is a free 2x cut we already get: all 431 attempts ran wholly inside the cheap window",
+      "body": "DeepSeek halves every line outside 01:00-04:00 and 06:00-10:00 UTC Mon-Fri (excluding CN holidays): miss 0.15 vs 0.30, hit 0.003 vs 0.006, output 0.60 vs 1.20. Measured on 431 attempts, the peak-block share is 0.00, i.e. not one attempt overlapped a peak window, because unattended overnight runs land in the cheap half automatically. Command: node research/wave5/w5-measure4.mjs. Two consequences: the $0.266/h figure is a best case, and the same loop scheduled in daytime UTC pays exactly 2x for identical tokens. Nothing in loom reads the clock, so this 2x is currently luck rather than design.",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing + node research/wave5/w5-measure4.mjs",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["off-peak", "measured", "scheduling", "lever"]
+    },
+    {
+      "id": "w5-tokenbudget-flat-per-call-fees-invisible",
+      "kind": "number",
+      "title": "DeepSeek also charges $0.75 per 1,000 web search/fetch calls, a flat per-request fee no token meter can see",
+      "body": "The pricing page lists Search/Fetch at $0.75 per 1,000 successful requests, i.e. $0.00075 per call, independent of tokens passed. Our 8,897 requests are model completions, not tool calls, so the fee is $0 on this corpus, but the moment a loop enables web tools it adds a cost class that budget.tokens and a token-derived budget.usd cannot represent at all, and that cannot be attributed to an attempt without counting calls. Same structural blind spot as cacheWrite: a cost line with no token dimension. Source: https://api-docs.deepseek.com/quick_start/pricing",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing",
+      "confidence": 0.8,
+      "topic": "w5-tokenbudget",
+      "tags": ["flat-fee", "per-call", "asserted-primary", "blind-spot"]
+    },
+    {
+      "id": "w5-tokenbudget-devin-active-hour-8",
+      "kind": "number",
+      "title": "Devin's published ACU converts to $8.00 per active hour, about 30x our measured $0.266 per attempt-hour",
+      "body": "Cognition defines 1 ACU as roughly 15 minutes of active Devin work, priced $2.00 on the $500/mo plan and $2.25 on the $20 plan, so an active hour is $8.00 to $9.00, with a moderately complex refactor quoted at 5-20 ACUs ($10-40). Our fully metered loop is $0.266 per attempt-hour and $0.074 per landed promotion. Not apples-to-apples: frontier model, $500/mo seat floor, and ACU counts only active time, so the comparison bounds the gap rather than explaining it. Sources: https://techcrunch.com/2025/04/03/devin-the-viral-coding-ai-agent-gets-a-new-pay-as-you-go-plan/ and https://airtrain.ai/business/the-economics-of-devin-and-the-shift-from-replacement-to-task-delegation/ (vendor blog, no method for its $1-5k/mo figure).",
+      "source": "https://techcrunch.com/2025/04/03/devin-the-viral-coding-ai-agent-gets-a-new-pay-as-you-go-plan/",
+      "confidence": 0.7,
+      "topic": "w5-tokenbudget",
+      "tags": ["vendor-pricing", "per-hour", "devin", "asserted"]
+    },
+    {
+      "id": "w5-tokenbudget-arxiv-per-task-gap",
+      "kind": "claim",
+      "title": "Published $1.857/task SWE-bench cost is 104x our $0.0179/attempt, and the gap is almost all cache-read price",
+      "body": "arXiv:2604.22750 (8 models x 500 SWE-bench Verified tasks x 4 runs on OpenHands) is summarised as 4.17M tokens and $1.857 per task at list rates; our attempt averages 1.555M tokens (517.9M/333) at $0.0179. Token volume differs 2.7x, dollars differ 104x. Anthropic Sonnet-class cache read 0.30/M vs DeepSeek off-peak hit 0.003/M is exactly 100x, and cache reads are 95.3% of our volume. So 'agentic coding costs ~$2/task' is a statement about the provider's cache-read multiplier, not about the task or the agent. Per-task economics are not portable across providers; per-token-class volume is.",
+      "source": "https://arxiv.org/html/2604.22750v3 + https://tokenade.net/en/case-studies/swe-bench-agent-token-study + node research/wave5/w5-measure5.mjs",
+      "confidence": 0.8,
+      "topic": "w5-tokenbudget",
+      "tags": ["per-task", "arxiv", "measured", "portability"]
+    },
+    {
+      "id": "w5-tokenbudget-selfprediction-useless-for-caps",
+      "kind": "failure",
+      "title": "Agents cannot price their own run: best self-prediction r=0.39 and input tokens are underestimated",
+      "body": "arXiv:2604.22750 section 6, 8 models x 500 tasks x 3 predictions: Pearson correlation peaks at 0.39 (Sonnet 4.5, output tokens), input-token prediction is consistently harder, and every model tested lands below the diagonal, i.e. systematically underestimates. Prediction overhead is itself 0.32x the task cost at best (Sonnet 4.5), above 2x for Sonnet 3.7 and Sonnet 4, and under 6% for GPT-5.2. The bias is worst exactly where our bill is largest in volume: cache-read input growth. Implication for dsh-loom: a self-estimate before a round cannot be the budget guard; only post-hoc metering plus a hard token cap can bound spend.",
+      "source": "https://arxiv.org/html/2604.22750v3 section 6",
+      "confidence": 0.85,
+      "topic": "w5-tokenbudget",
+      "tags": ["prediction", "arxiv", "budget-guard", "failure"]
+    },
+    {
+      "id": "w5-tokenbudget-attempt-cost-heavy-tailed",
+      "kind": "number",
+      "title": "Attempt cost is heavy-tailed: max is 6.9x the median, so a per-attempt mean understates a round",
+      "body": "Across the 333 attempts, priced on a single card so the distribution is card-independent, per-attempt cost is median $0.2725, mean $0.3772, p90 $0.8336, max $1.8887: mean/median 1.38x, max/median 6.9x, p90/median 3.1x. So budgeting from a mean per-attempt figure under-reserves for the tail by 3-7x, and any per-round cap set near the mean will trip on legitimate long rounds. This compounds tri-session-cost-variance's finding that three byte-identical runs cost $0.8992/$1.1745/$1.4187 (+57.8%): variance is not noise around a fixed cost, it is the distribution. Use p90 for caps and cost-per-promotion for cross-campaign comparison.",
+      "source": "node research/wave5/w5-measure.mjs; supports tri-session-cost-variance",
+      "confidence": 0.8,
+      "topic": "w5-tokenbudget",
+      "tags": ["variance", "measured", "tail", "budgeting"]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w5-tokenbudget-dollar-split-45-36-19",
+      "rel": "derived-from",
+      "to": "w5-tokenbudget-route-is-deepseek-flash",
+      "note": "The split only exists once the usage is priced on the route that was actually billed."
+    },
+    {
+      "from": "w5-tokenbudget-dollar-split-45-36-19",
+      "rel": "contradicts",
+      "to": "tri-cache-input-share",
+      "note": "Graph says cached input is 72.9% of cost; on the real card cache reads are 19.2% while output is 45.1%. Different card, and the graph does not name the card."
+    },
+    {
+      "from": "w5-tokenbudget-dollar-split-45-36-19",
+      "rel": "contradicts",
+      "to": "tri-output-share",
+      "note": "Graph says output is 69.0% of a real session; measured 45.1%. Same direction, different magnitude, and this one is on the card we actually pay."
+    },
+    {
+      "from": "w5-tokenbudget-undercount-71x-at-true-card",
+      "rel": "contradicts",
+      "to": "exp-meter-002",
+      "note": "198x is recorded-vs-Anthropic-table for a DeepSeek route; the honest multiple at the billed card is 71x."
+    },
+    {
+      "from": "w5-tokenbudget-undercount-71x-at-true-card",
+      "rel": "refines",
+      "to": "w4-metering-price-table-inverted",
+      "note": "The table is inverted per line: loom's cache-read price is 9.3x too high while its output price is 30% too low, so the net is 2.78x rather than a uniform inflation."
+    },
+    {
+      "from": "w5-tokenbudget-no-cache-write-line",
+      "rel": "supersedes",
+      "to": "w4-metering-cache-write-unpriced",
+      "note": "Replaces the belief that next-token unpriced cacheWrite is a live zero-dollar bug: on a hit/miss-only card the field never exists, so the bug is inert until the adapter changes."
+    },
+    {
+      "from": "w5-tokenbudget-loom-table-overstates-278x",
+      "rel": "requires",
+      "to": "w5-tokenbudget-route-is-deepseek-flash",
+      "note": "You cannot tell the table is 2.78x high without first knowing which provider the attempts called."
+    },
+    {
+      "from": "w5-tokenbudget-price-ratio-drives-split",
+      "rel": "refines",
+      "to": "w5-tokenbudget-dollar-split-45-36-19",
+      "note": "Generalises the single measurement: the 45/36/19 split is what a 200x output:read ratio does to an 85:1 read:output token mix."
+    },
+    {
+      "from": "w5-tokenbudget-price-ratio-drives-split",
+      "rel": "contradicts",
+      "to": "w5-tokenbudget-arxiv-per-task-gap",
+      "note": "Not a real contradiction of the numbers, but a contradiction of the framing: arXiv's dollar conclusions are card-bound, so its per-task figures cannot be quoted as task properties."
+    },
+    {
+      "from": "w5-tokenbudget-ttl-never-expires-intra-attempt",
+      "rel": "contradicts",
+      "to": "tri-cache-input-share",
+      "note": "Graph says production needs a full day before 5-min TTL matches infinite caching; our intra-attempt p99 gap is 120s, so TTL never bites during work. The graph measured human-paced turns, we measured loop-fired turns."
+    },
+    {
+      "from": "w5-tokenbudget-ttl-risk-lives-between-attempts",
+      "rel": "refines",
+      "to": "w5-tokenbudget-ttl-never-expires-intra-attempt",
+      "note": "Restates where the TTL cost actually is: 68/384 inter-attempt and 71/163 inter-round gaps exceed 300s, so the cold-prefix penalty is paid at scheduling boundaries, not mid-attempt."
+    },
+    {
+      "from": "w5-tokenbudget-preamble-39pct-of-reads",
+      "rel": "derived-from",
+      "to": "w5-tokenbudget-dollar-split-45-36-19",
+      "note": "The preamble's $0.577 is 38.9% of the $1.481 cache-hit bucket in that split."
+    },
+    {
+      "from": "w5-tokenbudget-half-spend-buys-nothing",
+      "rel": "applies-to",
+      "to": "exp-fail-001",
+      "note": "Gives exp-fail-001's attempt/round ratio a dollar figure: 3.965 attempts per promotion costs $0.074 per promotion at the measured card."
+    },
+    {
+      "from": "w5-tokenbudget-omission-is-96pct-of-tokens",
+      "rel": "supports",
+      "to": "w4-metering-tokensof-drops-cache",
+      "note": "Confirms src/runtime/round.js:785-790 drops cacheRead, with the share quantified at 96.4% of input-side tokens and the fix order implied (selector before table)."
+    },
+    {
+      "from": "w5-tokenbudget-attempt-cost-heavy-tailed",
+      "rel": "supports",
+      "to": "tri-session-cost-variance",
+      "note": "Extends +57.8% across three identical runs to a full distribution: p90/median 3.1x and max/median 6.9x over 333 attempts."
+    },
+    {
+      "from": "w5-tokenbudget-arxiv-per-task-gap",
+      "rel": "derived-from",
+      "to": "w5-tokenbudget-price-ratio-drives-split",
+      "note": "The 104x dollar gap decomposes into 2.7x token volume and the 100x cache-read price difference."
+    },
+    {
+      "from": "w5-tokenbudget-devin-active-hour-8",
+      "rel": "measures",
+      "to": "w5-tokenbudget-per-hour-and-per-promotion",
+      "note": "Sets the outside bound: $8.00-9.00 per active hour on a frontier vendor against our $0.266 per attempt-hour, so the two are ~30x apart and the comparison bounds the gap without explaining it."
+    },
+    {
+      "from": "w5-tokenbudget-flat-per-call-fees-invisible",
+      "rel": "same-as",
+      "to": "w5-tokenbudget-no-cache-write-line",
+      "note": "Both are cost lines with no token dimension, so both are structurally invisible to a token-derived meter and both need a separate counter."
+    },
+    {
+      "from": "w5-tokenbudget-selfprediction-useless-for-caps",
+      "rel": "applies-to",
+      "to": "w5-tokenbudget-attempt-cost-heavy-tailed",
+      "note": "The heavy tail is why a 0.39-correlation pre-estimate cannot bound a round: the thing to be bounded is the tail, which is exactly what self-prediction misses."
+    },
+    {
+      "from": "w5-tokenbudget-offpeak-is-a-free-2x",
+      "rel": "requires",
+      "to": "w5-tokenbudget-per-hour-and-per-promotion",
+      "note": "The $0.266/h figure is an off-peak figure; without this node the per-hour number silently assumes the cheap window."
+    }
+  ],
+  "gaps": [
+    "Nobody has published the same fixed agent workload priced under two cache-read multipliers (DeepSeek-style 200x output:read and Anthropic-style 50-80x) with tokens held constant, so every 'where agent money goes' claim remains card-confounded.",
+    "What is the actual cash difference for an unattended loop between a 5-minute and a 1-hour cache TTL, given inter-round gaps of 300-1,500s and a write premium that may exceed the reads it saves?",
+    "How much of the 49.3% no-promotion spend is recoverable by a cheap pre-round check (nothing changed since last round, or the same candidate already failed) versus intrinsic to exploration?",
+    "Which cause dominates the 6.9x attempt-cost tail - retries, verifier runs, or raw context length - has never been attributed per attempt on a correctly metered card.",
+    "Cursor background agents and Anthropic's own agent product publish subscription tiers and arrears-at-API-rates but no per-hour or per-task figure; what does one active hour actually cost a customer?",
+    "For a loop with web tools enabled, what fraction of the bill is DeepSeek's flat $0.75 per 1,000 search/fetch requests relative to the token lines, and does it grow faster than tokens?",
+    "Is inlining a 26,857-token preamble on all 8,897 requests cheaper than serving it as one shared cached document, and by how much, given that 39.0% of cache-read volume is that single string?",
+    "DeepSeek's off-peak window is exactly 2x cheaper: how much annual spend would a scheduler that defers rounds into 10:00-01:00 UTC save for a loop that is already unattended?",
+    "How do you port a hit/miss-only meter to a provider that emits separate cache-write tokens without silently zeroing the write line again, and does any adapter report both?",
+    "Does the utilShare of 0.748 (attempt time over unattended wall clock) change under higher campaign concurrency, where queueing delay rather than provider latency sets the gaps?"
+  ]
+}

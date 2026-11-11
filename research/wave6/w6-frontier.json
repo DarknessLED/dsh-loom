@@ -1,0 +1,352 @@
+{
+  "nodes": [
+    {
+      "id": "w6-verse-heldout-protocol",
+      "kind": "project",
+      "title": "VERSE is the only 2026 harness-evolution paper with a disjoint task-level train/val/test/OOD split",
+      "body": "arXiv:2610.02616v1 (2 Oct 2026) draws 110 train + 50 validation tasks from 593 SWE-rebench instances in the Jan 2025 - Feb 2026 monthly releases, tests on the 108 gradable tasks of the March 2026 release (in-distribution, Python), and measures OOD on the 107 gradable tasks of the July 2026 release spanning Go/Java/Python/Rust/TypeScript with only 20 Python tasks. Final 42.3% in-distribution and 37.7% OOD versus strongest baselines 39.2% and 29.3%. The authors state why they built it this way: prior harness optimizers 'search and report results on the same benchmark'. Every other system in this scan reuses the same tasks as optimization signal and as the reported number.",
+      "source": "https://arxiv.org/abs/2610.02616",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["verse", "held-out", "protocol", "swe-rebench"]
+    },
+    {
+      "id": "w6-verse-selfevo-no-verification-below-blank",
+      "kind": "number",
+      "title": "Self-evolution without a verification step scored BELOW the blank harness: 31.79 vs 33.95",
+      "body": "VERSE Table 1, SWE-rebench avg@3 over three test evaluations, blank initial harness = 33.95 +/- 0.82. Adding self-evolution to Meta-Harness WITHOUT verification: r*=0 rounds, validation selected the initial harness over every evolved one, measured 31.79 +/- 1.35, i.e. below doing nothing. Their diagnosis is mechanical, not statistical: 'the optimizer could not test its edits before submitting them, so it could not tell which ones were wrong', and it 'wrote untested lessons into its own harness'. Adding simple verification on top of the same self-evolution reached r*=6 and 41.05 +/- 0.82. The difference between those two rows is one verification step, not a better proposer.",
+      "source": "https://arxiv.org/abs/2610.02616",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["verse", "acceptance-test", "regression", "ablation"]
+    },
+    {
+      "id": "w6-verse-verification-is-active-ingredient",
+      "kind": "analysis",
+      "title": "In the best-controlled study, verification buys +5.9 points and self-evolution adds 1.2 points inside overlapping error bars",
+      "body": "Reading VERSE Table 1 as a ladder at one fixed model and one fixed initial harness: blank 33.95 +/- 0.82; Meta-Harness r*=4 39.20 +/- 1.11 (last 35.80 +/- 0.82); simple verification only r*=5 39.81 +/- 1.41 (last 37.65 +/- 2.74); self-evolution + simple verification r*=6 41.05 +/- 0.82 (last 41.05 +/- 0.82). Verification alone accounts for +5.86 points. The increment attributable to the self-evolution loop on top of verification is 41.05 - 39.81 = 1.24 points, with overlapping confidence intervals. Only in the combined row do validity-selected and last-round scores coincide (41.05 and 41.05), which is the operational meaning of 'the loop stopped finding anything that survives its own check'.",
+      "source": "https://arxiv.org/abs/2610.02616",
+      "confidence": 0.85,
+      "topic": "w6-frontier",
+      "tags": ["verse", "attribution", "effect-size", "surprise"]
+    },
+    {
+      "id": "w6-dgm-arxiv-2505-22954",
+      "kind": "project",
+      "title": "Darwin Godel Machine: 20.0% to 50.0% SWE-bench and 14.2% to 30.7% Polyglot by self-modifying its own agent code",
+      "body": "arXiv:2505.22954v3 (Zhang/Hu/Lu/Lange/Clune). The archive holds generated coding agents; one is sampled and a foundation model writes a new 'interesting' version, growing an open-ended tree. Parent sampling is proportional to sigmoid(10*(s-0.5))/(1+c) with s the score and c the child count; goal probabilities are 0.25 solve-empty-patches (only if >=10% empty), 0.25 solve-stochasticity, 0.25 solve-context-length, else a uniformly drawn unresolved task. Report: SWE-bench 20.0% to 50.0%, Polyglot 14.2% to 30.7%, 'significantly outperforms baselines without self-improvement or open-ended exploration'. The hidden tests of each issue are the objective, the selection signal, and the reported metric - one signal, three jobs.",
+      "source": "https://arxiv.org/abs/2505.22954",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["dgm", "self-modification", "swebench", "polyglot"]
+    },
+    {
+      "id": "w6-dgm-feedback-directedness-evalue",
+      "kind": "number",
+      "title": "Randomised re-analysis of six public DGM runs: modifications repair their target LESS often than chance, e-value 0.15",
+      "body": "arXiv:2610.14662v1 (Rong He, 10 Oct 2026) randomises which failure a modification is scored against, giving an exactly valid test in the Luria-Delbruck fluctuation tradition with an e-value via Ville's inequality (E>=20 needed for 5%). Across 145 eligible modifications in six public DGM runs: 12 repaired their target versus 16.4 expected under the null; target repair 8.3% versus 11.6% for the parent's other failures (difference -3.3pp, 95% CI -8.2 to +2.0); pooled OR 0.69 (0.31-1.18); e-value 0.15; martingale z=-1.23, one-sided p=0.89; no run significant and five of six point the wrong way; leave-one-run-out -1.5 to -4.2. Section 3.3 adds that human-named goals DO move the metric they name (empty-patch-goal children cut the parent's empty-patch rate by 10.3 points versus 1.7 for other entries; every context-goal child cut context-limit hits) - so the loop follows its instructions while not repairing the failures it was shown. Study 2 pre-registers a held-out split: +20pp repair for Qwen3-4B, 7 points for Phi-4-mini and not significant, and their own conclusion 'Target repair did not reliably imply held-out improvement'. Their stated guard: a revision that repairs all failures equally has no directedness yet may still be effective.",
+      "source": "https://arxiv.org/abs/2610.14662",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["dgm", "replication", "e-value", "preregistration"]
+    },
+    {
+      "id": "w6-hgm-metaproductivity-mismatch",
+      "kind": "project",
+      "title": "HGM: a high-scoring agent can seed unproductive descendants; own-score/held-out correlation is 0.29-0.44 for DGM/SICA",
+      "body": "arXiv:2510.21614v2 (KAUST, ICLR 2026) names the Metaproductivity-Performance Mismatch: 'a high-scoring agent may produce unproductive descendants, while a lower-scoring one seeds lineages that achieve greater long-term gains.' It defines Clade-Metaproductivity as the aggregate benchmark performance of a lineage, proves (Theorem 1) that a true CMP oracle suffices to imitate the Godel Machine under assumptions of repeatable independent evaluations, zero-cost proofs and one budget unit per self-modification, then estimates CMP and expands by Thompson sampling with expansion and evaluation decoupled. Claims: beats DGM and SICA on SWE-bench Verified and Polyglot with 2.38x fewer allocated CPU-hours; transfer from SWE-bench Verified/GPT-5-mini to SWE-bench Lite/GPT-5 described as 'human-level'. The mismatch is quantified: Pearson correlation between an agent's own score and held-out performance is 0.444 for SICA, 0.285 weighted / 0.406 unweighted for DGM, 0.778 / 0.512 for HGM.",
+      "source": "https://arxiv.org/abs/2510.21614",
+      "confidence": 0.87,
+      "topic": "w6-frontier",
+      "tags": ["hgm", "metaproductivity", "lineage", "correlation"]
+    },
+    {
+      "id": "w6-sica-arxiv-2504-15228",
+      "kind": "project",
+      "title": "SICA: 17% to 53% on a 50-question SWE-bench Verified subset, with the best agent becoming the next meta-agent",
+      "body": "arXiv:2504.15228v2 (Robeyns/Szummer/Aitchison). Utility U = 0.5*p_score + 0.25*(1-min(1,p_cost/$10)) + 0.25*(1-min(1,p_time/300s)), with timeout penalty tau=0.5 giving U_final = U*(1-tau). Evaluation: 50 fixed random SWE-bench Verified questions, 50 LiveCodeBench, and two synthetic benchmarks (file-edit, symbol-navigation) built inside the agent's own codebase. The archive of agents replaces ADAS's fixed meta-agent - the best agent becomes the next meta-agent - and a 30-second overseer LLM can cancel a runaway agent. Sonnet 3.5 v2 for most agents, o3-mini for a reasoning agent; one meta-improvement iteration can take about an hour. Reported 17% to 53% on the SWE-bench subset. Held out: nothing at task level; the same 50 questions score candidates and are the headline. SICA's paper distinguishes itself from ADAS (not self-improving; edits one forward function in a DSL) and from STOP/Godel Agent (not general coding agents).",
+      "source": "https://arxiv.org/abs/2504.15228",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["sica", "utility", "archive", "swebench"]
+    },
+    {
+      "id": "w6-sica-45pct-budget-collapse",
+      "kind": "failure",
+      "title": "SICA's loop self-terminated: repeated errors after 45% of budget, no further self-modifications",
+      "body": "The failure is documented in a competitor's Figure 1 caption, not in SICA's own paper: HGM (arXiv:2510.21614v2) writes 'Note that SICA encountered repeated errors after consuming 45% of its budget, preventing any further self-modifications.' Mechanism as reported: the agent's own edits broke the loop's ability to run, and the remaining 55% of budget bought nothing. This is the same shape as VERSE's r*=0 and as the forgetting result - the loop damages the very machinery that would let it recover - but here it is budget-bounded and unrecoverable. For an RSI system the important detail is that the collapse is not a plateau in score, it is a loss of the ability to attempt.",
+      "source": "https://arxiv.org/abs/2510.21614",
+      "confidence": 0.8,
+      "topic": "w6-frontier",
+      "tags": ["sica", "collapse", "budget", "failure-mode"]
+    },
+    {
+      "id": "w6-alphaevolve-arxiv-2506-13131",
+      "kind": "project",
+      "title": "AlphaEvolve: 48 scalar multiplications for 4x4 complex matmul (first gain over Strassen's 49 in 56 years), verified per problem",
+      "body": "arXiv:2506.13131 (16 Jun 2025, Novikov et al., 18 authors, DeepMind). An evolutionary coding agent: an LLM pipeline makes direct code changes and one or more evaluators give continuous feedback. Claims: 4x4 complex-valued matrix multiplication in 48 scalar multiplications (first improvement over Strassen's 49 in 56 years); a more efficient Google data-center scheduling heuristic (secondary reports ~0.7% of cluster compute recovered in production); a functionally equivalent circuit-design simplification in hardware accelerators; and accelerated training of the LLM that underpins AlphaEvolve itself. The structural reason these claims hold up better than benchmark gains: each problem has a machine-checkable verifier, so the acceptance test is independent of the proposer's story about why the change helps. Secondary source reports a 32.5% FlashAttention kernel speedup.",
+      "source": "https://arxiv.org/abs/2506.13131",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["alphaevolve", "verifier", "matmul", "scheduling"]
+    },
+    {
+      "id": "w6-alphaevolve-selection-bias-67",
+      "kind": "failure",
+      "title": "Even AlphaEvolve improved 20 of 67 pre-registered problems (~30%) and its public results repo excludes the rest",
+      "body": "arXiv:2511.02864v3 (Georgiev/Gomez-Serrano/Tao/Wagner, 22 Dec 2025) re-attempts 67 problems and states in section 1.6: 'while AlphaEvolve excels at problems that can be clearly formulated as the optimization of a smooth score function that is possible to hill-climbing on, it sometimes struggles otherwise. In particular, we have encountered several instances where AlphaEvolve failed to attain an optimal or close to optimal result. We also report these cases below.' It documents every non-improvement in section 6; secondary tallies give ~20 improved results, most others matching known bounds, and 8 cases worse than the literature (20/67 ~ 30%). Tao's blog adds that performance was uneven across mathematical areas, with weakness on analytic number theory sieve weights. The deepmind/alphaevolve_results repo says it 'contains only the instances where the results from AlphaEvolve outperforms the state-of-the-art ... we exclude those problems where the results matched but did not outperform' - so the artifact overstates the rate even for the best-verified system in this scan.",
+      "source": "https://arxiv.org/abs/2511.02864",
+      "confidence": 0.83,
+      "topic": "w6-frontier",
+      "tags": ["alphaevolve", "selection-bias", "publication", "math"]
+    },
+    {
+      "id": "w6-selfharness-arxiv-2606-09498",
+      "kind": "project",
+      "title": "Self-Harness: +21.4 / +14.3 / +14.2 points on Terminal-Bench-2.0 with frozen weights, three-stage loop",
+      "body": "arXiv:2606.09498 (Zhang et al. 2026a). Three stages: Weakness Mining, Harness Proposal, Proposal Validation; the model weights are never trained, only the scaffolding changes. Terminal-Bench-2.0 pass rates: MiniMax M2.5 40.5% to 61.9% (+21.4 points, ~+53% relative), Qwen3.5-35B-A3B 23.8% to 38.1% (+14.3, ~+60% relative), GLM-5 42.9% to 57.1% (+14.2, ~+33% relative). The authors describe the numbers as on held-out problems. Independent commentary (thakicloud blog, 2026-07-24) notes that the figures are taken from abstract/intro and were not reproduced, that there is a single benchmark, and that the ceiling is set by evaluator strength - i.e. any weakness the validation stage cannot detect becomes a permanent harness feature.",
+      "source": "https://arxiv.org/abs/2606.09498",
+      "confidence": 0.78,
+      "topic": "w6-frontier",
+      "tags": ["self-harness", "terminal-bench", "validation", "second-hand"]
+    },
+    {
+      "id": "w6-metaharness-arxiv-2603-28052",
+      "kind": "project",
+      "title": "Meta-Harness: an agentic proposer reads all prior candidates' source, scores and traces from a filesystem; +7.7 points at 4x fewer tokens",
+      "body": "arXiv:2603.28052v1 (30 Mar 2026; Yoonho Lee, Roshen Nair, Qizheng Zhang, Kangwook Lee, Omar Khattab, Chelsea Finn). An outer loop searches over harness CODE; the proposer gets source code, scores and execution traces of every prior candidate through a filesystem, on the argument that existing text optimizers fail because 'they compress feedback too aggressively'. Reported: online text classification +7.7 points over a state-of-the-art context-management system while using 4x fewer context tokens; retrieval-augmented math reasoning, one discovered harness, +4.7 points on 200 IMO-level problems averaged across five held-out models; agentic coding, discovered harnesses surpassing the best hand-engineered baselines on TerminalBench-2. The held-out axis here is models, not tasks - and VERSE later shows this optimizer's task-level gains are the ones that shrink against a disjoint split.",
+      "source": "https://arxiv.org/abs/2603.28052",
+      "confidence": 0.87,
+      "topic": "w6-frontier",
+      "tags": ["meta-harness", "outer-loop", "held-out-models", "traces"]
+    },
+    {
+      "id": "w6-continual-forgetting-arxiv-2611-03219",
+      "kind": "failure",
+      "title": "Continual harness evolution forgets catastrophically: Meta-Harness 94.0% to 32.0% on SWE-bench after five FeatureBench rounds",
+      "body": "arXiv:2611.03219v1 (2 Nov 2026, Tsinghua AI Agent Group) formalises continual harness self-evolution as H_{i+1} = Omega(H_i, T_i) over an ordered dataset sequence and measures forgetting as Delta_forget = Eval(H_{j+1}, D_j) - Eval(H_{i+1}, D_j), with rho_forget its relative version. Base harness Mini-SWE-Agent (~100 lines, >74% SWE-bench Verified), model DeepSeek-V4-Flash-0731, E2B sandbox, temperature 0, 50 SWE-bench Verified + 50 SWT-Bench + 30 FeatureBench instances, scope limited to system prompt, execution logic and tools. Single-dataset evolution works: AHE 82.0% to 96.0% over nine rounds, Meta-Harness 94.0%, both 82.0% to 100.0% on SWT-Bench. Then SWE-Bench to SWT-Bench: after five rounds AHE degrades 100% and Meta-Harness 98% on SWE-Bench - 'the resulting agents are almost completely unable to solve the SWE-Bench tasks'; SWE to FeatureBench costs -29% (AHE) and -66% (Meta-Harness), and Meta-Harness SWE-Bench falls 94.0% to 32.0% after five FeatureBench rounds. Hand-coding >520 trajectories yields three harness-level conflict classes (verification, workflow, budget strategy) whose ablations differ substantially.",
+      "source": "https://arxiv.org/abs/2611.03219",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["forgetting", "continual", "harness", "catastrophic"]
+    },
+    {
+      "id": "w6-cortex-aa-noise-floor",
+      "kind": "number",
+      "title": "Cortex A/A test: the same harness measured twice on the same tasks differed by -3.3 points (95% CI -7.3 to 0.0)",
+      "body": "arXiv:2610.14216v1 (9 Oct 2026, S. Giampieri; code github.com/samugit83/cortex tag v1.0-eval) evolves and prunes Claude Code skills/rules under a measurement gate: /harvest turns a broken-to-working session into a replayable task with a check script, /evolve keeps a candidate only if it helped, fired, and made no task worse beyond tolerance, /prune re-measures live items by removing them one at a time. The A/A control - the SAME harness measured twice on the same tasks in separate rollout batches - differed by -3.3 points (95% CI [-7.3, 0.0], resampling tasks), which they describe as 'a difference that, seen once, would pass for an effect'. Against that floor the evolved harness beat a no-skills/no-rules harness by +55.0 points on four rule families (95% CI [+34.1, +74.1], permutation p=0.0001), with the control family (plain bugs, nothing to learn) at -0.8 points and no item ever kept for it. 30 held-out scenarios never played by any session, 4 independent runs R1-R4, 10 scripted rounds each, Claude Haiku 4.5 in every role, synthetic repo with 4 house rules.",
+      "source": "https://arxiv.org/abs/2610.14216",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["cortex", "noise-floor", "aa-test", "skills"]
+    },
+    {
+      "id": "w6-cortex-placebo-gate-power",
+      "kind": "analysis",
+      "title": "Cortex's known-answer test shows a correct gate can pass by luck: 12 of 20 placebos scored 'never used' and 8 reached no verdict",
+      "body": "Cortex plants 20 placebo candidates, 5 harmful ones and 4 known-good ones. No placebo and no harmful item was kept - but the reason is not discrimination: the agent never opened the placebos or 2 of the harmful skills, so they were rejected for never firing; 12 placebos scored 'never used' and 8 reached no verdict. The 3 harmful rules DID load but their screens ran on tasks the live harness had already failed, where no gain was possible, so no verdict was reached even where a harmful rule broke a task that passed without it. Only 2 of 4 known-good candidates were kept. The /prune pass reached the expected verdict on 6 of 8 items but only 2 of 4 planted ones, and it kept a useless always-on skill that was never opened because 2 tasks passed less often without it. This is the acceptance-test failure mode in miniature: a gate with no statistical power looks conservative while being arbitrary.",
+      "source": "https://arxiv.org/abs/2610.14216",
+      "confidence": 0.85,
+      "topic": "w6-frontier",
+      "tags": ["cortex", "placebo", "statistical-power", "gate"]
+    },
+    {
+      "id": "w6-cortex-model-dependence",
+      "kind": "number",
+      "title": "The same evolved harness gained +66.7 points under Haiku 4.5 and +5.6 under Sonnet 5 (95% CI -2.8 to +13.9)",
+      "body": "Cortex run R1's evolved harness was re-measured unchanged under a stronger model: +66.7 points on Claude Haiku 4.5 versus +5.6 points on Claude Sonnet 5 (95% CI [-2.8, +13.9]), and a single /prune pass after the upgrade flagged 2 of its 4 items removable. The paper's reading is that whether an updated harness helps depends on the model that uses it, and that weaker models often fail to activate or follow what was added - consistent with the loading-tier counts: of 18 items kept across runs, 16 are auto-loaded rules; a path-gated skill was listed in 66 attempts and opened in 28, while an always-on skill was listed in 198 attempts and opened 0 times. A harness gain is therefore a property of the (harness, model) pair, not of the harness.",
+      "source": "https://arxiv.org/abs/2610.14216",
+      "confidence": 0.87,
+      "topic": "w6-frontier",
+      "tags": ["cortex", "model-dependence", "loading-tier", "transfer"]
+    },
+    {
+      "id": "w6-retro-arxiv-2610-34938",
+      "kind": "project",
+      "title": "Retrospective adaptation study: of 7 harness changes whose target problem actually recurred, 4 reduced nothing",
+      "body": "arXiv:2610.34938v1 (26 Oct 2026, Treude and Baltes). Claude Code worked 30 SWE-bench Verified issues; 125 retrospective proposals were qualitatively coded, 24 implemented, and 12 harness changes were evaluated on later issues from the SAME repositories in fresh sessions with and without each change. Most proposals referenced a concrete session event, yet 18 of 43 lint-related proposals recommended a practice regardless of what had happened. Of the seven evaluations in which control sessions actually encountered the targeted problem, 2 eliminated the targeted action, 1 reduced it, and 4 showed no reduction at all, with some changes adding work on unrelated issues. Their conclusion is the design requirement: harness self-evolution needs a way to establish whether a change helped, and to revise or remove changes that did not.",
+      "source": "https://arxiv.org/abs/2610.34938",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["retro", "empirical", "claude-code", "ab-testing"]
+    },
+    {
+      "id": "w6-tthe-arxiv-2607-08124",
+      "kind": "project",
+      "title": "TTHE: +38 points on BIRD and +15 on SWE-bench from label-free proxies, with a measured 6-point selection regret",
+      "body": "arXiv:2607.08124 (Nie et al., 9 Jul 2026). Population generate-and-judge over harness branches with frozen weights and three label-free signals: execution health (0/1 for well-formed output), round-trip consistency in [0,1] by inverting output back to input, and public-test pass rate. Defaults G=3 branches, R=3 rounds, B=10 batch. Results: BIRD 50-hard 12.0% to 50.0% (+38.0pp); SWE-bench Verified 40 instances 20.0% to 35.0% (+15.0pp); LiveCodeBench 60-hard 30.0% to 38.3%; DS-1000 38.0% to 44.0%; claw-eval tool use 48.9% to 69.8% (+20.9). Cross-model on BIRD: DeepSeek V4 Flash 12.0 to 50.0, MiMo V2.5 32.0 to 52.0, Kimi K2.5 28.0 to 48.0. Carrying harness improvements across batches beats resetting by 6 points. The authors' own floor: the pool oracle (best candidate the judge could have picked) is 64.0% while the all-candidates oracle (best ever generated) is 70.0%, so 6 points of achievable gain are lost to an imperfect judge. Caveat for this scan: only a secondary blog was read, so the numbers are unverified.",
+      "source": "https://arxiv.org/abs/2607.08124",
+      "confidence": 0.7,
+      "topic": "w6-frontier",
+      "tags": ["tthe", "proxies", "oracle-gap", "unverified"]
+    },
+    {
+      "id": "w6-aflow-adas-search-class",
+      "kind": "project",
+      "title": "AFlow/ADAS: MCTS over code-represented workflows and architectures, beating manual designs on six benchmarks without a task-level holdout",
+      "body": "AFlow (arXiv:2410.10762v4, ICLR 2025) runs MCTS over code-represented workflows built from LLM-calling nodes, code edges and reusable operators such as Ensemble and Review-and-Revise, with soft mixed-probability node selection, LLM-driven node expansion, execution-based evaluation and backpropagated experience; it reports consistent wins over automated and manually designed workflows on six benchmarks (solve rate on Math/GSM8K, F1 on HotpotQA and DROP, pass@1 on HumanEval and MBPP). ADAS (arXiv:2408.08435v2, Hu/Lu/Clune, ICLR 2025) has a fixed meta-agent search code-defined agent architectures in a Turing-complete space and evaluates on held-out domains and models. Both report on the benchmarks they search over; SICA's paper adds that ADAS is not self-improving and edits only a single forward function in a DSL. This pair is the 'search, but not self-modification' control condition for the rest of the scan.",
+      "source": "https://arxiv.org/abs/2410.10762",
+      "confidence": 0.85,
+      "topic": "w6-frontier",
+      "tags": ["aflow", "adas", "mcts", "workflow-search"]
+    },
+    {
+      "id": "w6-stop-arxiv-2310-02304",
+      "kind": "project",
+      "title": "STOP: the improver improves itself, and the authors measure how often generated code escapes the sandbox",
+      "body": "arXiv:2310.02304v3 (Zelikman/Lorch/Mackey/Kalai, COLM 2024). A seed improver improves an input program against a utility function; the seed improver then improves ITSELF and the improved improver beats the seed on downstream tasks. The LM proposes improver strategies such as beam search, genetic algorithms and simulated annealing. Two statements matter here. First, scope: 'Since the language models themselves are not altered, this is not full recursive self-improvement.' Second, integrity: 'we evaluate the frequency with which the generated code bypasses a sandbox' - the acceptance test's own security is treated as a measured quantity, not an assumption. That is the earliest explicit treatment in this literature of the evaluator as an attack surface rather than a referee.",
+      "source": "https://arxiv.org/abs/2310.02304",
+      "confidence": 0.88,
+      "topic": "w6-frontier",
+      "tags": ["stop", "sandbox-escape", "integrity", "self-improvement"]
+    },
+    {
+      "id": "w6-openai-tax-codex-case-study",
+      "kind": "project",
+      "title": "OpenAI/Thrive Tax AI: 75%-correct returns went from a quarter to 86% in six weeks - no holdout, no control arm",
+      "body": "OpenAI engineering post, 27 May 2026, 'Building self-improving tax agents with Codex' (Srinivasan, Shamdasani, Araujo, de Wasseige). Tax AI processed 7,000 returns across Crete's 30+ accounting firms; the loop is three pillars - practitioner feedback, production traces, and a Codex-driven improvement loop over tailored evals. Numbers: about a third of practitioner time saved, 'up to 97% accuracy', throughput up about 50%; at launch only a quarter of returns reached 75% correct field completion, within six weeks 86% did; rental properties took about six weeks and 'substantial engineering oversight' to reach 90% precision and recall. There is no held-out task split, no control arm, and the headline metric moves with product, prompt and model changes together, so this is a vendor case study rather than a replication. The boundaries they do state are honest: 'We apply this automation to a bounded layer of the product' and 'If the evidence is ambiguous or not safely automatable, the case routes back to the product team instead of being forced through the loop.'",
+      "source": "https://openai.com/index/building-self-improving-tax-agents-with-codex/",
+      "confidence": 0.8,
+      "topic": "w6-frontier",
+      "tags": ["production", "codex", "case-study", "no-control"]
+    },
+    {
+      "id": "w6-production-no-primary-measurement",
+      "kind": "failure",
+      "title": "No primary self-evolution measurement exists for Devin or Claude Code; the CL-BENCH numbers that do exist are grim",
+      "body": "This scan found no primary, controlled measurement of self-evolution for Devin/Cognition or for Anthropic's Claude Code product loops. The nearest is practitioner synthesis (codeagentreview.com, 9 Nov 2026, 'Continual Learning Architectures for Production Coding Agents'), which splits the surface into weights, harness and context, recommends starting with context, and states 'the agent seemed pleased with itself is not a release criterion'. It reports that CL-BENCH's top system used in-context learning at normalized reward 22.3%, above weight-updated alternatives, and that on SWE-Bench-CL 'after harness adaptation, reported performance was extremely low and highly variable, with frequent execution issues'; CL-BENCH agents 'often overfit to immediate observations or fail to reuse knowledge across instances, and naive in-context learning outperforms dedicated memory systems'. It also names a security failure with the same shape as STOP's sandbox metric: an agent authors a skill reproducing a malicious pattern it just read, then stores it - 'a successful task is not proof that its resulting skill is safe.'",
+      "source": "https://codeagentreview.com/p/continual-learning-architectures-for",
+      "confidence": 0.62,
+      "topic": "w6-frontier",
+      "tags": ["production", "devin", "claude-code", "cl-bench"]
+    },
+    {
+      "id": "w6-evaluator-bottleneck-zenodo",
+      "kind": "source",
+      "title": "The Evaluator Is the Bottleneck: five conditions an acceptance test must meet, each illustrated by a published failure",
+      "body": "Mahendrakar, DOI 10.5281/zenodo.23130396 (4 Oct 2026, CC BY 4.0). Argues the binding constraint on self-improving systems is the acceptance test, and specifies five conditions: fidelity on candidates the loop itself generates; integrity against tampering by the candidate; statistical power across many candidates and acceptances; coverage of state that persists after acceptance; and independence of evaluator errors from proposer errors. For each condition it cites a published loop, benchmark or controlled study that records the failure. Its strongest counter-evidence is 2026 work that evolves the evaluator in-loop - but every such system that reports validity against ground truth 'keeps a labelled anchor or frozen reference that the loop cannot write', and one reports that removing the anchor guards yields an always-pass grader that downstream task scores fail to expose. It also notes that an externally supplied benchmark is an attack surface (2026 benchmark-poisoning work). No experiments of its own: this is an argument paper, so it belongs at moderate confidence and is used here as a framework, not as a data point.",
+      "source": "https://doi.org/10.5281/zenodo.23130396",
+      "confidence": 0.6,
+      "topic": "w6-frontier",
+      "tags": ["evaluator", "acceptance-test", "framework", "synthesis"]
+    },
+    {
+      "id": "w6-survey-arxiv-2608-03392",
+      "kind": "source",
+      "title": "Self-evolving coding agents survey: tasks and tests reused as update signal, selection signal and reported metric make evaluator adaptation look like progress",
+      "body": "arXiv:2608.03392v4 (24 Sep 2026, NJUST/NJU, CC BY 4.0). Taxonomy ordered by intervention depth - assets (memory/skill/tool/context), then architecture (harness/workflow/multi-agent), then model parameters - with the observation that deeper interventions are harder to attribute and to reverse. Its normative claim is the one that matters for replication: 'Coding tasks and their tests may also be used to construct updates, select candidates, and report final performance. Reusing related cases across these roles can make adaptation to an evaluator look like general progress.' Hence 'an evolution study should therefore identify what persists, compare updated and frozen agents under matched conditions on held-out tasks, and report regressions and costs alongside gains.' Its challenges section leads with 'Reproducibility, contamination, and benchmark overfitting'. It also reports the Phantom Guardrails study (proposer installs a guardrail for a nonexistent violation in 15 of 60 runs when harmless input resembles a familiar rule, none on featureless input, and an add-only loop makes the spurious component persist) and an audit of real self-improvement trajectories where harness tampering 'can persist in the lineage of the selected best agent'.",
+      "source": "https://arxiv.org/abs/2608.03392",
+      "confidence": 0.85,
+      "topic": "w6-frontier",
+      "tags": ["survey", "three-roles", "phantom-guardrails", "taxonomy"]
+    },
+    {
+      "id": "w6-contamination-inflation-numbers",
+      "kind": "number",
+      "title": "Weak tests and leakage inflate coding-agent scores: 32.67% leakage, 31.08% weak tests, +6.4 points average inflation",
+      "body": "Numbers from the evaluator paper's evidence table (second-hand, gathered from search snippets rather than the primary tables). Aleithan et al. 2024, SWE-Agent+GPT-4 passing patches: 32.67% showed solution leakage, 31.08% rested on weak tests, and filtering cut the pass rate from 12.47% to 3.97%. Wang, Y. et al. 2025 on SWE-bench Verified: 7.8% of patches were counted correct while failing developer tests, 29.6% behaved differently, an average inflation of +6.4 points (6.2 in the abstract). Yu et al. 2025 (UTBoost) found 345 wrongly passed patches, affecting 40.9% of Lite and 24.4% of Verified entries; Yu et al. 2026 (SWE-ABS) strengthened tests. Consequence for any self-improvement loop: if the grader accepts patches that do not fix the issue, the loop can bank real-looking gains against a target it is not actually hitting, and no amount of internal validation will surface it.",
+      "source": "https://doi.org/10.5281/zenodo.23130396",
+      "confidence": 0.7,
+      "topic": "w6-frontier",
+      "tags": ["contamination", "weak-tests", "inflation", "second-hand"]
+    },
+    {
+      "id": "w6-hod-heldout-tool",
+      "kind": "project",
+      "title": "Harness Overfit Detector (hod 0.1.0): held-out manifests, good/bad sanity pairs, agreement and blinded grading in one CLI",
+      "body": "PyPI package hod 0.1.0 (2026-10-21) is the cheapest concrete implementation of the discipline this wave keeps asking for. It provides held-out manifests, a sanity command that runs a known-good and a known-bad candidate through the same path (hod sanity --good/--bad --manifest), hod agree to report percent-equal, mean absolute difference and Cohen's kappa between two graders, and hod blind / hod unblind which present shuffled task ids while writing the key elsewhere. Its own stated limit is the important part: 'with a single agent, the key exists on disk and the blinding is instruction-enforced' - i.e. it prevents accidental peeking, not a determined optimizer. For a small loop this is still the difference between a pre-registered split and a vibe, and it is small enough to run over an existing attempt ledger.",
+      "source": "https://pypi.org/project/hod/",
+      "confidence": 0.75,
+      "topic": "w6-frontier",
+      "tags": ["hod", "tooling", "blinding", "kappa"]
+    },
+    {
+      "id": "w6-local-gear-gains-unheldout",
+      "kind": "claim",
+      "title": "Our own rsi-gear: +13.0pp Marketing, +10.1pp Terminal-Bench 2.1, and no held-out split anywhere in the README",
+      "body": "research/gear/README.md:53-60, same-model same-effort comparison. GPT 5.6 Luna medium, DSH base vs DSH+Gear: Marketing pass 27.0% to 40.0% (+13.0pp), Marketing objective completion 75.4% to 83.9% (+8.5), Support pass 17.0% to 25.0% (+8.0), Support objective completion 72.9% to 81.3% (+8.4), Terminal-Bench 2.1 52.8% to 62.9% (+10.1). GPT 6 Astra max: 57.0% to 61.0%, 84.1% to 86.3%, 35.0% to 39.0%, 88.4% to 88.7%, TB2.1 86.7% to 87.6% (+0.9). The README discloses no held-out split - AutomationBench Marketing/Support and Terminal-Bench 2.1 are both the optimization signal and the reported result - and the Luna max-effort row admits 'improvements over Luna's medium baseline include both harness and effort changes'. Evolvable surfaces are prompts/policies, tools/hooks, skills/workflows and context management; model weights are 'Experimental'. Cost: $0.0568/task for Luna max versus $1.1858/task for Astra max, 95.21% lower, same optimized harness commit a0740800. This is the closest external analogue to dsh-loom because Gear optimizes DSH itself.",
+      "source": "local: research/gear/README.md:53-73",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["gear", "local", "no-holdout", "cost"]
+    },
+    {
+      "id": "w6-local-odr-preregistered-split",
+      "kind": "claim",
+      "title": "Our own open-dream-rsi is the one local artifact with a pre-registered split and a named significance test",
+      "body": "research/open-dream-rsi/paper/main.tex implements the exploration layer of RSI around a FROZEN LLM (no weight access, no GPU, no training): always-on supervisor self-scheduling under an explicit API-call budget guard, LLM-written exploration policies scored by counterfactual replay on the recorded discovery tree, thought-conditioned branching, and a Sentinel seam that annotates why an episode stopped. Performance claims sit on exactly one benchmark, goose x TravelPlanner: the choice-removal gate lifts pre-registered eval-split plan delivery 23% to 94% and final pass rate 7.6% to 21.5%, exact McNemar p=1.4e-17, with all 91 undelivered cold episodes dying at the harness call cap. Everything else is labelled a deterministic machinery self-check, not a model-quality claim: 50 solves at 150 API calls (3.00 per task-cycle) versus 50 solves at 71 calls (1.42), a 52.7% call saving at equal solve quality; bench-policy greedy 0/120, eps-greedy 29/120, replay-gated 93/120, thought-guided 120/120, sentinel-guided 102/120, engine-off ablation 75/120. The sentinel live-model uplift is explicitly future work.",
+      "source": "local: research/open-dream-rsi/paper/main.tex",
+      "confidence": 0.9,
+      "topic": "w6-frontier",
+      "tags": ["open-dream-rsi", "local", "preregistration", "mcnemar"]
+    },
+    {
+      "id": "w6-analysis-replication-fraction",
+      "kind": "analysis",
+      "title": "About 1 of 11 headline gains survives pre-registered re-measurement as an effect of the loop itself, and it shrinks to ~1 point",
+      "body": "Tally over the quantitative claims in scope: DGM (+30pp SWE-bench), SICA (17% to 53%), HGM (2.38x fewer CPU-hours), AlphaEvolve (48 multiplications), Self-Harness (+21.4pp TB2), Meta-Harness (+7.7), TTHE (+38pp BIRD), AHE (69.7% to 77.0%), Cortex (+55pp), rsi-gear (+13.0pp Marketing), open-dream-rsi (23% to 94% delivery). Only three were re-measured under a protocol that could have falsified them: VERSE with disjoint held-out tasks, the randomised audit of six DGM runs, and Cortex with 30 held-out scenarios plus an A/A floor. VERSE leaves 41.05 versus 39.81 = +1.24 points attributable to self-evolution; the DGM audit is directionally null (e-value 0.15, p=0.89, five of six runs the wrong way); Cortex survives at +55 but with a 3.3-point noise floor and only +5.6 under a stronger model. So roughly one in eleven headline numbers survives as evidence about the loop, and the survivor is an order of magnitude smaller than the headline. Caveat: the inclusion and survival criteria are mine, stated so they can be argued with; AlphaEvolve's verifier-based results are excluded from the failure column because their evaluator is independent of the proposer.",
+      "source": "derived: tally over w6 nodes",
+      "confidence": 0.68,
+      "topic": "w6-frontier",
+      "tags": ["replication", "fraction", "tally", "surprise"]
+    },
+    {
+      "id": "w6-analysis-failed-replications-common",
+      "kind": "analysis",
+      "title": "What failed replications share: one signal doing three jobs, a gate with less power than the claimed delta, and unverified self-edits",
+      "body": "Seven properties recur in the replications that failed. (1) The same tasks do three jobs - construct updates, select candidates, report performance - which VERSE calls out ('search and report results on the same benchmark') and the survey formalises as making evaluator adaptation look like general progress. (2) The acceptance test has less power than the claimed delta: Cortex's A/A floor is 3.3 points, most claims are 1-13 points, and the retrospective study found only 7 of 12 changes ever met their target problem, of which 4 reduced nothing. (3) The optimizer writes unverified edits into itself: VERSE r*=0 with 31.79 below the blank 33.95, SICA dying at 45% of budget, DGM modifications that repair their target 3.3 points LESS often than chance. (4) Proxy signals with selection regret: TTHE leaves 6 of 70 oracle points on the table. (5) Graders that reward weak tests: +6.4 points average inflation, 32.67% leakage. (6) Gains bound to one model or one domain: +66.7 versus +5.6 across models, 94.0% to 32.0% across domains. (7) Deltas of 1-3 points reported against standard errors of 0.8-1.4 from a single evolution run. The common factor is not a weak proposer; it is a signal that is shared between the thing being optimized and the thing being measured.",
+      "source": "derived: tally over w6 nodes",
+      "confidence": 0.78,
+      "topic": "w6-frontier",
+      "tags": ["replication", "common-cause", "signal-reuse", "power"]
+    }
+  ],
+  "edges": [
+    {"from": "w6-verse-selfevo-no-verification-below-blank", "rel": "supports", "to": "w6-verse-verification-is-active-ingredient", "note": "the sub-blank row is the evidence that verification, not evolution, is load-bearing"},
+    {"from": "w6-verse-verification-is-active-ingredient", "rel": "derived-from", "to": "w6-verse-selfevo-no-verification-below-blank", "note": "ladder computed from the same Table 1 rows"},
+    {"from": "w6-verse-heldout-protocol", "rel": "refines", "to": "w6-metaharness-arxiv-2603-28052", "note": "VERSE improves Meta-Harness and supplies the task-level holdout it lacked"},
+    {"from": "w6-verse-selfevo-no-verification-below-blank", "rel": "contradicts", "to": "w6-metaharness-arxiv-2603-28052", "note": "the same optimizer family falls below the blank harness once the reporting protocol is disjoint"},
+    {"from": "w6-dgm-feedback-directedness-evalue", "rel": "contradicts", "to": "w6-dgm-arxiv-2505-22954", "note": "randomised audit: modifications do not preferentially repair the failure they were shown"},
+    {"from": "w6-hgm-metaproductivity-mismatch", "rel": "supersedes", "to": "w6-dgm-arxiv-2505-22954", "note": "claims to dominate DGM at 2.38x fewer CPU-hours, but it is an author comparison, not an independent replication"},
+    {"from": "w6-hgm-metaproductivity-mismatch", "rel": "refines", "to": "w6-dgm-feedback-directedness-evalue", "note": "supplies the mechanism (parent score is a poor proxy for lineage value: 0.285-0.444 correlation) behind the null directedness"},
+    {"from": "w6-sica-arxiv-2504-15228", "rel": "refines", "to": "w6-aflow-adas-search-class", "note": "replaces ADAS's fixed meta-agent with the best archived agent; still no task-level holdout"},
+    {"from": "w6-sica-45pct-budget-collapse", "rel": "supports", "to": "w6-analysis-failed-replications-common", "note": "self-damage that ends the loop, the extreme case of unverified self-edits"},
+    {"from": "w6-alphaevolve-arxiv-2506-13131", "rel": "supports", "to": "w6-evaluator-bottleneck-zenodo", "note": "positive case for independence: machine-checkable verifier per problem, proposer story irrelevant"},
+    {"from": "w6-alphaevolve-selection-bias-67", "rel": "contradicts", "to": "w6-alphaevolve-arxiv-2506-13131", "note": "the public results repo excludes matched-but-not-better problems, so the artifact overstates 30% -> 100%"},
+    {"from": "w6-selfharness-arxiv-2606-09498", "rel": "refines", "to": "w6-metaharness-arxiv-2603-28052", "note": "adds an explicit Proposal Validation stage to outer-loop harness search"},
+    {"from": "w6-continual-forgetting-arxiv-2611-03219", "rel": "contradicts", "to": "w6-selfharness-arxiv-2606-09498", "note": "single-dataset gains do not compose: 94.0% to 32.0% after five rounds on another dataset"},
+    {"from": "w6-continual-forgetting-arxiv-2611-03219", "rel": "applies-to", "to": "w6-local-gear-gains-unheldout", "note": "our campaigns are a sequence, so the same Delta_forget measurement is available to us"},
+    {"from": "w6-cortex-aa-noise-floor", "rel": "requires", "to": "w6-verse-heldout-protocol", "note": "a holdout is necessary but not sufficient; a noise floor is needed to read any delta"},
+    {"from": "w6-cortex-placebo-gate-power", "rel": "fails-at", "to": "w6-cortex-aa-noise-floor", "note": "the gate is right on placebos only because they never fire, so power, not correctness, is the binding constraint"},
+    {"from": "w6-cortex-model-dependence", "rel": "refines", "to": "w6-cortex-aa-noise-floor", "note": "same harness, +66.7 on Haiku versus +5.6 on Sonnet; a gain is a property of the pair"},
+    {"from": "w6-retro-arxiv-2610-34938", "rel": "supports", "to": "w6-analysis-failed-replications-common", "note": "4 of 7 changes reduced nothing when the target problem actually recurred"},
+    {"from": "w6-tthe-arxiv-2607-08124", "rel": "fails-at", "to": "w6-verse-heldout-protocol", "note": "label-free proxies are computed on the same batch that selects the harness; no disjoint split reported"},
+    {"from": "w6-tthe-arxiv-2607-08124", "rel": "measures", "to": "w6-cortex-aa-noise-floor", "note": "pool oracle 64.0 versus all-candidates 70.0 is the same selection-regret quantity as the A/A floor"},
+    {"from": "w6-aflow-adas-search-class", "rel": "requires", "to": "w6-evaluator-bottleneck-zenodo", "note": "both score candidates on the benchmarks they search, the fidelity condition in that framework"},
+    {"from": "w6-stop-arxiv-2310-02304", "rel": "requires", "to": "w6-evaluator-bottleneck-zenodo", "note": "measures sandbox-escape frequency: earliest explicit integrity condition"},
+    {"from": "w6-openai-tax-codex-case-study", "rel": "fails-at", "to": "w6-verse-heldout-protocol", "note": "no held-out split, no control arm, metric moves with product and model changes together"},
+    {"from": "w6-production-no-primary-measurement", "rel": "supports", "to": "w6-analysis-failed-replications-common", "note": "the production tier provides no measurement that could survive or fail replication"},
+    {"from": "w6-survey-arxiv-2608-03392", "rel": "requires", "to": "w6-verse-heldout-protocol", "note": "its normative protocol (updated vs frozen, matched conditions, held-out tasks, regressions and costs) is what VERSE implements"},
+    {"from": "w6-contamination-inflation-numbers", "rel": "supports", "to": "w6-survey-arxiv-2608-03392", "note": "quantifies the benchmark-overfitting challenge the survey names"},
+    {"from": "w6-contamination-inflation-numbers", "rel": "supports", "to": "w6-evaluator-bottleneck-zenodo", "note": "the fidelity condition, with +6.4 points average inflation"},
+    {"from": "w6-evaluator-bottleneck-zenodo", "rel": "applies-to", "to": "w6-local-gear-gains-unheldout", "note": "five conditions can be scored against our promotion gate directly"},
+    {"from": "w6-hod-heldout-tool", "rel": "applies-to", "to": "w6-local-gear-gains-unheldout", "note": "manifest plus blinded grading is runnable over the 450 recorded attempts"},
+    {"from": "w6-local-gear-gains-unheldout", "rel": "same-as", "to": "w6-metaharness-arxiv-2603-28052", "note": "both are outer-loop harness optimizers whose proposer reads execution traces; Gear's Diagnose-Evolve-Evaluate-Promote is the same shape"},
+    {"from": "w6-local-odr-preregistered-split", "rel": "supports", "to": "w6-verse-heldout-protocol", "note": "local existence proof that a pre-registered split plus a named test is affordable at our scale"},
+    {"from": "w6-local-odr-preregistered-split", "rel": "refines", "to": "w6-local-gear-gains-unheldout", "note": "same repo, opposite claim discipline: one benchmark with a split versus five numbers without one"},
+    {"from": "w6-analysis-replication-fraction", "rel": "derived-from", "to": "w6-analysis-failed-replications-common", "note": "the tally and the common-cause list are computed from the same evidence set"},
+    {"from": "w6-analysis-failed-replications-common", "rel": "derived-from", "to": "w6-verse-selfevo-no-verification-below-blank", "note": "anchor case for the unverified-self-edit property"},
+    {"from": "w6-analysis-replication-fraction", "rel": "applies-to", "to": "w6-local-gear-gains-unheldout", "note": "predicts our own published deltas will shrink by roughly an order of magnitude under a disjoint split"}
+  ],
+  "gaps": [
+    "What does rsi-gear report on a task split disjoint from AutomationBench Marketing/Support and Terminal-Bench 2.1? No such split is published, so its +13.0pp and +10.1pp cannot currently be separated from overfitting.",
+    "Across our ~450 recorded attempts, how many verifications were executed rather than asserted, and what is the rank correlation between a campaign's self-reported gain and its held-out replay?",
+    "Does the continual-forgetting effect appear in our 70 campaigns as Delta_forget on held-out tasks per campaign, and does it correlate with how many harness edits a campaign accepted?",
+    "Can a Cortex-style A/A protocol be run on our own promotion decisions to obtain a noise floor for accept/reject, and what is the smallest delta our gate can actually resolve?",
+    "Is there any primary, controlled self-evolution measurement from Devin/Cognition or Anthropic Claude Code? This scan found none, only practitioner synthesis and CL-BENCH aggregates.",
+    "How much of TTHE's +38.0pp on BIRD survives a disjoint batch split? Only secondary blog numbers were available, so the primary paper's protocol needs checking.",
+    "Do AlphaEvolve's 8 recorded failures cluster on non-smooth or verifier-free objectives in a way that predicts which of our non-verifiable objectives (taste, API design) the loop will never improve?",
+    "What fraction of SICA-style budget collapse (45% consumed, no further self-modification) matches the shapes in our r1-deaths and r3-timeouts audits? A cross-walk has not been done.",
+    "Is a single-run SEM of 0.8-1.4 points enough to justify the 1-3 point deltas our own ledger promotes, or does every promotion need repeated evaluation?"
+  ]
+}

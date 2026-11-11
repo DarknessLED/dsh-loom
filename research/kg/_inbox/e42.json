@@ -1,0 +1,65 @@
+{
+ "nodes": [
+  {
+   "id": "exp-ver-001",
+   "kind": "number",
+   "title": "The median task verifier is three assertions, and all 94 of them together are 348",
+   "body": "Ran every task verifier that names a single spec file against the current clean tree (research/exp/e42.mjs, 94 tasks, mean 1.5 s each): 89 pass, 5 fail, and the assertion totals are 1,1,2x12,3x34,4x16,5x2,6x7,7x3,8x2,10,12,13,15,17 - so the median task is verified by 3 assertions and the whole 94-task corpus is 348 assertions. Those 3 assertions are the only thing standing between a patch and a promotion on that task. This reframes the mutation-audit numbers (exp-mut-002: select.js and impact.js score 0.100): with three assertions the verifier is a near-point oracle, and w2-verify-test-command-partial-oracle's 'one bit per assertion' predicts exactly the observed behaviour - a patch can satisfy three boolean checks while changing the mechanism. The 5 failures are the known red specs from exp-guard-001 (plateau 14/15, holdout-gate, no-test-edits, human-node, holdout-report), confirming that bug independently.",
+   "source": "research/exp/e42.mjs (94 single-spec task verifiers on the clean tree, 348 assertions)",
+   "confidence": 0.96,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "verifier",
+    "assertion-density"
+   ]
+  },
+  {
+   "id": "exp-ver-002",
+   "kind": "analysis",
+   "title": "Three assertions per task is why the score is binary, and both come from the same design choice",
+   "body": "Every symptom this night traced back to 'the score is 0 or 1' has a mechanistic cause here: with a median of 3 assertions, a task's outcome space is at most 2^3 = 8 states and in practice the patch either satisfies all three (score 1) or one of them (score 0, since scoreAttempt zeroes on a failed verifier). There is no partial credit to be had because there is no partial signal to measure. So the loop cannot climb, and the fixes people reach for - minGain (exp-gate-001), candidate count (exp-cand-001), holdout (w3-holdout) - all operate on a distribution that does not exist. The tightest fix ordering follows from this: it is not 'add graded metrics everywhere', it is 'a task whose verifier already produces a number should report it' (the graded fixture prints QUALITY for free, exp-graded-001), and for tasks that do not, the cheapest way to manufacture a gradient is assertion count itself (passed/total, which every spec already prints: '14/15 passed'). Our verifier discards that number at the shell boundary and keeps only the exit code.",
+   "source": "exp-ver-001 + exp-score-001 + exp-gate-001 + exp-graded-001",
+   "confidence": 0.94,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "verifier",
+    "graded-score"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-ver-001",
+   "rel": "supports",
+   "to": "exp-guard-001"
+  },
+  {
+   "from": "exp-ver-001",
+   "rel": "supports",
+   "to": "w2-verify-test-command-partial-oracle"
+  },
+  {
+   "from": "exp-ver-001",
+   "rel": "contradicts",
+   "to": "exp-mut-002",
+   "note": "the low mutation scores are not a testing-practice problem but the expected behaviour of a 3-assertion oracle"
+  },
+  {
+   "from": "exp-ver-002",
+   "rel": "derived-from",
+   "to": "exp-ver-001"
+  },
+  {
+   "from": "exp-ver-002",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "exp-ver-002",
+   "rel": "refines",
+   "to": "ana-003"
+  }
+ ]
+}
