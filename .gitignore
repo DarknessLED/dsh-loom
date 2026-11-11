@@ -3,3 +3,9 @@ research/gear/
 research/open-dream-rsi/
 node_modules/
 *.log
+
+# research scratch: the graph store is a build artifact, the sources are JSON
+research/kg/store.sqlite
+research/kg/store.sqlite-*
+.kgbench/
+scripts/_mutprobe*.mjs

@@ -1,0 +1,308 @@
+{
+  "nodes": [
+    {
+      "id": "w3-restart-win-rename-open-file",
+      "kind": "number",
+      "title": "Windows rename over an open file failed 1500 of 1691 times (88%): EPERM, not a rare race",
+      "body": "loom publishes every derived file with writeFileSync(tmp) then renameSync(target) (`src/core/atomic.js:13-18`). I ran three reader processes calling readFileSync in a tight loop on the same path while one writer republished it every iteration. In a temp dir 1500 of 1691 renames failed; the same loop rooted at C:/Projects/RSI failed 1737 of 1968; error code was EPERM (errno -4048) every time and no reader ever saw a torn value. The identical loop with no readers did 1990/1990 and 2075/2075. Here the mechanism is that MoveFileEx honours sharing modes: a reader that opened without FILE_SHARE_DELETE makes the replace fail immediately instead of waiting, so the collision is the common case whenever the panel, a second window, an editor or Defender touches the same file, not a rare race. Why this matters for restart safety: the lease and the lock are written through this same primitive, so the one write that must succeed before dispatch is the one most able to fail. Limitation: my readers used plain readFileSync, which does not request FILE_SHARE_DELETE; a cooperating reader that did would not collide, so this bounds the risk from node-style readers, not from every process on Windows.",
+      "source": null,
+      "confidence": 0.95,
+      "topic": "restart-safety",
+      "tags": [
+        "windows",
+        "atomic-replace",
+        "measured"
+      ]
+    },
+    {
+      "id": "w3-restart-atomic-js-unhardened",
+      "kind": "failure",
+      "title": "writeJsonAtomic has no retry, no fsync, and leaks the temp file on every failed rename",
+      "body": "`src/core/atomic.js:13-18` is `writeFileSync(tmp,...); renameSync(tmp,path)` with no catch, no backoff and no cleanup, and `writeOwnership` in `src/core/lock.js:28-32` is the same shape. Under the three-reader load, 777 orphan `*.tmp` files accumulated in two seconds, because the temp write succeeds and only the rename fails, so a failed publish is also a disk leak that nothing sweeps (lease sweeping in `src/runtime/lease.js:95-109` covers leases only). Separately, a grep for fsync/fdatasync/flushSync across src returns nothing: even a successful rename publishes name-before-data, so the directory entry can be durable while the content is not. Windows has no POSIX directory-fsync guarantee, and NTFS's metadata journaling covers the rename, not the file body. Here the mechanism is that atomicity of the name and durability of the bytes are different properties, and the code has only the first. Limitation: on a workstation the realistic loss window is a hard power cut, not a process kill, so this is a durability defect rather than a daily failure; and a failed publish that throws simply crashes that one round, which the restart path is designed to absorb.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "restart-safety",
+      "tags": [
+        "windows",
+        "durability",
+        "fsync"
+      ]
+    },
+    {
+      "id": "w3-restart-append-is-the-safe-primitive",
+      "kind": "number",
+      "title": "4200 appends under the same reader load: zero failures while rename failed 88%",
+      "body": "appendJsonl (`src/core/atomic.js:20-33`) never asks Windows to move a name over an open handle, and it showed 4200/4200 successes with three tight-loop readers running against the same directory, measured in the same process that was failing renames. Here the mechanism is that append opens with append access and an existing reader's share mode does not forbid extending the file, whereas rename additionally needs DELETE access on the destination, which is exactly what a plain reader denies. This makes the architecture's own choice defensible in a way the code does not state: the append-only ledger is the durable, crash-tolerant part, and the snapshot files (views/state.json, leases/*.json, lock) are the fragile part, because they are the only things that replace a name. Consequence for restart safety: a lease that cannot be written is not a lease, so hardening should move leases onto the append path and derive current state by folding, rather than trying to make rename reliable. Limitation: append is safe against concurrent readers but not against a torn write from a killed writer, which is why the manual newline prefix and the torn-line skip exist; append of a record larger than one write is not atomic, so safety here is per-line and the code has to repair the seam.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "restart-safety",
+      "tags": [
+        "windows",
+        "append",
+        "measured"
+      ]
+    },
+    {
+      "id": "w3-restart-retry-backoff-livelock",
+      "kind": "failure",
+      "title": "The standard 12-retry backoff fix managed 7 publishes in 2 s and still failed twice",
+      "body": "The widely copied remedy for EPERM-on-rename is a retry loop (12 attempts, backoff capped at 100 ms, about 0.6 s of patience), which is what claude-hooks and gortex adopted after the same failure. I implemented exactly that against the same three-reader load: 7 successful publishes, 2 hard failures after exhausting all attempts, and 60 rename attempts spent in two seconds, against 151 successes for a plain single-shot rename in the same interval. Here the mechanism is that the readers are continuously reopening the file, so backoff never creates a gap wide enough to win; the retry converts a fast failure into a slow one and pushes a publish's latency toward its patience budget. For a loop that ticks every 20 s and writes a lease immediately before dispatch, the number that matters is not average throughput but whether the single publish at the critical moment can fail, and with no retry at all it can. Limitation: real readers are bursty rather than tight-looping, so the deployed collision rate is far below 88%; this experiment bounds the shape of the problem, not its production frequency, and I did not measure interference from Defender specifically.",
+      "source": "https://github.com/mann1x/claude-hooks/commit/cc72e4141bd28d29c685e66d9d08debdb8252985",
+      "confidence": 0.8,
+      "topic": "restart-safety",
+      "tags": [
+        "windows",
+        "retry",
+        "measured"
+      ]
+    },
+    {
+      "id": "w3-restart-dup-seq-in-real-ledger",
+      "kind": "number",
+      "title": "A real ledger holds 6 duplicate seq values written 1.4 s apart by two live writers",
+      "body": "In `C:/Users/Darkness/.dsh/loom/campaigns/loom-self3/events.jsonl` seq 30 through 35 each appear twice: seq 30 is `round.finished {n:3,status:interrupted,reason:host-restart}` at t=1793990305168 and `attempt.finished {id:\"r3a2\"}` at t=1793990306529; seq 31 is `candidate.proposed r3a1` and `round.started {n:4}` at t=1793990306619; the same pattern repeats to 35. Across 69 campaign ledgers this is 6 events, all in that one file, all within 1.4 seconds. Here the mechanism is in `src/core/ledger.js:31-36`: append calls #sync(), which compares only file *size*, then computes `this.seq + 1` from its own in-memory copy; two writers that both saw the same size both compute the same next seq and both appends land. Size is a weak watermark: two events of equal byte length are indistinguishable from no change at all. Limitation: this is a two-writer fault, and with the ownership lock actually holding there is one writer, so the trigger is the ownership and recovery defects below rather than normal steady-state running; one file out of 69 also means the rate is low, not that the class is rare.",
+      "source": null,
+      "confidence": 0.9,
+      "topic": "restart-safety",
+      "tags": [
+        "ledger",
+        "duplicate-seq",
+        "measured"
+      ]
+    },
+    {
+      "id": "w3-restart-normalize-is-data-loss",
+      "kind": "claim",
+      "title": "normalize keeps the first event per seq, deleting 3 attempt.finished and a round.started",
+      "body": "`src/core/ledger.js:60-73` keeps the first event it meets for a seq and drops the rest. On loom-self3 that deletes 3 `attempt.finished`, 2 `lesson.impact` and 1 `round.started`: the surviving fold has round 4 `finished` with no `round.started` at all (an orphan round), and r3a2's attempt result disappears while the round-3 `interrupted` closure survives. Here the mechanism is that the dedupe rule treats a duplicate seq as a duplicated *write*, when this pair is two different facts; the reader cannot tell, so it resolves by position in the file, which is not the order the facts were decided. Why this is worse than it looks: the dropped events are exactly the ones a restart reconciler needs, so the repair path destroys the evidence it was written to consume. Limitation: dropping is better than folding the same round twice, which would corrupt every derived number, so this is a choice between two wrong answers and the comment in the code says so; the real fix is a writer identity that makes duplicates impossible, not a smarter dedupe.",
+      "source": null,
+      "confidence": 0.85,
+      "topic": "restart-safety",
+      "tags": [
+        "ledger",
+        "dedupe",
+        "data-loss"
+      ]
+    },
+    {
+      "id": "w3-restart-lease-no-fencing-token",
+      "kind": "claim",
+      "title": "Leases record no pid, host or fencing token, so any boot declares a live attempt abandoned",
+      "body": "writeLease (`src/runtime/lease.js:18-33`) stores attemptId, round, sessionId, startedAt, deadline, lastSeq, lastAdvanceAt, state, reason: no pid, no host identity, no monotonic token. reconcileLeases (`src/runtime/lease.js:80-92`) marks every `running` lease `abandoned` with reason `host-restart`, unconditionally. In loom-self4 the ledger shows `attempt.abandoned r4a1 host-restart` at t=1793993377902 and `round.finished n:4 interrupted` at t=1793993377905, then r4a1 finishing at 1793993397179 and r4a2 at 1793993397878, and round 4 closing `no-gain` at 1793993397889 — recovery ran against a round that was still alive. Here the mechanism is that \"running\" is unscoped: the booting process has no way to ask whether the owner still exists, so presence of the record is treated as proof of death. This is the classic case for fencing tokens, and the reason Kleppmann's lease critique applies: a lease grants no exclusivity unless the resource it guards rejects the old token, and here the resource is an append-only log that accepts any writer. Limitation: the sequence is also consistent with a real host death whose child agents survived as orphaned OS processes, which is arguably the correct thing to abandon; the ledger alone cannot distinguish the two.",
+      "source": "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html",
+      "confidence": 0.75,
+      "topic": "restart-safety",
+      "tags": [
+        "lease",
+        "fencing",
+        "recovery"
+      ]
+    },
+    {
+      "id": "w3-restart-boot-lock-steal",
+      "kind": "claim",
+      "title": "Boot claims loop ownership unconditionally, so a hot reload steals the loop from a live owner",
+      "body": "claimOwnership (`src/core/lock.js:38-46`) reads the previous record, writes its own, and returns `{ok:true, previous}` without ever refusing; `src/index.js:78` calls it on every plugin apply. The tick path is careful by contrast: ensureOwner (`src/runtime/runtime.js:361-382`) takes over only when `!state.owner || !state.alive || !state.fresh`, which is the correct rule. apply.log shows one process (pid 26448) applying 5 times in an evening with instance ids 4de39cc3, 669e117b, d4810987, d687c491, 0085c33e — five claims, five new owners, no refusal. Here the mechanism is that newest-writer-wins was chosen so a restart is never blocked by a dead pid lock, but the same rule lets an in-process reload start a second scheduler while the first one's round is still in flight, producing exactly the two-writer condition that corrupted seq in loom-self3. Why the two paths disagree: the boot path asks \"am I allowed to run\" and answers yes, the tick path asks \"is anyone else running\" and checks. Limitation: the old runtime is disposed by its effect cleanup (`src/index.js:167`) before the new claim in the normal reload order, so the overlap window is the dispose ordering, which I did not measure; dispatcher dispose is fire-and-forget (`Promise.resolve(d.dispose())`), so it may still be cancelling children when the new owner ticks.",
+      "source": null,
+      "confidence": 0.8,
+      "topic": "restart-safety",
+      "tags": [
+        "ownership",
+        "lock",
+        "hot-reload"
+      ]
+    },
+    {
+      "id": "w3-restart-repair-races-dispatch",
+      "kind": "claim",
+      "title": "Workspace repair is fire-and-forget while the first tick runs 250 ms later",
+      "body": "In runtime.recover() (`src/runtime/runtime.js:518-535`) repairWorkspace is launched with a `.then(...)` and never awaited, while `src/index.js:160-162` schedules `setTimeout(tick, 250)`. The repair runs `git checkout -- .` (`src/exec/worktree.js:330-333`) and `rmSync` of patch-created paths (`src/runtime/recovery.js:119-129`) inside the campaign workspace — the same tree the next round inspects with `git status` and diffs against HEAD. No lock is taken between repair and dispatch, so the round can observe a half-restored tree, conclude it is dirty, and refuse to apply (`workspace-dirty` in `src/exec/patch.js:66-68`), or diff against a base that is about to change. Here the mechanism is that the comment justifies the async launch as keeping tools usable on boot, which is a real requirement, but the same asynchrony also removes the only barrier between a destructive repair and the first reader. Limitation: the repair only runs when there is an unproven landing, which is rare, and both git commands are fast, so the window is narrow; I have not observed a round corrupted by it, only the code path that permits it.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "restart-safety",
+      "tags": [
+        "recovery",
+        "race",
+        "workspace"
+      ]
+    },
+    {
+      "id": "w3-restart-approve-twice-unlands",
+      "kind": "failure",
+      "title": "Re-approving a committed checkpoint writes committed:false, then recovery withdraws the landing",
+      "body": "The approve branch of rsi_decide (`src/tools/index.js:678-745`) applies the patch, runs the guard, commits, appends `autopilot.applied {committed, commit}`, and only then appends `checkpoint.answered`. A crash between the commit and the answered append leaves the checkpoint open. Answering it again reaches applyPatch's reverse-check (`git apply --reverse --check`, `src/exec/patch.js:62-66`), which returns `{ok:true, reason:'already-applied'}`, and then commitWorkspace finds nothing to commit and returns `{committed:false, sha:null}` (`src/exec/worktree.js:362-380`), so the second `autopilot.applied` claims committed:false. unprovenLandings (`src/runtime/recovery.js:56-80`) then emits `round.unlanded` and repairWorkspace restores tracked files and deletes patch-created files, undoing a change that was committed and human-approved. Here the mechanism is that the proof of landing is a field on an event that a legitimate retry cannot reproduce, so \"not provable from this event\" is conflated with \"not landed\". Limitation: I found no instance in 69 real ledgers; 5 rounds are promoted-but-landed:false, but `git apply --reverse --check` fails on their patches, meaning those landings genuinely did not happen, so this remains a code-path finding rather than an observed incident.",
+      "source": null,
+      "confidence": 0.6,
+      "topic": "restart-safety",
+      "tags": [
+        "checkpoint",
+        "idempotency",
+        "code-path"
+      ]
+    },
+    {
+      "id": "w3-restart-orphan-verifier",
+      "kind": "claim",
+      "title": "Host death orphans the verifier shell: taskkill fires only on timeout, no Job Object ties it",
+      "body": "runVerifier (`src/exec/verifier.js`) spawns with `shell: true` and calls terminateTree only when the deadline expires or the attempt is aborted; nothing binds the spawned tree to the host process. The child agent is a session inside the host, so it dies with the host, but the verifier is a separate cmd.exe tree that keeps running, still holding handles in the worktree and still writing whatever output files the command writes. Here the mechanism is that Windows has no signal-based process-group kill and no parent-death inheritance that reaches grandchildren; a Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE is the only stock mechanism and it is not in use here. Why this is an exactly-once problem and not a tidiness problem: after a restart the campaign can re-run the same attempt while the old verifier is still mutating the same worktree, so the side effect happens twice with no ledger event either time — at-least-once delivery of a command that author believed ran once. Limitation: a verifier is supposed to be read-only with respect to the campaign workspace, so in the common case the duplicate costs CPU and port contention rather than corruption; it becomes corruption only for commands that write artifacts or hit external services.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "restart-safety",
+      "tags": [
+        "orphan-process",
+        "windows",
+        "side-effects"
+      ]
+    },
+    {
+      "id": "w3-restart-night-committer",
+      "kind": "failure",
+      "title": "night-committer.mjs commits any dirty tree every 20 s with no lease, guarded by two status calls",
+      "body": "The script runs the full suite (up to 600 s), then `git add -A && git commit` in the repo root; its only defence against catching a half-applied patch is `git status --porcelain` taken twice with a 1.5 s gap plus countOpenGates before and after the suite (the gap is a `spawnSync(process.execPath, ['-e','setTimeout(()=>{},1500)'])`). It coordinates with the loop through no lock and no lease. Here the mechanism is specific: the loop's own invariant is that a landing counts only once committed, and a different process committing the dirty tree inside the apply-to-commit window makes git true while the ledger still records `committed:false`, which is precisely the state recovery reads to withdraw the landing and restore the tree. A status that is stable for 1.5 s proves the apply has not started, not that it has finished. Limitation: the script never reverts and checks gates twice, so the realistic damage is committing unverified work rather than losing it; night.log shows 6 `commit failed:` lines with empty stderr and 5 successes, but nothing that proves a half-applied patch was committed.",
+      "source": null,
+      "confidence": 0.65,
+      "topic": "restart-safety",
+      "tags": [
+        "second-writer",
+        "night-committer",
+        "workspace"
+      ]
+    },
+    {
+      "id": "w3-restart-crash-only-needs-idempotent-recovery",
+      "kind": "concept",
+      "title": "Crash-only design fits this loop but shifts the whole burden onto idempotent recovery",
+      "body": "Candea and Fox (HotOS 2003) argue that the only way to stop software should be to crash it and the only way to start it should be recovery, which deletes the rarely exercised clean-shutdown path. loom is crash-only in exactly this sense: dispose aborts children, boot runs recover() before ticking, and every repair is expressed as new ledger events rather than an edit. Why this works: the mechanism is that recovery must be a total function of the durable log, so running it twice is a no-op; `tests/chaos2/recover-idempotent.test.mjs` asserts precisely that (second recovery appends nothing). What crash-only does not supply is exclusivity or ownership: it silently assumes one recoverer and one log writer, which is the assumption nodes on duplicate seq, lease fencing and boot-time lock stealing show is unenforced here. Why the original setting is easier: the paper's systems sit behind middleware that absorbs retries, so a duplicate recovery is hidden from users; a workstation loop has no such layer, so the same design carries more risk in this context than in its own. Limitation: the paper is a position paper with no measurements, and its central claim (faster recovery, less code) is not falsifiable from it; I could not find a study that measures crash-only versus clean-shutdown failure rates in practice.",
+      "source": "https://www.usenix.org/legacy/events/hotos03/tech/candea.html",
+      "confidence": 0.8,
+      "topic": "restart-safety",
+      "tags": [
+        "crash-only",
+        "recovery",
+        "concept"
+      ]
+    },
+    {
+      "id": "w3-restart-incident-k8s-40k-duplicate",
+      "kind": "source",
+      "title": "A job killed at 70% sent the monthly statement to 40,000 customers twice",
+      "body": "The job read every account, rendered a PDF and called the email provider for each customer in turn, keeping the list of statements already sent only in memory. At roughly 70% it reached its 2 GB memory limit, the kernel killed the container (exit 137), the pod was marked failed and the replacement pod began again at the first customer. About forty thousand customers received the statement twice and a few thousand three times. Here the mechanism is the one loom's attempt model reproduces exactly: progress that lives only inside the running process is invisible to whatever restarts it, so the restart replays effects that already happened, and the replay is indistinguishable from the original work because nothing outside the process recorded either. The repair the author draws is not a retry limit but an addressable effect — one durable record per customer, written before the send, so that replay becomes a no-op. Limitation: this is a first-person engineering blog post without a company-verified postmortem, so the 40,000 figure is the author's own; and the failure was triggered by memory pressure, not by lease expiry, so it is evidence for the general shape of duplicate side effects rather than for any specific mechanism in loom.",
+      "source": "https://dev.to/sergey_shinder_ab2d943365/our-statement-job-ran-out-of-memory-at-seventy-percent-and-kubernetes-started-it-again-from-the-2m7m",
+      "confidence": 0.7,
+      "topic": "restart-safety",
+      "tags": [
+        "incident",
+        "duplicate-side-effects",
+        "kubernetes"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w3-restart-win-rename-open-file",
+      "rel": "supports",
+      "to": "w3-restart-atomic-js-unhardened",
+      "note": "the 88% failure rate is what makes the missing catch and cleanup in writeJsonAtomic a real leak rather than a theoretical one"
+    },
+    {
+      "from": "w3-restart-retry-backoff-livelock",
+      "rel": "supports",
+      "to": "w3-restart-atomic-js-unhardened",
+      "note": "even the known remedy does not fix it, so the defect is in choosing rename for the hot path, not in the absence of one retry"
+    },
+    {
+      "from": "w3-restart-append-is-the-safe-primitive",
+      "rel": "contradicts",
+      "to": "w3-restart-atomic-js-unhardened",
+      "note": "the design already contains a write path that survives the same load at 100%, and the snapshots do not use it"
+    },
+    {
+      "from": "w3-restart-dup-seq-in-real-ledger",
+      "rel": "supports",
+      "to": "w3-restart-normalize-is-data-loss",
+      "note": "without the observed duplicates the dedupe rule would be hypothetical; with them it demonstrably deletes attempt results"
+    },
+    {
+      "from": "w3-restart-normalize-is-data-loss",
+      "rel": "supports",
+      "to": "w3-restart-lease-no-fencing-token",
+      "note": "a log that accepts two writers cannot act as the fencing resource a lease would need"
+    },
+    {
+      "from": "w3-restart-boot-lock-steal",
+      "rel": "supports",
+      "to": "w3-restart-dup-seq-in-real-ledger",
+      "note": "two live owners is the mechanism that lets two writers allocate the same seq"
+    },
+    {
+      "from": "w3-restart-lease-no-fencing-token",
+      "rel": "supports",
+      "to": "w3-restart-boot-lock-steal",
+      "note": "both reduce ownership to a file's presence, so neither can refuse a newer claimant"
+    },
+    {
+      "from": "w3-restart-lease-no-fencing-token",
+      "rel": "caused",
+      "to": "w3-restart-repair-races-dispatch",
+      "note": "declaring a live round dead is what triggers the unproven-landing repair that then runs unlocked against a live workspace"
+    },
+    {
+      "from": "w3-restart-approve-twice-unlands",
+      "rel": "supports",
+      "to": "w3-restart-repair-races-dispatch",
+      "note": "the false-unland path feeds the same repair, so a wrong withdrawal also deletes files the user may be editing"
+    },
+    {
+      "from": "w3-restart-night-committer",
+      "rel": "supports",
+      "to": "w3-restart-approve-twice-unlands",
+      "note": "an external commit inside the apply-to-commit window manufactures exactly the committed:false landing that recovery withdraws"
+    },
+    {
+      "from": "w3-restart-orphan-verifier",
+      "rel": "supports",
+      "to": "w3-restart-crash-only-needs-idempotent-recovery",
+      "note": "crash-only says recovery must reconcile everything the crash left behind, and an orphaned verifier is a residue no ledger event describes"
+    },
+    {
+      "from": "w3-restart-incident-k8s-40k-duplicate",
+      "rel": "supports",
+      "to": "w3-restart-crash-only-needs-idempotent-recovery",
+      "note": "at-least-once replay of side effects is the concrete cost when durable progress lives only in the dead process"
+    },
+    {
+      "from": "w3-restart-incident-k8s-40k-duplicate",
+      "rel": "supports",
+      "to": "w3-restart-orphan-verifier",
+      "note": "the duplicate is invisible because nothing outside the process recorded the effect, the same gap as a verifier with no ledger event"
+    },
+    {
+      "from": "w3-restart-crash-only-needs-idempotent-recovery",
+      "rel": "supports",
+      "to": "w3-restart-repair-races-dispatch",
+      "note": "recovery is idempotent at the ledger level but not isolated at the workspace level, which the crash-only frame does not by itself require"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w3-restart-gap-no-fencing-experiment",
+      "title": "Nobody has tested what a fencing token would actually change on this loop",
+      "body": "Adding hostId and a monotonic epoch to lease records is cheap, but the only resource that could reject a stale token is the ledger, and it currently accepts any writer. The experiment is to record the epoch in every appended event and have normalize drop events whose epoch is below the highest seen for that attempt, then replay the loom-self4 timeline to see whether the r4a1/r4a2 finishes would have been admitted or silently dropped. Until that is run, the fencing-token argument is a plausible analogy from distributed systems, not a demonstrated improvement — and the failure mode of the naive version is precisely the silent data loss already measured in normalize."
+    },
+    {
+      "id": "w3-restart-gap-no-power-loss-test",
+      "title": "No crash-injection test exists for power loss, and the fsync defect is therefore unmeasured",
+      "body": "The missing fsync in writeJsonAtomic and the missing directory flush cannot be demonstrated by killing a process, because the OS still has the pages; they need a VM-level power cut or a filesystem that reorders. loom has three chaos suites that kill processes and none that cut power, so the durability half of restart safety has never been exercised. The concrete test: run N publishes in a VM, cut power at a random instant, and count how many of the corresponding files come back truncated or zero-length. Without it, the claim that state files are crash-safe is an assumption inherited from POSIX folklore applied to NTFS."
+    },
+    {
+      "id": "w3-restart-gap-no-duplicate-ever-observed",
+      "title": "No duplicated side effect has ever been observed in 69 real campaign ledgers — the risk is untested, not disproven",
+      "body": "I searched all 69 ledgers for duplicate checkpoint answers, duplicate autopilot.applied for one round, and repeated attempt ids; the only duplication found was at the event-seq level, not at the effect level. That is weak evidence either way: the loop's effects so far are mostly patches into a git worktree, where re-applying is content-checked and therefore naturally idempotent (`already-applied` in applyPatch). The genuinely non-idempotent effects — sending a notification, raising a checkpoint a human sees twice, spending money on a duplicate child session — are not in the ledger at all, so their absence proves nothing. A negative result from a ledger that cannot record the effect is not evidence of safety."
+    },
+    {
+      "id": "w3-restart-gap-antivirus-real-rate",
+      "title": "Defender interference is asserted by every source and measured by none of them here",
+      "body": "Both the claude-hooks and gortex fixes cite antivirus and search indexers as the cause of transient EPERM, and Microsoft's own docs on ReplaceFile document failure codes that leave the destination missing. But none of the sources give a rate, and my measurement used synthetic tight-loop readers rather than a real scanner. The missing experiment is to publish the same file once per second for an hour on a machine with Defender real-time protection on, and count failures; that number decides whether this is a one-in-a-thousand annoyance or the dominant cause of lost leases. Until it exists, the design choice between retry, append-only leases, and open-with-FILE_SHARE_DELETE rests on an analogy."
+    }
+  ]
+}

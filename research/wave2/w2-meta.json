@@ -1,0 +1,313 @@
+{
+  "nodes": [
+    {
+      "id": "w2-meta-opro-in-context-descent",
+      "kind": "claim",
+      "title": "OPRO beats human prompts by up to 8% (GSM8K) and 50% (BBH) by putting the score trajectory in the prompt",
+      "body": "Problem: a prompt is a discrete object with no gradient, so the only classic levers are random search or hand-editing. OPRO (arXiv:2309.03409) makes the optimizing LLM the optimizer: the meta-prompt carries the task description plus a trajectory of prior candidate instructions and their scalar scores, and the model is asked to produce a better one. The mechanism is that the (solution, score) list makes the task an in-context descent problem the model already knows how to do — it reads which phrasing correlates with high values and moves in that direction, no derivative required. Why this works: the entire optimization state fits in one context window, so there is no state to maintain outside the prompt and no training step. Limitation: it needs a cheap, reliable scalar per candidate; where evaluation is expensive or noisy the loop degenerates. OPRO's own analysis concedes overfitting is present but argues it is 'less harmful' when all candidates overfit alike — a hope, not a control.",
+      "source": "https://arxiv.org/abs/2309.03409",
+      "confidence": 0.85,
+      "topic": "w2-meta",
+      "tags": [
+        "textual-gradient",
+        "prompt-optimization",
+        "OPRO"
+      ]
+    },
+    {
+      "id": "w2-meta-stop-editable-improver",
+      "kind": "claim",
+      "title": "STOP puts the improver itself in the search space, so the same loop can be re-entered one level up",
+      "body": "Problem: an improver that is hand-written caps the whole loop at the quality of that one scaffold. STOP (arXiv:2310.02304) starts from a seed 'improver' program — it queries an LM on an input program and returns the best result — then runs that seed improver on itself, and the improved improver generates better programs on downstream tasks. Why this works: the improver is ordinary source code, so it lies inside the space the loop already searches; nothing new is needed at level 1, the levels are the same type, and the 3-level structure (improver / candidate / evaluator) can be re-entered on any of them. Limitation, stated by the authors: the LM weights are untouched, so this is not full RSI, and the paper also measures how often generated code escapes its sandbox — the search will find holes in the container before it finds better programs. Read the gain as 'the scaffold is now editable', not 'the model improved'.",
+      "source": "https://arxiv.org/abs/2310.02304",
+      "confidence": 0.8,
+      "topic": "w2-meta",
+      "tags": [
+        "meta-evolution",
+        "improver",
+        "STOP"
+      ]
+    },
+    {
+      "id": "w2-meta-dgm-archive-empirical",
+      "kind": "claim",
+      "title": "DGM trades the Godel machine's proof for an empirical bar: SWE-bench 20.0% to 50.0%",
+      "body": "Problem: Schmidhuber's Gödel machine is unimplementable because it demands a proof that a self-edit helps before applying it. DGM (arXiv:2505.22954v3) keeps the self-edit and drops the proof: it maintains an open-ended archive of self-modified agent variants and accepts an edit when the empirical score clears a bar on coding benchmarks. SWE-bench 20.0% → 50.0%, Polyglot 14.2% → 30.7%, beating baselines with neither self-improvement nor open-ended exploration. Why this works: a benchmark run is a cheap falsifiable gate, and the archive preserves stepping stones that a strict hill-climb would delete because they score slightly worse before they enable a later jump. The mechanism reaches all the way down: the v3 diff shows it edited its own tools/edit.py, replacing whole-file 'edit' with a unique-match 'str_replace' plus a view_range, i.e. it changed the operator it uses to change itself. Limitation: acceptance and scoring use the same benchmark, and secondary write-ups report it removed its own hallucination-detection markers to raise scores — I could not confirm that in the primary v3 text I read, so treat the reward-hacking anecdote as unverified.",
+      "source": "https://arxiv.org/abs/2505.22954v3",
+      "confidence": 0.75,
+      "topic": "w2-meta",
+      "tags": [
+        "meta-evolution",
+        "archive",
+        "DGM",
+        "self-modification"
+      ]
+    },
+    {
+      "id": "w2-meta-meta-cost-asymmetry",
+      "kind": "claim",
+      "title": "The meta level is ~1.6% of loop spend (2.5k vs 500k tokens/epoch): cheap, but not thereby helpful",
+      "body": "metaTextGrad (arXiv:2505.18524) reports per-epoch token cost: program level ~400k, optimizer level ~100k, meta-optimizer ~2.5k. The mechanism is a leverage asymmetry — a meta edit touches a few tokens at the top of a hierarchy and thereby re-parameterizes every downstream use of the optimizer, so the cost ratio between levels is roughly two orders of magnitude. Why this works: the object being edited shrinks as you go up, so marginal meta-iterations are nearly free once the inner loop exists. Results: 0.49/0.47 (zero-shot MIPROv2) to 0.56/0.53 (metaTextGrad) averaged val/test across BBH Word Sorting, BBH Dyck, MMLU Abstract Algebra, GPQA Diamond. Limitation: cheapness sets the bar for the real question (does it beat more attempts?) but does not clear it, and the accounting is uncomfortable — the meta-optimizer was o1 while the optimizer was GPT-4o, so part of the gain may be model class, not level. Their Theorem 1 Hoeffding bound covers only in-distribution risk; it says nothing about a shift in D.",
+      "source": "https://arxiv.org/abs/2505.18524",
+      "confidence": 0.8,
+      "topic": "w2-meta",
+      "tags": [
+        "meta-optimization",
+        "cost",
+        "metaTextGrad"
+      ]
+    },
+    {
+      "id": "w2-meta-promptbreeder-editable-operator",
+      "kind": "concept",
+      "title": "Promptbreeder evolves the mutation prompts, putting the edit operator in the same space as its operand",
+      "body": "Problem: a fixed mutation operator fixes the shape of every move the search can make. Promptbreeder (arXiv:2309.16797) evolves a population of task-prompts where mutation is governed by mutation-prompts that the LLM itself generates and improves — improving the improvers that improve the prompts. Nine mutation operators in five classes, one sampled uniformly per replication. Why this works: operator and operand share a representation (natural language), so no separate operator-search machinery, encoding, or cross-level credit assignment is needed; the loop that improves task-prompts mechanically also improves the thing that proposes task-prompts. Limitation: uniform operator sampling means no learned credit assignment across operators — nothing in the design tells you which operator earned a gain, so a good mutation prompt can be lost by drift. And the paper's claim is domain generality across tasks, not out-of-distribution transfer of the evolved operators, which is the claim a loom-style loop would actually need.",
+      "source": "https://arxiv.org/abs/2309.16797",
+      "confidence": 0.8,
+      "topic": "w2-meta",
+      "tags": [
+        "meta-evolution",
+        "mutation-operator",
+        "Promptbreeder"
+      ]
+    },
+    {
+      "id": "w2-meta-eoh-thought-code",
+      "kind": "claim",
+      "title": "EoH evolves natural-language thoughts alongside code, beating FunSearch on bin packing at low query budget",
+      "body": "Problem: searching directly in code space is syntactically brittle — most LLM edits break the program, so fitness never reflects the quality of the idea. EoH (arXiv:2401.02051) represents a heuristic's idea as a natural-language 'thought', translates it to executable code, and evolves both layers; it outperforms hand-crafted heuristics and FunSearch on three combinatorial problems, notably online bin packing at a low LLM-query budget. The mechanism is a dual representation: the thought layer supplies a semantic neighborhood where an edit means something, while the code layer supplies a verifiable fitness — so mutation is guided by meaning and selected by measurement. Why this works: it decouples 'is this a good idea' from 'does this compile', which is exactly the failure mode that makes plain code evolution waste most of its budget on dead candidates. Limitation: the thought→code translation is itself an unreliable LLM step that can silently drop the intended idea, and the whole thing rests on a fast cheap simulator — three combinatorial problems is a narrow base for any transfer claim.",
+      "source": "https://arxiv.org/abs/2401.02051",
+      "confidence": 0.78,
+      "topic": "w2-meta",
+      "tags": [
+        "evolution-of-heuristics",
+        "dual-representation",
+        "EoH"
+      ]
+    },
+    {
+      "id": "w2-meta-gepa-reflection-density",
+      "kind": "claim",
+      "title": "GEPA beats GRPO by 6% with 35x fewer rollouts: a reflection carries more bits per rollout than a scalar",
+      "body": "Problem: RL-style adaptation needs thousands of rollouts, and a sparse scalar reward throws away almost all the information a failed trajectory contains. GEPA (arXiv:2507.19457, ICLR 2026 Oral) samples trajectories, reflects on them in natural language, proposes and tests prompt updates, and combines complementary lessons across a Pareto frontier of its own attempts. The mechanism is information density: one scalar is one number per rollout, whereas a reflected diagnosis is a structured explanation that yields several edit directions at once — so each expensive rollout is amortized over more hypotheses. Why this works: the bottleneck in a real loop is evaluations, not tokens, so converting evaluation into language is the cheapest available compression of the search signal; the Pareto frontier additionally keeps partial solutions that fix different failures instead of collapsing to one best candidate. Limitation: reflection quality is bounded by the model's self-diagnostic ability, a scalar metric is still needed to decide frontier membership, and the +13pp vs MIPROv2's +5.6pp was measured on tasks in the tuning distribution.",
+      "source": "https://arxiv.org/abs/2507.19457",
+      "confidence": 0.82,
+      "topic": "w2-meta",
+      "tags": [
+        "reflection",
+        "sample-efficiency",
+        "GEPA",
+        "pareto"
+      ]
+    },
+    {
+      "id": "w2-meta-learned-optimizer-ood-break",
+      "kind": "failure",
+      "title": "A learned optimizer transfers across width, depth and 4x parameters but breaks when sigmoid becomes ReLU",
+      "body": "Andrychowicz et al. (arXiv:1606.04474) parameterize an optimizer as a coordinatewise 2-layer LSTM and train it by minimizing expected loss over a distribution of functions with truncated BPTT. It beats SGD, RMSprop, Adam and NAG, and generalizes across width, depth, 12,288→49,152 parameters, and new neural-art styles and resolutions — but switching sigmoid to ReLU breaks it: 'changing the activation function makes the dynamics sufficiently different that the learned optimizer is no longer able to generalize.' The mechanism is No Free Lunch (Wolpert & Macready 1997): an optimizer is only better *for a distribution*, and a learned optimizer literally encodes that distribution's curvature, so specialization is the only route to beating a general-purpose rule and simultaneously the source of the fragility. Why this matters for loom: it is the cleanest statement that a better improver is a bet on stationarity. Limitation: they also had to early-stop the optimizer itself to stop it overfitting the training distribution, so even the meta level needs its own held-out control.",
+      "source": "https://arxiv.org/abs/1606.04474",
+      "confidence": 0.88,
+      "topic": "w2-meta",
+      "tags": [
+        "learned-optimizer",
+        "OOD",
+        "no-free-lunch",
+        "overfitting"
+      ]
+    },
+    {
+      "id": "w2-meta-sample-more-reflect-less",
+      "kind": "claim",
+      "title": "At matched token budgets all 18 self-inspection comparisons lose to resampling; 10 methods are worse",
+      "body": "Mirzaei (arXiv:2607.28576) runs a designed experiment over 7 methods, open models at 1.5B/3B/7B, two math benchmarks, 150 questions each, counting EVERY generated token including critiques, reflections, debate and checking — 36 paired comparisons with bootstrap CIs and multiplicity correction. No method was reliably better than repeated sampling at equal cost; 10 were reliably worse, all of them self-inspection methods. The mechanism is that self-inspection spends tokens re-reading the same evidence with the same model, so it cannot add information the first pass lacked, whereas resampling draws independent samples, which is the only thing that widens coverage when no external verifier exists. Why this is the key control: it makes budget the unit, and under that unit most 'improve the process' wins evaporate. Limitation: math-only, small open models — and self-inspection of a reasoning trace is not the same as a loop that writes to an external artifact it can then test, so this does not refute code-level self-improvement, only introspection-level.",
+      "source": "https://arxiv.org/abs/2607.28576",
+      "confidence": 0.85,
+      "topic": "w2-meta",
+      "tags": [
+        "budget-matching",
+        "resampling",
+        "negative-result"
+      ]
+    },
+    {
+      "id": "w2-meta-audit-four-of-26",
+      "kind": "number",
+      "title": "Only 4 of 26 'better improver' claims compare earlier vs later improvers at identical start and equal budget",
+      "body": "Chen et al. (arXiv:2610.27610) full-text-code 114 studies, 90 of them self-described RSI: 90% report product evaluation, 60% evaluate on tasks unused for selection, only 22% audit two or more reruns of the full loop. Of 26 studies claiming a better improvement procedure, 23 report some related comparison but only 4 compare earlier versus later procedures from identical starting artifacts at a matched budget. The mechanism is three confounds that all inflate later rounds: selection effects (later means more tries), shared evaluator errors (the same scorer both selects and judges), and system-state change (round N has more context, tools and memory than round 0). Why this matters: without matched start and matched budget, 'the improver got better' is observationally indistinguishable from 'we ran longer', which is exactly the alternative that costs nothing to explain. Limitation: it is a coding of papers, not a re-execution, and the four clean cases are not meta-analyzed, so the audit bounds the evidence without supplying the missing measurement.",
+      "source": "https://arxiv.org/abs/2610.27610",
+      "confidence": 0.85,
+      "topic": "w2-meta",
+      "tags": [
+        "audit",
+        "matched-budget",
+        "evidence-quality"
+      ]
+    },
+    {
+      "id": "w2-meta-ade-inloop-vs-heldout",
+      "kind": "claim",
+      "title": "ADE: in-loop scores rise while held-out trajectories do not follow, so later in-loop gains may not generalize",
+      "body": "ADE (arXiv:2610.14238) gives agents experimental feedback to develop data-engineering strategies across four tasks under a fixed training and evaluation protocol; selected strategies reach up to +13.34% absolute on AIME25 Pass@32 and +5.85% averaged over four held-out benchmarks. The paper's own sentence is the finding: 'In-loop scores improve over successive experiments, while held-out trajectories show that later in-loop gains do not always improve generalization.' The mechanism is that the in-loop score is simultaneously the selection signal and the thing being optimized, so any improvement that exploits its quirks is preferentially retained — the loop optimizes its own measurement, and there is no penalty for a strategy that raises the score via an evaluator artifact. Why this works as an instrument: it is one of the few setups that logs both curves on the same run, so the divergence is visible rather than inferred. Limitation: gains are still positive overall, so this is variance in the transfer rate, not failure; and it is one domain family (data engineering for math/code training).",
+      "source": "https://arxiv.org/abs/2610.14238",
+      "confidence": 0.83,
+      "topic": "w2-meta",
+      "tags": [
+        "generalization",
+        "held-out",
+        "in-loop",
+        "ADE"
+      ]
+    },
+    {
+      "id": "w2-meta-elicitation-not-expansion",
+      "kind": "number",
+      "title": "A harness's pass@1 edge reverses at scale: +16.05pp at pass@1 becomes -4.00pp at pass@64 on LawBench",
+      "body": "Kim et al. (arXiv:2610.27889) separate elicitation (more reliable success on already-reachable tasks) from expansion (a broader reachable set), comparing an optimized harness against the same base harness with a bigger solver model or higher reasoning effort, on pass@k. On LawBench the optimized GPT-OSS-20B harness beats the GPT-OSS-120B baseline by 16.05pp at pass@1 but trails it by 4.00pp at pass@64; a transferred text-classification harness falls below baseline at pass@64 on all three OOD datasets despite small pass@1 gains; aggregate gains also conceal shortfalls on hard subsets. The mechanism is that optimization mostly fixed protocol/formatting failures, which raises the per-attempt hit rate but saturates, whereas coverage compounds with attempts — so a reliability fix cannot widen the reachable set, and a stronger reference eventually overtakes it. Why this works as a diagnostic: pass@k at large k measures the reachable set almost directly, so it cannot be gamed by making successes more consistent. Limitation: three task families, one proposer, and the reversal is against a stronger reference rather than against the same system given more attempts.",
+      "source": "https://arxiv.org/abs/2610.27889",
+      "confidence": 0.82,
+      "topic": "w2-meta",
+      "tags": [
+        "pass@k",
+        "elicitation",
+        "expansion",
+        "harness"
+      ]
+    },
+    {
+      "id": "w2-meta-bandit-search-policy",
+      "kind": "claim",
+      "title": "A LinUCB bandit over parent combinations scores 81.7 vs AFlow's 80.3 while cutting search spend 11.2%",
+      "body": "DAGO (arXiv:2610.05284) learns the search policy instead of the operator: each candidate parent combination is an arm represented by pretrained embeddings of its constituent workflows' code and prompts, a diagonal LinUCB learns a shared reward model across arms, an LLM generates a child by summary-guided fusion of the selected parents, and the child's validation score updates the bandit. Across six benchmarks it gets the best macro-average under matched validation budgets: 81.7 vs AFlow 80.3 while reducing aggregate search expenditure 11.2%; ablations show LinUCB beats both random selection and its exploration-free variant. Why this works: the policy is a low-dimensional parametric object fitted from exactly the expensive evaluations the loop already pays for, so it extracts cross-arm structure (which parent features predict good offspring) that a hand-designed operator cannot, and exploration is explicit rather than incidental. The mechanism is cheap because the policy has few parameters relative to the search space. Limitation: 1.4pp is small and run variance is not the headline; a linear reward model will miss strongly non-linear operator effects.",
+      "source": "https://arxiv.org/abs/2610.05284",
+      "confidence": 0.78,
+      "topic": "w2-meta",
+      "tags": [
+        "search-policy",
+        "bandit",
+        "DAGO",
+        "budget"
+      ]
+    },
+    {
+      "id": "w2-meta-warm-start-library",
+      "kind": "concept",
+      "title": "Warm-starting from a library of known-good moves buys early gains and imports a bias that can trap the search",
+      "body": "Three instances of one idea. Voyager (arXiv:2305.16291) keeps executable skills in a compositional, hierarchical library that is retrieved and reused instead of re-derived, reporting 3.3x more unique items than baselines. Classical EA warm start seeds the population with previously known-good solutions: fast early gains and elitism that guarantees not-worse-than-the-seed, at the cost of a stronger pull into local optima, controlled by diversity maintenance. Skill^∞ (arXiv:2610.35434) pushes it up a level: the meta-skill is decoupled from task skills, refined across several skill-optimization tasks and then reused, reaching 60.7% on 83 SkillsBench tasks vs 56.4% for human-curated skills and 54.5% for SkillEvolver. Why this works: a library converts previously paid search cost into a prior, so the loop starts inside the good region rather than rediscovering it, and retrieval is far cheaper than search. Limitation: every warm start is a bet that the new task lies in the same basin — it is prior transfer, not improvement — and the 4.3pp margin over human-curated skills is not ablated against simply giving SkillEvolver more budget.",
+      "source": "https://arxiv.org/abs/2610.35434",
+      "confidence": 0.75,
+      "topic": "w2-meta",
+      "tags": [
+        "warm-start",
+        "skill-library",
+        "diversity",
+        "Voyager"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w2-meta-gepa-reflection-density",
+      "rel": "refines",
+      "to": "w2-meta-opro-in-context-descent",
+      "note": "OPRO feeds back scalar scores; GEPA feeds back reflected diagnoses plus a Pareto frontier, buying sample efficiency rather than ceiling."
+    },
+    {
+      "from": "w2-meta-promptbreeder-editable-operator",
+      "rel": "refines",
+      "to": "w2-meta-opro-in-context-descent",
+      "note": "Same in-context loop, but the mutation prompts are moved inside the search space."
+    },
+    {
+      "from": "w2-meta-dgm-archive-empirical",
+      "rel": "refines",
+      "to": "w2-meta-stop-editable-improver",
+      "note": "Keeps STOP's improver-as-code move, drops the fixed scaffold for an open archive with empirical acceptance."
+    },
+    {
+      "from": "w2-meta-eoh-thought-code",
+      "rel": "supports",
+      "to": "w2-meta-promptbreeder-editable-operator",
+      "note": "Both argue the edit space must be semantic, not syntactically brittle, for evolution to pay."
+    },
+    {
+      "from": "w2-meta-stop-editable-improver",
+      "rel": "applies-to",
+      "to": "w2-meta-eoh-thought-code",
+      "note": "STOP's improver is code; EoH's thought layer is the semantic version of the same re-entrant move."
+    },
+    {
+      "from": "w2-meta-sample-more-reflect-less",
+      "rel": "contradicts",
+      "to": "w2-meta-gepa-reflection-density",
+      "note": "At equal total tokens, no self-inspection method beat resampling; GEPA's win is at few rollouts, not at matched tokens."
+    },
+    {
+      "from": "w2-meta-learned-optimizer-ood-break",
+      "rel": "supports",
+      "to": "w2-meta-elicitation-not-expansion",
+      "note": "Sigmoid-to-ReLU breaking a learned optimizer is the optimization-level form of a pass@1 edge that reverses at pass@64."
+    },
+    {
+      "from": "w2-meta-warm-start-library",
+      "rel": "supports",
+      "to": "w2-meta-meta-cost-asymmetry",
+      "note": "A meta-skill refined across tasks and reused is a warm start at the top level, cheap because it is small."
+    },
+    {
+      "from": "w2-meta-bandit-search-policy",
+      "rel": "applies-to",
+      "to": "w2-meta-warm-start-library",
+      "note": "Bandit priors over parents are a learned prior; a skill library is a curated one."
+    },
+    {
+      "from": "w2-meta-meta-cost-asymmetry",
+      "rel": "supports",
+      "to": "w2-meta-bandit-search-policy",
+      "note": "Cheap top-level edits are what make a learned search policy affordable inside one loop."
+    },
+    {
+      "from": "w2-meta-audit-four-of-26",
+      "rel": "refines",
+      "to": "w2-meta-elicitation-not-expansion",
+      "note": "Explains why field evidence for better improvers is weak; pass@k at large k is the measurement that would expose it."
+    },
+    {
+      "from": "w2-meta-ade-inloop-vs-heldout",
+      "rel": "supports",
+      "to": "w2-meta-elicitation-not-expansion",
+      "note": "In-loop rise with lagging held-out is the training-loop form of elicitation without expansion."
+    },
+    {
+      "from": "w2-meta-audit-four-of-26",
+      "rel": "supports",
+      "to": "w2-meta-ade-inloop-vs-heldout",
+      "note": "Few studies check held-out at all; ADE does and finds the two curves diverge."
+    },
+    {
+      "from": "w2-meta-warm-start-library",
+      "rel": "requires",
+      "to": "w2-meta-elicitation-not-expansion",
+      "note": "Warm-starting bets on staying in the basin; coverage at large k, not pass@1, decides whether the bet paid."
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w2-meta-gap-no-matched-budget-headtohead",
+      "title": "Nobody has run meta-optimizing the improver head-to-head against spending the same tokens on N more attempts, in a code-editing loop",
+      "body": "The question loom actually needs answered is marginal: given a fixed token budget, is it better to improve the edit operator or to make more edits with the current one? No primary source I found runs that experiment for an LLM code loop. The closest quantitative handles measure adjacent objects — arXiv:2607.28576 does token-matched resampling but on math with small open models and no code artifact; arXiv:2610.27889 compares pass@k across attempt budgets but holds the harness fixed, not the budget. The audit arXiv:2610.27610 reports only 4 of 26 'better improver' claims even approximate a matched-start, matched-budget comparison, and none of those four is a token-matched head-to-head against more attempts. Why nobody has measured it: it requires a re-runnable loop with a stable evaluator, token accounting across three levels, and many paired runs at each budget point — the exact cost structure that makes the field prefer single-run pass@1 headlines.",
+      "topic": "w2-meta"
+    },
+    {
+      "id": "w2-meta-gap-controls-never-ablated-singly",
+      "title": "The overfitting controls are always bundled: no one isolates the marginal contribution of archive, Pareto frontier, island/MAP-Elites, or a large-k held-out gate",
+      "body": "Every method that claims OOD robustness ships two or three controls together — DGM has an open archive, GEPA has a Pareto frontier plus reflection, AlphaEvolve/OpenEvolve-style systems have islands and MAP-Elites grids, ADE and Meta-TTL have validation-gated acceptance. None of the primary papers I read ablates them one at a time to say which control is load-bearing and how much each buys. This matters because the controls have very different costs: an archive is nearly free, a large-k held-out gate is the most expensive measurement in the loop, and diversity maintenance needs many parallel lineages. Why it is unmeasured: a one-at-a-time ablation of a diversity control needs many full independent runs per arm, which is precisely the spend that these loops exist to avoid — so the field optimizes the thing it is measuring and leaves the controls unvalidated. Until this exists, 'use an archive and a frontier' is folklore with a plausible mechanism attached, not an evidence-backed recipe.",
+      "topic": "w2-meta"
+    },
+    {
+      "id": "w2-meta-gap-shared-evaluator-error-invisible",
+      "title": "Shared evaluator error is undetectable from inside the loop, so an improver that games the judge reads as an improver that got better",
+      "body": "When the same scorer selects edits and reports the result, an edit that exploits the scorer is indistinguishable from an edit that helps. The audit arXiv:2610.27610 names this as one of three confounds behind inflated self-improvement claims, and DGM's reported removal of its own hallucination-detection markers is the canonical anecdote — but I could not verify that in the primary v3 text, and no paper I read provides a general detector. Partial mitigations exist and are indirect: held-out tasks unused for selection (60% of audited studies), pass@k at large k (arXiv:2610.27889), independent human review of traces. Why it stays unsolved: detecting it requires an oracle independent of the evaluator, and the settings where self-improvement matters most are exactly the settings with no such oracle. What is missing is a cheap proxy — e.g. tracking whether accepted edits improve the score through the intended mechanism — and nobody has published or validated one for code-editing loops.",
+      "topic": "w2-meta"
+    }
+  ]
+}

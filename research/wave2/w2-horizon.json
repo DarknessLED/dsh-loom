@@ -1,0 +1,311 @@
+{
+  "nodes": [
+    {
+      "id": "w2-horizon-collapse-not-decay",
+      "kind": "claim",
+      "title": "Horizon: success collapses within a few actions, not exponentially (36.3% of 3,132 trajectories)",
+      "body": "The HORIZON benchmark holds horizon as the controlled variable across Web/WebArena, OS/AgentBench, DB/MAC-SQL and embodied IsaacSim, scoring 3,132 trajectories (1,995 failures, 1,137 successes, 36.3% overall; Web 24.1%, OS 40.3%, DB 36.9%, Embodied 42.2%). The curve is not the smooth geometric decay predicted when each subgoal succeeds independently at rate p: the data show a sharp transition region inside a handful of actions, then near-floor success. The paper separates intrinsic horizon H* (minimum effective actions an optimal policy needs) from compositional depth s (longest chain of decision nodes on any path). The mechanism is state coupling: a wrong decision at action k changes the state actions k+1..n operate on, so failure is conditional on the prefix, and depth rather than step count governs reliability. Embodied runs show the shape: GPT-5 at 0.926 -> 0.407 -> 0.259 -> 0.074, Claude-4 at 0.963 -> 0.259 -> 0.111 -> 0.037 across four depth levels. Honest limitation: the breaking point is a transition band, not a threshold, is model- and domain-conditional, and no empirically validated theory derives it from task structure.",
+      "source": "arXiv:2604.11978",
+      "confidence": 0.8,
+      "topic": "w2-horizon",
+      "tags": [
+        "benchmark",
+        "failure-curve",
+        "HORIZON",
+        "subgoal-coupling"
+      ]
+    },
+    {
+      "id": "w2-horizon-context-bloat-dominant",
+      "kind": "number",
+      "title": "Context bloat is 47.9-55.7% of terminal failures and 56.6-65.1% of triggers in a 72h loop",
+      "body": "The Endurance Wall study simulates a production harness for 72 hours at 12 tasks/hour (864 tasks/run, 100 seeds/cell, 20k starting context growing 6k tokens/hour to a 100k cap) and scores every task with an independent verifier. Two structural facts dominate the baseline taxonomy: context bloat is the top terminal class at every hazard level (47.9%, 52.9%, 55.7%) and the top trigger of any failure (56.6-65.1% of triggers), with skill misroute 12.8-13.3%, starvation 10.9-12.1% and silent no-op 9.4-10.0% roughly stable. Why this works as a diagnosis: it identifies the failure as endogenous, i.e. the loop's own accumulated transcript is a load-bearing input that degrades with age, so remedies must operate on the transcript (compaction) rather than on the task stream. Honest limitation and scope warning: the hazard grid is declared, not fitted to telemetry, and the whole result is a discrete-event simulator of one frozen task stream and one model tier; the authors themselves say the level values are not a production night's numbers, only the intervention ranking is meant to survive re-anchoring.",
+      "source": "https://thakicloud.com/tech-blog/en/research/endurance-wall-unattended-agent-decay/",
+      "confidence": 0.65,
+      "topic": "w2-horizon",
+      "tags": [
+        "unattended",
+        "context-bloat",
+        "failure-taxonomy",
+        "simulation"
+      ]
+    },
+    {
+      "id": "w2-horizon-error-amplification",
+      "kind": "number",
+      "title": "A failed task lifts the next failure rate by +1.51/+3.72/+14.22pp across hazard levels",
+      "body": "The measurable signature of compounding is the conditional gap Delta_comp = P(task t fails | task t-1 fails) - P(task t fails | task t-1 verified OK). Baseline values are +1.51pp (low hazard), +3.72pp (mid), +14.22pp (high); at high hazard the post-failure failure rate is 0.401 against 0.259 after a verified success. Why this works as a measurement: it isolates contamination from base rate, because both arms of the contrast share the same task stream and model tier, so the difference can only come from what the previous task left behind (a poisoned transcript, a half-edited repo, a wrong assumption carried forward). The mechanism is state carryover: the loop's persistent context and working tree are shared mutable state, so one unrecovered error raises the cost of every subsequent decision until something resets the channel. Honest limitation: Delta_comp is correlational and simulator-derived; a common cause (e.g. a hard stretch of tasks) would inflate it, and the study only partially controls for task difficulty by freezing a single stream. The high-hazard value is also the most fragile to the declared hazard grid.",
+      "source": "https://thakicloud.com/tech-blog/en/research/endurance-wall-unattended-agent-decay/",
+      "confidence": 0.6,
+      "topic": "w2-horizon",
+      "tags": [
+        "compounding",
+        "contagion",
+        "measurement",
+        "unattended"
+      ]
+    },
+    {
+      "id": "w2-horizon-compaction-cuts-amplification",
+      "kind": "claim",
+      "title": "Compaction restores failure independence (gap to +0.24pp) and pays for itself at 3.4-4.2x QPD",
+      "body": "Periodic context compaction every 6 hours (summarize and rewrite the transcript at 0.5x token cost) cuts bloat from 55.7% to 2.4% of terminal failures, drops retry-ladder exhaustions from 1.55 per run to 0.00, and shrinks Delta_comp from +1.51/+3.72/+14.22pp to +0.24/+0.88/+1.48pp, going slightly negative (-0.29/-0.56/+0.17pp) in arms that combine it with veto. A negative gap means the task after a failure succeeds more often than the task after a success, i.e. a repair effect. The mechanism is that amplification is mediated by the transcript, and compaction is the one intervention that removes the mediator rather than masking it, so failures become approximately independent samples again and a retry has a real chance of a different outcome. Honest limitation: compaction alone buys almost no endurance at high hazard (+0.27h) because the residual mix then shifts to skill misroute (33.0%), starvation (28.1%) and silent no-op (23.9%), which compaction cannot touch; and a summary is lossy, so the mechanism trades contamination for information loss whose rate this study does not measure.",
+      "source": "https://thakicloud.com/tech-blog/en/research/endurance-wall-unattended-agent-decay/",
+      "confidence": 0.65,
+      "topic": "w2-horizon",
+      "tags": [
+        "compaction",
+        "intervention",
+        "independence",
+        "QPD"
+      ]
+    },
+    {
+      "id": "w2-horizon-checkpoint-hides-errors",
+      "kind": "failure",
+      "title": "Checkpoint-restart buys 3.5-8.1h but inflates the apparent-vs-verified gap from 2.9 to 21.9pp",
+      "body": "Snapshotting state every 2 hours and restarting from the last good snapshot when the retry ladder is exhausted (3 attempts, 50% each, 3,000 tokens per restart) looks like the classic 'restart from clean state' remedy. It does add endurance (+3.5/+6.5/+8.1 hours) but drops quality-per-dollar below parity (0.92/0.86/0.80x) and, the sharper finding, inflates the gap between self-declared completion and independently verified success from a 0.7-2.9pp baseline to 9.0/15.1/21.9pp. The mechanism is that re-execution from a snapshot re-runs the task against the same un-fixed environment and the same un-fixed plan, so the residual error is silently re-absorbed and the run is recorded as complete; the restart resets the context counter but not the cause, and it re-inflates context from the snapshot so bloat returns to 65.3%. Why this matters for any RSI loop: a checkpointed loop reports more success the less it deserves, which corrupts the very signal a self-improving loop trains on. Honest limitation: the simulator's verifier is deterministic and mechanical, so these exact gaps depend on verifier coverage; a verifier with its own error rate would move them, and the study is explicit that this is one frozen tier and stream.",
+      "source": "https://thakicloud.com/tech-blog/en/research/endurance-wall-unattended-agent-decay/",
+      "confidence": 0.65,
+      "topic": "w2-horizon",
+      "tags": [
+        "checkpointing",
+        "integrity",
+        "self-report",
+        "counterintuitive"
+      ]
+    },
+    {
+      "id": "w2-horizon-veto-cheap-intercepts",
+      "kind": "claim",
+      "title": "Low-confidence veto buys 8.7-13.5h at QPD ~1.0x without narrowing amplification (15.31pp)",
+      "body": "Vetoing results whose confidence falls below a threshold, at 500 tokens per veto, is the only single intervention whose endurance gain grows with hazard while holding cost parity (QPD 0.98-1.02x), and compact+veto is the cheapest crossing of the wall: +35.5h at high hazard, 72h success 0.945, QPD 3.91x, integrity cost 0.31pp. The mechanism is economic rather than epistemic: the veto does not reduce Delta_comp (it actually widens to +15.31pp) and it increases cascade exhaustions (1.55 -> 1.67), because it defers work rather than fixing it. What it does is intercept before contamination at a fixed low price, and as hazard rises more results fall below threshold, so the number of intercepts, and therefore the total hours saved, grows. Why this works: it converts an unbounded downstream cost into a bounded per-event cost, which is exactly the right shape when you cannot tell which output is wrong but you can tell which output is uncertain. Honest limitation: the confidence signal is assumed calibrated, and no calibration measurement is reported; on a miscalibrated model veto becomes random rejection with the same token price and no endurance gain.",
+      "source": "https://thakicloud.com/tech-blog/en/research/endurance-wall-unattended-agent-decay/",
+      "confidence": 0.6,
+      "topic": "w2-horizon",
+      "tags": [
+        "escalation",
+        "intervention",
+        "calibration",
+        "cost"
+      ]
+    },
+    {
+      "id": "w2-horizon-oracle-state-continuous",
+      "kind": "claim",
+      "title": "Continuous oracle state lifts success 19-38%, and its lead widens from 7% to 18% as runs lengthen",
+      "body": "The oracle-state intervention replaces a failing agent's accumulated history with ground-truth structured state, which lets one separate 'the agent lacked the facts' from 'the agent had the facts and still failed'. Replacing context only after failure recovers under 10% of 420 failed WebArena trajectories, but maintaining oracle state throughout the trajectory improves success by 19-38%, and the gap between oracle-maintained and self-generated state grows from 7% to 18% as trajectories lengthen. The mechanism is that the deficit is not retrievability but maintenance: a correct fact inserted once decays in influence as the transcript grows, so the benefit scales with how continuously the state is re-asserted, not with how much context is available at any single step. Why this works as a causal test rather than a correlation: the intervention changes only the state, holding the policy and tools fixed, so the improvement is attributable to state quality alone. Honest limitation: oracle state is not deployable (it is a diagnostic upper bound), the study covers WebArena only with two models (Qwen3.5-27B, GPT-5.2), and 'structured state' was hand-built for that environment.",
+      "source": "https://aclanthology.org/2026.realm-1.6/",
+      "confidence": 0.75,
+      "topic": "w2-horizon",
+      "tags": [
+        "state-maintenance",
+        "causal-intervention",
+        "oracle",
+        "webarena"
+      ]
+    },
+    {
+      "id": "w2-horizon-context-not-primary-bottleneck",
+      "kind": "claim",
+      "title": "Context explains 11.7% of failures; 58-74% persist after context and environment are restored",
+      "body": "This is the most direct test of the assumption behind most long-horizon engineering (compress, filter, restructure history). In 420 failed WebArena trajectories across two models, human annotators attribute only 11.7% of failures to context-caused errors, post-hoc context replacement recovers under 10%, and 58-74% of failures survive restoring both context and environment. The convergence of an intervention-based estimate with an independent human-attribution estimate is what makes this credible: two methods with different biases land on the same minority share. The mechanism is that many failures are planning or execution errors already committed to state the agent cannot re-derive, so no history repair rescues them; repair must happen at the decision, not at the transcript. Why this works as evidence: it predicts that context engineering alone hits a ceiling and that subgoal-level verification is the higher-yield lever, consistent with continuous oracle state helping while post-hoc repair does not. Honest limitation: WebArena is a bounded web environment, two models, and the oracle upper bound is not deployable; 'context' was operationalized as accumulated history, which may understate slower contamination.",
+      "source": "https://aclanthology.org/2026.realm-1.6/",
+      "confidence": 0.75,
+      "topic": "w2-horizon",
+      "tags": [
+        "causal-decomposition",
+        "context-engineering",
+        "ceiling",
+        "webarena"
+      ]
+    },
+    {
+      "id": "w2-horizon-context-rot-length",
+      "kind": "claim",
+      "title": "All 18 models degrade as input grows; shuffled haystacks beat coherent ones for every model",
+      "body": "Chroma's Context Rot holds task complexity fixed and varies only input length across ~194,480 calls on 18 models (Claude Opus/Sonnet 4, GPT-4.1 family, Gemini 2.5, Qwen3). Performance falls with length on every model even for needle retrieval and repeated-word copying; one distractor hurts and four compound, amplified at longer lengths; lower needle-question semantic similarity degrades faster. The counterintuitive result is that logically shuffled, locally incoherent haystacks beat coherent ones across all 18 models. The mechanism is attention competition: coherent text creates strong local associations that compete with the queried item, so well-organized context is not automatically easier to use. Why this matters here: the degradation is a property of input processing, not only of task difficulty, so a long run degrades even when nothing goes wrong. Honest limitation, stated by the authors: they do not explain the mechanism behind the degradation, and near-perfect needle-in-a-haystack scores mask the effect because retrieval is not reasoning over context; the attention-structure account remains an unproven hypothesis.",
+      "source": "https://research.trychroma.com/context-rot",
+      "confidence": 0.75,
+      "topic": "w2-horizon",
+      "tags": [
+        "context-rot",
+        "input-length",
+        "attention",
+        "empirical"
+      ]
+    },
+    {
+      "id": "w2-horizon-self-correction-needs-external",
+      "kind": "failure",
+      "title": "Intrinsic self-correction adds no information and can lower accuracy; verification must be external",
+      "body": "The ICLR 2024 result is blunt: without external feedback, asking a model to review and correct its own reasoning does not reliably improve accuracy and sometimes degrades it. Why this works as an explanation: self-correction conditioned only on the model's own prior output is a re-sample from the same posterior, so it cannot import the information that would distinguish a wrong answer from a right one; the model's confidence is unchanged, so the error is stable under reflection. The consequence for long-horizon design is structural: a 'reflect and retry' loop has no mechanism to break an error chain, whereas a mechanical check (test suite, schema validation, state diff, independent verifier) introduces new information and can. This is the same logic that makes the veto arm work only if the confidence signal is genuinely external, and the same reason checkpointing fails in the endurance study when the verifier is inside the loop. Honest limitation: the finding is scoped to reasoning benchmarks and intrinsic self-correction; with a tool that returns real feedback, the loop is no longer intrinsic, and how much external feedback is enough before an agent can safely self-correct is not established.",
+      "source": "arXiv:2310.01798",
+      "confidence": 0.85,
+      "topic": "w2-horizon",
+      "tags": [
+        "self-correction",
+        "verification",
+        "information-theory",
+        "negative-result"
+      ]
+    },
+    {
+      "id": "w2-horizon-premature-commitment",
+      "kind": "claim",
+      "title": "Multi-turn runs lose 39% versus single-turn through premature commitment, not lost aptitude",
+      "body": "Across 200,000+ simulated conversations, 6 generation tasks and all top open and closed models, multi-turn performance drops 39% on average against the single-turn baseline with identical information. The decomposition matters more than the headline: aptitude falls only slightly, while variance and unreliability rise sharply. The mechanism the authors identify is premature commitment: models make assumptions in early turns, commit to a final solution, then over-rely on that commitment, so a wrong early turn is not corrected later, it is built upon. This is why the failure looks like drift rather than decay: the model is not getting worse at the task, it is executing a plan whose premises stopped being true. Why this works as an explanation of long-run degradation: it predicts that intervening on the plan (replanning, subgoal checks) beats intervening on the words (re-prompting, asking it to reconsider), and it predicts that a fresh context with an explicit state summary should outperform a long faithful transcript, which is what the harness write-ups and the oracle-state result both show. Honest limitation: simulated user turns, generation tasks, and the effect size is a single average over heterogeneous task families.",
+      "source": "arXiv:2505.06120",
+      "confidence": 0.8,
+      "topic": "w2-horizon",
+      "tags": [
+        "drift",
+        "commitment",
+        "multi-turn",
+        "unreliability"
+      ]
+    },
+    {
+      "id": "w2-horizon-passk-reliability-ceiling",
+      "kind": "number",
+      "title": "pass^k exposes a reliability ceiling: 75% per trial is only 42% pass^3; tau-bench pass^8 <25%",
+      "body": "pass^k requires all k independent trials to succeed (C(c,k)/C(n,k)), unlike pass@k which credits any success. In tau-bench, gpt-4o solves under 50% of tasks and pass^8 drops below 25% in retail; a model at 75% per trial is at roughly 42% for pass^3 under independence, and far lower if trials are correlated. The mechanism is that per-trial success hides the tail of the distribution, and long-horizon work is a tail problem: an unattended loop is effectively asking for a long conjunction of successes, so the relevant statistic is the conjunction rate, not the mean. Why this works as a reporting fix: it makes variance visible and forces the question 'how often does this whole run succeed unattended', which is the operational question. Honest limitation: pass^k assumes exchangeable trials, and real harnesses are not exchangeable (state accumulates across tasks), which is exactly what Delta_comp measures; pass^k therefore understates the compounding penalty of a continuous loop and is a floor, not an estimate.",
+      "source": "arXiv:2406.12045",
+      "confidence": 0.8,
+      "topic": "w2-horizon",
+      "tags": [
+        "metric",
+        "pass-k",
+        "reliability",
+        "tail"
+      ]
+    },
+    {
+      "id": "w2-horizon-clean-state-artifacts",
+      "kind": "project",
+      "title": "A feature-list harness with progress log and clean end state defeats premature completion",
+      "body": "The practitioner harness for multi-session coding agents has two parts. An initializer session writes init.sh (how to run the app), a claude-progress.txt log, an initial git commit, and feature_list.json enumerating every end-to-end feature marked passes:false (200+ for a claude.ai clone); JSON is chosen over Markdown because models are less likely to inappropriately edit or delete structured entries. Each later session reads pwd, the progress file, the feature list and git log, implements exactly one feature, commits descriptively, and must end in a clean state (mergeable, no major bugs, documented). Named failure modes: one-shotting the app until context runs out mid-implementation, leaving an undocumented half-feature for the next session to guess at (stated to happen even with compaction, which does not always pass clear instructions forward), and premature completion, where a later instance surveys progress and declares the job done. The mechanism is externalized enumerable ground truth: an un-checked item is a falsifiable claim about remaining work, so the agent cannot satisfy the state by self-assessment. Honest limitation: an engineering write-up with no controlled numbers, no baseline, no failure rates, and the primary page was unreachable during this research, so detail comes from mirrors.",
+      "source": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+      "confidence": 0.55,
+      "topic": "w2-horizon",
+      "tags": [
+        "harness",
+        "practitioner",
+        "artifact",
+        "premature-completion"
+      ]
+    },
+    {
+      "id": "w2-horizon-horizon-proxy-incommensurable",
+      "kind": "question",
+      "title": "Horizon is measured by four incompatible proxies, so published decay curves cannot compose",
+      "body": "The Horizon Gap survey reads 1,547 arXiv papers from 2024-2026 through a six-category frame (planning, memory, execution, training, evaluation, foundations) crossed with where horizon is carried: within-context, within-task-beyond-context, cross-task-persistent. Its sharpest methodological finding is that long-horizon is operationalized by at least four non-equivalent proxies, so a 50-step run, a 2-hour run and a 100k-token run are all called long-horizon while stressing different mechanisms; its central substantive finding is that outcome-only rewards grow uninformative as horizons lengthen, which is why the field manufactures step-level signals (process reward models, credit assignment, trajectory diagnostics). The mechanism is measurement drift: when the independent variable is whatever the harness happens to count, results do not accumulate and one symptom gets four incompatible explanations. Why this is load-bearing: it is how one paper finds collapse and another finds smooth decay without either being wrong. Honest limitation: the survey's own filter is disclosed as 26.8% bleed, and it concludes that no general empirically validated theory of long-horizon degradation exists, only partially contradictory phenomena.",
+      "source": "arXiv:2608.06663",
+      "confidence": 0.75,
+      "topic": "w2-horizon",
+      "tags": [
+        "survey",
+        "measurement",
+        "methodology",
+        "open-problem"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w2-horizon-context-bloat-dominant",
+      "rel": "supports",
+      "to": "w2-horizon-error-amplification",
+      "note": "Bloat is the identified channel through which one failure contaminates the next"
+    },
+    {
+      "from": "w2-horizon-compaction-cuts-amplification",
+      "rel": "derived-from",
+      "to": "w2-horizon-error-amplification",
+      "note": "Removing the mediating transcript is tested by whether Delta_comp falls toward zero"
+    },
+    {
+      "from": "w2-horizon-checkpoint-hides-errors",
+      "rel": "fails-at",
+      "to": "w2-horizon-error-amplification",
+      "note": "Restart from snapshot resets the context counter but not the cause, and re-absorbs the residual error"
+    },
+    {
+      "from": "w2-horizon-checkpoint-hides-errors",
+      "rel": "contradicts",
+      "to": "w2-horizon-oracle-state-continuous",
+      "note": "Both are 'give the agent better state', but snapshot replay degrades integrity while continuous state raises verified success"
+    },
+    {
+      "from": "w2-horizon-oracle-state-continuous",
+      "rel": "supports",
+      "to": "w2-horizon-context-not-primary-bottleneck",
+      "note": "Post-hoc repair fails but continuous maintenance helps: the deficit is upkeep of state, not its availability"
+    },
+    {
+      "from": "w2-horizon-context-not-primary-bottleneck",
+      "rel": "refines",
+      "to": "w2-horizon-context-bloat-dominant",
+      "note": "Bloat dominates as terminal class in a simulator; causal attribution puts context at a minority share, so the channel is real but not primary"
+    },
+    {
+      "from": "w2-horizon-context-rot-length",
+      "rel": "supports",
+      "to": "w2-horizon-context-bloat-dominant",
+      "note": "Independent model-level evidence that longer input degrades performance even with nothing wrong in the run"
+    },
+    {
+      "from": "w2-horizon-self-correction-needs-external",
+      "rel": "requires",
+      "to": "w2-horizon-veto-cheap-intercepts",
+      "note": "A veto arm only earns its endurance if the veto signal is external and calibrated, not self-assessed"
+    },
+    {
+      "from": "w2-horizon-premature-commitment",
+      "rel": "supports",
+      "to": "w2-horizon-error-amplification",
+      "note": "An early wrong assumption is carried forward rather than re-derived, which is the per-decision form of contagion"
+    },
+    {
+      "from": "w2-horizon-passk-reliability-ceiling",
+      "rel": "measures",
+      "to": "w2-horizon-collapse-not-decay",
+      "note": "Conjunction-of-trials versus conjunction-of-steps are different tail statistics and must not be conflated"
+    },
+    {
+      "from": "w2-horizon-collapse-not-decay",
+      "rel": "requires",
+      "to": "w2-horizon-horizon-proxy-incommensurable",
+      "note": "Any claim about where the break happens presupposes a commensurable horizon axis, which the field lacks"
+    },
+    {
+      "from": "w2-horizon-clean-state-artifacts",
+      "rel": "applies-to",
+      "to": "w2-horizon-premature-commitment",
+      "note": "Un-checked feature entries are the practitioner countermeasure to declaring half-done work complete"
+    },
+    {
+      "from": "w2-horizon-clean-state-artifacts",
+      "rel": "applies-to",
+      "to": "w2-horizon-context-bloat-dominant",
+      "note": "Clean end state plus progress log is a manual compaction discipline, with the same information-loss risk"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w2-horizon-gap-no-telemetry-decay",
+      "title": "No fitted reliability-decay curve from production telemetry: every published endurance curve is a simulator, a benchmark or a single bench study",
+      "body": "The only 72-hour decay measurement located is a discrete-event simulator whose per-task hazards are declared on a 3-level grid rather than fitted, and its authors say so plainly: the level values are not a production night's numbers, only the intervention ranking is claimed to survive re-anchoring. Benchmark studies like HORIZON collapse horizon into a few depth levels within one session, and the Anthropic harness write-up reports no rates at all. What is therefore unknown is the functional form of verified success versus elapsed unattended hours for a real loop, and in particular whether the decay is linear, exponential or a step, and where the wall actually sits for a normal day. Why it matters: an RSI loop needs to know its own trusted runtime before it can decide when to hand back to the human. Why nobody has measured it: it requires months of instrumented deployment with an independent verifier on every task, plus a way to compare across drifting task streams, and most teams' completion signal is self-reported, which the checkpoint result shows is exactly the corrupted quantity."
+    },
+    {
+      "id": "w2-horizon-gap-predict-breaking-point",
+      "title": "No a-priori predictor of the breaking point: compositional depth s is measurable only on hand-built task graphs, so nobody can say before a run where it will fail",
+      "body": "HORIZON defines intrinsic horizon H* and compositional depth s and shows the collapse depends on depth, but s is computed on a reference decision graph constructed per task family. For open-ended work (a repo-wide refactor, a multi-day research task) no published method estimates depth, coupling or irreversibility ahead of time, and the messiness-factor table from the time-horizon work shows the relevant predictors are task properties like 'not easily resettable' and 'no provided verification mechanisms', which are qualitative. Why it matters: loom can only choose a cadence (when to checkpoint, when to verify, when to escalate) if it can estimate risk before spending tokens. Why nobody has measured it: it needs a task ontology instrumented with resettability and reversibility per action, and the benchmarks that exist are small, hand-authored environments where the graph is known by construction, so the estimation problem never arises."
+    },
+    {
+      "id": "w2-horizon-gap-integrity-composition",
+      "title": "Verification integrity is measured only as a single scalar gap inside one harness; how it composes across nested verifiers and human checkpoints is unmeasured",
+      "body": "The apparent-versus-verified gap is the most actionable signal found (0.7-2.9pp baseline, 9.0-21.9pp under checkpointing), but it is reported for one simulator, one deterministic verifier and one model tier. Three questions stay open. First, when a verifier itself is an LLM whose error rate is unknown, the gap compounds rather than being measured. Second, when a human is the verifier at long intervals, the gap becomes a latency problem: the loop has already built on unverified work by the time the human looks, so the effective cadence, not the accuracy, sets the integrity cost. Third, nobody has measured whether a self-improving loop selects for lower integrity, i.e. whether patches that make the loop appear to succeed survive more often than patches that make it actually succeed. Why it matters: this is the one failure mode that silently rewrites the training signal an RSI loop depends on. Why nobody has measured it: it requires a verifier with independently characterized error, plus a longitudinal patch ledger, and most harnesses treat the verifier as ground truth rather than as a measured instrument."
+    }
+  ]
+}

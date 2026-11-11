@@ -1,0 +1,305 @@
+{
+  "nodes": [
+    {
+      "id": "w2-decide-paired-cancels-item-difficulty",
+      "kind": "concept",
+      "title": "Paired comparison on the same items cancels item difficulty: variance falls from 1/6 to 1/9",
+      "body": "The decision is whether candidate harness B beats incumbent A. Unpaired, the standard error is sqrt(Var(sA)+Var(sB))/sqrt(n), which is dominated by which tasks happened to be in the set, not by the difference being measured. Paired on the same items, Var(sA-sB) = Var_A + Var_B - 2Cov, so the shared component cancels; Miller (arXiv:2411.00640) computes for uniform item difficulties Var(x)=1/12 and correlation 0.5 that per-item variance falls from 1/6 to 1/9. Why this works: item difficulty enters both arms as the same additive term, so differencing annihilates it while the difference in treatment effect survives; this is variance reduction by design rather than by buying more samples, and it is the single cheapest lever available before any sequential machinery. Limitation: it requires the pairing structure to survive the intervention. If the candidate changes which items it can even attempt (a harness that spends fewer tokens and times out on hard items, or a scaffold that skips multi-file tasks), the covariance you get is not the covariance you assumed and pairing silently biases instead of tightening. Pairing also only answers a two-candidate question; a third candidate needs its own paired run.",
+      "source": "https://arxiv.org/abs/2411.00640",
+      "confidence": 0.9,
+      "topic": "w2-decide",
+      "tags": [
+        "paired-comparison",
+        "variance-reduction",
+        "eval-design"
+      ]
+    },
+    {
+      "id": "w2-decide-mde-formula-agent-sigma",
+      "kind": "number",
+      "title": "1 pp at sigma 1.5 pp needs 36 runs per arm; 2 pp needs 9 - Delta/sigma sets the sample size",
+      "body": "Minimum sample size for a two-sample comparison is n >= 2((z_{alpha/2}+z_beta)/(Delta/sigma))^2 per arm. Bjarnason et al (arXiv:2602.07150) measured run-level SD of agentic pass@1 across 10 runs per configuration on 500 SWE-Bench-Verified tasks: sigma ranges about 0.7-1.8 pp, so a 2 pp improvement needs n=8-13 runs and a 1 pp improvement n=8-36. This is the arithmetic an accept-or-reject decision has to be built on: power depends on the non-centrality Delta/(sigma/sqrt(n)), and the formula is just its inversion at fixed alpha and 1-beta. Why this works: the quantity that matters is the delta expressed in units of run-to-run noise, so an eval that halves sigma halves the required runs at fixed effect size - which is why pairing and variance reduction beat adding tasks. Limitation: sigma-hat comes from roughly ten runs, so it is itself uncertain by a factor of several, and treating n=9 as sufficient when sigma-hat could be 40 percent low is the standard failure. The formula also assumes independent runs; repeated tasks (cluster by task) or shared prompt caching and serving batch inflate the true n, as Miller's clustered-SE ratios of up to 3.05 show.",
+      "source": "https://arxiv.org/abs/2602.07150",
+      "confidence": 0.85,
+      "topic": "w2-decide",
+      "tags": [
+        "power-analysis",
+        "sample-size",
+        "agent-evals"
+      ]
+    },
+    {
+      "id": "w2-decide-temperature-zero-not-variance-free",
+      "kind": "claim",
+      "title": "Greedy decoding does not make an agent eval deterministic: SD stays above 1.5 pp at T=0",
+      "body": "The folk fix for noisy comparisons is to set temperature 0 and assume the remaining delta is real. Two independent lines refute it. Bjarnason et al measured 60,000 trajectories (25.58B tokens, 1.88M tool calls, about 3,500 A100 hours) and found run-level SD of SWE-Bench pass@1 above 1.5 pp even at temperature 0; for Qwen3-32B on nano-agent it rose from 0.7 pp at T=0.6 to 1.2 pp at T=0.0, so variance did not decrease, it moved. The mechanism they document is first-token divergence: runs are byte-identical for tens of tokens, then split on one lexical choice (django__django-9296 diverges at token 94, search-the-Paginator-class versus check-the-source-code) and the two trajectories reach opposite pass/fail outcomes. Thinking Machines (He, 2025) supplies the deeper mechanism: the forward pass is run-to-run deterministic but not batch-invariant, because reduction order along the K dimension depends on batch size, so server load changes logits; 1000 greedy completions of one prompt gave 80 distinct outputs. Why this works as an explanation: it relocates the noise from sampling into kernel scheduling, which is why temperature cannot remove it. Limitation: batch-invariant kernels fix the serving-side component at about 1.6x latency (26s to 42s in their demo) but leave genuine tool-loop variance untouched, so sigma shrinks and never reaches zero.",
+      "source": "https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/",
+      "confidence": 0.9,
+      "topic": "w2-decide",
+      "tags": [
+        "nondeterminism",
+        "temperature",
+        "batch-invariance",
+        "agent-evals"
+      ]
+    },
+    {
+      "id": "w2-decide-peeking-inflates-fpr",
+      "kind": "claim",
+      "title": "Stopping at P(B>A)>0.95 is naive peeking; opportunity-loss stopping has FPR near 0.50",
+      "body": "The rule everyone actually uses - watch the dashboard, ship when the posterior probability that B beats A passes gamma - is, under a flat prior, numerically identical to unadjusted repeated significance testing. Alpha is controlled at no level, and the realized false-positive rate depends on how often you looked, which is usually until you liked the answer. Schultzberg and Franberg (arXiv:2608.12949) sort methods into a three-tier hierarchy by which risk they control. Tier 1 is posterior coherence only: the expected-opportunity-loss rule of Stucchio (epsilon=0.02) sits here with FPR about 0.50, because it controls expected regret, not the chance of shipping a non-improvement. Tier 2 is Bayes-factor stopping at BF10 > 1/alpha, whose FPR under continuous monitoring is bounded by Ville's inequality. Tier 3 needs an empirical-Bayes prior over roughly 200 or more prior experiments per program to get per-metric FDR. The mechanism is that a Bayes factor is a nonnegative martingale with expectation 1 under the null, so Ville caps the probability its running maximum ever crosses a threshold, a time-uniform statement the fixed-n p-value cannot make. Limitation: Tier 3 calibration is defeated by winner-selected corpora, pooled programs or heterogeneous metrics regardless of corpus size, and Tier 1 rules are still what production dashboards implement.",
+      "source": "https://arxiv.org/abs/2608.12949",
+      "confidence": 0.85,
+      "topic": "w2-decide",
+      "tags": [
+        "sequential-testing",
+        "false-positive-rate",
+        "bayesian"
+      ]
+    },
+    {
+      "id": "w2-decide-anytime-valid-free",
+      "kind": "claim",
+      "title": "Anytime validity is not inherently costly: induced sequential tests match fixed-N power",
+      "body": "The folk theorem is that continuous monitoring forces a price - alpha spending, wider bounds, more samples - so you should pre-register one look. Koning and van Meer (arXiv:2501.03982) argue the price comes from a bad construction, not from optional stopping. For any valid fixed-N test they construct an induced anytime-valid sequential test that rejects by time N exactly when the fixed-N test would, hence with identical power, while remaining valid at every stopping time; they derive sequentialized z and t tests that coincide with the classical ones at N. Their motivating number: normal location, mu=0 versus mu=0.3, N=100, the fixed z-test rejects with probability 91 percent, while a plain SPRT tuned to a specific alternative rejects at some n<=N only 79 percent of the time. Why this works: the induced test's rejection region at each n is built from the fixed-N test at that n, so the fixed-N guarantee is recovered as a special case and validity at all stopping times follows from Ville's inequality by construction rather than by paying a penalty. Limitation: the guarantee is at N. An induced test is not optimized for deciding early, so if the real constraint is a third of the budget, the objective should be regret or expected stopping time and a Bayes-factor or SPRT rule with an explicit alternative is the better tool.",
+      "source": "https://arxiv.org/abs/2501.03982",
+      "confidence": 0.75,
+      "topic": "w2-decide",
+      "tags": [
+        "sequential-testing",
+        "sprt",
+        "anytime-valid"
+      ]
+    },
+    {
+      "id": "w2-decide-bayes-factor-ville",
+      "kind": "concept",
+      "title": "A Bayes-factor threshold is the only tier-2 rule bounding FPR under unlimited peeking",
+      "body": "If the accept rule is stop when BF10 > 1/alpha, the false-positive rate under unlimited peeking is at most alpha, because under H0 the Bayes factor is a nonnegative martingale with expectation 1 and Ville's inequality caps the probability that its running maximum ever exceeds 1/alpha. That is a structurally different guarantee from a p-value: it holds at every stopping time, not at one pre-registered look. Schultzberg and Franberg further argue, via Arrow (1949) and Wald (1948), that for cost functions whose terminal payoff is affine in the posterior the Bayes-factor boundary is essentially optimal, making the frequentist versus Bayesian formulation largely a parameterization choice rather than a philosophical one. Why this works: a martingale plus a maximal inequality is exactly what converts a per-look statement into a statement about the whole path, and the BF is the likelihood ratio of the two hypotheses under comparison, so thresholds on it inherit the likelihood-ratio optimality structure. Limitation: the optimality class excludes nonlinear losses. If a false accept compounds - a broken harness accepted in round 3 corrupts the incumbent for rounds 4 through 20 - the loss is not affine in the posterior and no theorem covers the threshold; the rule stays valid but stops being efficient.",
+      "source": "https://arxiv.org/abs/2608.12949",
+      "confidence": 0.8,
+      "topic": "w2-decide",
+      "tags": [
+        "bayes-factor",
+        "ville-inequality",
+        "decision-theory"
+      ]
+    },
+    {
+      "id": "w2-decide-winner-curse-zoom",
+      "kind": "concept",
+      "title": "Selecting the best of m noisy candidates biases it up; the zoom correction adapts to the gap",
+      "body": "The accept decision is usually keep whichever of m candidates scored highest, and reporting that winner's confidence interval unadjusted is invalid: the argmax is chosen on the same noise you are trying to average out, so E[max_i X_i] exceeds max_i E[X_i] and the gap grows with m and with how close the competitors are. Zrnic and Fithian (arXiv:2411.18569) introduce the zoom correction: form a simultaneous confidence region over all m candidates and project it onto the winning coordinate. Why this works: the region is built by inverting a zoom test whose acceptance radius is r_alpha OR Delta_j/2, where Delta_j is candidate j's suboptimality. Coordinates far from the top get a huge tolerance and consume almost no error budget, so power concentrates on the few genuinely competitive candidates and the effective multiplicity drops to the number of near-winners. That is why the interval approaches the uncorrected one when the winner is obvious and widens only when ten candidates tie, with no tuning parameter and no error-budget split. Limitation: it gives honest inference on the value of the winner you already selected, not a rule for selecting; and it requires a valid tail bound on the error vector, which in agent evals - clustered by task, heavy-tailed across runs - is precisely the hard part.",
+      "source": "https://arxiv.org/abs/2411.18569",
+      "confidence": 0.85,
+      "topic": "w2-decide",
+      "tags": [
+        "winner-curse",
+        "selection-bias",
+        "simultaneous-inference"
+      ]
+    },
+    {
+      "id": "w2-decide-leaderboard-selection",
+      "kind": "failure",
+      "title": "The Leaderboard Illusion: 27 private variants make a published rating a max over trials",
+      "body": "This is the accept-or-reject failure as it actually occurs in the wild, documented. Chatbot Arena ratings are contaminated by selective disclosure: providers test private variants, observe the score, and release or retract accordingly, with 27 private Meta variants tested before the Llama-4 release. Sampling is also unequal - Google and OpenAI received an estimated 19.2 and 20.4 percent of all battles while 83 open-weight models shared 29.7 percent - and the paper estimates extra arena data is worth up to 112 percent relative gain on the arena distribution. Why this works as a distortion: the published rating is not the mean of a fixed design but the maximum over a hidden number of trials, so its bias is the winner's curse with m unknown and unbounded, and no per-model confidence interval can correct for trials that never appear in the data. The statistical defect is not noise, it is an unregistered search. Limitation, including of the paper's own remedy: the magnitudes are estimates from observables (battle counts, known variants), not a registry of private runs, so the bias is a bound under assumptions rather than a measured quantity; and no amount of better inference fixes it, because the missing input is how many candidates were tried, which only disclosure rules can supply.",
+      "source": "https://arxiv.org/abs/2504.20879",
+      "confidence": 0.85,
+      "topic": "w2-decide",
+      "tags": [
+        "selection-bias",
+        "leaderboard",
+        "incident"
+      ]
+    },
+    {
+      "id": "w2-decide-adaptive-reuse",
+      "kind": "concept",
+      "title": "Reusing one eval set for many decisions is adaptive analysis: it needs fresh data or noise",
+      "body": "Every accept-or-reject decision taken on the same eval set changes what gets tested next: you keep the change that helped and discard the rest, so the sequence of looks is a sequence of adaptively chosen queries against fixed data. That is exactly the setting where a standard error computed as if the query had been fixed in advance stops being a bound. Dwork et al (arXiv:1411.2664) show the sample can survive exponentially many adaptively chosen expectation queries if the mechanism deliberately perturbs answers and coordinates them across queries, in the thresholdout style. Why this works: calibrated noise makes each answer insensitive to any single sample point, so the analyst's ability to select hypotheses that fit sample noise is bounded by a differential-privacy-style stability argument, and the bound composes over the whole adaptive sequence rather than per query. Two cheaper substitutes dominate practice - a holdout touched once per decision, and pre-registration of the item set, alpha and stopping rule before the run. Limitation: the DP guarantees are worst-case and loose at realistic eval sizes, and the perturbation is often unacceptable when the effect to detect is 1-2 pp; Kapoor et al (arXiv:2407.01502) document that agent benchmarks frequently have no holdout at all, so in practice the failure is not mitigated, only unrecognized.",
+      "source": "https://arxiv.org/abs/1411.2664",
+      "confidence": 0.8,
+      "topic": "w2-decide",
+      "tags": [
+        "adaptive-data-analysis",
+        "holdout",
+        "multiplicity"
+      ]
+    },
+    {
+      "id": "w2-decide-clt-undercovers",
+      "kind": "claim",
+      "title": "Below a few hundred items CLT intervals under-cover; AIME has 15 problems and LiveBench 55",
+      "body": "Bowyer, Aitchison and Ivanova (arXiv:2503.01747) simulated 100 theta values times 200 datasets times N in {3,10,30,100}, 80,000 eval datasets, and checked coverage at 100 nominal levels from 0.8 to 0.995. CLT intervals under-cover badly at small N, bootstrap also under-covers systematically, and Bayesian credible intervals track nominal. The motivating sizes are the sizes people actually use for hard tasks: CUAD 510 documents, FrontierMath about 300 problems with some categories under 3, AIME 15 problems, SWE-bench Verified 500, MLE-bench 75, LiveBench about 55 examples per task. Why this works: the CLT's error is O(1/sqrt(N)) with a skew-dependent constant, and for a bounded, highly skewed per-item score that constant is large exactly in the regime of small N; a Bayesian interval integrates the likelihood under a stated prior instead of asserting normality, so its coverage error is governed by prior sensitivity rather than by N. Limitation: this fixes coverage for a single mean. The paper is explicit that no prior rescues a wrong likelihood, and the prior is itself an unvalidated degree of freedom on benchmarks this small; a comparative claim such as harness A beats B on this 40-task subset still needs the paired or hierarchical machinery, not a credible interval per arm.",
+      "source": "https://arxiv.org/abs/2503.01747",
+      "confidence": 0.85,
+      "topic": "w2-decide",
+      "tags": [
+        "confidence-intervals",
+        "small-samples",
+        "coverage"
+      ]
+    },
+    {
+      "id": "w2-decide-hierarchical-lowrank",
+      "kind": "concept",
+      "title": "A low-rank task-by-model matrix borrows strength; debiased one-step CIs hit the bound",
+      "body": "With m candidates and T tasks you do not have m times T independent experiments: ability correlates across tasks and across models. Li et al (arXiv:2605.29395) model the task-by-model ability matrix Theta* as low rank, estimate it with a debiased one-step estimator plus cross-fitting, and obtain asymptotically valid intervals attaining the semiparametric efficiency bound, together with simultaneous confidence sets for per-task ranks and top-K via Gaussian and multiplier bootstrap. Why this works: low rank asserts that a handful of latent factors explain most of the task-by-model table, so each cell is estimated from its own sparse data plus the factor structure shared with every other cell - the effective sample size per cell rises - and the one-step debiasing removes the regularization bias that would otherwise invalidate the interval. The paper reports the largest gains in the sparse regime, which is exactly the regime of a specialized agent benchmark with a few hundred tasks. Limitation: the rank must be chosen, under-ranking biases every interval and over-ranking returns the noise you pooled to escape; and the guarantee is about the population ranking over a task distribution, not about the single repository an RSI loop is editing, where the task population is one repo's issue tracker.",
+      "source": "https://arxiv.org/abs/2605.29395",
+      "confidence": 0.7,
+      "topic": "w2-decide",
+      "tags": [
+        "hierarchical-models",
+        "low-rank",
+        "ranking",
+        "efficiency-bound"
+      ]
+    },
+    {
+      "id": "w2-decide-irt-selective",
+      "kind": "claim",
+      "title": "IRT picks 100 of 14,000 MMLU items, yet item analysis alone did not cut variance",
+      "body": "Selective evaluation is the cheapest variance lever available: tinyBenchmarks (arXiv:2402.14992) selects about 100 curated MMLU items whose IRT parameters span the difficulty range and recovers full-benchmark accuracy. Why this works: items differ enormously in information. An item every model gets right, or no model gets right, contributes nothing to distinguishing abilities, while a mid-difficulty item does, so choosing items by Fisher information buys the same estimate at a fraction of the cost. But Madaan et al (arXiv:2406.10229), testing whether IRT and item-analysis reduce variance directly, report that these techniques struggle to meaningfully reduce variance for comparison, while a different trick, reframing multiple-choice as completion, did help models around 7B. The reconciliation is that item information is defined for estimating one ability level, whereas a paired accept-or-reject decision needs the per-item difference: items where both arms are right or both wrong carry zero signal regardless of IRT difficulty. Limitation: item parameters are estimated from a model population that must contain the candidate, and a harness change that shifts the difficulty curve - longer tool loops, a different token budget - breaks calibration; a 100-item proxy tuned for leaderboard-scale gaps is not calibrated for the 1-2 pp deltas a loop decides on.",
+      "source": "https://arxiv.org/abs/2402.14992",
+      "confidence": 0.7,
+      "topic": "w2-decide",
+      "tags": [
+        "item-response-theory",
+        "selective-evaluation",
+        "negative-result"
+      ]
+    },
+    {
+      "id": "w2-decide-nonstationarity-window",
+      "kind": "concept",
+      "title": "A stationary-optimal accept rule stops tracking after change; windowed statistics keep up",
+      "body": "An RSI loop is non-stationary by construction: the harness changes, the checkpoint changes, the repo accumulates patches. A rule that pools all history to estimate sigma and the incumbent mean is answering a question about a system that no longer exists. Garivier and Moulines (arXiv:0805.3415) formalize the abruptly changing bandit: policies optimal under stationarity fail to track the best arm after a change point, and discounted-UCB and sliding-window-UCB variants achieve regret matching a lower bound up to logarithmic factors. Why this works: the window bounds the age of data entering each estimate, so it trades variance (fewer effective samples) against bias (a stale mean), and under abrupt change the bias term dominates the variance term once the window passes the change point - the discount factor is the continuous analogue of the same trade. Limitation: the window length is a hyperparameter whose optimum depends on an unknown change rate, and shortening it inflates the n that the paired and MDE arithmetic demands, so non-stationarity and statistical power are in direct conflict with no free setting. No published work measures the change rate of an agent harness, so the window cannot be derived, only guessed.",
+      "source": "https://arxiv.org/abs/0805.3415",
+      "confidence": 0.8,
+      "topic": "w2-decide",
+      "tags": [
+        "non-stationarity",
+        "bandits",
+        "change-point"
+      ]
+    },
+    {
+      "id": "w2-decide-effective-dimensionality",
+      "kind": "number",
+      "title": "Six leaderboard metrics behave like 1.7 independent axes, so multiplicity costs less power",
+      "body": "Sequential and simultaneous corrections are parameterized by k comparisons, but that k is nominal. Sha and Zhao (arXiv:2603.29357) estimate Effective Dimensionality as the participation ratio of the centered benchmark-score spectrum: the Open LLM Leaderboard's 6 scores come out at ED=1.7, and BBH versus MMLU-Pro correlate at rho=0.96, with breadth varying more than 20x across benchmarks. Why this works as an argument about decisions: if the metrics are nearly collinear, testing all six is close to testing twice, so a Bonferroni or alpha-spending correction over six is conservative and the power lost to correcting is small - good news for the sequential machinery above. The same fact is bad news for the accept decision itself: a candidate that moves one axis moves its clones, so a win on 5 of 6 benchmarks is closer to one win than five, and the evidence for a real improvement is weaker than the count of green cells suggests. Limitation: ED is estimated across a model population and a fixed metric set, so it is not a per-decision quantity; a harness change that pushes the candidate off the population manifold makes the estimated ED, and the correction inferred from it, wrong in exactly the case the loop cares about.",
+      "source": "https://arxiv.org/abs/2603.29357",
+      "confidence": 0.65,
+      "topic": "w2-decide",
+      "tags": [
+        "multiplicity",
+        "benchmark-collinearity",
+        "effective-dimension"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w2-decide-paired-cancels-item-difficulty",
+      "rel": "supports",
+      "to": "w2-decide-mde-formula-agent-sigma",
+      "note": "pairing lowers the sigma in the denominator and therefore the n the MDE formula demands"
+    },
+    {
+      "from": "w2-decide-temperature-zero-not-variance-free",
+      "rel": "supports",
+      "to": "w2-decide-mde-formula-agent-sigma",
+      "note": "temp 0 does not remove the run-to-run sigma, so the sample-size floor is real and cannot be engineered away"
+    },
+    {
+      "from": "w2-decide-peeking-inflates-fpr",
+      "rel": "fails-at",
+      "to": "w2-decide-mde-formula-agent-sigma",
+      "note": "a fixed-n MDE is meaningless once you look every round; nominal alpha is not realized alpha"
+    },
+    {
+      "from": "w2-decide-anytime-valid-free",
+      "rel": "refines",
+      "to": "w2-decide-peeking-inflates-fpr",
+      "note": "peeking is only expensive for badly built sequential tests; induced tests match fixed-N power"
+    },
+    {
+      "from": "w2-decide-bayes-factor-ville",
+      "rel": "refines",
+      "to": "w2-decide-peeking-inflates-fpr",
+      "note": "identifies the threshold that actually bounds FPR under continuous monitoring, rather than just diagnosing the inflation"
+    },
+    {
+      "from": "w2-decide-winner-curse-zoom",
+      "rel": "contradicts",
+      "to": "w2-decide-paired-cancels-item-difficulty",
+      "note": "pairing is valid for a pre-specified pair only; selecting the best of m on the same data invalidates the interval"
+    },
+    {
+      "from": "w2-decide-leaderboard-selection",
+      "rel": "derived-from",
+      "to": "w2-decide-winner-curse-zoom",
+      "note": "published ratings are the max over unreported trials, an m the correction cannot see"
+    },
+    {
+      "from": "w2-decide-clt-undercovers",
+      "rel": "refines",
+      "to": "w2-decide-mde-formula-agent-sigma",
+      "note": "the z quantiles in the n formula overstate coverage below a few hundred items"
+    },
+    {
+      "from": "w2-decide-hierarchical-lowrank",
+      "rel": "refines",
+      "to": "w2-decide-paired-cancels-item-difficulty",
+      "note": "pairing is the m=2, T=1 special case; low-rank pooling performs the same cancellation across tasks"
+    },
+    {
+      "from": "w2-decide-irt-selective",
+      "rel": "contradicts",
+      "to": "w2-decide-hierarchical-lowrank",
+      "note": "item-level information selection compressed variance less than hoped; model-by-task sharing is the axis that paid"
+    },
+    {
+      "from": "w2-decide-nonstationarity-window",
+      "rel": "applies-to",
+      "to": "w2-decide-anytime-valid-free",
+      "note": "a confidence sequence assumes a fixed mean; a drifting harness needs a windowed or discounted version"
+    },
+    {
+      "from": "w2-decide-effective-dimensionality",
+      "rel": "refines",
+      "to": "w2-decide-bayes-factor-ville",
+      "note": "multiplicity over six metrics is nearer two tests, so the correction costs less power than nominal"
+    },
+    {
+      "from": "w2-decide-adaptive-reuse",
+      "rel": "supports",
+      "to": "w2-decide-winner-curse-zoom",
+      "note": "choosing the best of m candidates is a special case of the adaptively chosen queries Dwork et al bound"
+    },
+    {
+      "from": "w2-decide-clt-undercovers",
+      "rel": "applies-to",
+      "to": "w2-decide-irt-selective",
+      "note": "small specialized benchmarks are exactly where both the CLT and the item calibration are least reliable"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w2-decide-gap-no-effect-size-prior",
+      "title": "No measured distribution of real harness deltas, so the MDE formula has no Delta and nobody reports the MDE before running",
+      "body": "What is not known: the empirical distribution of true effect sizes for the interventions an RSI loop actually proposes (prompt tweaks, tool-schema changes, retry policies, verifier edits) - whether the median real gain is 0.3 pp or 3 pp. Why it matters: the sample-size formula is a function of Delta/sigma, and papers measure sigma carefully while leaving Delta to be guessed by the person who wants a positive result. That guess is the quiet input to every accept decision: an under-stated Delta makes n=9 look sufficient and turns noise into a shipped change. Why nobody has measured it: it requires ground truth the loop never records. You would need to re-run rejected candidates on fresh tasks weeks later, plus randomized rollouts of accepted ones, which costs the same GPU budget as the eval itself, and no lab publishes its rejected variants (the Leaderboard Illusion shows the incentive runs the other way). A cheap proxy exists and is unused - log the measured Delta and the post-hoc realized gain of every accepted change, and the loop would accumulate its own Delta prior within dozens of rounds."
+    },
+    {
+      "id": "w2-decide-gap-false-accept-cost-unmeasured",
+      "title": "The cost ratio between a false accept and a false reject in an RSI loop is never quantified, so no threshold can be set from a loss",
+      "body": "What is not known: how much worse it is to accept a harness change that does not help than to reject one that does, measured against the loop's real objective (retained capability over rounds, not accuracy at a point). Why it matters: every method in this topic needs that ratio. A Bayes-factor threshold, a power target, a window length and a loss-based stopping rule are all the same computation with a different cost asymmetry, and the literature supplies the machinery while assuming the asymmetry. In an RSI loop the asymmetry is plausibly severe and compounding - a false accept becomes the new incumbent, so later rounds are judged against a contaminated baseline and the error propagates through a chain of comparisons - whereas a false reject costs one round of budget. Nobody has measured it because it requires an ablation over accepted changes: revert each accepted patch, re-run the following rounds, and compare final retained capability. That experiment destroys the artifact it studies, and no public RSI loop keeps enough history to replay."
+    },
+    {
+      "id": "w2-decide-gap-eval-set-decay-under-reuse",
+      "title": "No measurement of how fast an agent eval set's discriminative power decays under repeated accept/reject use",
+      "body": "What is not known: the decay curve of measured delta as a fixed task set is reused across many accept/reject rounds - how many rounds before the surviving candidates all fit that set's idiosyncrasies and a fresh held-out set shows no difference. Why it matters: the whole sequential and winner-curse literature gives validity conditional on the query being a fixed, well-defined functional of the data, and it prices in the number of looks but not the drift of the target. If delta on the reused set overstates delta on a fresh set by a factor that grows with rounds, then every guarantee above is honest about the wrong estimand, and the correct object - a bound on fresh-set delta from reused-set evidence - is exactly what nobody estimates for agentic tasks. Why nobody has measured it: the closest evidence is Recht et al on ImageNet and CIFAR test sets, which found accuracy drops of 3-15 percent but gains transferring at least as well, i.e. the naive reuse-overfitting story did not hold for one careful replication with fresh data. Repeating that for an agent benchmark needs fresh task instances with the same difficulty profile, which for repo-level tasks means new repositories and new verified tests, and no one has paid for it."
+    }
+  ]
+}

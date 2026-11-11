@@ -1,0 +1,256 @@
+{
+  "nodes": [
+    {
+      "id": "w2-human-approval-rubber-stamp",
+      "kind": "claim",
+      "title": "Users approve 97% of per-action permission prompts but reject 39% of plan approvals",
+      "body": "Problem: agent systems place a human at every action gate and count the gate as oversight. Hard part: the gate's throughput is human attention, and a decision made 200 times a day degrades into a keypress. Anthropic's auto-mode rollout data (Aug 2026, updated 22 Oct 2026) shows the asymmetry: 97% of individual permission prompts are approved (3% rejected) while 39% of plan-approval dialogues are rejected. The mechanism is scope: a plan dialogue asks for one judgment over a whole trajectory with intent stated, so there is something to disagree with; a single tool call is too small to evaluate on its merits, so the cheapest response wins. Corroborating behavior: 49.5% of active CLI users have hand-written a Bash allow-rule (43% interpreter rules like Bash(python:*) that amount to arbitrary code execution), 62% have used bypassPermissions or 'don't ask again', and 25% of interactive sessions start in bypass mode - the gate is routed around rather than used. Limitation: these are logged production rates, not a measure of attention; the 97% is not conditioned on prompt difficulty, so it cannot separate 'prompts were mostly fine' from 'users stopped reading'.",
+      "source": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "confidence": 0.8,
+      "topic": "w2-human",
+      "tags": ["approval-fatigue", "hitl", "outcome-vs-action", "production-data"]
+    },
+    {
+      "id": "w2-human-catch-rate-13-6",
+      "kind": "number",
+      "title": "Humans caught 13.6% of swapped-in dangerous commands while the classifier blocked 89%",
+      "body": "Anthropic ran a controlled test with 1,053 paid testers in which one permission prompt was replaced by a clearly dangerous command. Humans caught 143/1,053 = 13.6%; the auto-mode classifier blocked 89% (937/1,053). Head to head, auto blocked 800 commands humans had approved, and humans blocked 6 that auto allowed. Human block rate fell from about 17% early in a session to about 5% after 50 or more prior prompts, while the classifier stayed flat. The mechanism is base-rate training of vigilance: a stream of benign approvals moves the reviewer's prior toward 'approve', and the cost of reading is paid on every decision while the benefit is realized rarely, so effort decays with repetition - the classifier has no such channel because it re-evaluates each input identically. Limitation: only the prompt text was swapped, so nothing dangerous could actually run; the attacks are synthetic rather than real traffic; and the 13.6% is best read as a lower bound on miss rates under engineered fatigue, not an estimate of field performance.",
+      "source": "https://claude.com/blog/auto-mode-default-in-claude-code",
+      "confidence": 0.75,
+      "topic": "w2-human",
+      "tags": ["miss-rate", "vigilance-decrement", "measured"]
+    },
+    {
+      "id": "w2-human-oversight-capacity",
+      "kind": "claim",
+      "title": "Escalating every action is not safest: danger-through is 69% at full escalation vs 56% at 64%",
+      "body": "Problem: deciding which agent actions to stop, when the human reviewer is a depleting resource. Hard part: reviewer reliability is endogenous to the escalation load the policy itself creates. Turan (arXiv:2606.08919) models reviewer reliability as r(l) = max(0.2, 1 - 0.02*max(0, l - C)) where l is escalations and C is capacity: past capacity, reliability collapses toward 0.2, so extra escalations add queue depth without adding scrutiny. Realized danger-through is therefore inverted-U in escalation rate, with safety optima strictly below full escalation: C=10 gives 64% escalation and 56% danger vs 69% at 100%; C=25 gives 64%/42% vs 57%; C=50 gives 72%/22% vs 39%. Why this works: the curve is a queueing effect, not a psychology claim - if inspection is throughput-limited, a longer queue is inspected more shallowly per item, so the marginal escalation can have negative safety value. Limitation: r(l) is simulated with chosen constants (slope 0.02, floor 0.2, reviewer never errs when fresh), so only the shape is claimed and absolute numbers are lower bounds; no human was measured anywhere in the paper.",
+      "source": "arXiv:2606.08919",
+      "confidence": 0.7,
+      "topic": "w2-human",
+      "tags": ["capacity", "selective-classification", "simulation"]
+    },
+    {
+      "id": "w2-human-flooding-attack",
+      "kind": "claim",
+      "title": "Flooding with 50 filler escalations raised attack success to 40% against an 88%-escalating guard",
+      "body": "Same paper, adversarial variant. The attack: submit many routine actions for escalation so the reviewer's queue saturates, then submit the harmful one. A guard that escalates 88% of actions reaches 40% attack success at only k=50 filler actions, with a ceiling near 80%. A load-aware guard that escalates 26% holds attack success at 0% until roughly 100 fillers, reaches about 10% by k=110, and only approaches its ceiling around k=250. The mechanism is that the attacker never has to defeat the classifier - only to exhaust the shared human capacity that the classifier routes into - so attention itself becomes the exploitable surface, and flooding is cheaper than fooling. Why this works: capacity is finite and common across all actions, letting an adversary manipulate the denominator of reviewer reliability without touching the numerator. Limitation: simulated reviewer, one 125-action dataset, and an attacker assumed to know the escalation policy; no live system has had its flooding behavior measured, so the k=50 threshold is illustrative rather than predictive.",
+      "source": "arXiv:2606.08919",
+      "confidence": 0.65,
+      "topic": "w2-human",
+      "tags": ["adversarial", "attention-as-attack-surface", "simulation"]
+    },
+    {
+      "id": "w2-human-subjectivity-no-ground-truth",
+      "kind": "claim",
+      "title": "Three reviewer personas agreed on which agent actions are risky at only Fleiss kappa=0.52",
+      "body": "Turan had 125 agent actions hand-labeled by three LLM reviewer personas standing in for humans. Agreement was moderate: Fleiss kappa 0.52, with pairwise Cohen kappa 0.42 (cautious vs pragmatic), 0.47 (pragmatic vs compliance), 0.71 (cautious vs compliance). The pragmatic persona called 87 actions safe where the cautious one called 45; the majority label matched the author's gold label 74% of the time. The mechanism is that 'risky' is a threshold on a cost tradeoff rather than a property, and reviewers holding different cost ratios will disagree without either being wrong - which is why accuracy is the wrong metric and risk-coverage curves, AURC and Neyman-Pearson operating points are the right ones. Why this works as an argument: if disagreement is policy divergence rather than error, then a guard must be calibrated to a declared cost matrix, and no amount of labeling effort yields a single ground truth. Limitation: the personas are LLM proxies, all five results rest on one 125-item dataset, and the gold labels are the author's own - so kappa=0.52 measures the difficulty of the labeling task, not human inter-rater agreement.",
+      "source": "arXiv:2606.08919",
+      "confidence": 0.65,
+      "topic": "w2-human",
+      "tags": ["ground-truth", "inter-rater", "cost-matrix"]
+    },
+    {
+      "id": "w2-human-deferral-under-workload",
+      "kind": "concept",
+      "title": "Learning-to-defer with workload constraints cut misclassification cost 8.4% over static-human L2D",
+      "body": "Two lines of work make reviewer capacity a first-class constraint rather than a post-hoc filter. DeCCaF (Alves et al., arXiv:2403.06906) does cost-sensitive deferral with per-expert work-capacity limits solved by constraint programming, requiring only one expert prediction per instance, and reports an average 8.4% reduction in misclassification cost over baselines with 9 synthetic fraud analysts. FALCON (arXiv:2604.00904) puts psychologically grounded fatigue curves into a constrained MDP whose state is task features plus cumulative human workload, trained with PPO-Lagrangian under a cooperation budget, and ships the FA-L2D benchmark that sweeps fatigue from near-static to rapidly degrading; it beats prior L2D across coverage and generalizes zero-shot to unseen experts. The mechanism is that when reviewer accuracy is a function of cumulative load, routing becomes a sequential resource-allocation problem, and greedy per-item deferral is not optimal - the policy must learn to spend scarce review where it changes the outcome. Limitation: both evaluate against synthetic or modeled experts; nobody has measured the fatigue curve on real reviewers, so the reported gains are conditional on an assumed curve and may not survive contact with real attention.",
+      "source": "arXiv:2403.06906",
+      "confidence": 0.6,
+      "topic": "w2-human",
+      "tags": ["learning-to-defer", "workload", "constrained-optimization"]
+    },
+    {
+      "id": "w2-human-maintainer-vs-grader",
+      "kind": "claim",
+      "title": "Maintainers merge 24.2 pp fewer AI PRs than the SWE-bench grader accepts, and rate horizons ~7x shorter",
+      "body": "METR (note 2026-03-10) had 4 active maintainers (scikit-learn, Sphinx, pytest; 3 of 12 repos, 95 of 500 issues) review 296 AI-generated PRs plus 47 golden human patches, blinded, inside real GitHub, paid hourly with a quality bonus. Their merge decisions average 24.2 pp (SE 2.7) below the automated SWE-bench grader, so roughly half of test-passing PRs would not be merged. Rejection reasons in order: code quality, other, breaks other code, core functionality failure, failing grader. On the time-horizon framing, Claude Sonnet 4.5 reads as a ~50-minute task horizon by the grader and ~8 minutes by these maintainers. The mechanism is that the grader measures 'does the stated test pass' while the maintainer measures 'will this cost more than it saves over the repo's lifetime' - a maintenance-cost judgment that no test encodes, which is exactly the part that requires human attention and cannot be graded away. Limitation: one benchmark subset, one harness, one shot per PR (no iteration), no CI for reviewers; the 9.6 pp/yr closing trend is p<0.10 and marked fragile, so this is a snapshot, not a law.",
+      "source": "https://metr.org/notes/2026-03-10-many-swe-bench-passing-prs-would-not-be-merged-into-main/",
+      "confidence": 0.85,
+      "topic": "w2-human",
+      "tags": ["grader-vs-human", "merge-decision", "measured"]
+    },
+    {
+      "id": "w2-human-golden-baseline",
+      "kind": "concept",
+      "title": "Only 68% of real merged human patches re-merged, so a review rate needs a paired baseline",
+      "body": "In the same METR study, the 47 golden patches were real human patches already merged into those repos. These maintainers re-merged only 68% of them, while rating 85% as achieving at least 80% of the task - so even 'known-good' work fails a re-review a third of the time. The mechanism is that an absolute merge rate confounds patch quality with reviewer strictness and with lab-versus-real context; normalizing to a golden baseline subtracts the person rather than the task, which is why paired designs beat between-subject ones. Why this works: the baseline absorbs the reviewer-specific offset, turning an uninterpretable score into a ratio that can be compared across reviewers, models and time. Limitation: the golden set is 47 patches judged by the same 4 maintainers, so the 68% ceiling is itself a small-sample estimate; it also silently redefines 'correct' as 'what these four would do', and any reported accuracy above 68% is measuring agreement with a person rather than with truth.",
+      "source": "https://metr.org/notes/2026-03-10-many-swe-bench-passing-prs-would-not-be-merged-into-main/",
+      "confidence": 0.8,
+      "topic": "w2-human",
+      "tags": ["paired-baseline", "review-economics", "measurement-design"]
+    },
+    {
+      "id": "w2-human-eyetracking-provenance",
+      "kind": "claim",
+      "title": "Labelling code as LLM-generated raised fixation time up to 60% without raising thoroughness",
+      "body": "Khojah et al. (ASE 2026, arXiv:2606.26505) ran an eye-tracking wizard-of-Oz study: 32 practitioners from 20 organizations, 7.0 +/- 5.1 years experience, reviewing 4 PRs of about 77 +/- 10 LoC with faults and smells injected. All code was actually pre-October-2021 human code, but some regions were labelled 'CodeForgeAI' with a timestamp and prompt. Saccade length - their thoroughness proxy - did not change; fixation time on the LLM-labelled regions rose by up to 60% for more complex code. 20 of 32 said their evaluation criteria were unchanged; 12 applied different criteria; 14 used the prompt itself as requirement context. The mechanism is that provenance is a salience cue that reallocates a fixed attention budget rather than expanding it: reviewers stare longer at regions they distrust while reading no more broadly, so a label buys scrutiny of the suspected part at the cost of the rest. Limitation: n=32 within-subject lab task, 10 minutes per PR, no tests supplied, correctness not scored - it measures gaze, not defects, so 'more fixation' must not be read as 'more errors caught'.",
+      "source": "arXiv:2606.26505",
+      "confidence": 0.8,
+      "topic": "w2-human",
+      "tags": ["attention-allocation", "provenance", "eye-tracking"]
+    },
+    {
+      "id": "w2-human-independence-beats-advice",
+      "kind": "claim",
+      "title": "Independent human-AI aggregation beat AI-as-advisor 4.45 pp at a 22-49% tiebreak cost",
+      "body": "Berger et al. (arXiv:2603.29866) test a hybrid confirmation tree: human and AI judge independently, agreement is accepted, disagreement goes to a second human tiebreaker. Across 10 datasets, more than 41,000 human judgments, 1,229 decision-makers and 3,220 cases (dermoscopy, colonoscopy, sentiment, deception, deepfake, rearrest), the tree beat AI-as-advisor in all 10, +0.2 to +6.6 pp, pooled +4.45 pp (95% HDI 3.73-5.27). With XAI explanations across 16 conditions and 50,390 decisions it was better in 11, similar in 2, worse in 3 - all three where humans were at chance. Gains were +8 pp for low performers, +3.2 mid, +1.9 high. The mechanism is signal detection: people cannot discriminate correct from incorrect AI advice well enough to adjudicate it, so showing advice first destroys the independent signal, and preserving independence yields two noisy estimates that combine well. Limitation: a re-analysis of existing datasets with no live deployment, and the accuracy gain is explicitly bought with extra human judgments in 22% to 49% of cases - in a capacity-constrained system that tiebreak load may cost more than the 4.45 pp is worth.",
+      "source": "arXiv:2603.29866",
+      "confidence": 0.8,
+      "topic": "w2-human",
+      "tags": ["appropriate-reliance", "aggregation", "xai"]
+    },
+    {
+      "id": "w2-human-automation-bias-ecg",
+      "kind": "number",
+      "title": "26.6% of erroneous ECG interpretations went uncorrected by clinicians (95% CI 6.4-65.6%)",
+      "body": "A 2026 npj Digital Medicine systematic review and meta-analysis of human oversight of clinical AI, as summarized in a secondary source, pooled four heterogeneous real-world studies of computerized ECG interpretation: 26.6% of erroneous interpretations were not recognized or corrected, with a 95% CI of 6.4% to 65.6%. A separate pooling of three adjusted cohorts found clinicians had about 10 times higher odds of being correct when the advice was correct than when it was incorrect (OR 10.19, 95% CI 7.43-13.98). The mechanism is prior-shifting: the advice converts an independent derivation task into a confirmation task, so when the advice is wrong the reviewer must overcome both the shifted prior and the authority cue, precisely when the case looks most routine. Why this works as a measurement: error-interception rate measures what oversight is supposed to do, whereas agreement rate rises even when the human has been captured. Limitation: the review mixes decades of computerized decision support with modern AI and could not pool LLM-era studies for heterogeneity - and I read a secondary summary, not the primary paper, so treat 26.6% as a warning signal with a nearly uninformative interval rather than a rate.",
+      "source": "https://gvc-consult.com/gvcs/2026-10-29-human-oversight-clinical-ai.html",
+      "confidence": 0.5,
+      "topic": "w2-human",
+      "tags": ["automation-bias", "error-interception", "clinical"]
+    },
+    {
+      "id": "w2-human-async-monitoring",
+      "kind": "claim",
+      "title": "Asynchronous monitoring reached 6% false-negative at 1% false-positive with zero runtime latency",
+      "body": "Stickland et al. (arXiv:2512.13526) study asynchronous control: a monitor reviews agent actions after the fact instead of gating them, so no runtime latency is imposed while still attempting to disrupt attacks before irreversible harm. They build 5 software-engineering environments and run an adversarial blue-team/red-team game, ending with an ensemble monitor at 6% false-negative rate at 1% false-positive on a held-out environment, then extrapolate deployment risk from that FNR with an explicit model, sensitivity analysis and stated invalidity conditions. The mechanism is that the scarce resource is not only human time but the agent's throughput: moving review off the critical path converts a blocking interrupt into a queued item, and a queue can be triaged asynchronously while the agent keeps working. Why this works: latency and oversight are decoupled, so oversight is paid for in reaction time rather than in agent stalls. Limitation: it applies only to harms that are not yet irreversible when detected; the extrapolation rests on assumptions the authors say they cannot validate; and the monitor is a model, not a human, so this is an alternative to human attention rather than a measurement of it.",
+      "source": "arXiv:2512.13526",
+      "confidence": 0.75,
+      "topic": "w2-human",
+      "tags": ["async-review", "monitoring", "latency"]
+    },
+    {
+      "id": "w2-human-interruption-cost",
+      "kind": "claim",
+      "title": "Interrupted work finished faster with no quality loss but at higher stress and effort",
+      "body": "Mark, Gudith and Klocke (CHI 2008, doi 10.1145/1357054.1357072) interrupted participants mid-task: interrupted tasks were completed faster than uninterrupted ones with no quality difference, but at measurably higher stress, frustration, time pressure and effort; the context of the interruption did not matter, and personality traits such as openness and personal structure predicted disruption cost. The mechanism is compensatory speed: people absorb an interruption by working faster afterwards, so the cost is invisible in completion time and product quality and surfaces instead as workload - which is why interrupt cost must be measured in stress, effort, or error rate at a fixed pace, never in duration. Why this works as a design constraint: a system that instruments only latency will systematically under-price interruptions and over-schedule them, and that error is invisible in exactly the metrics such systems collect. Limitation: the widely repeated '23 minutes to resume' figure comes from Mark's separate observational work and does not appear in this paper - I could not verify it in primary text, so treat 23 minutes as unverified; the study is also a lab task with student-age participants, not code review.",
+      "source": "https://doi.org/10.1145/1357054.1357072",
+      "confidence": 0.75,
+      "topic": "w2-human",
+      "tags": ["interruption", "context-switching", "unverified-figure"]
+    },
+    {
+      "id": "w2-human-review-outcomes-not-defects",
+      "kind": "number",
+      "title": "Only 14% of code-review comments concern defects; median Google change is 24 lines",
+      "body": "Bacchelli and Bird (ICSE 2013, Microsoft, 200 reviews and 570 comments) found that although defect finding motivates review, only 14% of review outcomes and comments were about defects, with 65 logical issues and the remainder design, style, and knowledge transfer. Sadowski et al. (ICSE-SEIP 2018) describe Google at scale: about 20,000 changes per day, a median change of 24 lines, about 90% touching fewer than 10 files, a median of 1 approver with under 25% having more than one, median time-to-approval under 4 hours and over 80% of reviews finishing in a single round. The mechanism is that a review decision is cheap when the diff is small and the number of rounds is one: decision cost scales with the number of independent things a reviewer must hold at once, so small changes plus a single approver is what keeps a 20k/day queue moving. Limitation: these are descriptive medians at one company on human-written changes; the 14% defect share counts comments and therefore undercounts implicit defect prevention; and none of it transfers cleanly to agent diffs, which arrive faster, larger, and already test-passing.",
+      "source": "https://doi.org/10.1145/3236024.3236027",
+      "confidence": 0.7,
+      "topic": "w2-human",
+      "tags": ["code-review", "defect-share", "small-batches"]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w2-human-approval-rubber-stamp",
+      "rel": "supports",
+      "to": "w2-human-catch-rate-13-6",
+      "note": "Blanket approval rates and a 13.6% catch rate are two views of the same per-action gate."
+    },
+    {
+      "from": "w2-human-catch-rate-13-6",
+      "rel": "supports",
+      "to": "w2-human-oversight-capacity",
+      "note": "The measured fall from ~17% to ~5% block rate after 50 prompts is the empirical shadow of the simulated reliability curve."
+    },
+    {
+      "from": "w2-human-oversight-capacity",
+      "rel": "requires",
+      "to": "w2-human-flooding-attack",
+      "note": "Flooding works only because capacity is finite; the inverted-U is the attack surface."
+    },
+    {
+      "from": "w2-human-flooding-attack",
+      "rel": "fails-at",
+      "to": "w2-human-approval-rubber-stamp",
+      "note": "Per-action gating is exactly the regime the flooding attack exploits."
+    },
+    {
+      "from": "w2-human-subjectivity-no-ground-truth",
+      "rel": "requires",
+      "to": "w2-human-oversight-capacity",
+      "note": "With no single risky label, a guard must be calibrated to one declared cost policy rather than to accuracy."
+    },
+    {
+      "from": "w2-human-deferral-under-workload",
+      "rel": "applies-to",
+      "to": "w2-human-oversight-capacity",
+      "note": "Workload-constrained deferral formalizes the capacity premise the inverted-U assumes."
+    },
+    {
+      "from": "w2-human-golden-baseline",
+      "rel": "derived-from",
+      "to": "w2-human-maintainer-vs-grader",
+      "note": "The 68% golden ceiling is drawn from the same 296+47 PR study and is what makes the 24.2 pp gap interpretable."
+    },
+    {
+      "from": "w2-human-async-monitoring",
+      "rel": "refines",
+      "to": "w2-human-interruption-cost",
+      "note": "Async review converts a blocking interrupt into a queued item, which is a direct attack on interruption cost."
+    },
+    {
+      "from": "w2-human-interruption-cost",
+      "rel": "supports",
+      "to": "w2-human-catch-rate-13-6",
+      "note": "Speed compensation under interruption predicts degraded per-decision vigilance rather than slower work."
+    },
+    {
+      "from": "w2-human-automation-bias-ecg",
+      "rel": "supports",
+      "to": "w2-human-catch-rate-13-6",
+      "note": "26.6% uncorrected ECG errors is the clinical analogue of a 13.6% catch rate on dangerous commands."
+    },
+    {
+      "from": "w2-human-independence-beats-advice",
+      "rel": "refines",
+      "to": "w2-human-automation-bias-ecg",
+      "note": "Independence-first aggregation is a mechanism-level fix for the prior-shifting that automation bias describes."
+    },
+    {
+      "from": "w2-human-eyetracking-provenance",
+      "rel": "supports",
+      "to": "w2-human-oversight-capacity",
+      "note": "Attention redistributes within a fixed budget, matching the capacity premise rather than refuting it."
+    },
+    {
+      "from": "w2-human-review-outcomes-not-defects",
+      "rel": "supports",
+      "to": "w2-human-subjectivity-no-ground-truth",
+      "note": "If only 14% of comments concern defects, most review judgment is taste, which explains why raters disagree."
+    },
+    {
+      "from": "w2-human-maintainer-vs-grader",
+      "rel": "contradicts",
+      "to": "w2-human-review-outcomes-not-defects",
+      "note": "At Google, small single-round reviews suffice; for agent PRs the same maintainers reject half of what a grader accepts."
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w2-human-gap-miss-rate-on-agent-diffs",
+      "title": "No study measures human miss rate on agent-authored PRs against adjudicated ground truth",
+      "body": "What is not known: the false-negative rate of a human reviewer looking at an agent-authored, already-test-passing diff under realistic time budgets. We have proxies only - 13.6% catch on a single swapped prompt, 26.6% uncorrected ECG errors, METR's 24.2 pp merge gap - none of which is a per-defect sensitivity on real agent PRs. Why it matters: any gate design for a self-improving loop is a bet on reviewer sensitivity, and without that number the only available policy is 'escalate everything', which the capacity and flooding results say is both unsafe and exploitable. Why nobody has measured it: it needs blinded construction of known-bad diffs inside real repositories, per-PR expert adjudication (expensive), sustained paid attention over many hours (METR bought this with 4 maintainers and got merge decisions, not defect detection), and a ground truth that the kappa=0.52 subjectivity result says may not exist.",
+      "source": "https://metr.org/notes/2026-03-10-many-swe-bench-passing-prs-would-not-be-merged-into-main/"
+    },
+    {
+      "id": "w2-human-gap-review-time-cost-curve",
+      "title": "No primary cost curve of review minutes against defects found for agent diffs",
+      "body": "What is not known: how defect detection scales with minutes spent on an agent-written diff, and where the curve saturates. The numbers everyone quotes - 200-400 LoC per review, 60-90 minutes, 70-90% defect discovery, sharp decline above about 500 LoC/hour, spot-checking 20-33% - trace to a SmartBear/Cisco page I could not read as primary text, and at least one secondary compilation claims those figures have been mangled downstream (some sources render them as 200-250 LoC or about 60 minutes). Why it matters: the loom-style design has to decide how much human time to buy per round, and that decision needs a marginal-return curve, not a rule of thumb. Why nobody has measured it: it requires paying reviewers for multi-hour sessions on instrumented tasks with seeded defects of known type, and the agent case adds a confound - diffs already pass tests, so any 'defect' is by definition one the test suite cannot see, which makes ground truth a judgment call.",
+      "source": "https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/"
+    },
+    {
+      "id": "w2-human-gap-batching-vs-streaming",
+      "title": "No controlled comparison of streamed per-action approvals against batched outcome review",
+      "body": "What is not known: whether streaming approvals or batched outcome-level review produces better danger-through per human minute. The only evidence is observational and confounded - 97% approval on per-action prompts against 39% rejection on plan approvals compares different prompt contents as well as different granularities, and Mark's interruption work predicts the streaming arm loses to speed compensation in a way completion-time metrics cannot see. Why it matters: this is the single structural choice in an agent-oversight UI, and it is currently made by intuition. Why nobody has measured it: a clean test needs the same set of actions routed both ways to matched reviewers, a danger-through endpoint requiring seeded bad actions, and a human-minutes denominator - and industry deployments are not instrumented to log reviewer dwell time per decision, so the data that would settle it is never collected.",
+      "source": "https://claude.com/blog/auto-mode-default-in-claude-code"
+    },
+    {
+      "id": "w2-human-gap-fatigue-curve-unmeasured",
+      "title": "The reviewer-fatigue curve is assumed in every deferral model and measured in none",
+      "body": "What is not known: the actual shape of reviewer reliability against cumulative escalation load - the r(l) that FALCON, DeCCaF and the capacity analysis all parameterize. Every safety-optimal escalation rate quoted (56% danger at 64% escalation, 22% at 72%) is downstream of an assumed slope and floor. Why it matters: the inverted-U conclusion, which is the strongest actionable claim in this literature, is a theorem about a model, not an observation; if real reliability decays differently the optimum moves and could even become monotone. Why nobody has measured it: it needs a within-subject design with many hours of sustained review on items of calibrated difficulty, an outcome measure per item (so seeded faults or adjudicated labels), and a willingness to run reviewers into degraded states - which is exactly the condition an ethics board and a paid crowd both resist, and which production logs cannot reconstruct because they never record whether the human actually looked.",
+      "source": "arXiv:2604.00904"
+    }
+  ]
+}

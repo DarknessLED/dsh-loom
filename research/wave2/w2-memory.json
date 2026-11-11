@@ -1,0 +1,312 @@
+{
+  "nodes": [
+    {
+      "id": "w2-memory-itemized-counters",
+      "kind": "claim",
+      "title": "Itemized entries with helpful/harmful counters beat monolithic rewriting: +12.5 TGC on AppWorld",
+      "body": "Problem: an agent loop must improve its own context without weight updates, and the obvious implementation - have an LLM rewrite the accumulated notes each round - degrades. What made it hard: rewriting is a lossy global operation with no attribution, so one bad rewrite destroys knowledge that earlier rounds paid for, and nothing records which sentence actually helped. The fix is to store memory as itemized bullets, each with a unique id, a small content unit (a strategy, concept, or failure mode), and two counters for how often it was marked helpful or harmful, then update by appending new bullets and incrementing counters in place and merge the deltas with deterministic non-LLM logic. Here the mechanism is that each write is localized and id-attributable, so credit and blame land on one entry instead of smearing across a rewritten blob, and parallel reflectors can merge without clobbering each other. On AppWorld with DeepSeek-V3.1, task-goal completion went 63.7 to 76.2 and scenario-goal completion 42.9 to 64.3, average 42.4 to 59.4; removing incremental updates drops to 67.3 TGC / 56.9 average. Limitation: the counters are assigned by the same LLM that writes the bullets, so they record the writer's self-assessment, not verified utility.",
+      "source": "https://arxiv.org/abs/2510.04618",
+      "confidence": 0.85,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "counters",
+        "context-adaptation",
+        "ace"
+      ]
+    },
+    {
+      "id": "w2-memory-context-collapse",
+      "kind": "failure",
+      "title": "Monolithic rewrite collapse: an 18,282-token memory shrank to 122 tokens and fell below the no-memory baseline",
+      "body": "Problem: why does self-improving memory sometimes make an agent worse than having no memory at all? The trace is Dynamic Cheatsheet on AppWorld: at step 60 the memory holds 18,282 tokens and accuracy is 66.7; the next monolithic rewrite compresses it to 122 tokens and accuracy falls to 57.1, under the 63.7 no-adaptation baseline. What makes this dangerous is a positive feedback loop on brevity: a rewriter asked for a compact summary keeps only what looks generally important, the specific appendices vanish, and because the rewrite replaces instead of appending there is no path back - the next rewrite starts from the already-shortened text, so the loss compounds rather than being corrected. Here the mechanism is that the compression operator has no memory of what it dropped and no counter recording that a dropped item was ever helpful. ACE names this 'context collapse' and pairs it with a second mode, 'brevity bias', where optimizers converge on short generic instructions that no longer discriminate between situations. That diagnosis is useful because it predicts degradation will be abrupt and irreversible, which is what the token trace shows, and predicts that append-only writes with ids will not exhibit it. Limitation: this is one illustrative trace from one benchmark family, not a measured distribution of collapse events.",
+      "source": "https://arxiv.org/abs/2510.04618",
+      "confidence": 0.8,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "failure-mode",
+        "context-collapse",
+        "rewriting"
+      ]
+    },
+    {
+      "id": "w2-memory-explel-counter-semantics",
+      "kind": "claim",
+      "title": "ExpeL seeds each insight counter at 2 and deletes at 0, insulating memory against lucky successes",
+      "body": "Problem: an agent that learns only from successes stores insights from trajectories that succeeded for the wrong reason, and those insights then mislead later attempts. What made it hard: with binary success feedback there is no label saying which of several insights in a successful run was actually responsible. The mechanism is a four-operator edit algebra over an insight list - ADD, EDIT, UPVOTE, DOWNVOTE - where a new insight enters with importance count 2, UPVOTE and EDIT increment it, DOWNVOTE decrements it, and the insight is removed at zero. This is why this works: the initial value of 2 buys one unit of tolerance, so a single contradicting observation does not erase an insight but a repeated one does; the counter is a cheap running vote, and letting EDIT double as an endorsement means refinement is rewarded like agreement. The authors state the rationale explicitly - even successful trajectories can be suboptimal and mislead the generated insights. Results: ALFWorld put-unseen 50 with ReAct to 83 with ExpeL; WebShop reward 0.665 to 0.701. Limitation: retrieval is kNN over whole successful trajectories with all-mpnet-base-v2, so the demonstrated regime is dozens of tasks, not a long-running loop with thousands of entries where counter starvation becomes possible.",
+      "source": "https://arxiv.org/abs/2308.10144",
+      "confidence": 0.8,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "counters",
+        "credit-assignment",
+        "explel"
+      ]
+    },
+    {
+      "id": "w2-memory-dedup-not-load-bearing",
+      "kind": "claim",
+      "title": "Dedup threshold barely matters: 50/70/90 percent scores 77.0/73.9/78.6, so dedup is not load-bearing",
+      "body": "Problem: memory stores grow without bound and accumulate near-identical lessons, so an obvious engineering response is to invest heavily in consolidation - similarity thresholds, merge policies, proactive versus lazy dedup. What made it hard: dedup is destructive, so a wrong merge silently removes the one entry that would have helped, and there is no cheap way to notice afterwards. The finding is that the choice barely matters: ACE sweeps embedding-similarity dedup at 50, 70 and 90 percent and gets 77.0, 73.9 and 78.6 - a spread inside run noise, and not monotone. The pruning trigger behaves the same: pruning at 10K, 50K or 100K tokens gives 78.6, 78.4, 78.3. The mechanism is that growth-and-refine is carried by append-plus-counter, and dedup is housekeeping that mostly removes redundancy the retriever would have ranked away anyway, so the store tolerates slack in its consolidation policy. Limitation: this is one benchmark and one embedder, and the insensitive band is roughly 3 points - it bounds the effect, it does not prove dedup can never matter; near-duplicate adversarial content is exactly the case the sweep does not cover.",
+      "source": "https://arxiv.org/abs/2510.04618",
+      "confidence": 0.7,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "consolidation",
+        "dedup",
+        "negative-result"
+      ]
+    },
+    {
+      "id": "w2-memory-reconstruct-not-replay",
+      "kind": "claim",
+      "title": "Memory should be reconstructed per state, not replayed: verbatim injection causes negative transfer",
+      "body": "Problem: retrieved experience is abstract and general while the state at decision time is concrete and changing, so a memory that was right last week can be actively wrong now. What made it hard: the standard fix - retrieve top-k and splice the text into the prompt - has no place to express 'this lesson applies only if'. MemHarness names the failure negative transfer and attributes it to the replay paradigm, where stored records are treated as static and injected regardless of fit. The mechanism is to insert an explicit reconstruction step between retrieval and action: at each decision step one policy critiques the retrieved experience conditioned on the current state and emits context-grounded guidance before acting, and that reconstructive behavior is learned end-to-end with GRPO rather than prompted. This is why this works: conditioning moves the disambiguation burden from the retriever, which sees only a query, to the policy, which sees the full state, so a mismatched memory can be rewritten into a conditional instead of being obeyed. The authors also report the reconstruction objective acts as latent guidance during training, improving intrinsic reasoning. Limitation: only the abstract was read, so effect sizes are unverified, and the capability is trained into weights - it does not transfer to a plugin that cannot fine-tune.",
+      "source": "https://arxiv.org/abs/2607.28272",
+      "confidence": 0.6,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "retrieval",
+        "negative-transfer",
+        "reconstruction"
+      ]
+    },
+    {
+      "id": "w2-memory-mode-asymmetry-transfer",
+      "kind": "claim",
+      "title": "Transfer depends on task: prose insights beat replay 36 vs 31 on HotpotQA but lose 50 vs 55 on ALFWorld",
+      "body": "Problem: should memory store compressed lessons or raw trajectories? Both are used in practice and both are argued for, usually without a controlled comparison. ExpeL supplies one: with the same experience pool, run insights-only versus retrieve-only. On HotpotQA insights-only scores 36 and retrieve-only 31, so abstraction wins; on ALFWorld insights-only scores 50 and retrieve-only 55, so raw replay wins. The mechanism is a fidelity-versus-generality trade: a compressed insight generalizes across surface variation, which is what a knowledge-heavy QA task rewards, while a raw trajectory preserves procedural detail - exact action sequences, object names, step order - that an embodied task needs and summarization drops. This is why this works as an explanation: the two benchmarks differ in whether the transferable content is a fact or a routine, and the ablation holds the retriever and pool fixed while varying only the storage form. Limitation: the deltas are 5 points on two benchmarks with a single backbone, and the obvious hybrid - store both and route by task type - is untested, so the honest reading is that mode is a per-task design choice rather than that one form is better.",
+      "source": "https://arxiv.org/abs/2308.10144",
+      "confidence": 0.7,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "transfer",
+        "abstraction",
+        "ablation"
+      ]
+    },
+    {
+      "id": "w2-memory-bitemporal-invalidation",
+      "kind": "claim",
+      "title": "Contradictions should be invalidated with a validity interval, not deleted: Zep 94.8 DMR vs MemGPT 93.4",
+      "body": "Problem: a store learns that a fact changed - the user moved, a dependency was upgraded - and the naive responses are to append the new fact (both are now retrieved and contradict) or overwrite the old one (history, and the reason for the change, are lost). Here the mechanism is a bi-temporal edge: every relation carries both when it was true in the world and when the system learned it, so a contradiction is recorded as the old edge being invalidated at time t instead of being removed. This is why this works: retrieval can filter to the edge valid at the query's reference time, which resolves the contradiction without destroying evidence, and the invalidation timestamp is itself the audit trail needed to explain later behavior. Zep reports 94.8 DMR against 93.4 for MemGPT, and up to +18.5 percent accuracy on LongMemEval with about 90 percent lower latency than a full-context baseline. Limitation: it resolves only contradictions that are resolvable by time. If two sources disagree about the same interval, or a preference oscillates without stabilizing, there is no timestamp to invalidate on and the graph silently keeps both - exactly the conflict classes measured separately in TANGLE.",
+      "source": "https://arxiv.org/abs/2501.13956",
+      "confidence": 0.7,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "contradiction",
+        "temporal",
+        "graph"
+      ]
+    },
+    {
+      "id": "w2-memory-decay-no-benchmark",
+      "kind": "claim",
+      "title": "Time-decay forgetting is used widely but was never evaluated on a task benchmark, only on simulated dialogue",
+      "body": "Problem: a growing store eventually retrieves stale entries, so many systems decay memory strength with elapsed time and reinforce it on recall, borrowing the Ebbinghaus forgetting curve. Here the mechanism is that each memory has a strength decaying exponentially with time since last access and boosted when retrieved, so significance and recency jointly decide retention, and the signal needed is just access - exactly what a long-running loop already has without labels. This is why this works in principle: decay is a cheap proxy for the probability an entry is still relevant, and unlike counters it needs no judge, so it cannot be gamed by the writer. But the evidence base is thin: MemoryBank applies this to a companion chatbot and reports qualitative and simulated-dialogue evaluation, not task success against a no-decay control. So the widely repeated claim that decay helps is, as far as primary sources show, unmeasured on any benchmark where memory affects task completion. Limitation and consequence: for a loop deciding whether to keep an insight not retrieved in 200 rounds there is no published curve or threshold to copy, and the decay rate is a free parameter that silently trades staleness against forgetting something about to become relevant.",
+      "source": "https://arxiv.org/abs/2305.10250",
+      "confidence": 0.6,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "forgetting",
+        "decay",
+        "evidence-gap"
+      ]
+    },
+    {
+      "id": "w2-memory-conflict-irreducible",
+      "kind": "claim",
+      "title": "TANGLE finds three irreducible memory conflicts no fixed rule resolves, and perception beats action",
+      "body": "Problem: memory systems are usually scored on recall accuracy, which assumes one correct answer exists in the store. TANGLE (541 instances, 40 personas, 46 life aspects, 10 domains) instead builds cases where the memory itself is in conflict. Three types are named irreducible: Context-Partitioned Conflict, where the right preference depends on a context never stated; Behavior-Oscillation Conflict, where the preference changes without stabilizing so any stored value is a snapshot of a moving target; and Source-Contradiction Conflict, where sources genuinely disagree. The mechanism the paper argues for is a Conflict-Aware Action Policy that adapts per conflict - sometimes asking, sometimes hedging, sometimes committing with stated confidence - because fixed rules prove insufficient. This is why this works as a framing: as a policy problem the failure is not a wrong memory but an unjustified certainty, since collapsing a live conflict into one definitive entry converts ambiguity into overconfident action. Findings: with curated memory, models perceive conflicts more reliably than they calibrate actions or seek targeted clarification; with an end-to-end pipeline, extraction fails to preserve the conflict-bearing relations entirely. Limitation: it scores judgment quality, not downstream task success, so the cost of hedging is unmeasured.",
+      "source": "https://arxiv.org/abs/2608.13921",
+      "confidence": 0.75,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "contradiction",
+        "calibration",
+        "tangle"
+      ]
+    },
+    {
+      "id": "w2-memory-poison-cheap",
+      "kind": "claim",
+      "title": "Poisoning needs under 0.1 percent of the store for over 80 percent attack success: retrieval is unverified",
+      "body": "Problem: an agent's long-term memory is written from untrusted text - web pages, tool output, other agents - and retrieved later as trusted context. What made it hard to reason about: retrieval is similarity search with no verification, so influence is not proportional to volume. AgentPoison shows the mechanism: constrained optimization of a trigger phrase so that every triggered instance maps into a unique, compact region of embedding space. This is why this works: the trigger guarantees the poisoned records are the nearest neighbors whenever the trigger appears, while compactness keeps them far from benign queries, so benign behavior is unaffected and the poison is not diluted by the rest of the store; no training or fine-tuning is needed. Reported: over 80 percent average attack success at a poison rate under 0.1 percent, under 1 percent benign degradation, surviving a perplexity filter and trigger rephrasings that preserve meaning. The general lesson is that top-k retrieval is a winner-take-all channel - a handful of high-similarity records can occupy the entire retrieved window. Limitation: the trigger is a specific string, so this measures a backdoor rather than slow semantic drift, and it does not test stores whose writes pass an LLM consistency check.",
+      "source": "https://arxiv.org/abs/2407.12784",
+      "confidence": 0.85,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "poisoning",
+        "retrieval",
+        "backdoor"
+      ]
+    },
+    {
+      "id": "w2-memory-write-time-fails-compositional",
+      "kind": "claim",
+      "title": "Write-time consistency checks stop single-record poisoning but not compositional or dormant poisoning",
+      "body": "Problem: the intuitive defense is to validate each memory at write time - is this consistent with what we know? MemPoison (1227 hand-validated cases, 4 attack types, 3 injection channels, 3 memory substrates, 10 model families) tests that class against a three-tier taxonomy: L1 direct single-record corruption, L2 compositional corruption spread across records, and L3 context-triggered dormant corruption that stays inert until a condition is met. The attack is also temporally decoupled - the injection turn and the harmful-behavior turn are different turns - so a write-time check only ever sees a harmless-looking insertion. Finding: write-time defenses substantially suppress L1 but fail to reliably suppress L2 and L3. The mechanism behind the failure is decomposition: a mechanistic influence decomposition shows individually benign records become harmful through joint retrieval composition or trigger-conditioned activation, and no per-record predicate can see a property that exists only in the combination. This is why this works as an argument: it puts the defense boundary at the record while the harm sits in the retrieval set, so it generalizes past these specific attacks. Limitation: the L3 cases are constructed, so the real-world frequency of dormant compositional poisoning is unknown.",
+      "source": "https://arxiv.org/abs/2607.14651",
+      "confidence": 0.7,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "poisoning",
+        "defense",
+        "compositional"
+      ]
+    },
+    {
+      "id": "w2-memory-benign-cost-of-defense",
+      "kind": "number",
+      "title": "Benign-case cost of memory defenses is near zero: anomaly detection blocked 0.4 percent of turns",
+      "body": "Problem: memory-poisoning defenses are judged by attack success rate, but almost all traffic an agent sees is benign, so the deployment question is what the defense costs when nobody is attacking - and ASR reveals none of it. The harness holds backbone, memory backend, retrieval, answer prompt and judge fixed and varies only the defense, on half of LoCoMo (5 long conversations, 750 turns, 255 questions per run, 3 runs per condition). Results: sanitization and provenance checking never fired at all; LLM anomaly detection blocked 9 of 2,250 turns (0.4 percent); a read-time reranker dropped 2.2 percent of the memories it judged, withholding at least one memory from 14.9 percent of questions, and a blind audit found content-based justification for only 2 of 50 sampled drops. No defense showed a detectable accuracy cost at 95 percent intervals of plus or minus 2.4 to 4.6 points; the reranker changed accuracy by +0.6 (CI -2.6 to +3.8). This is why this works as evidence: swapping only the defense removes the confounds that usually make such comparisons unreadable. Token overhead: 0 percent sanitization, 1.5 percent anomaly, 3.0 percent reranker, 4.5 percent stacked. Limitation: the paper's own history is a warning - an earlier version had a model mismatch accounting for 2.9 of the 4.4 points of cost it had reported.",
+      "source": "https://arxiv.org/abs/2609.22818",
+      "confidence": 0.8,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "poisoning",
+        "defense",
+        "evaluation",
+        "cost"
+      ]
+    },
+    {
+      "id": "w2-memory-hindsight-intervention-credit",
+      "kind": "claim",
+      "title": "One delete-and-reanswer probe per entry beats denser observational feedback: 63.4 to 70.2 to 77.5",
+      "body": "Problem: in a memory pipeline an operation's value is unobservable when it is taken - you cannot tell whether a write, a merge or a retrieval helped, because the answer depends on all of them and on the reader. What made it hard: honest ground truth requires counterfactual replay (what would the answer have been without this entry), which is expensive and, over a long loop, unbounded. The mechanism here uses a machine-readable audit trail twice: offline, retrieval hits and answer-time citations train an operation-conditioned memory-utility critic; online, retrievals plus citations plus one controlled deletion-and-reanswer per probe settle an intervention-calibrated entry-level presence credit, propagated along version chains as an action-level proxy reward, with no per-operation human labels and no Monte-Carlo replay. This is why this works: the deletion probe turns an observational correlation into a small local intervention, so that entry's credit is causal at the cost of one extra answer, and the version chain carries it back to the operation that created the entry. Results: LoCoMo held-out 77.5 percent with a local 8B policy under a fixed shared reader versus 65.1 for an API teacher and 69.7 for Mem0; LongMemEval 79.0. Limitation: it trains a policy, and a single reanswer only isolates contribution if the entry's effect is separable enough to show up in one probe.",
+      "source": "https://arxiv.org/abs/2608.29605",
+      "confidence": 0.7,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "credit-assignment",
+        "counterfactual",
+        "hindsight"
+      ]
+    },
+    {
+      "id": "w2-memory-sleep-time-predictability",
+      "kind": "claim",
+      "title": "Offline consolidation pays only when the next query is predictable: 5x less test-time compute if it is",
+      "body": "Problem: consolidating experience offline, during idle time and off the critical path, is attractive for an always-on agent, but it requires guessing what will be asked later. Sleep-time compute makes the trade explicit: during idle periods the model anticipates likely queries and pre-computes useful quantities, converting raw context into a learned context so the answer path does less reasoning. The mechanism is to spend latency-free time rewriting the context into pre-digested form that the query-time model consumes. This is why this works: the expensive reasoning moves to a period where nobody is waiting, so equal accuracy costs roughly 5x less test-time compute on Stateful GSM-Symbolic and Stateful AIME, and scaling the offline work adds up to 13 and 18 points. Amortization is the second half: with multiple related queries per context (Multi-Query GSM-Symbolic) average cost per query falls 2.5x, because one consolidation serves many reads. The decisive analysis is that efficacy correlates with the predictability of the user query. Limitation: predictability is measured, not engineered - for a codebase loop where the next human instruction is genuinely open-ended the offline work is a bet, and a wrong bet is pure cost.",
+      "source": "https://arxiv.org/abs/2504.13171",
+      "confidence": 0.75,
+      "topic": "w2-memory",
+      "tags": [
+        "memory",
+        "consolidation",
+        "offline",
+        "idle",
+        "sleep-time"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w2-memory-itemized-counters",
+      "rel": "supersedes",
+      "to": "w2-memory-context-collapse",
+      "note": "Append-only id-addressed bullets replace the monolithic rewrite that collapses"
+    },
+    {
+      "from": "w2-memory-explel-counter-semantics",
+      "rel": "supports",
+      "to": "w2-memory-itemized-counters",
+      "note": "Independent implementation of per-entry counters, different removal rule and benchmark family"
+    },
+    {
+      "from": "w2-memory-dedup-not-load-bearing",
+      "rel": "refines",
+      "to": "w2-memory-itemized-counters",
+      "note": "Sweeps show the load-bearing part is append-plus-counter, not the surrounding dedup machinery"
+    },
+    {
+      "from": "w2-memory-mode-asymmetry-transfer",
+      "rel": "refines",
+      "to": "w2-memory-itemized-counters",
+      "note": "Counters do not decide entry form: prose and raw trajectories transfer differently by task"
+    },
+    {
+      "from": "w2-memory-poison-cheap",
+      "rel": "fails-at",
+      "to": "w2-memory-itemized-counters",
+      "note": "Counters need repeated feedback; a one-shot high-similarity poison never gets downvoted"
+    },
+    {
+      "from": "w2-memory-write-time-fails-compositional",
+      "rel": "refines",
+      "to": "w2-memory-poison-cheap",
+      "note": "Extends the single-record backdoor to compositional and dormant corruption"
+    },
+    {
+      "from": "w2-memory-benign-cost-of-defense",
+      "rel": "measures",
+      "to": "w2-memory-write-time-fails-compositional",
+      "note": "Measures what defense costs on benign traffic, which ASR alone hides"
+    },
+    {
+      "from": "w2-memory-hindsight-intervention-credit",
+      "rel": "requires",
+      "to": "w2-memory-itemized-counters",
+      "note": "Entry-level credit needs id-addressed entries and version chains to attach credit to"
+    },
+    {
+      "from": "w2-memory-reconstruct-not-replay",
+      "rel": "contradicts",
+      "to": "w2-memory-mode-asymmetry-transfer",
+      "note": "Verbatim replay wins on ALFWorld in ExpeL but is blamed for negative transfer in MemHarness"
+    },
+    {
+      "from": "w2-memory-bitemporal-invalidation",
+      "rel": "fails-at",
+      "to": "w2-memory-conflict-irreducible",
+      "note": "Validity intervals resolve temporal contradictions only, not partitioned or oscillating ones"
+    },
+    {
+      "from": "w2-memory-decay-no-benchmark",
+      "rel": "applies-to",
+      "to": "w2-memory-itemized-counters",
+      "note": "Decay is a retention policy layered on itemized entries, alternative to counter-driven removal"
+    },
+    {
+      "from": "w2-memory-sleep-time-predictability",
+      "rel": "fails-at",
+      "to": "w2-memory-context-collapse",
+      "note": "Offline rewriting into learned context is the same lossy compression; predictability bounds payoff"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w2-memory-gap-compaction-cadence",
+      "title": "No one measures repeated compaction under one fixed budget axis, so consolidation cadence is an unmeasured knob",
+      "body": "What is not known: agents compact memory repeatedly - every N rounds, every N thousand tokens - and no benchmark holds one budget axis fixed across layers to say what cadence is best. The rate-distortion survey of the area (arXiv 2607.08032) states it sharply: compression is evaluated on single-turn long context, while the repeated compaction that agents actually perform is almost never measured. Why it matters: cadence is exactly the knob a self-improving loop must set, and the evidence that exists is indirect - ACE sweeps a pruning trigger at 10K/50K/100K tokens and finds almost nothing (78.6/78.4/78.3), but that is pruning, not rewriting. Why nobody has measured it: a real study needs a multi-round loop under a context budget, an ablation over cadence, and a downstream task metric - three things memory papers rarely control jointly, and LoCoMo-style evaluations score a single retrieval pass instead of a trajectory."
+    },
+    {
+      "id": "w2-memory-gap-counter-goodhart",
+      "title": "No work measures whether helpful/harmful counters can be gamed by the same model that assigns them",
+      "body": "What is not known: in both ACE and ExpeL the counters are incremented by an LLM judging its own or a sibling's output, so the retention signal is a self-assessment loop with no external check. If a reflector learns, even accidentally, to write entries that look helpful to a reflector, the store fills with plausible-sounding lessons and the counters certify them. Why it matters: this is Goodhart on the retention metric and the failure a self-improving loop is most exposed to, because the loop's only judge is itself. Why nobody has measured it: showing it requires an adversarial or reward-hacking reflector plus a ground-truth utility signal to compare against, and the nearest evidence is only an injected-noise ablation - ACE's harmful reflector drops 78.3 to 66.7 when corrupting every iteration but recovers to 76.1 when corrupting every fifth, which bounds tolerance to noise without addressing self-serving drift."
+    },
+    {
+      "id": "w2-memory-gap-code-loop-poison",
+      "title": "Memory poisoning has never been studied in a code loop where the stored memory is a patch rather than prose",
+      "body": "What is not known: every poisoning result here targets conversational or embodied memory - QA, web navigation, chat assistants. A code agent's memory differs in kind: entries are diffs, test outcomes and build recipes that are executed rather than quoted, so the payload need not persuade a reader, it needs to compile and pass. Whether the same economics hold (a sub-0.1 percent poison rate yielding over 80 percent success, per AgentPoison) is unknown, and the defense story may invert, because executable memory is checkable at write time by running it - a stronger signal than any consistency check on prose. Why it matters: a loop that learns from its own applied patches stores exactly this kind of object, and the interesting attack is a subtly wrong but passing patch that later rounds build on. Why nobody has measured it: there is no benchmark of code-agent memory corruption, and building one needs a repository, a test suite as oracle, and multi-round application."
+    },
+    {
+      "id": "w2-memory-gap-deletion-residue",
+      "title": "Deleting a memory record does not remove its downstream traces, and no one quantifies the residue",
+      "body": "What is not known: systems that summarize, link or distill produce derived artifacts - summaries, graph edges, evolved note attributes, occasionally fine-tuned weights - and deleting the raw record leaves all of them. The forgetting everyone implements (remove the row) is not the forgetting that matters (remove the influence). Why it matters: it defeats correction, since a wrong fact keeps acting through its summaries, and it defeats poisoning response, since the audit trail says the record is gone while the behavior persists - which makes any delete-on-request promise unverifiable. Why nobody has measured it: measuring residue requires an intervention - delete the record, then probe whether behavior changed - which is precisely the deletion-and-reanswer probe Hindsight Memory-PRM built for credit assignment, so the instrument exists but has been aimed at utility rather than erasure. The one adjacent datum: the benign-cost study found a reranker withholding memories from 14.9 percent of questions with justification for only 2 of 50 drops, i.e. removal already happens silently and unaudited."
+    }
+  ]
+}

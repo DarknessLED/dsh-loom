@@ -1,0 +1,312 @@
+{
+  "nodes": [
+    {
+      "id": "w3-attention-batch-threshold-3x",
+      "kind": "number",
+      "title": "Batching helped only at 3x/day; hourly batching was statistically indistinguishable from no batching",
+      "body": "Fitz, Kushlev, Jagannathan, Lewis, Paliwal and Ariely randomised 237 people for two weeks into four arms: notifications as usual, batched hourly, batched three times a day, and never. Only the 3x/day arm improved: more attentive, more productive, better mood, more sense of control, lower stress, fewer phone interruptions. The hourly arm showed little change against control, and the never arm was worse on anxiety and phone-related FoMO. The mechanism is that the benefit comes from crossing a threshold at which a notification window stops competing with the work in front of you; an hourly window still lands inside a work block, so the interruption structure is unchanged and only the delivery moment moves. For us this is adversarial: batching is not a monotone dial, and a cadence that does not clear the threshold is decoration with extra latency. Limitation: daily-diary self-report, smartphone notifications rather than approval requests, and no measurement of the cost of a delayed urgent item, which is exactly the item a checkpoint exists to catch.",
+      "source": "https://doi.org/10.1016/j.chb.2019.07.016",
+      "confidence": 0.78,
+      "topic": "w3-attention",
+      "tags": [
+        "batching",
+        "notifications",
+        "rct"
+      ]
+    },
+    {
+      "id": "w3-attention-interruption-speed-not-quality",
+      "kind": "number",
+      "title": "Interrupted work finished faster at equal quality but with more stress: the cost is affective, not throughput",
+      "body": "Mark, Gudith and Klocke interrupted participants mid-task and manipulated the interruption's relevance together with task difficulty. Interrupted work was finished in less time and with no measured quality difference; what rose was stress, frustration, time pressure and effort. The context of the interruption did not matter, and personality (openness, need for structure) predicted how much a given person was disrupted. The mechanism is compensation: an interruption raises arousal and the person spends extra effort to recover, so the lost time is bought back at a cost paid in strain rather than in clock time, which is why the throughput ledger shows nothing. This is adversarial to our own premise: if we justify batched checkpoints by claiming streaming costs throughput, that claim is not supported, and the real budget line is the human's willingness to keep reading. Limitation: short laboratory tasks, no multi-hour reasoning review, and the speed-up may not survive an interruption that requires reconstructing a long argument rather than resuming a keystroke.",
+      "source": "https://doi.org/10.1145/1357054.1357072",
+      "confidence": 0.8,
+      "topic": "w3-attention",
+      "tags": [
+        "interruption",
+        "attention-cost"
+      ]
+    },
+    {
+      "id": "w3-attention-23min-is-folklore",
+      "kind": "claim",
+      "title": "The 23-minute resumption figure is a press quote; the paper itself reports 25 minutes 26 seconds",
+      "body": "Mark, Gonzalez and Harris observed 24 information workers and reported 25 minutes 26 seconds to return to an interrupted task, with 2.3 intervening working spheres, and found most interrupted work was resumed the same day. The widely repeated 23 minutes 15 seconds traces to a 2006 Gallup Business Journal interview with Gloria Mark, later recycled by Fast Company in 2008; it is not in the paper. The mechanism is citation drift: a spoken approximation became a citable constant, and constants get tuned against, so any cost model built on 23 minutes is fitted to a paraphrase. Limitation, and it cuts both ways: the paper's real number is larger, so correcting the citation does not rescue the claim, only makes the parameter honest, and the 2005 sample is information workers observed in offices rather than a reviewer facing a queue of agent diffs.",
+      "source": "https://doi.org/10.1145/1054972.1055017",
+      "confidence": 0.85,
+      "topic": "w3-attention",
+      "tags": [
+        "interruption",
+        "citation-drift"
+      ]
+    },
+    {
+      "id": "w3-attention-breakpoint-not-cadence",
+      "kind": "claim",
+      "title": "Breakpoint-timed alerts beat immediate ones on both frustration and reaction time: not a batch-size effect",
+      "body": "Iqbal and Bailey scheduled notifications either immediately or at a detected breakpoint in the user's task, and measured both the disruption and how quickly the user then dealt with the message. Deferring to a breakpoint reduced frustration and also reduced reaction time to the notification, so the two did not trade off. The mechanism is that a breakpoint is where the receiver is already ending one task and forming the next, so the notification does not force a second context switch; the cost it avoids is reconstruction, not interruption as such. This refines rather than confirms our design: the measured gain came from aligning delivery with the human's own boundaries, which we cannot observe, and a fixed digest time is a proxy for that alignment that may be wrong for every reader. Limitation: email and instant messaging in a laboratory setting where breakpoints were detectable from task structure, a condition our loop does not satisfy.",
+      "source": "https://doi.org/10.1145/1357054.1357070",
+      "confidence": 0.75,
+      "topic": "w3-attention",
+      "tags": [
+        "batching",
+        "breakpoints",
+        "scheduling"
+      ]
+    },
+    {
+      "id": "w3-attention-approval-rate-95",
+      "kind": "number",
+      "title": "Gates approving 93-96% are signatures; approval-by-default gained 30% against 71% for escalation",
+      "body": "Across 17 CPOE studies, 49% to 96% of drug-safety alerts were overridden. A chart review of 382 overrides found 92.9% overridden with only 7.3% clinically appropriate. A management consultancy reports human-in-the-loop approval rates above 95% in every sales organisation it has worked with, and most teams have never computed the number. Meanwhile Stanford's 51-deployment study reports median productivity gains of 30% for approval-every-output against 71% for escalation-with-exceptions. The mechanism is base rate: when the true rate of should-stop is a few percent, the expected value of inspecting each item falls below its cost, so a keypress is the rational policy and the gate ends up measuring compliance rather than judgment. Limitation: clinical alerts are not agent checkpoints, and the Stanford sample studies only successes and is confounded by task type, since approval was chosen for zero-error-tolerance work.",
+      "source": "https://current.tinyfish.ai/issue/29/practitioners-corner/article/16265/the-checkpoint-that-approves-everything",
+      "confidence": 0.72,
+      "topic": "w3-attention",
+      "tags": [
+        "rubber-stamp",
+        "base-rate",
+        "approval-gate"
+      ]
+    },
+    {
+      "id": "w3-attention-repeat-not-volume",
+      "kind": "number",
+      "title": "Acceptance fell 30% per extra alert and 10% per 5pp of repeats, but not with workload or with time on alert",
+      "body": "Ancker and colleagues analysed 1,266,325 best-practice advisories and 326,203 drug alerts from 112 primary-care clinicians over three and a half years, testing two competing fatigue mechanisms. Acceptance fell 30% for each additional advisory per encounter (IRR 0.70) and 10% for every five-point rise in the share of within-patient repeats (IRR 0.90), while total workload (patients per year, encounters per year) was null. Six newly deployed alerts showed no early-peak-then-decline pattern, so desensitisation over time was not supported. The mechanism is probability matching: repeats carry no new information, so each one teaches the reviewer that the channel is uninformative, whereas sheer volume of varied items did not predict acceptance. The adversarial reading for our digest is that batching more items without de-duplicating them attacks the wrong variable. Limitation: observational, no severity data, one commercial EHR, and drug-alert acceptance under 1% means floor effects weaken the drug-alert estimates.",
+      "source": "https://doi.org/10.1186/s12911-017-0430-8",
+      "confidence": 0.83,
+      "topic": "w3-attention",
+      "tags": [
+        "alert-fatigue",
+        "repeats",
+        "clinical"
+      ]
+    },
+    {
+      "id": "w3-attention-first-instance-lock-in",
+      "kind": "number",
+      "title": "One override on first sight locked in 87.9% of later overrides, while a first acceptance only held to 51.9%",
+      "body": "In the same 112-clinician cohort, repeated advisories for the same patient behaved like a ratchet. If the first instance was overridden, 87.9% of subsequent advisories were overridden too; for drug alerts the figure was 99.9%. If the first instance was accepted, only 51.9% of later advisories were overridden, and 58.4% for drug alerts. The mechanism is precedent retrieval: the reviewer does not re-derive the decision, they recall having settled this class of item, so the first presentation fixes the long-run response rate for that class. For an interface this makes the first rendering of any new checkpoint type the highest-leverage screen we will ever ship, and it makes an early bad batch expensive in a way later good batches cannot undo. Limitation: override is not error, and this dataset had no adjudication of appropriateness, so the lock-in could equally be correct learning by an expert who already knew the alert was noise.",
+      "source": "https://doi.org/10.1186/s12911-017-0430-8",
+      "confidence": 0.8,
+      "topic": "w3-attention",
+      "tags": [
+        "alert-fatigue",
+        "first-impression",
+        "path-dependence"
+      ]
+    },
+    {
+      "id": "w3-attention-no-agreed-burden-metric",
+      "kind": "claim",
+      "title": "No agreed measure of supervision burden exists, and no volume reduction reliably lowers the override rate",
+      "body": "A synthesis from four US health systems states plainly that no agreed measure exists for alert effectiveness or burden, and lists the candidates in use: total alerts, alerts per order, interruptive versus non-interruptive counts, override rate, and time required. Deactivating 18 drug-interaction pairs cut that alert rate by 10.3% while the override rate stayed at 96.7%, and the authors warn that no absolute or relative reduction in volume is known to reliably reduce override rates. Median reported burden was 63 alerts a day; in a survey of 2,590 physicians, 86.9% called the burden excessive, and it was perceived rather than actual burden that tracked burnout. The mechanism is that a single number cannot separate many decisions from many useless decisions, so a claim that our digest is calibrated has no comparison class. Limitation: this is clinical decision support, but the measurement problem is general, and the perceived-versus-actual split means our own satisfaction surveys would measure the wrong thing.",
+      "source": "https://doi.org/10.1055/s-0039-3402715",
+      "confidence": 0.78,
+      "topic": "w3-attention",
+      "tags": [
+        "alert-fatigue",
+        "metrics",
+        "measurement-gap"
+      ]
+    },
+    {
+      "id": "w3-attention-checklist-click-not-check",
+      "kind": "claim",
+      "title": "Checklists were 85% checked but only 54% of tasks done: a check-off records intent to comply, not inspection",
+      "body": "Kulp and colleagues compared 98 digital trauma-resuscitation checklist logs against video review of the same resuscitations and found three distinct non-compliant behaviours: not checking items that had been done, checking items that were never done, and checking items that were only partly done. Users' sense of whether the checklist was complete was often misaligned with observed practice. The cited prior is starker: 85% of checklist items checked against 54% of tasks actually completed. The mechanism is that the check mark is a self-report recorded by the same person being measured, so it measures the intention to comply at the moment of clicking and is cheap to produce without the work. This is adversarial to any approve/reject record we store as oversight evidence: our audit trail is exactly this artifact, and it will look healthy while the review did not happen. Limitation: high-acuity resuscitation, a translation from paper to digital checklist, and video ground truth for only 98 cases.",
+      "source": "https://doi.org/10.1145/3313831.3376853",
+      "confidence": 0.75,
+      "topic": "w3-attention",
+      "tags": [
+        "compliance",
+        "checklist",
+        "audit-trail"
+      ]
+    },
+    {
+      "id": "w3-attention-reviewer-decides-before-reading",
+      "kind": "claim",
+      "title": "Reviewers form an expected model before reading, then read to confirm: 5 of 25 real reviews approved directly",
+      "body": "Wurzel Goncalves, Rani, Storey, Spinellis and Bacchelli observed 10 experienced reviewers doing 25 real reviews on changes from 2 to 34,520 lines across GitHub, GitLab, Gerrit and Phabricator. Reviewers build a three-layer model (specification, annotation, implementation) and form expected and ideal versions before deep reading, then read to confirm or violate expectation. One participant said: this is pretty much what I expected to see, so I'll just approve it. Another: we already pre-agreed on solutions, so it's more like, does this match my expectation of what would happen or not. Outcomes were 11 request-changes, 9 comment, 5 direct approve. The mechanism is that evidence is evaluated against a prior, so adding density does not add scrutiny; it only raises the chance that a violation in the expected dimension gets noticed. Limitation: qualitative, n=10, expert self-selected, and one participant admitted a Hawthorne effect.",
+      "source": "https://arxiv.org/abs/2503.21455",
+      "confidence": 0.72,
+      "topic": "w3-attention",
+      "tags": [
+        "code-review",
+        "confirmation",
+        "decision-card"
+      ]
+    },
+    {
+      "id": "w3-attention-presentation-order-bias",
+      "kind": "number",
+      "title": "Across 219,476 pull requests, files shown earlier got more review comments regardless of content",
+      "body": "Fregnan and colleagues analysed 219,476 pull requests from 138 Java projects on GitHub and found that files presented earlier in a change received more comments than files presented later, after controlling for confounders. The mechanism is that review effort is allocated by traversal order and attention decays along the sequence, so the tail of any list inherits a lower inspection budget no matter what it contains. For a decision card this makes layout a measured causal channel rather than a cosmetic choice: what sits last in the card is, in effect, reviewed less, and putting the falsifying evidence at the bottom is a way of not showing it. Limitation: comments are a proxy for attention rather than for defect detection, the setting is GitHub pull requests rather than a supervision card, and only the abstract could be fetched, so the effect size is unverified and this is medium confidence.",
+      "source": "https://arxiv.org/abs/2208.04259",
+      "confidence": 0.6,
+      "topic": "w3-attention",
+      "tags": [
+        "code-review",
+        "order-effect",
+        "layout"
+      ]
+    },
+    {
+      "id": "w3-attention-silent-approval-baseline",
+      "kind": "number",
+      "title": "46% of merged pull requests were approved with no comment at all and 65% with three words or fewer",
+      "body": "Graphite's analysis of pull requests merged by active committers since January 2023 found 46% stamped with no top-level or inline comment, 8.4% stamped by several reviewers all silent, and 19% with fewer than three words across all reviews, most of them LGTM variants, thumbs-up emoji or thank-you notes. Their composite is that 65% of merged pull requests were approved with minimal review. The mechanism is asymmetric cost: writing a reason costs minutes and carries social risk, while a silent stamp costs a click, so the modal approval carries no information and cannot be audited afterwards. The adversarial point is that our human is already this reviewer, so a design that assumes a fresh motivated inspector is designing for someone who is not in the data. Limitation: vendor research, restricted to active committers, and absence of a comment is not proof of absence of review, since some inspection happens in person or on a call.",
+      "source": "https://www.graphite.com/research/prs-merged-after-minimal-review",
+      "confidence": 0.65,
+      "topic": "w3-attention",
+      "tags": [
+        "code-review",
+        "rubber-stamp",
+        "baseline"
+      ]
+    },
+    {
+      "id": "w3-attention-queue-not-card",
+      "kind": "number",
+      "title": "83% of approval latency was queue wait, not review: 11.8 of 14.2 hours, and cutting gate depth cut it 87%",
+      "body": "A preprint analysing 1,200 production deployments and about 7,234 gate-level approval events in one large technology organisation fitted an M/G/k queue to approval chains. Mean latency was 14.2 hours, of which 11.8 hours (83%) was waiting in a queue and only 2.4 hours was active review; the change-advisory gate ran at utilisation 0.89. Replacing three sequential gates with one risk-stratified gate cut mean latency to 1.9 hours, an 87% reduction, while keeping audit compliance. The mechanism is that with a single reviewer near saturation, wait grows nonlinearly with queue depth, so the dominant term is arrival structure and chain depth, not how long a decision takes once started. This is the sharpest adversarial finding for a card-centric design: making the card faster attacks the 17% that is review and leaves the 83% untouched, and the real lever is fewer gates. Limitation: preprint, one organisation, not evidently peer reviewed, and deployment approvals are not agent checkpoints.",
+      "source": "https://zenodo.org/records/21295398",
+      "confidence": 0.55,
+      "topic": "w3-attention",
+      "tags": [
+        "queueing",
+        "latency",
+        "approval-gate"
+      ]
+    },
+    {
+      "id": "w3-attention-card-doubles-mental-demand",
+      "kind": "number",
+      "title": "A card side lane caught 6 unwanted decisions in 16 runs but doubled measured mental demand from 2.5 to 5",
+      "body": "Pu and colleagues studied what they call micro-waits, runs too long to watch and too short to leave, with 12 formative interviews and a 16-participant within-subjects study. Their artifact, Sidecar, is a read-only lane in the agent's tab that lists decisions the agent made without being asked and lets the user draft the next prompt. Median waits were 72 to 76 seconds; time on other tabs fell from 35% to 13% of the wait; ratings of progress during the wait rose from 2 to 5 on a seven-point scale; 6 of 16 participants caught an unwanted agent decision mid-run instead of in the output. Median mental demand on NASA-TLX doubled from 2.5 to 5. The mechanism is that the lane converts dead waiting time into a review task, which restores the context needed to re-engage but stacks a second load on the primary task. Adversarially: the measured benefit came bundled with a doubling of load, so any claim that a card spends attention well has to count load, not only catch rate. Limitation: n=16, Google staff on Google platforms, about 15 minutes per task, and every task novel.",
+      "source": "https://arxiv.org/abs/2610.27170",
+      "confidence": 0.7,
+      "topic": "w3-attention",
+      "tags": [
+        "decision-card",
+        "mental-demand",
+        "agent-waits"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w3-attention-batch-threshold-3x",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "Batched-not-streamed is only defensible if the cadence clears a threshold; hourly batching measured no better than streaming, so the claim needs a number attached to it."
+    },
+    {
+      "from": "w3-attention-breakpoint-not-cadence",
+      "rel": "refines",
+      "to": "ana-001",
+      "note": "The measured gain came from aligning delivery with the human's own breakpoints, not from a larger batch, and a fixed digest time is a guess at that alignment."
+    },
+    {
+      "from": "w3-attention-interruption-speed-not-quality",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "If batching is justified by throughput, the premise fails: interrupted work was finished faster at equal quality, so the real cost sits in strain on the reviewer."
+    },
+    {
+      "from": "w3-attention-23min-is-folklore",
+      "rel": "contradicts",
+      "to": "w3-attention-interruption-speed-not-quality",
+      "note": "The number everyone quotes for resumption cost is a press paraphrase, and the paper's own figure is larger, so cost models tuned to 23 minutes are fitted to the wrong constant."
+    },
+    {
+      "from": "w3-attention-approval-rate-95",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "A checkpoint that approves 95% or more of items is a signature; evidence-dense decisions presumes a decision is being made at all."
+    },
+    {
+      "from": "w3-attention-repeat-not-volume",
+      "rel": "supports",
+      "to": "w3-attention-first-instance-lock-in",
+      "note": "Both point at the same variable: the repeat, not the count, is what trains the reviewer's response."
+    },
+    {
+      "from": "w3-attention-repeat-not-volume",
+      "rel": "refines",
+      "to": "w3-attention-card-doubles-mental-demand",
+      "note": "Sidecar cards doubled load on novel tasks; on a recurring task the same card reappears, so that cost is paid repeatedly for one already-answered question."
+    },
+    {
+      "from": "w3-attention-no-agreed-burden-metric",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "Quality per human attention has no agreed denominator and no known volume reduction that reliably moves the acceptance rate, so the axis cannot currently be measured as stated."
+    },
+    {
+      "from": "w3-attention-checklist-click-not-check",
+      "rel": "supports",
+      "to": "ana-006",
+      "note": "A recorded approve is a self-report by the person being measured, and 85% of items checked against 54% of tasks done is the size of that gap."
+    },
+    {
+      "from": "w3-attention-reviewer-decides-before-reading",
+      "rel": "supports",
+      "to": "w3-attention-checklist-click-not-check",
+      "note": "Two mechanisms for one decoupling: the click does not require the inspection, and the inspection is a confirmation of a prior formed earlier."
+    },
+    {
+      "from": "w3-attention-reviewer-decides-before-reading",
+      "rel": "challenges",
+      "to": "w3-attention-card-doubles-mental-demand",
+      "note": "Density does not buy scrutiny, since the reader tests the card against an expected model, so a card that does not violate expectation is approved however much it shows."
+    },
+    {
+      "from": "w3-attention-presentation-order-bias",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "What gets attended to is set by ordering, measured over 219k pull requests, which makes card layout part of the safety argument rather than styling."
+    },
+    {
+      "from": "w3-attention-silent-approval-baseline",
+      "rel": "supports",
+      "to": "w3-attention-approval-rate-95",
+      "note": "Two independent datasets, one clinical and one code review, both find the modal approval carries no stated reason."
+    },
+    {
+      "from": "w3-attention-queue-not-card",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "Latency is 83% queue time, so optimising the decision surface attacks the minority term; fewer and shallower gates is the larger lever."
+    },
+    {
+      "from": "w3-attention-card-doubles-mental-demand",
+      "rel": "challenges",
+      "to": "ana-001",
+      "note": "Catching unwanted decisions mid-run is real, but the measured price was a doubling of mental demand, so spending attention well has to be a ratio and not a catch count."
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w3-attention-gap-no-cadence-ab",
+      "title": "Nobody has randomised checkpoint cadence in an agent supervision loop",
+      "body": "Every batching result we have comes from another channel: smartphone notifications (Fitz 2019), email and IM scheduling (Iqbal and Bailey 2008), clinical advisories (Ancker 2017). Not one of them randomised streaming against a digest for human approval of machine work, and none measured the two things our design turns on: whether a delayed checkpoint loses the information needed to decide it, and how much an urgent exception costs when it waits for the window. Why it matters: our batching argument is an import from a domain where the item is a notification and the risk of delay is a missed message rather than a missed irreversible apply. What would settle it: one loop, one task family, three arms (stream, three-times-daily digest, one daily digest), measuring decision latency, catch rate against seeded known-bad candidates, and reviewer strain over at least two weeks to get past novelty."
+    },
+    {
+      "id": "w3-attention-gap-card-vs-diff-decision-time",
+      "title": "No measurement of time-to-decision or error rate for an evidence-dense card against a raw diff",
+      "body": "We could not find a single study that puts an evidence-dense decision summary and a raw diff side by side and measures seconds to a decision, agreement with a ground-truth verdict, or confidence calibration. The nearest numbers are clinical (a median 8 seconds to process a drug-interaction alert) and code review (position bias, silent approval rates), and neither isolates the presentation format. Why it matters: evidence-dense decisions is our central interface bet, and the only mechanism evidence we have cuts against it, since reviewers decide against a pre-formed expectation and added density doubled mental demand in the Sidecar study. What would settle it: a within-subjects study on real candidate diffs with a known-bad seed and three formats (diff only, diff plus verifier output, diff plus a card with the falsifying evidence first), measuring time-to-decision and false-accept rate."
+    },
+    {
+      "id": "w3-attention-gap-dashboard-open-rate",
+      "title": "No published figure exists for how often a human opens a dashboard that is available to them",
+      "body": "The metric is technically collectable, since Grafana Enterprise and Cloud store dashboard views both aggregated and per user over a trailing window, and practitioners clearly scrape it to decide what to delete. But the only numbers we found are unsourced: one blog claims 41 of 340 dashboards had a view in thirty days, about 12%, and a forum audit claims 80% of stored telemetry was never accessed in sixty days, neither with a stated sample frame or method. Why it matters: if a loop exposes a dashboard and counts that as supervision, the open rate is the denominator of every oversight claim we make, and we currently have no defensible value for it. What would settle it: instrument our own loop, publish views per available surface per week alongside decisions taken, and report the share of surfaces with zero views, since that is the number that says whether a surface is supervision or decoration."
+    },
+    {
+      "id": "w3-attention-gap-repeat-card-decay",
+      "title": "No data on whether a repeated decision card's approval rate decays the way repeated clinical alerts do",
+      "body": "Clinical data says repeats are the poison: 30% lower acceptance per extra item and 10% per five points of repeat share, with first-instance override locking in 87.9% of later overrides. Agent-loop cards are structurally repeat-prone, since the same unspecified fork recurs every run, and one design argument holds that the card should therefore be answered once and written into the standing brief. But nobody has measured a card's acceptance curve over repetitions, so we cannot say whether the tenth appearance of the same card is ignored at the clinical rate, is still read because the surrounding diff changed, or is actively harmful because it crowds out the new item. Why it matters: our cadence and card design both depend on which of those is true. What would settle it: log card identity across runs in one loop and report acceptance by appearance index for the same card."
+    }
+  ]
+}

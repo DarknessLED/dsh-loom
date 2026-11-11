@@ -1,0 +1,173 @@
+{
+  "nodes": [
+    {
+      "id": "w3-cheapwin-noise-floor",
+      "kind": "number",
+      "title": "Single-run pass@1 on SWE-bench Verified swings 2.2-6.0pp, so our 0.05 minGain sits inside the noise",
+      "body": "60,000 trajectories on SWE-bench Verified across three models and two scaffolds: the pass@1 you get from one run per task varies by 2.2 to 6.0 percentage points depending only on which run you pick, with standard deviations above 1.5pp even at temperature 0. The mechanism is early divergence, because trajectories split within the first few percent of tokens and the two branches then commit to different solution strategies, so a rerun is not a repeat of the same experiment but a different experiment that happens to share a task id. A second independent instrument reports the same thing from the other side: byte-identical temperature-0 API calls flipped about 9% of per-instance outcomes. Our promotion gate compares a candidate against a best-prior score with a fixed minGain of 0.05 on 0-1, i.e. 5pp, which is simultaneously the middle of that 2.2-6.0pp band and larger than the 2-3pp improvements the paper says are routinely misread as progress. Limitation: measured on Verified with frontier models and benchmark harnesses; our own tasks are a single repository with our own shell verifier, which is plausibly noisier, so 5pp is a floor on the problem rather than a ceiling.",
+      "source": "https://arxiv.org/abs/2602.07150",
+      "confidence": 0.9,
+      "topic": "w3-cheapwin",
+      "tags": ["noise", "gate", "measurement"]
+    },
+    {
+      "id": "w3-cheapwin-gate-power",
+      "kind": "number",
+      "title": "A 5pp gate needs ~290 paired tasks; at 20 tasks it can only resolve ~19pp effects",
+      "body": "Arithmetic on the published flip rates rather than a new measurement: if about 9% of per-instance outcomes flip between identical runs, the discordant rate for a paired comparison is roughly 18%, so the standard error of the paired difference is sqrt(0.18/N). Demanding that 5pp clear two standard errors gives N of about 290 paired tasks. At N=20 the same formula gives a standard error near 9.5pp, so the gate cannot distinguish a 19pp difference from zero, let alone 5pp, and at N=5 it is close to coin-flipping. The mechanism is that only discordant pairs carry information and discordance is set by sampling noise rather than by task count, so adding tasks reduces the standard error only as 1/sqrt(N), which is a slow and expensive way to buy resolution. That is why a fixed minGain is the wrong shape for the decision: the threshold should be a function of the observed discordance on that task family, not a constant. Limitation: the 18% assumes symmetric independent flips on our own verifier, which we have never measured; if our shell verifier is deterministic for a fixed tree then discordance is near zero and the gate becomes cheap, but then it is measuring the verifier rather than the agent.",
+      "source": null,
+      "confidence": 0.7,
+      "topic": "w3-cheapwin",
+      "tags": ["gate", "statistics", "sample-size"]
+    },
+    {
+      "id": "w3-cheapwin-context-files-null",
+      "kind": "claim",
+      "title": "Rewriting the brief or adding repo knowledge files measured zero correctness effect in a 288-run ablation",
+      "body": "A controlled ablation of context-injection strategy across Claude Code and Codex, 17 real tasks from 3 repositories, 288 runs, gold-test scored: context strategy does not measurably move correctness on either agent, bounded to within about 10-15pp by equivalence testing. The mechanism they give is a failure-mode triage, because agents fail on implementation skill, namely feature design, pattern selection and exact wiring, rather than on missing repository knowledge that a context file could supply, so a better brief cannot deliver what is actually absent. A manipulation probe agrees: the real AGENTS.md never converted a near-miss into a pass on either agent. This is the single most useful cheap lever to be sceptical about, because improving the brief is the cheapest thing on our candidate list and our lessons arrive as exactly that. Limitations that matter for us: 10-15pp is a weak bound and does not exclude a 5pp win, which is exactly the size our gate would try to promote; the study tests a static context file, not a per-attempt lesson written after a specific failure; and 17 tasks across 3 repos is small enough that the equivalence test is doing most of the work.",
+      "source": "https://aclanthology.org/2026.realm-1.5/",
+      "confidence": 0.75,
+      "topic": "w3-cheapwin",
+      "tags": ["prompt", "context", "null-result"]
+    },
+    {
+      "id": "w3-cheapwin-test-writing-null",
+      "kind": "claim",
+      "title": "Telling the worker to write and run tests moved resolution by 0-13 of 500 and cost real tokens",
+      "body": "Five thousand recorded runs, six frontier models, SWE-bench Verified, mini-SWE-agent with one bash tool: paired prompts that encourage or discourage writing new test files changed resolved counts by 0 to 13 out of 500 per model with no statistically significant difference for any model, while API calls and tokens moved substantially. Discouraging tests for Kimi K2 cut input tokens 49.0% and API calls 35.4% for a 2.6pp resolution drop; DeepSeek v3.2 cut input tokens 32.9% for 1.8pp; encouraging tests for GPT-5.2 added 19.8% output tokens for an unchanged total. The mechanism is visible in the test files themselves: value-revealing prints outnumber assertions, so agents use tests to inspect runtime state rather than to gate the patch, which changes comprehension cost without changing the final decision. A side finding worth keeping: GPT-5.2 resolved 359 issues under both prompts but 27 flipped each way, so identical totals hide different task sets. Limitation, and it is the big one: this is a scaffold with no dedicated validation component, and the authors say scaffold-level test orchestration, not native test-writing behaviour, is the architectural variable, which is precisely the untested configuration and precisely ours.",
+      "source": "https://arxiv.org/abs/2602.07900",
+      "confidence": 0.8,
+      "topic": "w3-cheapwin",
+      "tags": ["tests", "prompt", "null-result"]
+    },
+    {
+      "id": "w3-cheapwin-external-test-aim",
+      "kind": "number",
+      "title": "Externally supplied targeted tests cut silent regressions 18.8% to 4.8%; random tests left 10.0%",
+      "body": "From 2,750 trajectories across four frontier models on 100 SWE-bench Verified tasks: running the benchmark's own FAIL_TO_PASS tests, supplied externally rather than written by the agent, drops the share of accepted patches carrying a silent regression from 18.8% to 4.8%, while spending an identical budget on randomly chosen tests leaves 10.0%. Those targeted tests were 1.7% of the evaluated suite once individual tests could be selected. The mechanism is aim rather than volume, because a verifier that cannot point at the changed behaviour earns only a square-root return on extra test executions, so past a small number the marginal test is nearly worthless and a cheap verifier upgrade becomes a selection problem instead of a coverage problem. Two cheaper substitutes were measured and both failed: prompting GPT-5 to write and run its own failing test moved neither resolve nor regression rate, equivalent to baseline at a 10pp margin, and a monitor over trajectory features predicted regressions on unseen repositories but fell to chance within a single model. Limitation: the gold tests are the benchmark's and on our own tasks we do not have them, so what transfers is the principle that the verifier command's selection matters more than its length, not the 14pp number.",
+      "source": "https://neurips.cc/virtual/2026/loc/atlanta/171452",
+      "confidence": 0.8,
+      "topic": "w3-cheapwin",
+      "tags": ["verifier", "tests", "effect-size"]
+    },
+    {
+      "id": "w3-cheapwin-regression-rate",
+      "kind": "number",
+      "title": "A coding agent breaks a previously passing test 40% of the time and the completion signal cannot see it",
+      "body": "Across 2,750 trajectories, four frontier models, 100 Verified tasks, 11 repositories and five runs per pair, joined to harness logs so failures are labelled rather than counted: a randomly chosen Llama 4 run breaks a test that was passing before the agent ran with probability 40.0%, 95% CI [34.2, 46.2], and those patches apply cleanly and touch the same files as the reference fix. The headline comparison is that completion barely separates quality: Claude and GPT-5 return a non-empty patch on 98.0% and 96.8% of runs, 1.2pp apart, while resolving 67.4% and 45.2%, a 22.2pp gap [16.2, 28.4]. The mechanism is that a silent regression is not a failed run, it looks like a finished one, so any cheap monitor built on did-it-finish or did-it-produce-a-patch is structurally blind to the dominant failure mode. The same paper reports that 62-76% of the variation in whether a run resolves lies between tasks rather than between repeated runs of the same task, which is the strongest available argument for resampling tasks instead of rerunning them. Limitation: 40% is the weakest model in the set and a frontier agent will be lower, so read it as an existence proof and a scale warning rather than a rate for our worker.",
+      "source": "https://neurips.cc/virtual/2026/loc/atlanta/171452",
+      "confidence": 0.8,
+      "topic": "w3-cheapwin",
+      "tags": ["regression", "verifier", "effect-size"]
+    },
+    {
+      "id": "w3-cheapwin-aci-biggest-lever",
+      "kind": "number",
+      "title": "The largest single-factor scaffold effect I found is the tool interface: +10.7pp over a bare Linux shell",
+      "body": "SWE-agent's ablation on 300 SWE-bench Lite instances with the model held constant: a purpose-built agent-computer interface solves 10.7 percentage points more instances than the same agent driving a plain Linux shell. The interface is unglamorous, a file viewer that shows roughly a 100-line window, scoped search commands, and an edit command that lints and rejects a malformed edit instead of failing three turns later. The mechanism is turn economy, because a bounded viewer and a refusing editor each delete whole round trips that a bare shell spends discovering the same fact through a confusing diff, and the model's per-turn probability of drifting is what compounds across those turns. That makes it the counter-node to every prompt-level cheap win here: the biggest measured cheap effect comes not from asking the model to do better but from changing what its tools return. Limitations: 2024, GPT-4 Turbo, Python-only benchmark, and a 10.7pp delta on n=300 carries roughly a 3.5pp confidence half-width, so the sign is safe while the magnitude is soft; a 2026 study of 9,374 trajectories found the framework gap shrinking with each model generation, so this is likely an upper bound for the models we run today.",
+      "source": "https://arxiv.org/abs/2405.15793",
+      "confidence": 0.8,
+      "topic": "w3-cheapwin",
+      "tags": ["interface", "scaffold", "effect-size"]
+    },
+    {
+      "id": "w3-cheapwin-framework-effect-shrinks",
+      "kind": "claim",
+      "title": "The model dominates the scaffold and the framework gap shrinks each generation, so scaffold wins depreciate",
+      "body": "From 9,374 trajectories spanning 19 agents, 8 frameworks and 14 LLMs on the same 500 SWE-bench Verified tasks: agents sharing an LLM agree on far more tasks than agents sharing a framework, and the performance gap attributable to the framework shrinks with each generation of model improvement. Framework prompts do influence tactics, but that influence diminishes as models get stronger. The mechanism is that a weak model has to be taught a procedure because it cannot route around a bad interface, while a strong model simply works around it, so any gain that lives in prompt text has a half-life set by the model release cycle rather than by the engineering effort that produced it. That is the strongest argument against spending our next unit of effort on L1 prompt or brief evolution, and the strongest argument for spending it on something the model cannot route around, such as an external verifier or a deterministic applier. Two honest limits: the claim is about aggregate resolve rate on a Python benchmark, not about cost and not about our own non-benchmark tasks; and the same study finds agents that gather context before editing and validate more do succeed more often, but classifies that as agent-determined rather than task-adaptive, meaning it is a property of the agent you picked rather than a lever you can install.",
+      "source": "https://arxiv.org/abs/2604.02547",
+      "confidence": 0.75,
+      "topic": "w3-cheapwin",
+      "tags": ["scaffold", "model-effect", "depreciation"]
+    },
+    {
+      "id": "w3-cheapwin-minimality-prompt-false-control",
+      "kind": "claim",
+      "title": "A patch-size limit written as an instruction measured the same patch size as writing nothing",
+      "body": "Across 28 SWE-bench repair systems compared against the developer patch for the same instance, all 28 produced larger patches; the median approach produced 121.78% more total changes, 80.91% more net changes and 43.99% higher cyclomatic complexity. Systems that explicitly instruct minimality sit at +208.83% total and +168.05% net, systems that state nothing sit at +191.39% and +194.09%, and the two metrics disagree about which group is worse, so the stated rule tracks nothing at all. The mechanism is that patch size is settled by the search that produced the patch, so a rule about size arrives after the volume is already fixed; what does move it is how much code the search touched, with iterative refinement at +406.46% total versus +95.60% without, and context scope running from +72.93% for structured context to +300.34% for a fixed window. Notably prompt framing is not inert: implicit size pressure from task framing correlates with the study's smallest patches at +49.65% total, the largest effect in the table at p<0.001, |delta|=0.28. Limitation: the authors label this association rather than causation across 28 heterogeneous systems classified from public artifacts, and their own remedy needs supervised training we cannot do.",
+      "source": "https://agentpatterns.ai/patterns/anti-patterns/minimality-prompt-as-patch-size-control/",
+      "confidence": 0.75,
+      "topic": "w3-cheapwin",
+      "tags": ["patch-size", "prompt", "null-result"]
+    },
+    {
+      "id": "w3-cheapwin-patch-size-cost",
+      "kind": "number",
+      "title": "Every patch-shrinking method tested paid in resolved instances: 29 to 44 per host at best, 49 to 217 at worst",
+      "body": "Same 28-system study, on the cost side of the same trade: prompting a stronger model to refine a finished patch cut SWE-agent's total changes from +690.91% to +41.70%, and across the four host systems that refinement baseline sacrificed 29 to 44 resolved instances per host, while untangling and minimality-aware baselines lost 49 to 217. The mechanism is that the search which raises resolution and the search which shortens the diff are the same search optimising different objectives, so buying size with a post-hoc pass removes precisely the edits that were making the tests pass; the paper names this as a tension that prompting cannot resolve. A second cheaper trap is thresholding on raw diff size, because the four systems above +1000% total changes are the most auxiliary-heavy, editing tests and reproduction scripts, so raw size overstates the production change a reviewer must reason about. Limitation: the numbers come from repository-level agentic repair against Verified where candidate patches and validation outcomes are observable, and they are associations across systems rather than a controlled experiment. The practical reading for us is that a hard patch cap is a consciously paid cost rather than a free guardrail, and our gate would record the loss without knowing its cause.",
+      "source": "https://agentpatterns.ai/patterns/anti-patterns/minimality-prompt-as-patch-size-control/",
+      "confidence": 0.75,
+      "topic": "w3-cheapwin",
+      "tags": ["patch-size", "tradeoff", "effect-size"]
+    },
+    {
+      "id": "w3-cheapwin-model-routing",
+      "kind": "number",
+      "title": "Per-step model routing: 71.8% cost cut at 97.3% quality, but the quality loss sits inside our noise floor",
+      "body": "A 12M-parameter step-level router on 2,400 held-out trajectories across four domains assigns each trajectory step to one of four model tiers and reports 71.8% cost reduction at 97.3% of frontier-only quality, against 52.7% at 95.6% for budget-aware binary routing, 44.1% at 96.8% for a FrugalGPT cascade, 36.2% at 98.1% for a trajectory-level VAE and 31.4% at 94.2% for a per-step RouteLLM. The mechanism is that complexity varies within a single trajectory: only 14.2% of steps need the frontier tier yet they consume 48.3% of cost, so the win comes from identifying the cheap steps rather than from a cheaper model on average. Code generation benefits least, 63.8% against 76.4% for document analysis, because 26.3% of its steps need frontier reasoning, and cross-framework transfer costs 6 to 9 accuracy points. The adversarial reading matters more than the win: 97.3% of frontier quality is a 2.7% relative loss, smaller than the 2.2-6.0pp run-to-run spread and far smaller than anything our 5pp gate can resolve, so if routing hurt our tasks we would not detect it. It also needs a known or estimable step sequence, which a dynamically expanding work chain does not provide. Limitation: benchmark tiers at February 2026 prices and a trained classifier we would have to fit on our own traces.",
+      "source": "https://ar5iv.labs.arxiv.org/html/2609.22951",
+      "confidence": 0.75,
+      "topic": "w3-cheapwin",
+      "tags": ["routing", "cost", "unmeasurable"]
+    },
+    {
+      "id": "w3-cheapwin-context-compression-tokens",
+      "kind": "number",
+      "title": "Dropping non-locus context matches whole files at 3.7x fewer tokens; structured skeletons add nothing",
+      "body": "An oracle-localized pre-registered test on all 70 valid multi-file SWE-bench Verified instances: keep/drop compression resolved 25/70 = 0.357 at 6,876 mean context tokens while whole files resolved 19/70 = 0.271 at 25,426, i.e. 19,300 versus 93,700 tokens per resolve, with the keep/drop-versus-full difference only p=0.07. The registered hypothesis that structured tiers would beat binary keep/drop failed outright, 23/70 versus 25/70, p=0.754, and a pre-registered interaction slice also failed, 26/70 versus 23/70, p=0.375. Behavioural probes explain why: full source answers 0.600 of test-minted questions, a frontier summary 0.089 and a 3B summary 0.089, with signatures at 0.133, so the gap belongs to the representation class, because what survives compression is structure and locus rather than narrative, and better prose does not close it. Limitation, disclosed by the authors: N=70, single-shot, and oracle localization removes the find problem that dominates a real agent's cost, plus the compressed arms were built from gold-edited units and therefore encode where to edit at full detail, which biases in their favour.",
+      "source": "https://arxiv.org/abs/2607.09691",
+      "confidence": 0.8,
+      "topic": "w3-cheapwin",
+      "tags": ["context", "compression", "effect-size"]
+    },
+    {
+      "id": "w3-cheapwin-deterministic-apply",
+      "kind": "claim",
+      "title": "The cheap win measurable at small n is deterministic patching: 7 of 9 model-authored diffs failed to apply",
+      "body": "A methodological by-product worth more than most headline results: in development testing for an audited resolve@cost rig, model-authored unified diffs failed to apply on 7 of 9 attempts, so the authors replaced them with a deterministic SEARCH/REPLACE-to-difflib builder with uniqueness checking, new-file creation, a git apply --check gate and at most two retry rounds carrying per-edit diagnostics such as not-found, ambiguous or no-such-file. With that builder in place, the arms' 11 to 24 retry firings per arm were mostly ambiguity, with 0 to 1 truncated generations and 1 to 2 empty patches. The mechanism is that this removes an entire failure class rather than shifting the distribution of success on an existing one, so its effect is a step change instead of a draw from the 2.2-6.0pp noise band, and that is precisely what makes it promotable at small n when nothing else on this list is. It is also the cheapest change we can make, because it lives in the applier and its success criterion is a boolean on a fixed tree. Limitation: n=9 in a development setting, single-shot protocol, and 2026 models may already comply better with diff formats; and the change is code in our runner rather than a knob the loop can turn.",
+      "source": "https://arxiv.org/abs/2607.09691",
+      "confidence": 0.7,
+      "topic": "w3-cheapwin",
+      "tags": ["applier", "determinism", "step-change"]
+    }
+  ],
+  "edges": [
+    {"from": "w3-cheapwin-gate-power", "rel": "requires", "to": "w3-cheapwin-noise-floor", "note": "The task count follows only if the flip rate is real on our own verifier rather than borrowed from Verified."},
+    {"from": "w3-cheapwin-gate-power", "rel": "applies-to", "to": "ana-004", "note": "Turns ana-004's complaint about point-estimate acceptors into a concrete task count: ~290 paired tasks for a 5pp bar."},
+    {"from": "w3-cheapwin-noise-floor", "rel": "refines", "to": "exp-gate-001", "note": "Any gate experiment must estimate per-task noise first, or it measures the harness rather than the candidate."},
+    {"from": "w3-cheapwin-external-test-aim", "rel": "supports", "to": "ana-003", "note": "Verifier precision is the binding constraint, and aim - selecting the right tests - is the only cheap way to raise it."},
+    {"from": "w3-cheapwin-external-test-aim", "rel": "refines", "to": "exp-coverage-002", "note": "Coverage without selection is the random-test arm that left 10.0% silent regressions; adding tests is not the lever."},
+    {"from": "w3-cheapwin-regression-rate", "rel": "supports", "to": "ana-003", "note": "A 40% silent-regression rate is exactly the failure an imprecise shell verifier passes without noticing."},
+    {"from": "w3-cheapwin-context-files-null", "rel": "contradicts", "to": "w3-cheapwin-aci-biggest-lever", "note": "Prompt text measured null in 288 runs while the tool interface measured +10.7pp; the direction of spend should follow the interface."},
+    {"from": "w3-cheapwin-minimality-prompt-false-control", "rel": "supports", "to": "w3-cheapwin-context-files-null", "note": "A second independent null for instruction-level nudges, on a different task family and a different measurement."},
+    {"from": "w3-cheapwin-test-writing-null", "rel": "supports", "to": "w3-cheapwin-context-files-null", "note": "A third: instructions change process cost, not outcome, across 2,000 paired runs."},
+    {"from": "w3-cheapwin-patch-size-cost", "rel": "depends-on", "to": "w3-cheapwin-minimality-prompt-false-control", "note": "The measured price of the quantity the minimality instruction pretends to control."},
+    {"from": "w3-cheapwin-framework-effect-shrinks", "rel": "contradicts", "to": "w3-cheapwin-aci-biggest-lever", "note": "Says the +10.7pp magnitude is a 2024 artefact for the models we actually run."},
+    {"from": "w3-cheapwin-context-compression-tokens", "rel": "supports", "to": "w3-cheapwin-noise-floor", "note": "Its two honest nulls (p=0.07, p=0.375 at N=70) are exactly the small-effect regime the noise floor predicts."},
+    {"from": "w3-cheapwin-model-routing", "rel": "applies-to", "to": "ana-008", "note": "A cost win is invisible until cost is billed per attempt, which is ana-008's prerequisite."},
+    {"from": "w3-cheapwin-deterministic-apply", "rel": "refines", "to": "w3-cheapwin-noise-floor", "note": "Step change versus distribution shift: the exception that makes the noise rule actionable rather than paralysing."},
+    {"from": "w3-cheapwin-aci-biggest-lever", "rel": "supports", "to": "ana-002", "note": "Textbook scaffold moves, not self-modification, carry the measured gain - the same conclusion from a different literature."}
+  ],
+  "gaps": [
+    {
+      "id": "w3-cheapwin-gap-instrument",
+      "title": "Every effect size here was measured with a gold-test harness; ours is a shell command of unknown precision",
+      "body": "All the numbers above are computed against a benchmark harness whose tests are known to be correct, and the one paper that varies verifier quality directly shows the answer moving by 14pp. Our verifier is a shell command and an exit code, unmeasured for precision, so every effect size in this file is an upper bound on what we could reproduce, and an effect that is real in the repo may be undetectable through our instrument. The cheap fix that makes the rest of this list usable is a mutation audit: mutate the source in ways the tests should catch, run the verifier, and keep the fraction that still exits 0. That runs without a model, is deterministic, and converts the promotion gate from a coin with an opinion into a measurement. Until it exists, comparing cheap wins is comparing noise to noise."
+    },
+    {
+      "id": "w3-cheapwin-gap-lessons",
+      "title": "Nobody has ablated per-attempt lesson injection; the nearest measurements are a null static file and a strong raw-trace result",
+      "body": "The literature brackets our lesson mechanism from both sides without testing it. On one side, a 288-run ablation of static context files found no correctness effect. On the other, a harness study found raw trace access lifted accuracy to 50.0 from 34.6 with scores alone, while LLM-written summaries added nothing over scores. A one-sentence claim written after a specific failure is neither of those: it is not static, and it is not a summary of the whole trajectory. I could not find a study that ablates it, so the 2.6pp test-writing null and the context-file null are suggestive rather than decisive, and our own loop is one of the few places the measurement could be made cheaply, since we already record per-attempt outcomes and already inject the claims."
+    },
+    {
+      "id": "w3-cheapwin-gap-attention",
+      "title": "None of these effect sizes are normalised by human attention, which is the axis the loop actually optimises",
+      "body": "Every cost denominator in this file is dollars, tokens or wall-clock. None is human minutes, and several levers that look free on a token budget are not free on an attention budget: more retries produce more candidate patches to triage, model routing produces more failure modes to explain, and a verifier change produces different checkpoints. If attention is the scarce resource, a lever with a 2pp token win and a 1.5x checkpoint count is a loss. The measurement is easy to specify and absent from the literature: human minutes per landed promotion, recorded next to tokens per landed promotion, both divided by the same denominator so the two cannot be traded silently."
+    },
+    {
+      "id": "w3-cheapwin-gap-revert",
+      "title": "Revert-on-failure is studied only as patch selection, never as rollback, so its effect is unmeasured",
+      "body": "The closest measured thing is best-of-N with an oracle verifier, which is selection among candidates that all exist, not rollback of one candidate on a dirty tree. Nothing I found isolates the rollback policy itself: how much a `git checkout` between attempts changes the next attempt's success rate, as distinct from the retry budget it consumes. The mechanism that makes it plausibly large is that a failed attempt leaves edited files that the next attempt reads as ground truth, so not reverting can propagate a wrong premise; the mechanism that makes it plausibly small is that agents mostly rewrite the same regions anyway. It is cheap to test in our own loop because the worktree already exists, which makes this a gap we can close rather than one we must cite."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+import fs from 'node:fs'
+const nodes=[{
+id:'exp-goodhart-001',kind:'number',confidence:0.95,topic:'rsi',
+title:'Measured on 437 promoted patches: 1.6% touch tests, 1.6% touch the gate or verifier, 2.1% touch the runner scripts',
+body:'The w3-falsify-verifier-decay node says the empirical question that decides whether Goodhart applies to us is answerable: count how often an accepted edit changes the verifier or the tests. Counted it. Across 437 stored patch artifacts, 7 patches (1.6%) touch a tests/ path, 7 (1.6%) touch src/exec/verifier.js or src/gate/, and 9 (2.1%) touch scripts/test-all.mjs, scripts/verify.mjs or scripts/e2e.mjs. The offenders are concentrated: loom-chaos (4 patches) and loom-self4 (2) account for six of the seven test touches, and those campaigns had no no-test-edit check.\n\nInterpretation, and its limit: at this rate there is no optimisation pressure toward verifier hacking in our loop, which is the opposite of the SWE-Bench finding (28.57% hacked before a judge was added). The reason is structural rather than virtuous — the loop is 62 short campaigns each optimising against a frozen command, and a campaign that edits its own verifier would have to be working on a task whose brief asks for that (two of ours literally did: the self-test authoring campaigns). So the honest statement is that our task framing keeps the Goodhart surface out of reach, not that our gate resists it. The moment a campaign's objective is "make the suite green" rather than "make this specific behaviour correct", the 1.6% becomes the thing to watch, and the existing no-test-edit check is the only guard.\n\nActionable asymmetry: verification hardening (mutation auditing, exp-mut-001) is cheap and unmeasured, while the hacking it protects against is currently absent. So mutation auditing should be run as a diagnostic on the verifier we ship, not as a per-round guard.',
+source:null}]
+fs.writeFileSync('research/exp/e15.json',JSON.stringify({nodes,edges:[
+{from:'exp-goodhart-001',rel:'applies-to',to:'w3-falsify-verifier-decay',note:'Answers the empirical question that node poses: our accepted-edit hacking rate is 1.6%, not 28.6%.'},
+{from:'exp-goodhart-001',rel:'supports',to:'exp-mut-001',note:'Mutation auditing is worth running once on the shipped verifier rather than as a per-round guard.'},
+{from:'exp-goodhart-001',rel:'refines',to:'ana-003',note:'Narrows verifier measurement to a one-time diagnostic plus a standing no-test-edit check.'},
+]}))
+console.log('ok')

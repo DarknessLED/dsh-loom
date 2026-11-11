@@ -1,0 +1,12 @@
+import fs from 'node:fs'
+const nodes=[{
+id:'exp-human-001',kind:'number',confidence:0.95,topic:'rsi',
+title:'Our own ledger answers what no paper publishes: 0.44 human decisions per promotion, and 64% of campaigns needed none',
+body:'Gap-w1-006 asked how often a self-improving loop actually asks a human, and no product or paper reports it. Our own ledger can answer it. Across 69 campaigns, 231 rounds and 114 promotions the loop raised 50 checkpoints and all 50 were answered (answerRate 1.0), plus 88 promotions were applied by autopilot without asking at all.\n\nThat is 0.439 human decisions per promotion and 0.216 per round. 44 of 69 campaigns (63.8%) ran end to end without a single human decision. Checkpoint kinds: gate 16, anomaly 12, plateau 9, setup 8, holdout 3, stuck 1, infrastructure 1.\n\nWhy this number is the one that matters for us: the product claim is not "better than a human-driven loop" (we cannot afford that comparison) but "quality bought per unit of human attention" (ana-001). At 0.44 decisions per promotion the attention cost is already low, so the binding question is no longer frequency but value: what did each of those 50 decisions buy, compared to autopilot applying the same patch? That is measurable from the ledger by separating answered-gate promotions from autopilot promotions and comparing their later revert and regression rates — an experiment we can run without a model.\n\nCaveat: checkpoint.answered events do not carry a kind (kind is recorded as unknown), so the per-kind split above is from checkpoint.raised. Also our sample is our own loop, which was built to batch decisions; a per-action approval design would show a much higher rate, which is exactly the contrast w2-human-approval-rubber-stamp measures (97% approved per action, 39% rejected at plan level).',
+source:null}]
+fs.writeFileSync('research/exp/e8.json',JSON.stringify({nodes,edges:[
+{from:'exp-human-001',rel:'supports',to:'ana-001',note:'Supplies the missing denominator: human decisions per promotion, measured on our own loop.'},
+{from:'exp-human-001',rel:'contradicts',to:'gap-w1-006',note:'The number nobody publishes is obtainable from a local ledger; the gap is about public reporting, not about it being unmeasurable.'},
+{from:'exp-human-001',rel:'refines',to:'w2-human-approval-rubber-stamp',note:'Batched checkpoints are why our rate is low; per-action approval is the regime where 97% get approved.'},
+]}))
+console.log('ok')

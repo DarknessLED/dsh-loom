@@ -1,0 +1,317 @@
+{
+  "nodes": [
+    {
+      "id": "w3-humanminutes-di-biase-100loc-13min",
+      "kind": "number",
+      "title": "A ~100-line 7-file review costs 13-14 net reviewer minutes, and splitting the change did not cut it",
+      "body": "di Biase, Bruntink, van Deursen & Bacchelli (PeerJ Comput Sci 2019;5:e193, doi 10.7717/peerj-cs.193) ran an asynchronous controlled experiment with 28 developers (professionals, PhD and MSc) reviewing a ~100 LOC change touching 7 files in JPacman (~3,000 LOC Java), timed by screencast plus WatchDog with breaks purged. Review net time, Table 3, in seconds: tangled/control n=14 median 831, mean 853, sd 385; untangled/treatment n=14 median 759, mean 802, sd 337; p=0.66. So the per-change constant we need for a denominator is roughly 13-14 minutes for a change at the GitHub mean-to-median scale, and the intervention that was supposed to make review cheaper (decomposing the change) produced a non-significant 72-second improvement. The mechanism is that review cost is dominated by building a mental model of the system and the rationale, not by the volume of the diff: the same facts had to be learned whether they arrived in one patch or several, and decomposition added re-orientation overhead that offset the smaller per-patch read. Limitation: n=28 convenience sample, one small Java system, one changeset, student-heavy, and the 95% CIs are very wide ([99-1,607] vs [140-1,463]) so the null is underpowered rather than proven.",
+      "source": "https://doi.org/10.7717/peerj-cs.193",
+      "confidence": 0.8,
+      "topic": "human-minutes",
+      "tags": [
+        "controlled-experiment",
+        "review-time",
+        "change-size",
+        "null-result"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-smartbear-200-400loc",
+      "kind": "claim",
+      "title": "The 200-400 LOC / 60-90 minute review ceiling comes from one 2006 vendor case study with no control group",
+      "body": "The number every PR-size guideline cites: SmartBear/Cisco (Cohen, 2006) followed 50 developers at 4 sites for 10 months over 2,500 reviews and 3.2M LOC using Code Collaborator and Perforce, and concluded that 200-400 LOC reviewed over 60-90 minutes yields 70-90% defect discovery, that defect density drops sharply above ~500 LOC/hour, and that sessions beyond 60-90 minutes have diminishing returns. Dividing those endpoints gives ~2.2-4.5 LOC/min, i.e. ~0.22-0.45 minutes per changed line, which is the only widely used minutes-per-line constant available. The mechanism is a working-memory ceiling: past a few hundred lines the reviewer stops holding the change in mind and switches to line-local pattern matching, so defect types that require cross-file reasoning go unexamined. Limitation, and it is severe: this is a vendor case study of customers of the vendor's own tool, with no control condition, no randomization, undisclosed defect-injection or adjudication method, and the published PDF was not retrievable during this research (404 through the fetch endpoint; content only via secondary snippets). Treat 0.22-0.45 min/line as a planning heuristic, not a measurement, and do not build a headline metric whose denominator rests on it alone.",
+      "source": "https://smartbear.com/learn/code-review/best-practices-for-peer-code-review",
+      "confidence": 0.45,
+      "topic": "human-minutes",
+      "tags": [
+        "vendor-data",
+        "heuristic",
+        "review-time",
+        "lines-per-hour"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-wallclock-not-minutes",
+      "kind": "concept",
+      "title": "The famous review latencies (Google median <4h, Meta 2.5h) are queue-plus-calendar time, not reviewer minutes",
+      "body": "Google's modern-code-review study (Sadowski et al., ICSE-SEIP 2018; ~9M changes, ~13M comments, 25k+ developers) reports median end-to-end review latency under 4 hours and 70% of changes committed within 24 hours on weekdays, with median change size ~24 lines and ~90% of changes touching fewer than 10 files. Meta's Phabricator instrumentation reports median TimeInReview 2.5 hours with ~75% of reviews done inside a day (Rigby et al., arXiv:2312.17169). Neither is a measure of human effort: they include the author's wait, the reviewer's queue, timezone gaps and CI. Meta separately logs TimeSpent, explicitly defined as time on the review page for a diff (eyeball time), precisely because latency does not tell you whether anyone read anything. The mechanism is that latency is set by availability and routing, while minutes are set by comprehension; the two move independently, which is why a recommender that changed assignment cut TimeInReview by 11.6% on 12.5k authors with no change in TimeSpent. Limitation: page-dwell is itself a proxy that undercounts off-screen reading and overcounts an open tab, and Google published no per-change minutes at all, so the best-sourced large-scale numbers cannot be converted into our denominator without an assumption we would have to defend.",
+      "source": "https://www.ifi.uzh.ch/dam/jcr:d3de75f7-1464-4463-a539-dde7714f0035/icse2018seip.pdf",
+      "confidence": 0.75,
+      "topic": "human-minutes",
+      "tags": [
+        "metric-design",
+        "latency",
+        "google",
+        "meta",
+        "category-error"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-size-does-not-predict-latency",
+      "kind": "failure",
+      "title": "At Meta, diff size barely predicts review time: a model beat the median baseline by 30 minutes",
+      "body": "Chen, Rigby & Nagappan (ESEC/FSE 2022, doi 10.1145/3540250.3558945) modelled hours-in-review at Meta with a random forest and reported a mean absolute error of 19.08 hours, beating the always-predict-the-median baseline by only about 30 minutes, and observed that review time is broadly consistent regardless of diff size, with the slowest quartile of diffs sitting at 24 hours or more. This is a direct attack on the common assumption that a change's size determines how long a human needs: if size were the driver, a size-aware model would do far better than the median. The mechanism is that a review's duration is a scheduling outcome (who is assigned, when they are online, how many other diffs are ahead of them), and content variables explain little of the variance once those are uncontrolled. Limitation: this is a model of elapsed hours, not of eyeball minutes, on one company's workflow, and a near-useless predictor of latency says nothing about whether minutes scale with lines; the fatal inference would be to conclude that big diffs are cheap to review. It does mean we cannot infer human minutes from PR size or from wall-clock, and any attempt to must be instrumented on the human, not derived from the pipeline.",
+      "source": "https://doi.org/10.1145/3540250.3558945",
+      "confidence": 0.7,
+      "topic": "human-minutes",
+      "tags": [
+        "prediction",
+        "meta",
+        "latency",
+        "diff-size"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-ai-patch-reviewer-tax",
+      "kind": "number",
+      "title": "Showing AI-suggested patches to reviewers cost >5% more review time; hiding them removed the tax",
+      "body": "In a production trial at Meta reported in arXiv:2507.13499, showing AI-suggested patches to reviewers produced a statistically significant regression of more than 5% in both TimeSpent and TimeInReview; collapsing the patches so that only authors saw them eliminated the regression, and author acceptance of the suggestions was statistically unchanged (p=.56). The authors' mechanism is role expansion: instead of asking 'is this diff right', the reviewer started checking 'is this fix right', which is a second task with its own evidence requirements, so the review surface grew without the diff growing. This is the cleanest causal estimate available for our situation, because every loom checkpoint does exactly this: it hands the human an artefact produced by the agent and asks for a verdict on that artefact. Limitation: the effect is single-company, the magnitude is a percentage rather than minutes, the patches were inline suggestions rather than full diffs, and 'significantly more than 5%' is a floor reported without a confidence interval in the retrievable text, so the per-checkpoint cost in minutes still has to be measured rather than imported.",
+      "source": "https://arxiv.org/html/2507.13499",
+      "confidence": 0.72,
+      "topic": "human-minutes",
+      "tags": [
+        "causal",
+        "meta",
+        "ai-code",
+        "review-time",
+        "checkpoint-cost"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-esem2026-ai-looks-cheaper",
+      "kind": "claim",
+      "title": "AI diffs look cheaper to review only because AI code lands in less central code",
+      "body": "Mockus, Rigby, Stewart, Maddila & Nagappan (ESEM 2026, LIPIcs vol 394, 93:1-93:23, doi 10.4230/LIPIcs.ESEM.2026.93) traced AI-suggested code at character level through editing, review and landing for 400K diffs from over 10K developers at Meta. Their abstract states that AI code lands more often in less central code, in larger changes, in test files, and from authors with higher tenure, and that review time decreases and SEV rates are lower for diffs containing AI code, but that both associations are confounded by that placement, concluding that naive comparisons of AI versus non-AI work may reach misleading conclusions. The mechanism is selection: a change to a peripheral test file gets a shallower review because the risk is visibly lower and the context is easier, so any system that routes agent output toward peripheral or test code will look like it saved reviewer minutes while changing nothing about how people review hard code. Limitation: only the abstract was retrievable (the DROPS PDF and the conference PDF both failed through the fetch endpoint), so no coefficients, no minutes, and no centrality-adjusted effect size can be quoted; and 'less central code' is a proxy for review depth that is itself unvalidated.",
+      "source": "https://doi.org/10.4230/LIPIcs.ESEM.2026.93",
+      "confidence": 0.6,
+      "topic": "human-minutes",
+      "tags": [
+        "confounding",
+        "ai-code",
+        "meta",
+        "esem-2026"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-safe-3-5min-and-null",
+      "kind": "number",
+      "title": "A triage decision costs a median 3.5 minutes; a richer evidence package did not cut it",
+      "body": "Johnson et al. (arXiv:2611.13041, Nov 2026, Fraunhofer IEM) ran a within-subjects crossover with 24 participants triaging real SAST findings in IntelliJ against two builds of their explainer, and recovered decision time from session transcripts as the interval from turning to a finding to the first stated verdict, excluding clerical form-filling time, available for 122 of 124 decisions. Median 3.5 minutes per finding; per-participant medians 5.1 minutes with the redesigned grounded-explanation build versus 4.7 with the predecessor, geometric-mean ratio 0.87, Wilcoxon p=.21, and 14 of 24 participants faster with the leaner build. What the richer package did buy: odds of a correct remediation 2.6x higher (though p=.069), and System Usability Scale 77.3 to 85.0. The mechanism is that a decision has a floor set by the judgement itself, not by the reading: once the reviewer knows where to look, extra evidence changes what they conclude rather than how long they take, so packaging is an accuracy lever, not a speed lever. Limitation: n=24, security findings rather than diffs, a 15-minute block that let most participants reach only two or three findings, and time recovered from transcripts rather than instrumented, so the study is also a warning about how hard this measurement is.",
+      "source": "https://arxiv.org/abs/2611.13041",
+      "confidence": 0.75,
+      "topic": "human-minutes",
+      "tags": [
+        "evidence-packaging",
+        "review-time",
+        "crossover",
+        "null-result"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-gettty-hypothesis-driven",
+      "kind": "claim",
+      "title": "Invariant differentials made review hypothesis-driven, but no minutes saved are reported",
+      "body": "Menarini, Yan & Griswold (ASE 2017, pp. 554-565, doi 10.1109/ASE.2017.8115666) built GETTY, which presents both code differences and behavioural differences as diffs of likely invariants mined by running the test suite, and evaluated it on 6 open-source projects plus a comparative user study with 18 developers. Reported effects: invariant differentials exposed test gaps in 32 of 100 randomly selected commits that all had 100% reported code coverage, the tool surfaced a real bug in a GSON commit through invariant differentials alone, and the study's own summary is that GETTY substantially modified the review process, with control participants suffering fatigue from linear and massive code reading while GETTY users adopted a hypothesis-driven process. The mechanism is that a behavioural differential converts an open-ended read into a check against a candidate falsifier, which is what makes it cheap to be thorough. Limitation: the retrievable text gives the process change and the accuracy anecdotes but no effect size on minutes, and the 18-developer study is the kind of evidence that gets cited as 'faster' without a number attached; the paper was CLOSED access via Semantic Scholar and both the NSF PAR and IEEE PDFs failed to fetch, so the per-task timing table could not be checked. This is the node most likely to be wrong in a favourable direction.",
+      "source": "https://doi.org/10.1109/ASE.2017.8115666",
+      "confidence": 0.5,
+      "topic": "human-minutes",
+      "tags": [
+        "evidence-packaging",
+        "user-study",
+        "unretrieved-numbers"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-rubber-stamp-seconds",
+      "kind": "failure",
+      "title": "Queued humans approve in seconds, so checkpoint minutes measure queue clearing, not review",
+      "body": "Practitioner instrumentation reports are consistent on the order of magnitude: one operations analyst facing a 383-item agent queue had a median review of nine seconds (open, glance, approve), declining two items in four hours; another author reports approval logs where blocked proposals averaged 94 seconds of review while the 56 approved ones averaged 23 seconds, and the four that caused post-approval incidents were each under 8 seconds. The same sources propose the detector that matters: compare approval latency against diff size and watch zero-comment approvals on non-trivial changes, and seed 1-2% known-bad items to measure the rubber stamp directly. The mechanism is that a queue transfers cost from judgement to throughput: the human optimises for clearing, and the cheapest action that keeps the queue moving is approval, so measured minutes per checkpoint fall as the number of checkpoints rises, which is exactly backwards from what an oversight metric should reward. Limitation: these are blog-post anecdotes with no published dataset, no sampling frame and no code, they are self-selected and possibly dramatised, and they are about refund and credit-line approval rather than code; the honest reading is that the order of magnitude is plausible and corroborated by the wave-2 rubber-stamp result (97% per-action approval), not that nine seconds is a code-review constant.",
+      "source": "https://ratovision.com/blog/human-in-the-loop-rubber-stamp/",
+      "confidence": 0.35,
+      "topic": "human-minutes",
+      "tags": [
+        "anecdote",
+        "rubber-stamp",
+        "checkpoint-cost",
+        "queue"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-metr-19pct-slower",
+      "kind": "number",
+      "title": "An RCT found experienced maintainers 19% slower with AI, review eating the savings",
+      "body": "METR's randomized controlled trial (Feb-June 2025) had 16 experienced open-source maintainers complete 246 real issues from their own repositories, randomly assigned to AI-assisted or unassisted; AI-assisted tasks took 19% longer, while the developers had predicted a 24% speedup beforehand and still believed afterwards that AI had helped. The mechanism is compositional: time shifted into writing prompts and into reviewing and reworking generated output, and the saving on typing was smaller than the added review and rework, which is the same accounting problem loom has, since every attempt it produces becomes human review surface unless the verifier can reject it autonomously. Limitation: n=16, a very experienced and unusually fast population on mature repositories with high context cost, a 2025 tool set, and a 19% figure with a wide interval; it does not say the review share specifically grew, only that the total got worse. Its value here is as the adversarial counterweight to any claim that agent throughput converts into human minutes saved.",
+      "source": "https://arstechnica.com/ai/2025/07/study-finds-ai-tools-made-open-source-software-developers-19-percent-slower/",
+      "confidence": 0.65,
+      "topic": "human-minutes",
+      "tags": [
+        "rct",
+        "metr",
+        "ai-code",
+        "productivity"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-interruption-23min",
+      "kind": "number",
+      "title": "Re-entry after an interruption costs ~23 minutes, dwarfing a 3.5-minute decision",
+      "body": "Gloria Mark's workplace studies (UC Irvine) put the cost of returning to a suspended task after an interruption at roughly 23 minutes 15 seconds, and report that knowledge workers switch tasks about every three minutes. Arithmetic that matters for loom: if a checkpoint interrupts the human rather than waiting in a queue, one approval costs about one decision interval (3.5 minutes in the SAFE study, 13-14 minutes for a 100-line change in di Biase) plus up to 23 minutes of re-entry for whatever they were doing, so the human-minute denominator is dominated by the interruption, not by the review. The mechanism is that resumption requires rebuilding the suspended task's working memory, and that reconstruction is priced in minutes regardless of how small the interrupting decision was. Limitation: the 23-minute figure is a synthesis of observational field studies of office knowledge work, not a controlled measurement of code review, it predates agent tooling, and the underlying construct (what counts as returning to the task) is contested; a well-designed async checkpoint with batched questions could pay the re-entry cost once per batch instead of once per decision, which is the design implication rather than a fixed penalty.",
+      "source": "https://www.fastcompany.com/94412817/why-interruptions-make-you-lose-focus",
+      "confidence": 0.4,
+      "topic": "human-minutes",
+      "tags": [
+        "interruption",
+        "checkpoint-design",
+        "synchronous-vs-batch"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-defects-are-minority",
+      "kind": "claim",
+      "title": "14% of review comments concern defects and 75% found are evolvability, not behaviour",
+      "body": "Bacchelli & Bird (ICSE 2013, Microsoft) classified 570 comments across about 200 reviews and found the most frequent outcome to be code improvements at 29%, with defect finding at 14%, while reviewers themselves named understanding the change and its rationale as the main challenge and were observed to spend effort on easy stylistic issues while missing serious ones. Mäntylä & Lassenius (IEEE TSE 2009) found 75% of defects found in review do not affect visible functionality, i.e. they are evolvability defects, and Beller et al.'s taxonomy work reports the remaining functional share at roughly 15%. The mechanism is that review is primarily a comprehension and design-communication activity, and defect detection is a by-product of the comprehension; a metric that scores only observable-behaviour defects prices the minority output and ignores the majority. Limitation: the comment taxonomy is from Microsoft's C# workflow in 2012-2013, the 14% figure depends on how 'defect' is operationalised, and evolvability defects are exactly the kind our shell verifier cannot see, which cuts both ways: it means a verifier-scored gate will systematically under-price what the human caught, but it also means the human's contribution is not measurable by any automated score we could put in the numerator.",
+      "source": "https://www.stickyminds.com/article/largest-case-study-code-reviews-ever",
+      "confidence": 0.6,
+      "topic": "human-minutes",
+      "tags": [
+        "defects",
+        "comprehension",
+        "metric-scope",
+        "evolvability"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-linearB-pickup-queue",
+      "kind": "number",
+      "title": "AI PRs wait 4.6x longer for pickup while their reviews run faster once started",
+      "body": "LinearB's 2026 benchmark dataset, as summarised by prlens.dev from 8.1M PRs, reports AI-assisted PRs at 408 lines at the 75th percentile versus 157 unassisted, AI-generated PRs waiting 4.6x longer for pickup (over 16 hours versus about 200 minutes) while the review itself runs faster once started (~194 minutes versus ~252 minutes). Both quantities are time-in-state, so this is not a minutes measurement, but the pickup/review split is the decomposition a checkpoint design has to respect: bigger machine-written changes lose their time in the queue, where nobody is being helped, and only the second interval converts into human attention. The mechanism is triage economics: a reviewer facing an unfamiliar 400-line machine-authored diff defers it in favour of a change whose risk they can estimate in a glance, so queue time absorbs the cost of the agent's volume. Limitation: vendor benchmark data with an undisclosed vendor-specific methodology, AI-authored and AI-assisted defined by heuristics, no causal identification, and the 'review runs faster' side could be entirely the ESEM 2026 centrality confound described above.",
+      "source": "https://prlens.dev/guides/cognitive-load-in-code-review",
+      "confidence": 0.4,
+      "topic": "human-minutes",
+      "tags": [
+        "vendor-data",
+        "queue",
+        "ai-code",
+        "pr-size"
+      ]
+    },
+    {
+      "id": "w3-humanminutes-denominator-spec",
+      "kind": "concept",
+      "title": "The only defensible denominator is instrumented open-to-verdict time per checkpoint",
+      "body": "Given the above, human-minutes for loom should be defined operationally rather than borrowed: start the clock when the human first opens the checkpoint artefact (diff, failing test output, paired baseline), stop it at the first stated verdict action (approve, reject, edit), exclude time the artefact was open in a background tab, and report the excluded queue interval separately as a second number. This is exactly the construction the SAFE study had to reconstruct from transcripts after the fact (median 3.5 min per finding), and exactly what Meta's TimeSpent approximates for diffs, so it has precedent but no standard. The mechanism is that the two components have different optima: queue minutes are bought down by batching and assignment, active minutes by packaging and by not showing the reviewer work they did not ask for (the Meta AI-patch collapse), and a single blended number lets a design score well by destroying the queue while leaving the review untouched. Limitation: first-open-to-verdict still includes re-reading and page-turning, background-tab exclusion is a heuristic, and per-checkpoint medians of 3.5 to 14 minutes mean a headline metric over a handful of checkpoints per round has enormous sampling error, so any per-round gain of 0.05 in a 0-1 score is likely to be inside the noise of its own denominator.",
+      "source": null,
+      "confidence": 0.55,
+      "topic": "human-minutes",
+      "tags": [
+        "measurement-spec",
+        "denominator",
+        "instrumentation",
+        "loom-design"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w3-humanminutes-denominator-spec",
+      "rel": "operationalises",
+      "to": "ana-001",
+      "note": "Any headline cost-per-gain claim needs the open-to-verdict interval as its denominator, with queue time reported separately so a batching change cannot masquerade as a review-speed gain."
+    },
+    {
+      "from": "w3-humanminutes-safe-3-5min-and-null",
+      "rel": "constrains",
+      "to": "exp-gate-001",
+      "note": "3.5 minutes per decision with a per-participant median spread of 4.7-5.1 and p=.21 between builds means a gate experiment must budget many decisions before a time difference is detectable, and must not expect packaging to move time at all."
+    },
+    {
+      "from": "w3-humanminutes-ai-patch-reviewer-tax",
+      "rel": "quantifies",
+      "to": "exp-guard-001",
+      "note": "Shows the direction and a >5% floor for the reviewer cost of surfacing agent artefacts, which is the hazard any checkpoint-spam guard has to be tested against."
+    },
+    {
+      "from": "w3-humanminutes-rubber-stamp-seconds",
+      "rel": "threatens",
+      "to": "exp-guard-002",
+      "note": "If the guard makes checkpoints cheap to clear, seconds-level approvals are the failure mode it must detect via latency-versus-diff-size and seeded known-bad items."
+    },
+    {
+      "from": "w3-humanminutes-di-biase-100loc-13min",
+      "rel": "measures",
+      "to": "ana-002",
+      "note": "Provides the one controlled per-change constant (13-14 net minutes for ~100 LOC) available for calibrating a human-minutes estimate, with the caveat that only 28 developers were involved."
+    },
+    {
+      "from": "w3-humanminutes-size-does-not-predict-latency",
+      "rel": "falsifies",
+      "to": "ana-003",
+      "note": "Any inference from diff size or pipeline latency to human minutes is refuted at Meta scale: size-aware models barely beat the median and review time is consistent regardless of diff size."
+    },
+    {
+      "from": "w3-humanminutes-esem2026-ai-looks-cheaper",
+      "rel": "confounds",
+      "to": "exp-coverage-002",
+      "note": "AI code landing in peripheral and test files means any coverage or review-time benefit measured on agent output may be a placement artefact; centrality must be stratified before the comparison is believed."
+    },
+    {
+      "from": "w3-humanminutes-gettty-hypothesis-driven",
+      "rel": "supports",
+      "to": "exp-gate-001",
+      "note": "A candidate falsifier (behavioural differential) turns open-ended reading into a check, which is the only packaging lever in this set with a reported process change, and it reports no minutes saved."
+    },
+    {
+      "from": "w3-humanminutes-interruption-23min",
+      "rel": "warns",
+      "to": "ana-004",
+      "note": "Synchronous checkpoints pay a 23-minute re-entry cost per interruption, so a design that reduces per-decision minutes but increases decision count can still lose on the denominator."
+    },
+    {
+      "from": "w3-humanminutes-defects-are-minority",
+      "rel": "undermines",
+      "to": "ana-005",
+      "note": "Scoring human value on detected defects prices 14% of what review actually produces and 75% of what it does produce (evolvability) is invisible to a shell verifier."
+    },
+    {
+      "from": "w3-humanminutes-metr-19pct-slower",
+      "rel": "warns",
+      "to": "exp-mut-001",
+      "note": "Total task time can rise by 19% even when the assistance is genuinely used, because review and rework of generated output is charged to the same budget as generation."
+    },
+    {
+      "from": "w3-humanminutes-wallclock-not-minutes",
+      "rel": "relates",
+      "to": "ana-006",
+      "note": "Latency metrics and effort metrics diverge by design (Meta's recommender cut TimeInReview 11.6% with flat TimeSpent), so any dashboard mixing them will report motion as savings."
+    },
+    {
+      "from": "w3-humanminutes-smartbear-200-400loc",
+      "rel": "grounds",
+      "to": "w3-humanminutes-di-biase-100loc-13min",
+      "note": "The 0.22-0.45 min/line heuristic implies ~22-45 minutes for a 100-line change; the controlled measurement says 13-14, so the widely used constant overestimates by roughly 2-3x for a small multi-file change."
+    },
+    {
+      "from": "w3-humanminutes-linearB-pickup-queue",
+      "rel": "decomposes",
+      "to": "w3-humanminutes-denominator-spec",
+      "note": "Supplies the empirical case that pickup and review move in opposite directions for AI-authored changes, which is why the spec reports two numbers instead of one."
+    }
+  ],
+  "gaps": [
+    {
+      "id": "w3-humanminutes-gap-no-per-checkpoint-measurement",
+      "title": "No study measures minutes for a code-review decision on an agent-produced diff with a machine verifier already attached",
+      "body": "Every number found is either human-authored code (di Biase 13-14 min, Google 24-line medians, Meta TimeSpent) or a security finding with a tool explanation (SAFE 3.5 min), and none measures the exact loom surface: a diff from an agent, a shell verifier already green or red, and a paired baseline showing the previous score. The nearest published attempt to test evidence packaging for peer review, 'Evaluating the Effects of Automated Test Results, Model Solutions, and Checklists on Peer Code Review: A Quantitative Study' (ACM, 11 Nov 2026, doi 10.1145/3795867.3830991), is unreachable: dl.acm.org returns a Cloudflare 403 to both fetch engines, so only its title and acceptance metadata are known. The measurement that would settle it is a within-subject crossover with timestamped open-to-verdict intervals over at least ~30 decisions per arm, since the observed per-decision spread (4.7 vs 5.1 min, p=.21 at n=24) means anything smaller is unfalsifiable."
+    },
+    {
+      "id": "w3-humanminutes-gap-advice-outruns-data",
+      "title": "The review-cost literature repeatedly concludes more than its own time data shows, which is what we would be doing too",
+      "body": "di Biase et al. measured no time or defect benefit from decomposition yet concluded commits should be separated as best practice; SmartBear's 200-400 LOC ceiling is a 2006 vendor case study without a control group whose own PDF is no longer fetchable; Getty reports a process change and a bug found but no minutes; LinearB's queue numbers come from an undisclosed vendor pipeline. This pattern is the strongest counter-evidence to confidence in any single denominator constant: the field's canonical numbers are either uncontrolled or no longer verifiable. The measurement that would break the pattern for loom is a published per-checkpoint log, including rejected checkpoints and the minutes spent before each rejection, so an outside reader can recompute the denominator rather than trust a summary. No such log exists for any agent loop we could find."
+    },
+    {
+      "id": "w3-humanminutes-gap-generality-of-3-5min",
+      "title": "Unknown whether the 3.5-minute decision constant survives contact with real diffs, or is an artefact of lab triage on seeded findings",
+      "body": "The SAFE study's median 3.5 minutes per finding comes from 24 participants in a lab, on security findings from the OWASP Benchmark with injected material, in 15-minute blocks, with time reconstructed from transcripts rather than instrumented, and its participants reached only two or three of five findings. di Biase's 13-14 minutes comes from one small Java system with a convenience sample. Both are plausible and neither transfers: the deployment surface for loom is a maintainer looking at a diff they did not write on a codebase they know well, which the literature suggests is the cheap case (comprehension is where the 58% of time goes, and familiarity is the main input to it), but no study isolates familiarity as a moderator of decision time. The falsifying measurement is a field sample of checkpoint decisions on one real repository with per-decision timestamps, stratified by whether the reviewer had previously touched the affected files."
+    }
+  ]
+}
