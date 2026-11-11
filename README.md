@@ -47,6 +47,7 @@ RSI 想要的是另一种形态：
 | **开工自检**：`rsi_doctor` 一次回答「这台机器现在能跑吗」——git 仓库、`git status` 是否干净、Node 版本、loom home 可写、这个窗口是否持有循环；每条失败都带可执行的 `fix` | ✅ |
 | **监管地基**：每次尝试写租约（租约 + 会话事件水位）、看门狗写掉僵死尝试、崩溃重启对账 | ✅ M2 |
 | **结构化交接**：worker 输入是编译过的简报（≤6000 字符），输出强制 `AttemptReport` schema；不传 transcript | ✅ M2 |
+| **简报说清机器的形状**：墙钟还剩多少、shell 里 `node` 在哪（宿主是 Electron 时 `process.execPath` 不是解释器，`dirname` 里没有 node.exe）—— 运行器已经知道的事实必须写进简报，否则 worker 会花掉整个尝试重新发现它，并把这件事当成 claim 写进知识树 | ✅ M2 |
 | **同级交流**：同轮候选共享一块有界黑板（障碍/发现），最多 5 条、每轮结束按上限剪枝 | ✅ M2 |
 | **准入控制**：全局 `maxConcurrent` 轮数上限 + 每尝试墙钟上限 + 预算三闸 | ✅ M2 |
 | **知识树**：lesson 陈述式投放、explore 阶段零投放、holdout 家族隔离、配对影响审计与自动 quarantine | ✅ M3 |

@@ -119,6 +119,23 @@ export function nodeBinDirs(options = {}) {
   return found
 }
 
+
+/**
+ * True when a bare `node` already resolves on this PATH.
+ *
+ * Nothing to tell the worker when it does: a line explaining where the
+ * interpreter lives would be noise in every brief on every machine where the
+ * obvious command just works.
+ * @param {string} [pathValue]
+ * @param {{execPath?: string, env?: Record<string, string | undefined>, platform?: string}} [options]
+ * @returns {boolean}
+ */
+export function nodeOnPath(pathValue = '', options = {}) {
+  const dir = nodeBinDir(options)
+  if (!dir) return false
+  const parts = (typeof pathValue === 'string' ? pathValue : '').split(delimiter)
+  return parts.includes(dir)
+}
 /**
  * Full path to an interpreter that can run a script, or null.
  *

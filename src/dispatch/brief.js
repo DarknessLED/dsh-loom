@@ -85,6 +85,27 @@ function section(title, body) {
  * @param {unknown} raw milliseconds, or anything else
  * @returns {string} the line to put in the Rules section, or an empty string
  */
+/**
+ * Tell the worker what the harness already knows about this shell.
+ *
+ * The live round that motivated this: a worker spent its whole attempt
+ * discovering that `node` is not on PATH inside the harness shell, wrote that
+ * discovery as its claim, and thereby taught the tree something about *this
+ * machine* rather than about the repository it was asked to change. The harness
+ * knows the answer already -- it is the same search the verifier runs -- so the
+ * brief states it and the attempt does not have to buy it again.
+ *
+ * Only emitted when the interpreter is somewhere a bare `node` would not find
+ * it; when PATH already answers, saying so is noise.
+ * @param {{nodePath?: string|null}} source
+ * @returns {string}
+ */
+function shellRule(source) {
+  const nodePath = typeof source.nodePath === 'string' ? source.nodePath : ''
+  if (!nodePath) return ''
+  return `This shell has no \`node\` on PATH. The interpreter is ${nodePath} -- call it by that path, or write the verify command so it does not need node. Do not spend the attempt rediscovering this.`
+}
+
 function budgetRule(raw) {
   const ms = Number(raw)
   if (!Number.isFinite(ms) || ms <= 0) return ''
@@ -198,6 +219,10 @@ export function buildWorkerBrief(input) {
   // as an unexplained stop half-way through its investigation.
   const budget = budgetRule(source.budgetMs)
   if (budget) rulesBody = rulesBody + String.fromCharCode(10) + budget
+  // Same reason as the budget: a fact the runner knows and the agent would
+  // otherwise pay to discover.
+  const shell = shellRule(source)
+  if (shell) rulesBody = rulesBody + String.fromCharCode(10) + shell
 
   const failureBody = (detail) =>
     detail ? `Reason: ${failureReason}\nDetail: ${detail}` : `Reason: ${failureReason}`

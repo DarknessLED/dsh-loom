@@ -18,7 +18,7 @@ import { campaignUsage, fallbackSpend, hasTokens, resolvePricing, usageOfSession
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
-import { withNodeOnPath } from '../exec/node-bin.js'
+import { nodeExecutable, nodeOnPath, withNodeOnPath } from '../exec/node-bin.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
@@ -55,6 +55,11 @@ import { demoteChain } from './model-health.js'
 const verifierEnv = {
   PATH: withNodeOnPath(process.env.PATH),
 }
+
+// What the brief says about the shell, so an attempt does not spend its budget
+// discovering that `node` is not on PATH. Null when PATH already answers, in
+// which case there is nothing worth saying.
+const nodeHintPath = nodeOnPath(process.env.PATH) ? null : nodeExecutable()
 
 /**
  * Why a candidate was stopped before it finished: a sibling already satisfied
@@ -1267,6 +1272,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           lessons,
           plan: planFindings,
           budgetMs: timeoutMs,
+          nodePath: nodeHintPath,
         })
         let retried = null
         const deadlineAt = Date.now() + timeoutMs
@@ -1317,6 +1323,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             maxChars: Math.max(1200, Math.floor(brief.length * 0.5)),
             // The retry runs under what is left of the same clock.
             budgetMs: remainingMs,
+            nodePath: nodeHintPath,
           })
           log(`attempt ${attemptId}: context overflow, retrying with a ${smaller.length}-char brief`)
           brief = smaller
