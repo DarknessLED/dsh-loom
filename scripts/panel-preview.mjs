@@ -108,7 +108,8 @@ function html(node) {
 }
 
 const now = Date.now()
-const payload = {
+const LIVE = process.env.LOOM_PANEL_URL || ''
+let payload = {
   campaigns: [
     {
       id: 'loom-self15',
@@ -360,7 +361,17 @@ const payload = {
   now,
 }
 
-const pendingPayload = {
+// A fixture proves the component renders; it cannot prove the component
+// renders *the campaign you are looking at*. Point LOOM_PANEL_URL at a running
+// host and the same code draws the live payload — the tree, the numbers and all.
+if (LIVE) {
+  const res = await fetch(LIVE)
+  if (!res.ok) throw new Error(`live payload ${res.status} from ${LIVE}`)
+  const live = await res.json()
+  payload = { ...live, now: live.now ?? now }
+}
+
+const pendingPayload = LIVE ? payload : {
   ...payload,
   campaigns: [
     {

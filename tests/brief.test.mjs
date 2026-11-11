@@ -84,6 +84,7 @@ const HEADERS = ['## Objective', '## Task', '## Rules', '## Report']
 const VALID_REPORT = {
   changed: ['src/dispatch/brief.js', 'tests/brief.test.mjs'],
   why: 'compile sibling notes and lessons into one bounded brief instead of a transcript',
+  lesson: 'a brief is compiled from notes, never from the transcript of the previous attempt',
   evidence: ['node tests/brief.test.mjs -> all passed'],
   openQuestions: [],
   confidence: 0.8,
@@ -255,10 +256,14 @@ function fence(text) {
   eq(schema.additionalProperties, false, 'schema.additionalProperties is false')
   deepEq(
     [...schema.required].sort(),
-    ['changed', 'confidence', 'evidence', 'nextHint', 'openQuestions', 'why'].sort(),
-    'schema.required lists all six report keys',
+    ['changed', 'confidence', 'evidence', 'lesson', 'nextHint', 'openQuestions', 'why'].sort(),
+    'schema.required lists all seven report keys',
   )
-  eq(Object.keys(schema.properties).length, 6, 'schema.properties has exactly six fields')
+  eq(Object.keys(schema.properties).length, 7, 'schema.properties has exactly seven fields')
+  ok(
+    schema.properties.lesson.type === 'string' && schema.properties.lesson.maxLength === 200,
+    'lesson is a one-sentence claim capped at 200',
+  )
   ok(
     schema.properties.changed.type === 'array' &&
       schema.properties.changed.items.type === 'string' &&
@@ -404,7 +409,9 @@ function fence(text) {
 
   const missing = validateReport({})
   eq(missing.ok, false, 'validateReport rejects an empty object')
-  eq(missing.errors.length, 6, 'validateReport reports all six missing keys')
+  // `lesson` is required by the schema the worker is held to, but not by the
+  // parser: a report missing only that sentence still carries evidence.
+  eq(missing.errors.length, 6, 'validateReport reports the six keys it cannot do without')
 
   const extra = validateReport({ ...VALID_REPORT, extra: true })
   ok(

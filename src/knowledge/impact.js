@@ -159,11 +159,12 @@ export function normalizeClaim(text, max = 240) {
   return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`
 }
 
-// A lesson is a *statement*, not a report. The attempt's `why` is a paragraph
-// of narration -- 240 characters, cut mid-word by the clip above -- and a tree
-// of ninety-nine of those reads as scattered fragments, because that is exactly
-// what they are. A claim is the first sentence that states a mechanism: short
-// enough to read in a card, long enough to be checkable.
+// A lesson is a *statement*, not a report. A worker's `why` is a mechanism
+// paragraph of up to 1200 characters, and a tree filed from those reads as
+// scattered fragments, because a clipped paragraph is not a claim. So the
+// brief asks for the claim directly (`report.lesson`, one sentence, 200 max)
+// and this is only the seam that keeps older attempts usable: their `why` is
+// cut to its first sentence, which is the best statement it contains.
 export const CLAIM_MAX = 140
 
 /**
@@ -248,13 +249,22 @@ export function lessonConfidence(attempt) {
 /**
  * Turn a promoted attempt into a lesson candidate.
  *
- * Only verified work becomes knowledge: the claim comes from the attempt's own
- * `why` (the mechanism), never from a plan or an excuse. Returns null when the
- * attempt gives us nothing declarative to say.
+ * Only verified work becomes knowledge: the claim is the attempt's own
+ * `report.lesson` -- one sentence the worker wrote to be read on its own --
+ * never a plan or an excuse. `why` is the fallback for attempts recorded
+ * before that field existed; it is a mechanism paragraph, so it is cut to its
+ * first sentence. Returns null when the attempt gives us nothing declarative.
  */
 export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
-  const raw = normalizeClaim(attempt?.report?.why)
-  const claim = claimHeadline(raw)
+  // The stated claim first. It is the field the brief asks for and the only
+  // one written to be read outside its own task; `why` explains a change and
+  // is used only when this attempt predates the field.
+  const stated = normalizeClaim(attempt?.report?.lesson, 200)
+  const raw = stated || normalizeClaim(attempt?.report?.why)
+  // A stated claim is already one sentence, so it is taken as written (the
+  // clip only bounds it); a `why` fallback has to be cut to its first
+  // sentence, which is what `claimHeadline` does.
+  const claim = stated || claimHeadline(raw)
   if (!claim) return null
   // A verified attempt that reports it changed nothing has no mechanism to
   // teach. This is the producer-side guard; `checks.noop` catches the attempts

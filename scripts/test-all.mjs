@@ -86,6 +86,8 @@ const standing = [
   // grouped under the file it is about, with a named bucket for the few that
   // name nothing.
   'tests/knowledge/a-lesson-is-about-a-file.test.mjs',
+  // the claim the tree keeps is written by the worker, not carved out of its why
+  'tests/knowledge/the-worker-states-the-claim.test.mjs',
   // 暂缓 must postpone in both doors, and a token budget must be a cap
   'tests/ui/snooze.test.mjs',
   'tests/tri8/token-cap.test.mjs',
