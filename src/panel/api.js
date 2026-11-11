@@ -135,7 +135,10 @@ function campaignRow(view, now, campaignId, config) {
     loop,
     tasks: Array.isArray(s.evalset?.tasks) ? s.evalset.tasks.length : 0,
     holdout: Array.isArray(s.evalset?.holdout) ? s.evalset.holdout.length : 0,
+    // `lessons` is the whole corpus; the sidebar's "active" figure is the rest of
+    // it. Sending only the total made the label lie by the quarantined count.
     lessons: lessons.length,
+    lessonsActive: lessons.filter((l) => l.status !== 'quarantined').length,
     quarantined: lessons.filter((l) => l.status === 'quarantined').length,
     lessonsTop,
     // The report prints the same reading; computing it here (rather than in the

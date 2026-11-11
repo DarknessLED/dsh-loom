@@ -77,7 +77,10 @@ ok('byCampaign exposes the full ordered list per campaign (no cap)')
 // 4. The section is a projection of the same object, not a second pass.
 const section = panel.knowledge(data)
 assert.deepEqual(section.kinds, all.kinds, 'the section reuses knowledgeOf rather than re-deriving')
-assert.equal(section.active, 5, `active counts lessons (got ${section.active})`)
+// The alpha corpus is four claims with one quarantined, beta contributes one:
+// four the loop still stands behind. Quarantined claims are counted in their own
+// figure, never folded back into the headline.
+assert.equal(section.active, 4, `active excludes the quarantined claims (got ${section.active})`)
 assert.equal(section.quarantined, 1, `quarantined is carried through (got ${section.quarantined})`)
 ok('the section is a projection of knowledgeOf (one grouping, one order)')
 

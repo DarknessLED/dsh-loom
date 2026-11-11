@@ -46,6 +46,7 @@ const payload = {
       spendUsd: 0.42,
       open: 2,
       lessons: 4,
+      lessonsActive: 3,
       quarantined: 1,
       ageMs: 60_000,
       reviews: [
@@ -120,7 +121,10 @@ test('a checkpoint without a review still shows, at normal risk', () => {
 test('knowledge groups by kind and keeps the strongest claims', () => {
   const client = loadClient()
   const tree = client.__panel.knowledge(payload)
-  assert.equal(tree.active, 5)
+  // Nine claims in the corpus, one of them quarantined: the header says "3 live"
+  // for the first campaign because that is what the host counted, and falls back
+  // to lessons-minus-quarantined for a row that predates the field.
+  assert.equal(tree.active, 4)
   assert.equal(tree.quarantined, 1)
   const kinds = tree.kinds.map((g) => g.kind)
   assert.deepEqual(kinds.sort(), ['fact', 'hazard', 'recipe'])

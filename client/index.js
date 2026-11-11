@@ -932,7 +932,12 @@ window.__ModuleLoader__.load({
         // A campaign that failed to load has no lessons to show; carrying its
         // error row into the corpus would invent lessons it never had.
         if (!c || c.error) continue
-        active += num(c.lessons)
+        // `lessons` from the host is the whole corpus. Counting it as "active"
+        // made the header claim more live knowledge than exists: the words and
+        // the number have to mean the same thing.
+        active += c.lessonsActive === undefined || c.lessonsActive === null
+          ? num(c.lessons) - num(c.quarantined)
+          : num(c.lessonsActive)
         quarantined += num(c.quarantined)
         var top = c.lessonsTop || []
         var pending = []

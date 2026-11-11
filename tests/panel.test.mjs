@@ -86,6 +86,10 @@ function stubRuntime(v = view(), extra = {}) {
   eq(row.holdout, 1, 'state: holdout count')
   eq(row.lessons, 2, 'state: lesson count')
   eq(row.quarantined, 1, 'state: quarantined lessons counted separately')
+  // The sidebar prints these two numbers side by side; "N active" that includes
+  // the quarantined ones is a number nobody can check against the label.
+  eq(row.lessonsActive, 1, 'state: active lessons exclude the quarantined ones')
+  eq(row.lessonsActive + row.quarantined, row.lessons, 'state: active + quarantined is the corpus')
   eq(row.openCheckpoints.length, 1, 'state: only open checkpoints are shown')
   eq(row.openCheckpoints[0].kind, 'gate', 'state: checkpoint kind')
   eq(row.lastRound.n, 2, 'state: last round number')
