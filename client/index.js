@@ -148,8 +148,10 @@ window.__ModuleLoader__.load({
       ' gap:8px;align-items:start;min-width:0}',
       // knowledge is short claims, not prose: pack them into as many columns as
       // the panel has room for instead of one tall list of dim text
-      '.loom-kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));',
-      ' gap:1px 10px;padding:0 12px 2px;min-width:0}',
+      // knowledge is filed per file: at a wide panel these are cards flowing into
+      // as many columns as fit, at a narrow one a single column of the same cards.
+      '.loom-kfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));',
+      ' gap:6px;padding:2px 12px 4px;min-width:0}',
       '.loom-camp{padding:9px 11px 10px;border:1px solid var(--loom-line);border-radius:6px;min-width:0;',
       ' background:color-mix(in srgb,var(--loom-base) 1.5%,transparent)}',
       '.loom-camp.folded{padding:0}',
@@ -292,7 +294,27 @@ window.__ModuleLoader__.load({
       '.loom-lesson .score[data-tone=up]{color:color-mix(in srgb,var(--loom-base) 58%,var(--loom-ok));}',
       '.loom-lesson .score[data-tone=down]{color:color-mix(in srgb,var(--loom-base) 55%,var(--loom-bad));}',
       '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
+      // a knowledge file: its path is the heading, its claims hang under it.
+      // The path is mono and truncated from the left, so two files in different
+      // directories are still distinguishable at this width.
+      '.loom-kfile{min-width:0;padding:3px 0 4px;border-top:1px solid var(--loom-line)}',
+      '.loom-kfile:first-child{border-top:0;padding-top:0}',
+      '.loom-kfile .loom-kind{display:flex;align-items:baseline;gap:6px;padding:1px 0 2px;min-width:0}',
+      '.loom-kfile .loom-kind .p{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+      ' direction:rtl;text-align:left;font-family:var(--loom-mono);color:var(--loom-soft)}',
+      '.loom-kfile .loom-kind .c{margin-left:auto;flex:0 0 auto;font-family:var(--loom-mono);color:var(--loom-faint)}',
+      '.loom-kfile .loom-lesson{padding-left:0;padding-right:0;align-items:flex-start}',
+      // the claim wraps to at most two lines: a card that grows without bound
+      // stops being a card. The tooltip holds the whole sentence.
+      '.loom-kfile .loom-lesson .claim{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;',
+      ' -webkit-box-orient:vertical;line-height:1.42}',
+      '.loom-kfile .loom-lesson .kind{flex:0 0 auto;font-family:var(--loom-mono);font-size:9px;padding-top:1px;',
+      ' color:var(--loom-faint);letter-spacing:.04em}',
+      '.loom-kfile .loom-lesson .kind[data-kind=hazard]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-bad))}',
+      '.loom-kfile .loom-lesson .kind[data-kind=recipe]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-ok))}',
       '.loom-note{padding:1px 12px 5px 18px;font-size:10px;line-height:1.5;color:var(--loom-faint)}',
+      '.loom-more{padding:1px 0 2px 0;font-family:var(--loom-mono);font-size:9.5px;color:var(--loom-faint)}',
+      '.loom-more-groups{padding:3px 12px 6px;border-top:1px solid var(--loom-line)}',
       // shell
       '.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;',
       ' scrollbar-width:thin}',
@@ -920,6 +942,21 @@ window.__ModuleLoader__.load({
       return kind === 'hazard' || kind === 'recipe' ? kind : 'fact'
     }
 
+    // A lesson is a statement about *somewhere*. The corpus used to be grouped
+    // only by kind -- and since every claim the loop writes is a `fact`, that
+    // produced one undifferentiated bucket of ninety-nine sentences, which is
+    // what "scattered" looks like. Grouping by file is the axis a reader can
+    // actually use: it answers "what does the loop know about this file", and
+    // it degrades honestly (claims that name no file fall into one named group)
+    // instead of inventing structure.
+    var NO_FILE = '(未指明文件)'
+    var KIND_ORDER = ['hazard', 'recipe', 'fact']
+    // What the section draws, not what it knows: 29 groups of 86 claims is a
+    // wall in a 320px column. The first groups are the ones with the most
+    // claims; the rest are counted in one line so nothing is silently dropped.
+    var KGROUPS_SHOWN = 6
+    var KITEMS_SHOWN = 4
+
     function knowledgeOf(data) {
       var rows = (data && data.campaigns) || []
       var groups = { fact: [], hazard: [], recipe: [] }
@@ -939,7 +976,10 @@ window.__ModuleLoader__.load({
           ? num(c.lessons) - num(c.quarantined)
           : num(c.lessonsActive)
         quarantined += num(c.quarantined)
-        var top = c.lessonsTop || []
+        // `lessonsAll` is the whole corpus; `lessonsTop` is what an older host
+        // sent (three per campaign). Reading both keeps a stale panel payload
+        // readable instead of blanking the section.
+        var top = c.lessonsAll || c.lessonsTop || []
         var pending = []
         for (var j = 0; j < top.length; j += 1) {
           var l = top[j] || {}
@@ -949,6 +989,14 @@ window.__ModuleLoader__.load({
             claim: l.claim,
             kind: lessonKind(l.kind),
             score: num(l.score),
+            confidence: num(l.confidence),
+            // A lesson's worth is what it has been used for, not the rounded
+            // gain it was born with: ninety-nine rows all printing `0` is a
+            // column nobody reads.
+            uses: num(l.uses),
+            harm: num(l.harm),
+            files: Array.isArray(l.files) ? l.files : [],
+            createdRound: l.createdRound === undefined ? null : l.createdRound,
             at: j,
           })
         }
@@ -966,10 +1014,15 @@ window.__ModuleLoader__.load({
             claim: pending[k].claim,
             kind: pending[k].kind,
             score: pending[k].score,
+            confidence: pending[k].confidence,
+            uses: pending[k].uses,
+            harm: pending[k].harm,
+            files: pending[k].files,
+            createdRound: pending[k].createdRound,
           }
           ordered.push(lesson)
-          // rank records corpus order across campaigns; the kind groups are a
-          // stable re-sort of the very same rows.
+          // rank records corpus order across campaigns; every grouping below is
+          // a stable re-sort of the very same rows.
           groups[lesson.kind].push({ row: lesson, rank: rank })
           rank += 1
         }
@@ -986,7 +1039,69 @@ window.__ModuleLoader__.load({
         for (var t = 0; t < bucket.length && t < 4; t += 1) items.push(bucket[t].row)
         kinds.push({ kind: key, label: kindLabel(key), items: items, total: bucket.length })
       }
-      return { active: active, quarantined: quarantined, kinds: kinds, byCampaign: byCampaign }
+      kinds.sort(function (a, b) {
+        var ai = KIND_ORDER.indexOf(a.kind)
+        var bi = KIND_ORDER.indexOf(b.kind)
+        return (ai < 0 ? 9 : ai) - (bi < 0 ? 9 : bi)
+      })
+
+      // One row per lesson, filed under the first file it names. A claim that
+      // names several files appears once: the tree is for reading, not for
+      // counting, and a duplicate row would read as more evidence than exists.
+      var files = {}
+      var order = []
+      var all = []
+      for (var f = 0; f < rows.length; f += 1) {
+        var camp = rows[f]
+        if (!camp || camp.error) continue
+        var list = byCampaign[camp.id] || []
+        for (var m = 0; m < list.length; m += 1) {
+          var entry = list[m]
+          all.push(entry)
+          var where = entry.files.length ? entry.files[0] : NO_FILE
+          if (!files[where]) {
+            files[where] = { path: where, items: [], total: 0 }
+            order.push(where)
+          }
+          files[where].items.push(entry)
+          files[where].total += 1
+        }
+      }
+      var byFile = order.map(function (path) {
+        var group = files[path]
+        group.items.sort(function (a, b) {
+          // What a lesson has been used for outranks the gain it was born with:
+          // a claim reused five times in real rounds is more useful than one
+          // that never left the shelf, however confident it sounded.
+          // `||` binds looser than the ternaries below, so every tiebreak has
+          // to be parenthesised or the whole comparison collapses to a branch.
+          return b.uses - a.uses || b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+        })
+        return {
+          path: path,
+          total: group.total,
+          // The whole group is kept: the section is the only place a reader can
+          // see what the loop believes about one file, so truncating it here
+          // would hide exactly the comparison it exists to support.
+          items: group.items,
+        }
+      })
+      byFile.sort(function (a, b) {
+        // A named file outranks the residual bucket: the bucket is where claims
+        // that said nothing about their location collect, and it is the least
+        // useful group to open first.
+        if (a.path === NO_FILE) return 1
+        if (b.path === NO_FILE) return -1
+        return b.total - a.total || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
+      })
+      return {
+        active: active,
+        quarantined: quarantined,
+        kinds: kinds,
+        files: byFile,
+        all: all,
+        byCampaign: byCampaign,
+      }
     }
 
     /**
@@ -999,6 +1114,8 @@ window.__ModuleLoader__.load({
         active: corpus.active,
         quarantined: corpus.quarantined,
         kinds: corpus.kinds,
+        files: corpus.files,
+        all: corpus.all,
         byCampaign: corpus.byCampaign,
       }
     }
@@ -1692,9 +1809,12 @@ window.__ModuleLoader__.load({
         label: '知识',
         meta: String(num(c.lessons)),
         children: ordered.slice(0, 3).map(function (l) {
+          // The kind is the same word on almost every row (`fact`), so it says
+          // nothing here; the file does. A row reads "src/panel/api.js · +0.4".
+          var where = (l.files && l.files.length ? String(l.files[0]) : '').split('/').pop()
           return {
             key: 'l-' + l.id,
-            kind: kindLabel(l.kind),
+            kind: where || kindLabel(l.kind),
             label: text(l.claim, l.id),
             meta: (num(l.score) > 0 ? '+' : '') + num(l.score),
             mono: false,
@@ -2089,8 +2209,14 @@ window.__ModuleLoader__.load({
                 }),
               )
 
+        // Knowledge is filed by file, not by kind. Every claim the loop writes
+        // is a `fact`, so a kind grouping was one undifferentiated bucket --
+        // ninety-nine sentences in a row with nothing to hold on to. A file
+        // group is the axis a reader can use ("what does it know about this
+        // module?"), and a claim that names no file says so instead of being
+        // filed somewhere arbitrary.
         var treeBlock =
-          tree.kinds.length === 0
+          tree.files.length === 0
             ? null
             : h(
                 'div',
@@ -2099,31 +2225,67 @@ window.__ModuleLoader__.load({
                   'div',
                   { className: 'loom-sec-head' },
                   '知识',
-                  h('span', { className: 'n' }, tree.active + ' 有效' + (tree.quarantined ? ' · ' + tree.quarantined + ' 隔离' : '')),
+                  h(
+                    'span',
+                    { className: 'n' },
+                    tree.active + ' 有效' + ' · ' + tree.files.length + ' 处' + (tree.quarantined ? ' · ' + tree.quarantined + ' 隔离' : ''),
+                  ),
                 ),
-                tree.kinds.map(function (g) {
+                h(
+                  'div',
+                  { className: 'loom-kfiles' },
+                  tree.files.slice(0, KGROUPS_SHOWN).map(function (g) {
                   return h(
                     'div',
-                    { key: g.kind },
-                    h('div', { className: 'loom-kind' }, g.label + ' · ' + g.total),
+                    { key: 'kf-' + g.path, className: 'loom-kfile' },
                     h(
                       'div',
-                      { className: 'loom-kgrid' },
-                      g.items.map(function (item) {
-                        return h(
-                          'div',
-                          { key: item.campaign + ':' + item.id, className: 'loom-lesson', title: text(item.claim, item.id) },
-                          h('span', { className: 'claim' }, text(item.claim, item.id)),
-                          h(
-                            'span',
-                            { className: 'score', 'data-tone': item.score > 0 ? 'up' : item.score < 0 ? 'down' : 'flat' },
-                            (item.score > 0 ? '+' : '') + item.score,
-                          ),
-                        )
-                      }),
+                      { className: 'loom-kind', title: g.path },
+                      h('span', { className: 'p' }, g.path),
+                      h('span', { className: 'c' }, String(g.total)),
                     ),
+                    g.items.slice(0, KITEMS_SHOWN).map(function (item) {
+                      return h(
+                        'div',
+                        {
+                          key: item.campaign + ':' + item.id,
+                          className: 'loom-lesson',
+                          // The full sentence is the tooltip; the card is one
+                          // wrapped line pair, because a claim longer than that
+                          // is a claim that has not been stated sharply enough.
+                          title: text(item.claim, item.id) + (item.createdRound ? ' · 第 ' + item.createdRound + ' 轮' : ''),
+                        },
+                        h('span', { className: 'kind', 'data-kind': item.kind }, kindLabel(item.kind).slice(0, 2)),
+                        h('span', { className: 'claim' }, text(item.claim, item.id)),
+                        h(
+                          'span',
+                          {
+                            className: 'score',
+                            'data-tone': item.harm > 0 ? 'down' : item.uses > 0 ? 'up' : 'flat',
+                            title: item.uses > 0
+                              ? '用上过 ' + item.uses + ' 次' + (item.harm > 0 ? '，其中 ' + item.harm + ' 次有害' : '')
+                              : '还没有哪一轮用上过它',
+                          },
+                          // A reusable claim is described by how often it was
+                          // reused; the gain it was born with is a number about
+                          // a round that is over.
+                          item.uses > 0 ? '用 ' + item.uses : '新',
+                        ),
+                      )
+                    }),
+                    g.items.length > KITEMS_SHOWN
+                      ? h('div', { className: 'loom-more' }, '还有 ' + (g.items.length - KITEMS_SHOWN) + ' 条')
+                      : null,
                   )
                 }),
+                ),
+                tree.files.length > KGROUPS_SHOWN
+                  ? h(
+                      'div',
+                      { className: 'loom-more loom-more-groups' },
+                      '另有 ' + (tree.files.length - KGROUPS_SHOWN) + ' 处 · 共 ' + tree.active + ' 条',
+                    )
+                  : null,
               )
 
         var body

@@ -4,6 +4,7 @@ import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
+import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -14,6 +15,59 @@ import { activeChain, policyFor } from '../runtime/round.js'
  */
 
 const MAX_BODY = 64 * 1024
+
+// The corpus the panel groups by file. A campaign rarely earns more than a few
+// dozen claims, but the panel is one payload for every campaign, so the total
+// is bounded rather than unbounded. The bound is set above the corpus a
+// campaign actually accumulates: a cap below it does not shorten the payload,
+// it hides rows from the only view that can group them.
+const MAX_LESSON_ROWS = 200
+
+/**
+ * The files each attempt actually changed, keyed by attempt id.
+ *
+ * A lesson records where it came from (`evidence: 'round 4 attempt r4a1
+ * verified'`) but the ninety-nine written before lessons carried `files` say
+ * nothing about *what* they are about. The attempt they name does: its report
+ * lists the files it touched. Joining on that id puts eighty-two of those
+ * ninety-nine under a real file instead of one bucket holding most of the
+ * corpus, and it reads the ledger the panel already ships rather than
+ * guessing from sentence fragments.
+ */
+function attemptFileIndex(state) {
+  const index = new Map()
+  const rounds = Array.isArray(state?.rounds) ? state.rounds : []
+  for (const round of rounds) {
+    const attempts = Array.isArray(round?.attempts) ? round.attempts : []
+    for (const attempt of attempts) {
+      const changed = Array.isArray(attempt?.report?.changed)
+        ? attempt.report.changed.filter((f) => typeof f === 'string' && f)
+        : []
+      if (attempt?.id && changed.length) index.set(String(attempt.id), changed.slice(0, 6))
+    }
+  }
+  return index
+}
+
+function tidyPath(file) {
+  return String(file).replace(/\\/g, '/').replace(/^\.\//, '')
+}
+
+/**
+ * Where a lesson applies. New lessons carry `files`; older ones name an
+ * attempt, and that attempt's report says which files it changed; a claim that
+ * mentions a path directly is the last resort. Only a claim that names nothing
+ * at all falls into the residual bucket.
+ */
+function lessonWhere(lesson, index) {
+  const listed = Array.isArray(lesson?.files) ? lesson.files.filter((f) => typeof f === 'string' && f) : []
+  if (listed.length) return listed.map(tidyPath)
+  const named = String(lesson?.evidence ?? '').match(/attempt\s+(\S+)/)
+  const fromAttempt = named && index ? index.get(named[1]) : null
+  if (fromAttempt && fromAttempt.length) return fromAttempt.map(tidyPath)
+  const claim = typeof lesson?.claim === 'string' ? lesson.claim : ''
+  return filesInClaim(claim).map(tidyPath)
+}
 
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
@@ -66,16 +120,46 @@ function campaignRow(view, now, campaignId, config) {
     .slice(0, 3)
     .map(({ id, kind, risk, summary }) => ({ id, kind, risk, summary }))
   const lessons = Array.isArray(s.lessons) ? s.lessons : []
-  const lessonsTop = lessons
-    .filter((l) => l.status === 'active')
+  // A claim travels as its headline, not as the 240-character narration the
+  // ledger holds. Older lessons were stored clipped mid-sentence; normalising
+  // here means the tree reads as statements without rewriting history.
+  const lessonsActive = lessons.filter((l) => l.status === 'active')
+  const fileIndex = attemptFileIndex(s)
+  const lessonsTop = lessonsActive
     .map((l) => ({
       id: l.id,
-      claim: l.claim ?? '',
+      claim: claimHeadline(l.claim ?? ''),
       kind: l.kind ?? 'fact',
       score: Number(l.gainSum) || 0,
+      confidence: Number.isFinite(Number(l.confidence)) ? Number(l.confidence) : 0.5,
+      // A claim nobody has reused yet is not worthless, but the score column
+      // printing `0` for eighty-six rows in a row reads as broken. What the
+      // reader needs is how often the loop actually leaned on it.
+      uses: Number(l.useCount) || 0,
+      harm: Number(l.harmCount) || 0,
+      files: lessonWhere(l, fileIndex),
+      campaign: campaignId ?? s.id,
+      createdRound: Number(l.createdRound) || null,
     }))
     .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .slice(0, 3)
+  // The whole corpus, not just the top three: a tree needs every leaf to be
+  // able to say which file it is about, and capping at three per campaign hid
+  // most of the corpus from the only view that can group it.
+  const lessonsAll = lessonsActive
+    .map((l) => ({
+      id: l.id,
+      claim: claimHeadline(l.claim ?? ''),
+      kind: l.kind ?? 'fact',
+      score: Number(l.gainSum) || 0,
+      confidence: Number.isFinite(Number(l.confidence)) ? Number(l.confidence) : 0.5,
+      uses: Number(l.useCount) || 0,
+      harm: Number(l.harmCount) || 0,
+      files: lessonWhere(l, fileIndex),
+      createdRound: Number(l.createdRound) || null,
+    }))
+    .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, MAX_LESSON_ROWS)
   const rounds = Array.isArray(s.rounds) ? s.rounds : []
   const last = rounds[rounds.length - 1] || null
   // The active chain is the "how" of the campaign, and it is a tree a reader
@@ -141,6 +225,7 @@ function campaignRow(view, now, campaignId, config) {
     lessonsActive: lessons.filter((l) => l.status !== 'quarantined').length,
     quarantined: lessons.filter((l) => l.status === 'quarantined').length,
     lessonsTop,
+    lessonsAll,
     // The report prints the same reading; computing it here (rather than in the
     // browser) keeps the sidebar and the report on one definition of health.
     quality: campaignQuality(s),

@@ -538,8 +538,8 @@ test('the grid only grows columns when the host gives it room', () => {
   const { CSS } = loadClient().__panel
   assert.match(CSS, /\.loom-cards\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(296px,1fr\)\)/,
     'campaigns flow into as many columns as fit, without a viewport media query')
-  assert.match(CSS, /\.loom-kgrid\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(164px,1fr\)\)/,
-    'knowledge claims are packed, not stacked one per line')
+  assert.match(CSS, /\.loom-kfiles\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(180px,1fr\)\)/,
+    'knowledge files are packed into columns, not stacked one per line')
   assert.ok(!/@media \(min-width/.test(CSS), 'container width is what decides, not the window width')
 })
 

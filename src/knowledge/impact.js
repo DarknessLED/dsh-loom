@@ -159,6 +159,92 @@ export function normalizeClaim(text, max = 240) {
   return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`
 }
 
+// A lesson is a *statement*, not a report. The attempt's `why` is a paragraph
+// of narration -- 240 characters, cut mid-word by the clip above -- and a tree
+// of ninety-nine of those reads as scattered fragments, because that is exactly
+// what they are. A claim is the first sentence that states a mechanism: short
+// enough to read in a card, long enough to be checkable.
+export const CLAIM_MAX = 140
+
+/**
+ * The head of a claim: its first sentence, bounded. Trailing ellipsis is
+ * stripped first, so a truncated claim does not keep the cut as content.
+ */
+export function claimHeadline(text, max = CLAIM_MAX) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim().replace(/[…\.]{1,3}$/, '')
+  if (!s) return ''
+  // Sentence end, but only when it lands inside the budget: a 'e.g.' at char 9
+  // must not become the whole claim.
+  const stop = s.search(/[.!?](?:\s|$)/)
+  const head = stop > 24 && stop + 1 <= max ? s.slice(0, stop + 1) : s
+  if (head.length <= max) return head
+  // No usable sentence break: clip at a word boundary rather than mid-token.
+  const cut = head.slice(0, max - 1)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`
+}
+
+const MAX_LESSON_FILES = 6
+
+// A path with at least one directory, or a backticked filename: both are the
+// author pointing at a file. Deliberately conservative -- a bare word followed
+// by '.js' in prose is usually a claim about a module, not a file path.
+const PATH_IN_CLAIM = /(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\.(?:js|mjs|cjs|json|md|yml|yaml|txt)/g
+
+/**
+ * The file a claim names, if it names one. Ninety-nine lessons were written
+ * before `files` existed; reading the path back out of the sentence is not
+ * guessing, it is reading what the claim already says -- and without it every
+ * pre-`files` lesson would sit in one unnamed bucket.
+ */
+// The subject a claim is about, when it names no file: the first identifier it
+// talks about. `runRound now prices the second candidate...` is about
+// `runRound`; twenty-six claims like it had no home in the tree at all.
+const SYMBOL_IN_CLAIM = /\b[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)+\b/
+
+export function symbolInClaim(text) {
+  const m = String(text ?? '').match(SYMBOL_IN_CLAIM)
+  return m ? m[0] : null
+}
+
+export function filesInClaim(text) {
+  const s = String(text ?? '')
+  if (!s) return []
+  const out = []
+  for (const m of s.matchAll(PATH_IN_CLAIM)) {
+    const path = m[0].replace(/\\/g, '/').replace(/^\.\//, '')
+    if (!out.includes(path)) out.push(path)
+    if (out.length >= MAX_LESSON_FILES) break
+  }
+  return out
+}
+
+/**
+ * The files a lesson is about: what the worker said it changed, in the order
+ * it said it. Paths are normalised to forward slashes and bounded, so one
+ * verbose report cannot fill the tree's axis with twenty entries.
+ */
+export function lessonFiles(attempt) {
+  const changed = attempt?.report?.changed
+  if (!Array.isArray(changed)) return []
+  const out = []
+  for (const entry of changed) {
+    const path = String(entry ?? '').replace(/\\/g, '/').trim().replace(/^\.\//, '')
+    if (!path || out.includes(path)) continue
+    out.push(path)
+    if (out.length >= MAX_LESSON_FILES) break
+  }
+  return out
+}
+
+/** The worker's own confidence, clamped; 0.5 (neutral) when it did not say. */
+export function lessonConfidence(attempt) {
+  const raw = attempt?.report?.confidence
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(value)) return 0.5
+  return Math.max(0, Math.min(1, value))
+}
+
 /**
  * Turn a promoted attempt into a lesson candidate.
  *
@@ -167,7 +253,8 @@ export function normalizeClaim(text, max = 240) {
  * attempt gives us nothing declarative to say.
  */
 export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
-  const claim = normalizeClaim(attempt?.report?.why)
+  const raw = normalizeClaim(attempt?.report?.why)
+  const claim = claimHeadline(raw)
   if (!claim) return null
   // A verified attempt that reports it changed nothing has no mechanism to
   // teach. This is the producer-side guard; `checks.noop` catches the attempts
@@ -184,7 +271,17 @@ export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
     kind,
     claim,
     evidence: `round ${round ?? '?'} attempt ${attempt?.id ?? '?'} verified (score ${attempt?.score ?? 0})`,
-    confidence: 0.5,
+    // Where the lesson applies. A lesson is about files, not about the round
+    // that happened to earn it: without this the tree can only group claims by
+    // which campaign produced them, which is the historian's axis, not the
+    // next worker's.
+    files: lessonFiles(attempt),
+    // What the claim is *about*, for a claim whose files the worker did not
+    // list. Without it the tree has one group holding most of the corpus.
+    subject: lessonFiles(attempt)[0] ?? symbolInClaim(raw),
+    // The worker stated its own confidence; a constant 0.5 threw that away and
+    // left every claim ranked identically.
+    confidence: lessonConfidence(attempt),
     status: 'active',
     createdRound: round ?? 0,
     ttlRounds: 12,

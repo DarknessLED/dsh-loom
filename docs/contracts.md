@@ -53,7 +53,7 @@
 
 ### knowledge/ — 经验
 
-- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用。
+- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用；`claimHeadline` 把一条经验压成第一句（≤140 字符、不在词中砍断），`lessonFiles`/`filesInClaim`/`symbolInClaim` 回答「这条经验是关于什么东西的」，供面板按文件归组。
 - `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
 
 ### lean/ — Lean 门
@@ -71,7 +71,7 @@
 
 ### panel/
 
-- `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。
+- `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。经验行带 `files`（归组的唯一依据）与 `uses`/`harm`（真的被用上过几次），`lessonsAll` 送整库而不是每战役前三条；旧 lesson 没有 `files` 时，用它 `evidence` 点名的那次 attempt 的 `report.changed` 补上位置。
 
 ### report/ — 审计与导出
 

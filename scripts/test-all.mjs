@@ -78,6 +78,14 @@ const standing = [
   // a checkpoint row says what happened and what ignoring it costs, in its
   // own line and in the row's title, not only on hover
   'tests/ui/checkpoint-help.test.mjs',
+  // a lesson learned before lessons carried `files` still lands under the file
+  // its attempt changed: one residual bucket holding 84% of the corpus is not
+  // a tree, and the ledger already knew the answer.
+  'tests/panel-lesson-subject.test.mjs',
+  // and the corpus is filed, not just readable: a claim is its first sentence,
+  // grouped under the file it is about, with a named bucket for the few that
+  // name nothing.
+  'tests/knowledge/a-lesson-is-about-a-file.test.mjs',
   // 暂缓 must postpone in both doors, and a token budget must be a cap
   'tests/ui/snooze.test.mjs',
   'tests/tri8/token-cap.test.mjs',

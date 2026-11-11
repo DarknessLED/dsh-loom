@@ -129,10 +129,19 @@ const payload = {
       incumbent: { score: 1 },
       holdout: 2,
       quality: { verdict: 'healthy', promotions: 5, rounds: 7, avgRoundMs: 96_000 },
+      // Lessons are filed by file: that is the axis a reader can use, and this
+      // fixture carries it so the preview shows the grouping the panel ships.
+      lessonsAll: [
+        { id: 'l1', claim: 'a child that died mid-turn can still pass the verifier on an unchanged tree', kind: 'hazard', score: 0.7, files: ['src/runtime/round.js'], createdRound: 7 },
+        { id: 'l2', claim: 'an `autopilot.applied` with no commit is not a landing', kind: 'hazard', score: 0.5, files: ['src/runtime/recovery.js'], createdRound: 6 },
+        { id: 'l3', claim: 'regenerate the brief at half length once the context blows', kind: 'recipe', score: 0.3, files: ['src/dispatch/brief.js'], createdRound: 5 },
+        { id: 'l9', claim: 'the panel reads one state object, never a campaign file', kind: 'fact', score: 0.2, files: ['src/panel/api.js'], createdRound: 4 },
+        { id: 'l10', claim: 'a demoted provider must not keep planning', kind: 'fact', score: 0.1, files: ['src/runtime/round.js'], createdRound: 3 },
+      ],
       lessonsTop: [
-        { id: 'l1', claim: 'a child that died mid-turn can still pass the verifier on an unchanged tree', kind: 'fact', score: 0.7 },
-        { id: 'l2', claim: '`autopilot.applied` without a commit is not a landing', kind: 'hazard', score: 0.5 },
-        { id: 'l3', claim: 'regenerate the brief at half length once the context blows', kind: 'recipe', score: 0.3 },
+        { id: 'l1', claim: 'a child that died mid-turn can still pass the verifier on an unchanged tree', kind: 'hazard', score: 0.7, files: ['src/runtime/round.js'] },
+        { id: 'l2', claim: 'an `autopilot.applied` with no commit is not a landing', kind: 'hazard', score: 0.5, files: ['src/runtime/recovery.js'] },
+        { id: 'l3', claim: 'regenerate the brief at half length once the context blows', kind: 'recipe', score: 0.3, files: ['src/dispatch/brief.js'] },
       ],
       openCheckpoints: [{ id: 'cp-9f21', kind: 'gate', payload: { verdict: 'improved', delta: 0.12 } }],
       reviews: [{ id: 'cp-9f21', kind: 'gate', risk: 'normal', summary: 'promote r7a2 (score 0.94, Δ0.12)' }],
@@ -191,7 +200,10 @@ const payload = {
       chain: { version: 1, nodes: [{ type: 'agent' }, { type: 'verifier' }, { type: 'human' }] },
       incumbent: { score: 1 },
       quality: { verdict: 'stalled', promotions: 2, rounds: 6, avgRoundMs: 143_000 },
-      lessonsTop: [{ id: 'l4', claim: 'wrap every per-campaign read, not just the loop', kind: 'fact', score: 0.2 }],
+      lessonsAll: [
+        { id: 'l4', claim: 'wrap every per-campaign read, not just the loop', kind: 'fact', score: 0.2, files: ['src/panel/api.js'], createdRound: 2 },
+      ],
+      lessonsTop: [{ id: 'l4', claim: 'wrap every per-campaign read, not just the loop', kind: 'fact', score: 0.2, files: ['src/panel/api.js'] }],
       openCheckpoints: [],
       reviews: [],
       triangle: {
@@ -238,10 +250,16 @@ const payload = {
       chainVersion: 1,
       incumbent: { score: 1 },
       quality: { verdict: 'healthy', promotions: 4, rounds: 11 },
+      lessonsAll: [
+        { id: 'l5', claim: 'holdout tasks must rotate, or exposure becomes the lesson', kind: 'fact', score: 0.4, files: ['src/runtime/exposure.js'], createdRound: 9 },
+        { id: 'l6', claim: 'a verifier that always fails is a gate nobody can reach', kind: 'hazard', score: 0.35, files: ['src/runtime/round.js'], createdRound: 4 },
+        { id: 'l7', claim: 'raise one checkpoint per stuck signature, not one per round', kind: 'recipe', score: 0.1, files: ['src/runtime/ids.js'], createdRound: 3 },
+        { id: 'l8', claim: 'a claim that announces nothing was done is not knowledge', kind: 'hazard', score: 0.05, files: [], createdRound: 2 },
+      ],
       lessonsTop: [
-        { id: 'l5', claim: 'holdout tasks must rotate, or exposure becomes the lesson', kind: 'fact', score: 0.4 },
-        { id: 'l6', claim: 'a verifier that always fails is a gate nobody can reach', kind: 'hazard', score: 0.35 },
-        { id: 'l7', claim: 'raise one checkpoint per stuck signature, not one per round', kind: 'recipe', score: 0.1 },
+        { id: 'l5', claim: 'holdout tasks must rotate, or exposure becomes the lesson', kind: 'fact', score: 0.4, files: ['src/runtime/exposure.js'] },
+        { id: 'l6', claim: 'a verifier that always fails is a gate nobody can reach', kind: 'hazard', score: 0.35, files: ['src/runtime/round.js'] },
+        { id: 'l7', claim: 'raise one checkpoint per stuck signature, not one per round', kind: 'recipe', score: 0.1, files: ['src/runtime/ids.js'] },
       ],
       openCheckpoints: [],
       reviews: [],

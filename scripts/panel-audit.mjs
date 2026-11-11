@@ -142,7 +142,7 @@ const AUDIT = `
       scrolls: scroller.scrollHeight > scroller.clientHeight + 1,
       hScroll: panel.scrollWidth > panel.clientWidth + 1 || scroller.scrollWidth > scroller.clientWidth + 1,
       cardColumns: tracks('.loom-cards'),
-      knowledgeColumns: tracks('.loom-kgrid'),
+      knowledgeColumns: tracks('.loom-kfiles'),
       dividers: cv.querySelectorAll('.loom-head, .loom-metrics, .loom-row, .loom-camp, .loom-foot').length
     });
     // A child that reaches past the panel's right edge is not a scrollbar: the

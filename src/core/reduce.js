@@ -289,6 +289,10 @@ function apply(s, ev) {
         tags: Array.isArray(l.tags) ? l.tags : [],
         kind: l.kind ?? 'fact',
         claim: l.claim ?? '',
+        // A lesson is about files; keep the axis so the tree can group by it
+        // instead of only by the campaign that happened to earn the claim.
+        files: Array.isArray(l.files) ? l.files.filter((f) => typeof f === 'string' && f) : [],
+        subject: typeof l.subject === 'string' && l.subject ? l.subject : null,
         evidence: l.evidence ?? '',
         confidence: Number.isFinite(Number(l.confidence)) ? Number(l.confidence) : 0.5,
         status: l.status ?? 'active',
