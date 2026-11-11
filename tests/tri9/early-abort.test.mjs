@@ -132,13 +132,17 @@ function scenario({ solutions, delaysMs }) {
 // 1. The first candidate one-shots it. The slow sibling must be stopped, not
 //    waited out, and its record must say why it produced nothing.
 {
-  const s = scenario({ solutions: [true, false], delaysMs: [80, 4000] })
+  // The sibling is made deliberately slow (12s) so the claim below is about the
+  // abort and not about how fast this machine spawns git worktrees and a
+  // verifier: the first full-suite run measured 5.7s of fixture overhead under
+  // load, which a 4s sibling cannot outrun.
+  const s = scenario({ solutions: [true, false], delaysMs: [80, 12_000] })
   const startedAt = Date.now()
   const data = await s.finish()
   const elapsed = Date.now() - startedAt
   assert.equal(data?.status, 'promoted', 'the winner promotes the round')
   assert.equal(data?.abortedCandidates, 1, 'the redundant sibling is reported as aborted')
-  assert.ok(elapsed < 3000, `the round ends when the winner does (took ${elapsed}ms), not when the slow sibling would`)
+  assert.ok(elapsed < 6000, `the round ends when the winner does (took ${elapsed}ms), not when the slow sibling would`)
   const abandoned = s.rt.events.filter((e) => e.type === 'attempt.finished' && e.data?.abandoned === true)
   assert.equal(abandoned.length, 1, 'exactly one attempt is recorded as abandoned')
   assert.equal(abandoned[0].data.reason, 'solved-by-sibling', 'and names the reason')

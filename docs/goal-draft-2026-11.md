@@ -1,6 +1,8 @@
-# dsh-loom 下一阶段目标（2026-11-11 修订版 · 待批准）
+# dsh-loom 下一阶段目标（2026-11-11 修订版 · 执行中）
 
-> 状态：**待你批准**。批准后才会 `create_goal`；在你明确说"开始"之前不会建任何战役。
+> 状态：**执行中（2026-11-11 01:10 → 07:45）**。你在 01:14 说「改完就**开始**」，所以已按此执行；
+> 判据状态见表 1.1（A1–A5、A7、A8 已完成，A6 部分，A9 代码完成待重启验证）。
+> 不发版，只提交 master。
 > 修订依据：你 2026-11-11 00:37 的八条指示，以及 00:54 的补充（调研领域由我自己发现和评估、模型分配由我定、可以全用 ds v4.1 flash 不用 haiku、改完即开始）。
 
 ---
@@ -32,15 +34,15 @@
 
 | # | 判据 | 检验方式 | 状态 |
 | --- | --- | --- | --- |
-| A1 | 子 agent 默认与主 agent 同 provider/model/effort | `agentDefaultModel.currentSelection()` 取值；未配置 `models.worker` 时必须跟随；`attempt.finished.model` 记录实际值 | 待做 |
-| A2 | 每次 spawn 都带 `reasoningEffort` | 断言 `agentOptions.reasoningEffort === 'high'`，campaign 可覆盖 | 待做 |
-| A3 | 回落链是数据不是代码 | 默认 `fallback: ['command-code/deepseek/deepseek-v4.1-flash']`；断言链顺序真被传下去 | 部分（链已可配，默认值未定） |
-| A4 | 分档可选但默认关闭 | `models.light` 存在且可配，用于规划/筛选/判题；**默认不设**，即全部走主链的 ds v4.1 flash。只有实测证明某类活降级不掉质量时才启用 | 待做 |
-| A5 | 模型级健康度可见 | `campaignTriangle` 与面板新增 `perModel`：`{ref:{attempts, ok, timeouts, died, p50Ms, p90Ms}}` | 待做 |
-| A6 | 卡顿分钟级发现 | **已部分落地**（`minFalloverMs` + 共享时钟）；剩余：首片零输出的早期探测 | 部分 |
-| A7 | 连续慢的模型被降级 | `models.demoteAfter`（默认 2 次首片静默）→ 本战役内该 ref 排到链尾 | 待做 |
-| A8 | 不回归 | `test-all` 116/116 起、`verify`、`e2e`、`panel-audit` 全绿；CI 绿 | 每次都要 |
-| A9 | 模型策略是**声明过的配置** | `dsh-loom` 导出 `Config` schema；Inspect 的 `status` 从 `absent` 变有 schema；非法值被 schema 拒绝 | 待做 |
+| A1 | 子 agent 默认与主 agent 同 provider/model/effort | `agentDefaultModel.currentSelection()` 取值；未配置 `models.worker` 时必须跟随；`attempt.finished.model` 记录实际值 | **已完成** `3bddb1a`（继承 selection）+ `33d3504`（记录真正跑的那个 ref）；`tests/lifecycle/model-inherit.test.mjs` 6/6、`tests/balance/record-the-model-that-ran.test.mjs` 5/5 |
+| A2 | 每次 spawn 都带 `reasoningEffort` | 断言 `agentOptions.reasoningEffort === 'high'`，campaign 可覆盖 | **已完成** `3bddb1a`（继承 host 的 effort）+ `session.reasoningEffort` 可覆盖 |
+| A3 | 回落链是数据不是代码 | 默认 `fallback: ['command-code/deepseek/deepseek-v4.1-flash']`；断言链顺序真被传下去 | **已完成** `cdc54d3`（默认值落地，并修掉 `null` 头被滤掉导致首个会话直接跑在 fallback 上的 bug）+ `f68eb17` 真机验证（4 个 attempt 真的换了 provider） |
+| A4 | 分档可选但默认关闭 | `models.light` 存在且可配，用于规划/筛选/判题；**默认不设** | **已完成** `d6fcb37`（`modelFor(config, role)`，worker 永不被降档；默认 null） |
+| A5 | 模型级健康度可见 | `campaignTriangle` 与面板新增 `perModel` | **已完成** `35cb5b5`（`modelHealth`）+ `6133132`（digest）+ `79211f7`（侧栏）+ `a0e4943`（兄弟杀不再算 provider 失败） |
+| A6 | 卡顿分钟级发现 | **已部分落地**（`minFalloverMs` + 共享时钟）；剩余：首片零输出的早期探测 | **部分**：`57b1d80` 让 timeout 归入 unusable、整条链共享一个时钟、`minFalloverMs` 保证第二个模型至少拿到 30 秒；首片零输出的早期探测仍未做 |
+| A7 | 连续慢的模型被降级 | `models.demoteAfter`（默认 2 次首片静默）→ 本战役内该 ref 排到链尾 | **已完成** `f01eb4c`（`demoteChain`）+ `03a7214`（planner 也跟链，不再直读配置）+ `0fb38b1` 真机验证（planner 跑在策略点名的 ref 上） |
+| A8 | 不回归 | `test-all`、`verify`、`e2e`、`panel-audit` 全绿；CI 绿 | **已完成**：`test-all` **149/149**、`verify` 115/115、`e2e` all M1–M3、`panel-audit` OK |
+| A9 | 模型策略是**声明过的配置** | `dsh-loom` 导出 `Config` schema；Inspect 的 `status` 从 `absent` 变有 schema | **代码完成、真机未投影**：`014e493` 导出 `Config`（12 个字段，`tests/config/schema.test.mjs` 6/6），直接 import 能拿到 schema，但宿主 loader 在装配时读一次、热重载不重读，Inspect 仍是 `absent` —— 需要重启 DSH 才能验证 |
 
 ### 1.2 模型策略（按你的指示定稿）
 
