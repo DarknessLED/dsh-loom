@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { delimiter, dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
 import {
   createWorktree,
@@ -18,6 +18,7 @@ import { campaignUsage, fallbackSpend, hasTokens, resolvePricing, usageOfSession
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
+import { withNodeOnPath } from '../exec/node-bin.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
@@ -46,8 +47,13 @@ import { demoteChain } from './model-health.js'
  * Append the interpreter's own directory: `node` resolves whenever the task
  * assumes it, and a project that provides its own earlier on PATH keeps it.
  */
+// `dirname(process.execPath)` is not an answer on a host that runs the plugin
+// inside an Electron app: it names the application directory, which holds no
+// `node.exe`, so every task whose verifier says `node` failed for a reason that
+// had nothing to do with the candidate. `withNodeOnPath` finds a directory that
+// really answers the command and keeps the caller's own order behind it.
 const verifierEnv = {
-  PATH: [process.env.PATH, dirname(process.execPath)].filter(Boolean).join(delimiter),
+  PATH: withNodeOnPath(process.env.PATH),
 }
 
 /**

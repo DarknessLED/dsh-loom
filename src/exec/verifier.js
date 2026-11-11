@@ -3,6 +3,7 @@ import { statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import process from 'node:process'
 import { StringDecoder } from 'node:string_decoder'
+import { nodeExecutable } from './node-bin.js'
 
 /** Keep at most 64KB of tail per stream (contract §1). */
 const MAX_STREAM_BYTES = 64 * 1024
@@ -150,7 +151,12 @@ function resolveScriptCommand(command, cwd) {
   try {
     const file = resolve(cwd, trimmed)
     if (!statSync(file).isFile()) return command
-    return `"${process.execPath}" "${file}"`
+    // The interpreter has to be a node that runs scripts. Under Electron
+    // `process.execPath` is the application: handing it a script path opens a
+    // second window and exits 0, which reads as a passing verifier that ran
+    // nothing at all.
+    const interpreter = nodeExecutable()
+    return interpreter ? `"${interpreter}" "${file}"` : command
   } catch {
     return command
   }

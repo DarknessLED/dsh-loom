@@ -43,9 +43,10 @@
 
 ### exec/ — 进程与工作树
 
-- `src/exec/verifier.js` — 跑验收命令：`spawn` + `shell`、每流 64KB 尾部裁剪、超时杀进程树、按正则抽取 `metrics`，失败只进返回值不抛。
+- `src/exec/verifier.js` — 跑验收命令：`spawn` + `shell`、每流 64KB 尾部裁剪、超时杀进程树、按正则抽取 `metrics`，失败只进返回值不抛。；`node-bin.js` 负责找出真正能回答 `node` 的解释器目录（宿主是 Electron 时 `dirname(process.execPath)` 里并没有 node），验证器与裸脚本命令都用它
 - `src/exec/worktree.js` — git worktree 生命周期：创建/移除、HEAD 快照、diff 统计、提交与回滚，全部 `git -C` 且有超时。
 - `src/exec/patch.js` — 把尝试的改动导出为补丁文件，并在晋升或回滚时正向应用或反向撤销。
+- `src/exec/node-bin.js` — 找出真正能回答 `node` 的解释器目录：宿主的 `process.execPath` 可能是 Electron 应用（目录里没有 node.exe），所以按「正在运行的 node → `DSH_NODE_BIN` → PATH → `~/.dsh/dsh-runtimes/*` → 常规安装位置」搜索，并把找到的目录前置进 PATH；找不到就不改 PATH，绝不假造一个。
 
 ### gate/
 

@@ -30,6 +30,8 @@ const standing = [
   // three rounds of loom-ui7 died on a holdout failure that was really a verifier
   // measuring a tree with no dependencies.
   'tests/exec/worktree-deps.test.mjs',
+  // a task that says `node` must reach a node, even under an Electron host
+  'tests/exec/node-is-on-path.test.mjs',
   // and the link it makes must never end up inside a patch: a repo that does not
   // ignore node_modules would otherwise promote its own dependency tree.
   'tests/exec/patch-skips-deps.test.mjs',
