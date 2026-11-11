@@ -12,7 +12,7 @@ import { flushDeferred, notifyCheckpoint } from './notify.js'
 import { Watchdog } from './watchdog.js'
 import { probeLean } from '../lean/probe.js'
 import { sweepLeases } from './lease.js'
-import { planRecovery, repairWorkspace } from './recovery.js'
+import { noWorkLessons, planRecovery, repairWorkspace } from './recovery.js'
 import { readSwitch, writeSwitch } from './switch.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
@@ -427,7 +427,7 @@ export class Runtime {
    * Write both down as abandoned so the campaign does not stall forever.
    */
   recover() {
-    const report = { abandonedAttempts: [], interruptedRounds: [], unlanded: [], workspaces: [] }
+    const report = { abandonedAttempts: [], interruptedRounds: [], unlanded: [], workspaces: [], retiredLessons: [] }
     for (const id of this.listCampaigns()) {
       let view
       try {
@@ -472,6 +472,23 @@ export class Runtime {
           report.unlanded.push(`${id}/r${entry.round}`)
         } catch (err) {
           this.log(`recover: cannot withdraw landing for round ${entry.round}:`, err?.message ?? err)
+        }
+      }
+      // Old claims that only announce "nothing was done" are still active, still
+      // selected, and still injected into a brief. The producer refuses to write
+      // new ones; retiring the existing ones is the other half of the repair, and
+      // it belongs here because it must run once per install, not once per round.
+      for (const lessonId of noWorkLessons(view.state)) {
+        try {
+          this.append(
+            view,
+            'lesson.quarantined',
+            { id: lessonId, reason: 'claim announces that nothing was done' },
+            'system',
+          )
+          report.retiredLessons.push(`${id}/${lessonId}`)
+        } catch (err) {
+          this.log(`recover: cannot retire lesson ${lessonId}:`, err?.message ?? err)
         }
       }
       // The tree may still hold the half-applied patch. Repair runs off the

@@ -463,7 +463,22 @@ window.__ModuleLoader__.load({
     // durable artifact), so the panel is the one place that translates. Every
     // label goes through these maps, which also means an unknown value shows
     // through verbatim instead of disappearing.
-    var STATE_ZH = { running: '运行中', paused: '已暂停', stopped: '已停止', done: '已完成', planning: '规划中', failed: '已失败', error: '出错' }
+    // Every status the host can write. A missing key does not fail loudly -- the
+    // raw English value shows through -- which is how `converged` ended up as the
+    // one English word on an otherwise Chinese card. `src/runtime/runtime.js`
+    // holds the authoritative list; this map is asserted against it.
+    var STATE_ZH = {
+      draft: '草稿',
+      planning: '规划中',
+      running: '运行中',
+      paused: '已暂停',
+      converged: '已收敛',
+      plateaued: '已平台',
+      done: '已完成',
+      stopped: '已停止',
+      failed: '已失败',
+      error: '出错',
+    }
     var QUALITY_ZH = { healthy: '健康', stalled: '停滞', regressing: '退步' }
     var KIND_ZH = { fact: '事实', hazard: '风险', recipe: '做法' }
     var CP_ZH = { gate: '晋升待审', anomaly: '异常', plateau: '平台期', holdout: '留出集', stuck: '门不可达', exhausted: '额度耗尽', budget: '预算', human: '人工确认' }
@@ -2588,6 +2603,8 @@ window.__ModuleLoader__.load({
       flattenTree: flattenTree,
       treeLines: treeLines,
       STATE_ZH: STATE_ZH,
+      QUALITY_ZH: QUALITY_ZH,
+      KIND_ZH: KIND_ZH,
       CP_ZH: CP_ZH,
       NODE_ZH: NODE_ZH,
     }

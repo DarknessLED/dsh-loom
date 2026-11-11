@@ -53,7 +53,7 @@
 
 ### knowledge/ — 经验
 
-- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去。
+- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用。
 - `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
 
 ### lean/ — Lean 门
@@ -97,7 +97,7 @@
 - `src/runtime/plan-budget.js` — 规划预算学习：把「规划器连续几轮撞满上限却什么都没产出」折成下一轮的截止时间，连续一个窗口的超时就减半、任何时候有一次规划在期限内完成就恢复到上限，从不因没有证据就惩罚新战役，也绝不返回非有限值或越界的数。
 - `src/runtime/quality.js` — 战役证据健康度：把回合账本折成通过率、增益、停滞等少数指标，供报告与面板给出同一结论。
 - `src/runtime/review.js` — 待决队列排序：按风险（holdout/anomaly 高、gate/policy 中、其余低）再按提出时间与 id 排列，为每条决策生成单行摘要与动词短语建议，供 `rsi_status` 渲染。
-- `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动。
+- `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动；另外在启动时把「没有改动」这类旧 claim 退役（`noWorkLessons`），因为它们仍在被选进简报。
 - `src/runtime/recon-reuse.js` — 规划复用：以基提交 sha、链版本、任务与节点提示拼出 key，缓存上一轮的侦察计划；树没动就直接复用（`reused:true`、耗时记 0）并照常把计划交给 worker，HEAD 一变即重新规划；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
 - `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点。
 - `src/runtime/runtime.js` — `Runtime`：campaign 生命周期与 tick 派发，含所有权心跳、watchdog 看护、租约对账和状态缓存。

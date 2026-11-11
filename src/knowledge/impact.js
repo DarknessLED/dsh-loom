@@ -119,6 +119,38 @@ export function shouldQuarantine(lesson, { minHarm = 2 } = {}) {
 }
 
 /** Trim a claim into one declarative sentence, no newlines, bounded length. */
+/**
+ * Is this "claim" just an announcement that nothing was done?
+ *
+ * The knowledge tree only earns its keep if a claim states a mechanism the next
+ * worker can use. "No edit was needed: the base commit already contains it" is a
+ * fact about that one attempt, not about the code -- and once it is in the tree
+ * it is selected for the next brief, which spends the reader's attention telling
+ * it that there was nothing to do last time.
+ *
+ * Ten such claims reached the tree before the producer started refusing them
+ * (the `checks.noop` guard), and they stay active until something retires them.
+ * This predicate is the single place both the producer and the reader ask, so a
+ * new phrasing gets handled once instead of in every consumer.
+ *
+ * It is deliberately narrow: it matches a *leading* announcement, not any
+ * sentence containing "no". "No longer re-planning when the base is unchanged;
+ * the plan is reused instead" is a real mechanism and must survive.
+ */
+const NO_WORK_PATTERNS = [
+  /^nothing to do\b/i,
+  /^no (?:edit|change|code|source|file|modification|work)(?:\s+\w+)?\s+(?:was|is|were)\s+(?:needed|required|necessary)\b/i,
+  /^no (?:edit|change|code|source|file|modification|work)(?:\s+\w+)?\s+(?:was|is|were)\s+made\b/i,
+  /^there (?:was|is) nothing (?:to do|to change|needed)\b/i,
+  /^the (?:tree|workspace|repo|repository|worktree|branch|head|base) already\b/i,
+]
+
+export function isNoWorkClaim(text) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim()
+  if (!s) return false
+  return NO_WORK_PATTERNS.some((re) => re.test(s))
+}
+
 export function normalizeClaim(text, max = 240) {
   const s = String(text ?? '')
     .replace(/\s+/g, ' ')
@@ -137,6 +169,11 @@ export function normalizeClaim(text, max = 240) {
 export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
   const claim = normalizeClaim(attempt?.report?.why)
   if (!claim) return null
+  // A verified attempt that reports it changed nothing has no mechanism to
+  // teach. This is the producer-side guard; `checks.noop` catches the attempts
+  // that produced no patch at all, and this catches the ones that reported
+  // "nothing was needed" while still touching a file.
+  if (isNoWorkClaim(claim)) return null
   const family = task?.family ?? task?.id ?? '*'
   const id = `lsn-${hashId(`${family}\u0000${claim}`)}`
   return {

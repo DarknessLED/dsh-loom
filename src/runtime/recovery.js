@@ -14,6 +14,7 @@ import { readFileSync, rmSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import { reconcileLeases, sweepLeases } from './lease.js'
 import { hasChanges, isGitRepo, restoreTrackedFiles } from '../exec/worktree.js'
+import { isNoWorkClaim } from '../knowledge/impact.js'
 
 /**
  * Paths a patch creates from scratch. These are the only untracked files recovery
@@ -38,6 +39,20 @@ export function patchCreatedPaths(text = '') {
  * neither a no-op nor backed by a commit, and that has not already been
  * withdrawn by an earlier recovery.
  */
+/**
+ * Lessons that only announce "nothing was done" and are still active.
+ *
+ * The producer refuses these now (`deriveLesson` asks `isNoWorkClaim`), but every
+ * install that ran before that guard keeps carrying them, and an active lesson is
+ * injected into a brief. Retiring them on boot is the repair: it is recorded as
+ * an event like any other evidence, it happens once (a retired lesson is no
+ * longer `active`), and it does not require the operator to edit a JSON file.
+ */
+export function noWorkLessons(state) {
+  const lessons = Array.isArray(state?.lessons) ? state.lessons : []
+  return lessons.filter((l) => l && l.status === 'active' && isNoWorkClaim(l.claim)).map((l) => l.id)
+}
+
 export function unprovenLandings(events = []) {
   const withdrawn = new Set()
   for (const ev of events) {

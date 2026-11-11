@@ -175,6 +175,18 @@ function applyInner(ctx, config) {
   log(`ready at ${home} (pid ${process.pid}, instance ${claim.record.instance})`)
 }
 
+// The loader normalizes module shapes with `exports = exports.default ?? exports`
+// before it reads `plugin.Config` / `plugin.inject` (cordis-plugin-loader
+// `unwrapExports`). A bare `export default apply` therefore hands the host the
+// *function*, and a function carries no `.Config` -- which is exactly why the
+// plugin row read `status: "absent"` for a week while `Config` sat right there
+// in the module namespace. Attaching the metadata to the default export keeps
+// both module shapes usable: `import loom from` and `import * as loom`.
+apply.Config = Config
+apply.inject = inject
+// `name` is a read-only own property on a function, so it cannot be assigned;
+// the namespace export already carries it for `import * as`, and the loader only
+// needs `Config` and `inject` off the unwrapped value.
 export default apply
 
 // touch: 2026-11-06T17:08:36Z

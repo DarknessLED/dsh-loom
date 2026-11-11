@@ -16,6 +16,8 @@
 // The final score is forced finite (non-finite terms become 0, the result is
 // clamped to +/-1e9) and rounded to 6 decimals so ranking is reproducible.
 
+import { isNoWorkClaim } from './impact.js'
+
 const DEFAULT_TTL = 12
 const DEFAULT_LIMIT = 3
 const DEFAULT_MAX = 200
@@ -157,6 +159,9 @@ export function selectLessons(lessons, options) {
     if (excludedFamilies.has(lesson.family)) continue
     if (phase === 'repair' && lesson.kind === 'recipe') continue
     if (matchReason(lesson, task) === null) continue
+    // A claim that announces "nothing was needed" teaches the next worker
+    // nothing, and it occupies one of the few slots a brief has.
+    if (isNoWorkClaim(lesson.claim)) continue
     selected.push(copyLesson(lesson, round))
   }
 
@@ -189,7 +194,11 @@ export function pruneLessons(lessons, options) {
     const useCount = Math.max(0, finiteNumber(lesson.useCount, 0))
     const gainSum = finiteNumber(lesson.gainSum, 0)
     const neverUseful = useCount >= 5 && gainSum <= 0
-    if (isExpired(lesson, { round }) || neverUseful) {
+    // Retire claims that announce nothing was done. They were written by an
+    // older producer; leaving them active means every brief keeps spending a
+    // slot to say so.
+    const noWork = isNoWorkClaim(lesson.claim)
+    if (isExpired(lesson, { round }) || neverUseful || noWork) {
       retired.push(id)
       continue
     }
