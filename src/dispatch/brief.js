@@ -336,8 +336,15 @@ export function validateReport(value) {
   if (has('why')) {
     checkString(errors, 'why', value.why, 1200)
   }
+  // A claim one sentence too long is not a broken report. The schema still
+  // states the cap -- that is what the worker is asked for -- but the parser
+  // trims the sentence instead of rejecting the evidence that came with it.
+  // `claim` is displayed at 140 characters anyway, so nothing downstream sees
+  // the difference between 240 characters and 200.
+  const report = { ...value }
   if (has('lesson')) {
-    checkString(errors, 'lesson', value.lesson, 200)
+    if (typeof value.lesson !== 'string') errors.push('lesson must be a string')
+    else report.lesson = clampSentence(value.lesson, 200)
   }
   if (has('evidence')) {
     checkArray(errors, 'evidence', value.evidence, 5)
@@ -357,7 +364,7 @@ export function validateReport(value) {
     checkString(errors, 'nextHint', value.nextHint, 400)
   }
 
-  return errors.length ? { ok: false, errors } : { ok: true, report: value }
+  return errors.length ? { ok: false, errors } : { ok: true, report }
 }
 
 function checkArray(errors, name, value, maxItems) {
@@ -377,6 +384,27 @@ function checkString(errors, name, value, maxLength) {
     return
   }
   if (value.length > maxLength) errors.push(`${name} must be at most ${maxLength} characters`)
+}
+
+/**
+ * Cut a sentence down to `max` characters at a word boundary.
+ *
+ * Used only for a field whose *length* is a near miss rather than a lie: a
+ * worker told "one sentence, max 200" who writes 240 characters has answered
+ * the question, and the answer is still the claim the tree needs. Refusing the
+ * whole report over it discards `changed`, `why` and `evidence` with it -- which
+ * is how the first live round of loom-claim-live2 lost a passing candidate's
+ * report to "lesson must be at most 200 characters".
+ * @param {string} text
+ * @param {number} max
+ * @returns {string}
+ */
+function clampSentence(text, max) {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max)
+  const space = cut.lastIndexOf(' ')
+  const kept = space > max * 0.6 ? cut.slice(0, space) : cut
+  return kept.trimEnd()
 }
 
 const FENCED_JSON = /```[ \t]*json(?![\w-])[ \t]*\r?\n?([\s\S]*?)```/gi

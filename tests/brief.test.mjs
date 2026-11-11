@@ -375,7 +375,9 @@ function fence(text) {
 {
   const good = validateReport(VALID_REPORT)
   eq(good.ok, true, 'validateReport accepts a valid report')
-  eq(good.report, VALID_REPORT, 'validateReport returns the same object with no coercion')
+  // Identity is no longer the contract: the parser may trim a claim that ran
+  // long. What it must not do is change a value that was already acceptable.
+  deepEq(good.report, VALID_REPORT, 'validateReport coerces nothing it accepts')
 
   const multiple = validateReport({
     changed: 'not-an-array',

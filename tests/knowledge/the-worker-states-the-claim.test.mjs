@@ -96,9 +96,17 @@ function attempt(report) {
   // asserting about a field the accepted path never sets.
   assert.equal(checked.ok, true, 'a report missing only the claim is still accepted: it carries evidence')
   assert.equal(checked.errors, undefined, 'nothing is reported missing when nothing is missing')
-  const broken = validateReport({ ...full, lesson: 'x'.repeat(201) })
-  assert.equal(broken.ok, false, 'a claim longer than the cap is still checked')
-  assert.ok(broken.errors.some((e) => e.includes('lesson')), 'and the error names the claim')
+  // A claim that runs long is trimmed, not refused. The live round that
+  // produced this rule is loom-claim-live2 r1a1: a passing candidate whose whole
+  // report was thrown away over "lesson must be at most 200 characters", taking
+  // `changed`, `why` and `evidence` with it. The cap is what we ask for; it is
+  // not worth the evidence.
+  const long = 'a verifier that always fails is a gate nobody can reach '.repeat(4)
+  const trimmed = validateReport({ ...full, lesson: long })
+  assert.equal(trimmed.ok, true, 'a claim longer than the cap does not lose the report')
+  assert.ok(trimmed.report.lesson.length <= 200, 'the claim itself is cut to the cap')
+  assert.ok(!trimmed.report.lesson.endsWith(' '), 'and cut at a word, not mid-space')
+  assert.ok(long.startsWith(trimmed.report.lesson), 'what is kept is the opening of what was written')
 
   const withoutWhy = { ...full }
   delete withoutWhy.why
