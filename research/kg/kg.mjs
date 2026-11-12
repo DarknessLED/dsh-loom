@@ -450,13 +450,53 @@ function cmdMerge(args) {
 // one record per block, pipe-separated, so a human can read it in a diff and an
 // agent can write it by hand without getting the braces wrong:
 //
-//   #claim orch-001 | Scheduling beats brute force | conf 0.8 | tags scheduling cost
+//   #claim orch-001 | Scheduling beats brute force | conf 0.8 | tags scheduling cost | topic orch
 //   body goes here, as many lines as you like
-//   @s https://example.com/a
 //
-// Blank line ends the record. Edges are their own records:
+// Blank line ends the record, so a blank line *inside* a body is written as a
+// line holding a single backslash and decoded on the way back in. Edges are
+// their own records:
 //
 //   > orch-001 applies-to tri-004
+//
+// Two things this format must not lose, both learned the hard way. The topic is
+// a field of its own, because a body is free text and may say anything. And a
+// field may itself contain a pipe -- a title like `mean |GAE| of ...` or a source
+// quoting `a || b` splits in the middle without escaping -- so a literal pipe is
+// written as `\|` and only unescaped separators split. A blank line inside a
+// body is written as a line holding a single backslash. Dropping any of the three
+// turns a round-trip into silent data loss: the first exercise of this code lost
+// 45 topics, truncated 6 bodies, and mangled 5 titles/sources.
+const BLANK_LINE_MARK = '\\'
+
+const escapeField = (text) => String(text ?? '').replace(/\|/g, '\\|')
+const unescapeField = (text) => String(text ?? '').replace(/\\\|/g, '|')
+
+// Split a header on unescaped pipes only.
+function splitFields(header) {
+  const fields = []
+  let current = ''
+  for (let i = 0; i < header.length; i += 1) {
+    const ch = header[i]
+    if (ch === '\\' && header[i + 1] === '|') { current += '\\|'; i += 1; continue }
+    if (ch === '|') { fields.push(current); current = ''; continue }
+    current += ch
+  }
+  fields.push(current)
+  return fields.map((f) => f.trim())
+}
+
+function encodeBody(body) {
+  return String(body || '')
+    .split('\n')
+    .map((line) => (line.trim() === '' ? BLANK_LINE_MARK : line))
+    .join('\n')
+}
+
+function decodeBody(lines) {
+  return lines.map((line) => (line === BLANK_LINE_MARK ? '' : line)).join('\n').trim()
+}
+
 function cmdPack(args) {
   const db = open()
   const topic = args.values.topic
@@ -466,16 +506,18 @@ function cmdPack(args) {
   const parts = []
   for (const n of nodes) {
     const tags = tagsOf(db, n.id)
-    const head = `#${n.kind} ${n.id} | ${n.title}` +
+    const head = `#${n.kind} ${n.id} | ${escapeField(n.title)}` +
       (n.confidence !== null ? ` | conf ${n.confidence}` : '') +
       (tags.length ? ` | tags ${tags.join(' ')}` : '') +
-      (n.source ? ` | src ${n.source}` : '')
-    parts.push([head, n.body || ''].filter(Boolean).join('\n'))
+      (n.topic ? ` | topic ${escapeField(n.topic)}` : '') +
+      (n.source ? ` | src ${escapeField(n.source)}` : '')
+    const body = encodeBody(n.body)
+    parts.push([head, body].filter(Boolean).join('\n'))
   }
   const edges = db.prepare(`SELECT e.* FROM edge e JOIN node a ON a.id=e.from_id
       JOIN node b ON b.id=e.to_id ${topic ? 'WHERE a.topic = ?' : ''} ORDER BY e.from_id, e.rel`)
     .all(...(topic ? [topic] : []))
-  for (const e of edges) parts.push(`> ${e.from_id} ${e.rel} ${e.to_id}${e.note ? ` | ${e.note}` : ''}`)
+  for (const e of edges) parts.push(`> ${e.from_id} ${e.rel} ${e.to_id}${e.note ? ` | ${escapeField(e.note)}` : ''}`)
   out(parts.join('\n\n'))
 }
 
@@ -488,13 +530,16 @@ function cmdUnpack(args) {
   let edges = 0
   const blocks = text.split(/\n\s*\n/)
   for (const block of blocks) {
-    const lines = block.split(/\r?\n/).filter((l, i) => i === 0 || l.trim() !== '')
+    // Keep every line: a blank line inside a body is already encoded as the
+    // marker, so anything still blank here was whitespace around a record.
+    const lines = block.split(/\r?\n/)
     if (!lines.length) continue
     const head = lines[0].trim()
+    if (!head) continue
     if (head.startsWith('>')) {
       const m = head.match(/^>\s*(\S+)\s+(\S+)\s+(\S+)(?:\s*\|\s*(.*))?$/)
       if (!m) { process.stderr.write(`  bad edge line: ${head}\n`); continue }
-      try { upsertEdge(db, { from: m[1], rel: m[2], to: m[3], note: m[4] }); edges += 1 }
+      try { upsertEdge(db, { from: m[1], rel: m[2], to: m[3], note: unescapeField(m[4]) }); edges += 1 }
       catch (err) { process.stderr.write(`  ${err.message}\n`) }
       continue
     }
@@ -502,26 +547,29 @@ function cmdUnpack(args) {
     if (!h) { process.stderr.write(`  bad node line: ${head}\n`); continue }
     const kind = h[1].toLowerCase()
     const id = h[2].toLowerCase()
-    // Fields are pipe-separated, but a title may itself contain a pipe. Only
-    // "conf N", "tags ..." and "src ..." are recognised as fields; anything
-    // else is put back into the title, in order.
+    // Fields are pipe-separated on unescaped pipes only; a literal pipe inside a
+    // title or a source arrives as `\|`. "conf N", "tags ...", "topic ..." and
+    // "src ..." are recognised as fields, anything else is title text in order.
     const titleParts = []
     let confidence = null
     let tags = []
     let source = null
-    for (const raw of h[3].split('|').map((x) => x.trim())) {
+    let nodeTopic = null
+    for (const raw of splitFields(h[3])) {
       const c = raw.match(/^conf\s+([\d.]+)$/i)
       const t = raw.match(/^tags\s+(.+)$/i)
+      const tp = raw.match(/^topic\s+(\S.*)$/i)
       const sr = raw.match(/^src\s+(\S.*)$/i)
       if (c) confidence = Number(c[1])
-      else if (t) tags = t[1].split(/[\s,]+/).filter(Boolean)
-      else if (sr) source = sr[1].trim()
+      else if (t) tags = t[1].split(/[\s,]+/).map(unescapeField).filter(Boolean)
+      else if (tp) nodeTopic = unescapeField(tp[1].trim())
+      else if (sr) source = unescapeField(sr[1].trim())
       else titleParts.push(raw)
     }
-    const title = titleParts.join(' | ')
-    const bodyLines = lines.slice(1)
+    const title = unescapeField(titleParts.join(' | '))
+    const body = decodeBody(lines.slice(1))
     try {
-      upsertNode(db, coerceNode({ id, kind, title, body: bodyLines.join('\n').trim(), source, confidence, tags, topic }, { topic }))
+      upsertNode(db, coerceNode({ id, kind, title, body, source, confidence, tags, topic: nodeTopic ?? topic }, { topic: nodeTopic ?? topic }))
       nodes += 1
     } catch (err) { process.stderr.write(`  ${err.message}\n`) }
   }

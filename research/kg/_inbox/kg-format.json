@@ -1,0 +1,51 @@
+{
+ "nodes": [
+  {
+   "id": "exp-portability-001",
+   "kind": "failure",
+   "topic": "kg",
+   "confidence": 0.98,
+   "title": "The pack format lost data three ways at once, and every loss was silent",
+   "body": "Exercised `kg pack`/`kg unpack` against the real 1409-node graph and found the exchange format was not lossless, in three independent ways, none of which raised or warned. (1) topic was never written as a field, so `kg unpack` fell back to the `--topic` argument (null by default) and 45 nodes came back topicless: 41 from the verifier topic plus ana-003, ana-013 and three exp-* nodes. Since `kg pack --topic X` selects by topic, those nodes then became invisible to topic-scoped export while remaining visible to `search` - a split-brain the user only notices when a pack is short. (2) A blank line ends a record, but bodies are prose with paragraph breaks: 6 nodes were truncated at their first blank line, losing up to 900 characters (ana-003 378 of 1348, exp-coverage-002 456 of 1366, exp-mut-001 483 of 1237, exp-guard-001 450 of 1195, exp-guard-002 571 of 1245). (3) The header is pipe-separated and nothing escaped pipes, so a title containing `mean |GAE|` or a source quoting `a || b` split into fields: 5 rows were mangled and n-long-exit0-passes lost the tail of its source at the first `||`. Fix: topic as an escaped field, a backslash sentinel for blank lines inside a body, and `\\|` escaping with a split on unescaped pipes only. After the fix a full pack -> unpack into an empty database reproduces all 1409 nodes and 1430 edges with zero differing field hashes, and pack -> unpack -> pack is byte-identical.",
+   "source": "research/kg/kg.mjs; tests/kg-roundtrip.test.mjs (41 assertions); damage: 45 topics, 6 bodies, 5 fields",
+   "tags": [
+    "data-loss",
+    "format",
+    "round-trip",
+    "portability"
+   ]
+  },
+  {
+   "id": "ana-015",
+   "kind": "analysis",
+   "topic": "kg",
+   "confidence": 0.93,
+   "title": "A format nobody exercises is a format that silently loses data, and the graph's only exit is that format",
+   "body": "The three defects in exp-portability-001 have one cause: `pack` was written, used once to inspect a few nodes, and never round-tripped. Reading is not a test of a format - only writing it back and comparing is. The cost was not the loss itself (the payloads under research/kg/_inbox/ let me restore every damaged row) but that the loss was invisible: nothing printed a warning, `unpack` reported `nodes +45` and looked healthy, and the graph kept answering queries correctly from the surviving fields. A stranger receiving graph.pack would have gotten a graph with 45 untyped nodes and 6 truncated bodies and no way to know. The general rule for this codebase: any representation that crosses a process or machine boundary needs a round-trip assertion in the test chain, not a spot check - the same rule the differential oracle (ana-012) applies to patches, applied to data. The test now lives at tests/kg-roundtrip.test.mjs (41 assertions: per-field byte equality on a fixture that carries exactly the three shapes that failed, plus pack->unpack->pack idempotence) and runs in scripts/test-all.mjs.",
+   "source": "exp-portability-001; tests/kg-roundtrip.test.mjs",
+   "tags": [
+    "format",
+    "testing",
+    "lesson",
+    "data-integrity"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-portability-001",
+   "rel": "supports",
+   "to": "ana-015"
+  },
+  {
+   "from": "ana-015",
+   "rel": "refines",
+   "to": "ana-012"
+  },
+  {
+   "from": "ana-015",
+   "rel": "requires",
+   "to": "exp-portability-001"
+  }
+ ]
+}
