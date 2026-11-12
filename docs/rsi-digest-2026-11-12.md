@@ -30,6 +30,16 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 ≥ minGain；基线没测出保持放行。回放 4 次被 `baseFailed=false` 拒掉的晋升：`loom-graded` 三轮全部恢复，
 `loom-ui8` round 3 仍然正确拒绝（无指标）—— 见 `exp-diff-004`。测试 `tests/self6/graded-earned.test.mjs` 8/8。
 
+**端到端证据（2026-11-13 补）**：修完后新建 `loom-graded2` 在同一个 workspace 重跑，6 轮**全部晋升**，
+第 1 轮的闸门回执是 `earnedReason:"metric-improved"`、`earnedMetric:{"name":"quality","from":0.5,"to":1}`；
+批准 `cp-mwdqn0bx000001` 后补丁落成提交 `122283a`，`node check.mjs` 从 `QUALITY=0.500` 变成 `1.000`。
+整个战役花费 $0.01。这是账本里**唯一**一次非二值任务的成功晋升 —— 之前 114 次全发生在验证器会改退出码的任务上，
+而那正是旧闸门唯一读得到的信号（`exp-diff-006` / `ana-018`）。
+
+**它顺便几乎带来一个回归**：第一次修缓存时 key 仍是 `(task, base, command)` 而 v1 条目没有 metrics，
+于是任何跑过该战役的机器（也就是全部）都会暖缓存拿到无指标判决、把盲区原样复活。改为 `CACHE_VERSION = 2`
+折进 key，代价是每任务一次重测（`f1b377c`，`exp-diff-007`）。规矩：**当缓存值的形状开始承载正确性，key 必须在同一个提交里变**。
+
 ---
 
 ## 1b. 必修：把验证器变成差分预言机（原始建议，保留作背景）
