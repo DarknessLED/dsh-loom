@@ -1,0 +1,63 @@
+{
+ "nodes": [
+  {
+   "id": "exp-stop-002",
+   "kind": "number",
+   "topic": "stopping",
+   "confidence": 0.95,
+   "title": "Stop-at-first-promotion saves 41% of the ledger's rounds, not 69%: the difference is the twelve campaigns that never promoted",
+   "body": "Two of my own measurements gave 133 rounds and 71 rounds for the same counterfactual, so I recounted from the raw events (research/exp/, 70 campaign event logs). Total rounds 230-231. Stop at the first promotion, keeping a futility arm so campaigns that never promote still run their budget: 133-136 rounds, a 41% saving. Stop at the first promotion assuming a campaign that will never promote is known in advance: 70-71 rounds, a 69% saving. The gap is exactly the 12 campaigns that never promoted, which spent 66 rounds between them (mean 5.5 each) - loom-acc1/acc3/acc6, loom-bal4, loom-claim-live, loom-demo-plan and six others. So both numbers are arithmetically right and they answer different questions, and neither node said which question it answered. The distribution of first promotions is 51 campaigns at round 1, 3 at round 2, 1 each at 3, 5 and 12; the 5 promotions with no round field and the single 1-versus-12 disagreement between artifact.promoted and gate.evaluated (loom-self2) are bookkeeping defects, not modelling ones. Method note: the honest figure to quote is the one with the futility arm, 41%, because no oracle in this ledger predicts 'this campaign will never promote' before spending on it (exp-slot-006: 9 campaigns at 0% pass are indistinguishable from the winner at round 1).",
+   "source": "recount of 70 campaign event logs (artifact.promoted vs gate.evaluated); corrects a-stop-at-first-promotion and exp-stop-001",
+   "tags": [
+    "stopping",
+    "counterfactual",
+    "denominator",
+    "measurement"
+   ]
+  },
+  {
+   "id": "ana-016",
+   "kind": "analysis",
+   "topic": "ledger-method",
+   "confidence": 0.94,
+   "title": "Two of my own numbers disagreed because neither named its denominator, which is the same defect as the tailMs and the baseFailed",
+   "body": "a-stop-at-first-promotion said stopping at the first promotion costs 133 rounds (58%) and exp-stop-001 said 71 rounds (69.3% saved). Both came from the ledger; neither was wrong; they differed by the 12 campaigns that never promoted, 66 rounds. This is the third instance tonight of one shape: a quantity computed over a population it does not name. exp-cand-001's tailMs was structurally zero because n=2 makes the slowest observation its own median; exp-gate-002's baseFailed was absent on 192 of 208 evaluations and read as 'not false' by round.js:1977; here the population silently excluded every campaign whose cost the rule cannot avoid. The check that catches all three is cheap and mechanical: for any counterfactual, print the complement - rounds the rule still spends - and assert it is non-zero. If it is zero, the rule was evaluated on the campaigns it helps. That invariant belongs in the report function, not in the analyst's head, because the analyst is the one who wrote the rule.",
+   "source": "exp-stop-002; exp-cand-001; exp-gate-002",
+   "tags": [
+    "measurement",
+    "denominator",
+    "counterfactual",
+    "method"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-stop-002",
+   "rel": "refines",
+   "to": "a-stop-at-first-promotion",
+   "note": "same counterfactual with the futility arm kept; 133 is the futility-arm figure"
+  },
+  {
+   "from": "exp-stop-002",
+   "rel": "refines",
+   "to": "exp-stop-001",
+   "note": "same counterfactual on promoting campaigns only; 71 excludes 66 rounds of never-promoting campaigns"
+  },
+  {
+   "from": "exp-stop-002",
+   "rel": "supports",
+   "to": "ana-016"
+  },
+  {
+   "from": "ana-016",
+   "rel": "refines",
+   "to": "exp-cand-002"
+  },
+  {
+   "from": "ana-016",
+   "rel": "requires",
+   "to": "ana-011"
+  }
+ ]
+}
