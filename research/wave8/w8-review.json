@@ -1,0 +1,269 @@
+{
+  "nodes": [
+    {
+      "id": "w8-review-num-queue-shape",
+      "kind": "number",
+      "title": "The promotion queue is 114 decisions averaging 58.6 changed lines each, not one big diff",
+      "body": "exp-human-007 records 6,684 changed lines across 114 patches, so the mean patch is 58.6 lines. That sits far below every published review-size threshold: SmartBear/Cisco advise reviewing under 200 LOC and hard-capping at 400, and Google's logs show a median change of only 24 lines with 10 percent of changes being a single line. On size alone, the loom queue is easier than ordinary industrial review. The consequence is falsifiable: if diff size were the binding constraint, splitting or shrinking patches would raise the promotion rate; since the mean patch is already inside the 200-400 LOC band where the Cisco data claim 70-90 percent defect discovery, size cannot explain a queue that takes up to 2.8 days per item. The binding constraint must be decision latency or reviewer attention per item, which the ledger does not record as human minutes.",
+      "source": "ledger:exp-human-007; https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/; https://doi.org/10.1145/3183519.3183525",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["diff-size", "queue", "ledger", "inspection-rate"]
+    },
+    {
+      "id": "w8-review-num-inspection-rate",
+      "kind": "number",
+      "title": "Published inspection rates put the whole queue at 13 to 33 human hours of reading",
+      "body": "Defect density falls once inspection exceeds roughly 500 LOC per hour, and Kemerer and Paulk (TSE 35(4):534-550, 2009) found review rate a significant predictor of defect-removal effectiveness on 371 and 246 PSP programs even after controlling for developer ability. Applying the band to the loom queue: 6,684 lines at 200 LOC/hour is 33.4 hours, at 300 it is 22.3 hours, at 500 it is 13.4 hours. The queue's measured wall-clock exposure is 114 items at a 12-minute median dwell, which is 22.8 hours. The two numbers coincidentally agree, but they measure different things: dwell time is time the checkpoint sat waiting, not time a human spent reading. That coincidence is exactly the trap, because it makes an unmeasured human-minutes figure look validated. Prediction: instrumenting real reviewer minutes will show they are well under 22.8 hours total, because dwell is dominated by queue gaps.",
+      "source": "https://doi.org/10.1109/tse.2009.27; https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/; ledger:exp-human-007",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["inspection-rate", "human-minutes", "dwell-time", "measurement-gap"]
+    },
+    {
+      "id": "w8-review-fail-dwell-is-not-minutes",
+      "kind": "failure",
+      "title": "The ledger records checkpoint dwell time, so the cost of review cannot be closed",
+      "body": "The economics claim in this topic cannot currently be computed. The only timing field is how long a checkpoint sat (median 12 minutes, maximum 2.8 days); there is no field for how long a human actually looked, how many keystrokes or scrolls occurred, or whether the reviewer opened the diff at all. Compare w5-tokenbudget, which puts compute at about 7 cents per landed promotion: a defensible comparison needs reviewer minutes, and at a 60 dollar hourly loaded cost even a 3-minute review is 2.57 dollars, roughly 37 times the compute. Without the denominator the ratio is unbounded between about 3x and 170x. This is a measurement failure, not an analysis gap: a single extra field written at checkpoint resolution would close it, and the fix is cheaper than any interface work in this graph.",
+      "source": "ledger:w5-tokenbudget; ledger:exp-human-007",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["instrumentation", "cost-model", "dwell-time", "failure"]
+    },
+    {
+      "id": "w8-review-claim-habituation",
+      "kind": "claim",
+      "title": "Approval rate rises with reviewer experience on agent PRs while comment effort falls",
+      "body": "Yu et al. (arXiv:2606.22721, KDD 2026 SE 3.0 workshop) tracked 400 repeat reviewers over 11,429 reviews of agent-authored pull requests in the AIDev dataset and found approval rising from 30.1 to 36.8 percent (Wilcoxon signed-rank p<1e-6 on paired shifts), with a +14.5 percentage point gap from first to tenth within-reviewer experience decile. Review latency rose 3.5x while inline comment volume fell 22 percent (p=0.0014). The shift is agent-specific, since human-PR approval rates declined over the same window, and it is not explained by PR difficulty, since median PR size stayed flat. The mechanism the authors propose is reflexive habituation under workload rather than rational trust calibration, which is a falsifiable distinction: rational calibration would predict approval rising only where later PRs were actually cleaner, so conditioning approval on downstream revert or incident rates should absorb most of the effect.",
+      "source": "https://arxiv.org/abs/2606.22721",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["rubber-stamping", "trust-calibration", "longitudinal", "agent-prs"]
+    },
+    {
+      "id": "w8-review-claim-automation-bias",
+      "kind": "claim",
+      "title": "Aided monitors make omission and commission errors that unaided monitors do not",
+      "body": "Mosier and Skitka (International Journal of Aviation Psychology 8(1):47-63, 1998) define automation bias as using an automated cue as a heuristic replacement for vigilant information seeking, and separate two error classes: omission, failing to act because the aid did not flag a problem, and commission, following the aid despite contradicting valid evidence. In cockpit simulation with an aid described as very but not perfectly reliable, aided participants committed both error types and unaided participants outperformed them on monitoring. The transfer to agent review is direct and falsifiable: a reviewer handed a green verifier and a confident agent summary is the aided condition, and the prediction is that they will miss a planted defect the verifier does not cover more often than a reviewer reading the diff cold. The 89-of-94 clean-base pass rate (exp-ver-003) means the aid is green almost always, which is the reliability profile that maximizes omission errors. Confidence is medium because the primary PDF timed out repeatedly and the details above come from indexed excerpts of it.",
+      "source": "https://lskitka.people.uic.edu/AutomationBias1998.pdf; ledger:exp-ver-003",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["automation-bias", "omission", "commission", "verifier-signal"]
+    },
+    {
+      "id": "w8-review-claim-cognitive-forcing",
+      "kind": "claim",
+      "title": "Forcing analytical engagement cuts overreliance, and reviewers hate it",
+      "body": "Bucinca, Malaya and Gajos (arXiv:2102.09692, CSCW 2021) ran an N=199 experiment comparing three cognitive forcing designs against two explainable-AI designs and a no-AI baseline. Cognitive forcing significantly reduced overreliance on wrong AI suggestions, while adding explanations did not reduce overreliance and some prior work suggests it can increase it. The trade-off is the load-bearing part for interface design: participants gave the least favorable subjective ratings to exactly the designs that reduced overreliance the most, and the benefit concentrated in participants high in Need for Cognition, so the intervention widened the gap between motivated and unmotivated reviewers. For a checkpoint UI this predicts a specific, testable conflict: any friction that restores attention (mandatory diff scroll, a typed justification, a per-hunk acknowledgement) will lower reported satisfaction and raise review time while lowering false approvals, so satisfaction and defect escape rate must be measured separately or the friction will be removed for the wrong reason.",
+      "source": "https://arxiv.org/abs/2102.09692",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["cognitive-forcing", "overreliance", "interface", "rct"]
+    },
+    {
+      "id": "w8-review-claim-checklist-limits",
+      "kind": "claim",
+      "title": "Review checklists show no strong performance effect, and higher cognitive load predicted better scores",
+      "body": "Goncalves et al. (Empirical Software Engineering 27, article 99, 2022; registered report from MSR 2020) had 67 valid professional developers from an outsourcing firm review three tasks under ad hoc, checklist and guided-checklist treatments. They report they did not identify a strong relationship between the guidance provided and code review performance. A guided checklist helped on the small change while a plain checklist helped on the complex large change, the checklists lowered measured cognitive load, and yet higher cognitive load correlated with better performance, inverting the usual ergonomic story. The guided checklist also took significantly longer and scored lower usability (SUS 57.35 for checklist against 58.5 for guided). Two caveats bound the transfer: 71.6 percent of participants were novice reviewers, and the authors state their participants' low effectiveness limited the strength of results. For loom, the actionable reading is that a checklist is not a cheap attention fix.",
+      "source": "https://doi.org/10.1007/s10664-022-10123-8; https://doi.org/10.5281/zenodo.5653341",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["checklist", "cognitive-load", "registered-report", "null-result"]
+    },
+    {
+      "id": "w8-review-claim-summary-hurts",
+      "kind": "claim",
+      "title": "Confident summaries raise both catch rate and false rejection when the evidence is unchecked",
+      "body": "Guo et al. (arXiv:2610.01023) built 411 execution-labeled traces from three coding agents plus 101 controlled cases, and found that structured but unchecked evidence raises both defect catch and over-rejection: the reviewer becomes more willing to act in both directions. With a frozen mechanical cascade of patch-caused static errors plus generated tests that first fail on the unpatched repo, on 121 scored GPT-5.4 traces and 59 Gemini traces, coverage was 0.89 and 0.86, risk 0.33 and 0.26, catch 0.76 and 0.80, and over-rejection 0.66 and 0.67. Reviewer model size was not a consistent predictor of quality, and most false rejections occurred when unresolved cases reached the reviewer rather than being resolved upstream. The paper's summary line is the ergonomic thesis: long traces and confident summaries often hide what was missed. Prediction for loom: adding an agent-written summary above the diff will raise the share of real defects a human catches and, by a similar margin, raise the share of good patches rejected.",
+      "source": "https://arxiv.org/abs/2610.01023",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["summarisation", "false-rejection", "evidence-format", "reviewer-quality"]
+    },
+    {
+      "id": "w8-review-an-summary-first-preferred-not-validated",
+      "kind": "analysis",
+      "title": "Summary-first review is preferred by reviewers and has never been tested against diff-first with a control arm",
+      "body": "Adalsteinsson et al. (ESEM 2025 industry track, WirelessCar and Chalmers) ran a field study plus a field experiment with two LLM review tool variants, one producing an upfront LLM-generated review and one offering on-demand interaction, both backed by a retrieval-augmented semantic search pipeline. The result is a preference, not an effect size: AI-led reviews are overall more preferred, conditional on the reviewer's familiarity with the codebase and on the severity of the pull request, and the field study ranked frequent context switching and insufficient contextual information as leading challenges. Combined with the Groundability finding that unchecked structured evidence raises false rejection, the field has a gap rather than a conclusion. Nobody has run summary-first against diff-first with defect-escape as the outcome and a control arm, so any claim that summaries save reviewer minutes in a promotion gate is currently unfalsified rather than supported.",
+      "source": "https://conf.researchr.org/details/esem-2025/esem-2025-industrial-track-/3/Rethinking-Code-Review-Workflows-with-LLM-Assistance-An-Empirical-Study; https://arxiv.org/abs/2610.01023",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["summary-first", "preference-vs-performance", "field-experiment", "gap"]
+    },
+    {
+      "id": "w8-review-an-lgtm-smell",
+      "kind": "analysis",
+      "title": "Comment-free approval is 3.5x more likely to be an LGTM smell, but it does not predict reopen",
+      "body": "The ICSME 2024 study of five large open-source projects (Bootstrap, GitHub Desktop, React, TensorFlow, Vue, each filtered to at least 2,000 PRs) found 64.7 percent of PRs had comment-free reviews, and those exhibited the LGTM smell 3.5 times more often than commented reviews, with statistically significantly more post-approval late commits. The null result is the interesting half: there was no significant difference in issue reopen ratio between comment-free and commented PRs. So the cheap observable, absence of comments, tracks reviewer behavior but not the outcome that matters, which is why the paper is about smells rather than defects. The same paper notes a 500-line changeset makes reviewers hesitant and pushes them toward shallow review under time pressure. For loom the implication is that a checkpoint with no comment channel at all is structurally unable to distinguish a considered approval from a rubber stamp, and adding a comment box would produce a signal that is correlated with, not diagnostic of, care.",
+      "source": "https://ieeexplore.ieee.org/document/10794990",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["lgtm", "comment-free", "null-result", "approval-quality"]
+    },
+    {
+      "id": "w8-review-an-review-is-not-a-bug-gate",
+      "kind": "analysis",
+      "title": "Industrial code review is mainly a consistency and education mechanism, not a defect filter",
+      "body": "Three independent datasets agree that review's dominant output is not defect finding. Sadowski et al. (ICSE-SEIP 2018, about nine million reviewed changes at Google) found codebase consistency, readability and education rated above bug-finding as motivations. Bacchelli and Bird (ICSE 2013, 200 reviews and 570 manually classified comments at Microsoft) report code improvements as the most frequent outcome at 29 percent against defect finding at 14 percent, with 65 logical issues found. Czerwonka, Greiler and Tilford (ICSE 2015, Microsoft) go further in a two-page argument titled Code Reviews Do Not Find Bugs. If review's real product is consistency and knowledge transfer, then a promotion gate that asks a human to be the last defect filter is using the mechanism outside its measured competence, and the ledger's 97 percent action-level approval rate is the expected result rather than an anomaly. This reframes the 39 percent plan-level rejection as the signal: plans are where intent and consistency are judged, which is what review is actually good at.",
+      "source": "https://doi.org/10.1145/3183519.3183525; https://web2.qatar.cmu.edu/cs/17313/slides/19-inspections-code-reviews.pdf; https://ieeexplore.ieee.org/document/7100082",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["review-purpose", "defect-finding", "google", "microsoft"]
+    },
+    {
+      "id": "w8-review-fail-binary-gate-no-signal",
+      "kind": "failure",
+      "title": "A binary score backed by three assertions gives the reviewer almost nothing to discriminate on",
+      "body": "The human is asked to approve a patch whose only mechanical evidence is a binary 0-or-1 score (exp-score-001) from a verifier with a median of 3 assertions (exp-ver-001), and 89 of 94 task verifiers also pass on the clean base tree (exp-ver-003), so the signal cannot separate a real improvement from the pre-existing baseline. exp-gate-001 adds that minGain never changed a decision, meaning the gate's numeric sophistication is decorative. Under automation bias this is the worst possible configuration: a nearly always-green, low-resolution aid. A reviewer cannot verify the verifier without reading it, and reading three assertions tells them little about 58.6 changed lines. The falsifiable prediction is that replacing the binary with a diff-scoped assertion delta (which assertion flipped from fail to pass on this patch, and what still fails) will change approval behavior more than any UI redesign of the checkpoint.",
+      "source": "ledger:exp-score-001; ledger:exp-ver-001; ledger:exp-ver-003; ledger:exp-gate-001",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["binary-score", "verifier", "signal-design", "failure"]
+    },
+    {
+      "id": "w8-review-an-approval-asymmetry",
+      "kind": "analysis",
+      "title": "97 percent approval on actions against 39 percent rejection on plans locates scrutiny at the plan, not the keystroke",
+      "body": "The two measured rates differ by 58 percentage points: 97 percent of action-level prompts were approved, 39 percent of plan-level ones were rejected. Read through Mosier and Skitka, the action prompt is an aided condition where the agent has already chosen and the human is asked to confirm, while the plan prompt is an unaided condition where the human must construct the judgment themselves. Read through Sadowski and Bacchelli, plan review is where intent, consistency and design fit are judged, which is precisely what human review is measurably good at, whereas diff review is where it is measurably weak. Both readings converge on one testable claim: the rejection rate tracks how much generative work the human must do, not how risky the change is. Prediction: converting action prompts from confirm-or-deny into a small generative task (name the file the action will touch) should move approval materially, and if it does not, the asymmetry is severity-driven instead.",
+      "source": "ledger:exp-human-007; https://lskitka.people.uic.edu/AutomationBias1998.pdf; https://doi.org/10.1145/3183519.3183525",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["approval-rate", "plan-vs-action", "generative-work", "scrutiny"]
+    },
+    {
+      "id": "w8-review-num-interruption-cost",
+      "kind": "number",
+      "title": "Resuming an interrupted task costs about 23 minutes, and the median checkpoint arrives inside that window",
+      "body": "Mark, Gudith and Klocke (CHI 2008, pp.107-110) measured the cost of interrupted work and reported an average of roughly 23 minutes 15 seconds before returning to the interrupted task, with participants compensating by working faster and reporting higher stress, time pressure and frustration. The loom number that matters is the median checkpoint dwell of 12 minutes: half of all checkpoints were resolved within about half the measured resumption cost. That does not mean the human was interrupted mid-flow, since dwell measures the wait on the agent's side, but it does mean the queue's natural cadence (114 items, half resolving inside 12 minutes) is fast enough that a reviewer working through them serially is switching context faster than the documented re-entry cost. The falsifiable prediction is that review minutes per patch fall when items are released in one daily batch rather than continuously, because the re-entry tax is paid once per batch instead of once per item.",
+      "source": "https://doi.org/10.1145/1357054.1357072; ledger:exp-human-007",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["interruption-cost", "resumption", "batching", "chi-2008"]
+    },
+    {
+      "id": "w8-review-an-batch-economics",
+      "kind": "analysis",
+      "title": "Batching is the only lever with a mechanism behind it, and no one has measured the optimal interval",
+      "body": "There is no published study that measures total human minutes as a function of review batching interval, so any specific interval is a derivation rather than a finding. The derivation: if resumption costs about 23 minutes and the queue produces 114 items over the campaign window, a fully continuous review pays the re-entry tax up to 114 times while a single daily batch pays it once, a difference bounded by 113 times 23 minutes, or about 43 hours of pure switching overhead in the worst case where every item genuinely interrupts. Two things weaken it. First, dwell time is not review time, so the true interruption count is unknown. Second, the Cisco case study's spot-checking result, that checking 20 to 33 percent of code found defects at higher density for minimal time, suggests partial coverage may beat complete coverage at any batching interval. The correct experiment is a three-arm comparison (continuous, daily batch, daily batch with spot-check sampling) measuring human minutes and escaped defects.",
+      "source": "ledger:exp-human-007; https://doi.org/10.1145/1357054.1357072; https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/",
+      "confidence": "low",
+      "topic": "w8-review",
+      "tags": ["batching", "derivation", "unmeasured", "experiment-design"]
+    },
+    {
+      "id": "w8-review-an-trust-calibration-curve",
+      "kind": "analysis",
+      "title": "Rubber-stamping starts within about 10 agent PRs per reviewer and is not fixable by adding explanations",
+      "body": "The only longitudinal measurement of reviewer drift on agent output is the AIDev study: the +14.5 percentage point decile gap and the 30.1 to 36.8 percent shift both accrue as a reviewer accumulates experience with agents, and the authors show the effect persists after controlling for calendar time, so it is a within-reviewer learning curve rather than a period effect. The sharpest reading is that reviewers form a general heuristic about agent quality and stop engaging per item, which is exactly the dual-process account Bucinca et al. tested: explanations did not reduce overreliance, and only cognitive forcing did. The two together give a testable calibration curve with a start point (roughly the first decile of agent-PR experience, single-digit PR counts per reviewer) and a stated failure mode (heuristic substitution). What neither study measures is what restores attention in a production gate over months rather than in a single-session experiment, which is the open question this graph cannot close.",
+      "source": "https://arxiv.org/abs/2606.22721; https://arxiv.org/abs/2102.09692",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["trust-calibration", "rubber-stamping", "explanations-ineffective", "experience"]
+    },
+    {
+      "id": "w8-review-an-cost-ratio",
+      "kind": "analysis",
+      "title": "Compute is about 7 cents per landed promotion, so the reviewer is plausibly the dominant cost by two orders of magnitude",
+      "body": "w5-tokenbudget puts compute at roughly 7 cents per landed promotion at real card prices, 71 times more than the ledger originally recorded. The human side has no measured minutes, only dwell, so the ratio has to be stated as a bounded hypothesis. At a 60 dollar loaded hourly rate, a 3-minute review is 3 dollars and a 12-minute review is 12 dollars, which is 43x to 171x the compute cost of the same promotion. The 71x correction on the compute side is a warning about the whole exercise: the ledger's own cost accounting was off by nearly two orders of magnitude before anyone checked, so an unmeasured human-minutes figure is likely wrong by a similar factor in the same direction. Prediction: instrumenting review duration will show the human-to-compute cost ratio above 20x for every campaign in the ledger, which would make review-time reduction the highest-leverage optimization available and make any patch that increases reviewer burden net-negative regardless of its score.",
+      "source": "ledger:w5-tokenbudget; ledger:exp-human-007",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["cost-model", "human-vs-compute", "bounded-hypothesis", "roi"]
+    },
+    {
+      "id": "w8-review-an-transfer-failure-analogue",
+      "kind": "analysis",
+      "title": "Zero cross-campaign lesson reuse predicts zero cross-campaign review learning",
+      "body": "exp-transfer-001 records 0 reuse out of 100 lessons across campaigns, which is a statement about the agents but has a direct human analogue: reviewer skill acquired on campaign A does not transfer to campaign B when the artifacts, tasks and failure modes differ. That undercuts the standard defence of human review, which is that the reviewer accumulates judgment over time. In a 69-campaign ledger with median 12-minute dwell, a reviewer cannot be building a durable model of any one campaign's failure modes, because each campaign appears a handful of times. The AIDev habituation result then has a darker reading than its authors give: the rising approval rate may be acquisition of a general prior about agents while the specific per-campaign knowledge that would justify it is never formed. Prediction: attaching each checkpoint to its campaign's prior lessons (even unresolved ones) should raise rejection quality, and if 0 of 100 lessons still transfer, the human will show the same 0-reuse pattern in their review comments.",
+      "source": "ledger:exp-transfer-001; ledger:exp-human-007; ledger:exp-brief-001; https://arxiv.org/abs/2606.22721",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["transfer", "reviewer-skill", "campaign-scope", "prediction"]
+    },
+    {
+      "id": "w8-review-src-smartbear",
+      "kind": "source",
+      "title": "SmartBear/Cisco case study: the 200-400 LOC review band is a vendor self-report",
+      "body": "The most-cited numbers in review ergonomics, review under 200 LOC with a hard cap at 400, 70 to 90 percent defect discovery for 200 to 400 LOC over 60 to 90 minutes, defect density falling above 500 LOC per hour, 40 defects per kLOC, and spot-checking 20 to 33 percent of code beating full coverage while saving 6.5 man-hours, all trace to a Cisco case study distributed by SmartBear, a vendor selling review tooling. The dataset is stated as 2,500 reviews over 3.2 million LOC, 10 months, 50 developers, 4 sites. I could not fetch the PDF: smartbear.com/docs/book/code-review-cisco-case-study.pdf returned 404 through the fetch endpoint and the nag.co.uk mirror also returned 404, so every number here comes from indexed excerpts of that PDF plus SmartBear's own best-practices page. Treat the band as an industry datum, not a peer-reviewed finding, and note that Kemerer and Paulk's PSP analysis is the independent confirmation that review rate matters.",
+      "source": "https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["vendor-source", "unfetchable", "inspection-rate", "provenance"]
+    },
+    {
+      "id": "w8-review-q-unmeasured",
+      "kind": "question",
+      "title": "What has nobody measured about reviewing machine-authored diffs",
+      "body": "Four holes are visible after this sweep and each is cheap to close in a ledger like loom's. First, planted-defect catch rate as a function of diff size exists only for human-authored code, via the Cisco band, and the nearest generated-code study (arXiv:2610.01023) reports catch 0.76 and 0.80 on traces without varying diff size, so the size curve for generated patches is unmeasured. Second, no study compares summary-first against diff-first review with escaped defects as the outcome and a control arm; the ESEM 2025 field experiment collected preference only. Third, no study reports total human minutes as a function of batching interval, so the 23-minute interruption cost has never been converted into a queue design. Fourth, nobody has measured how long attention survives in a production gate over months rather than one session. Loom could measure all four with one schema change plus a planted-defect arm.",
+      "source": "https://arxiv.org/abs/2610.01023; https://conf.researchr.org/details/esem-2025/esem-2025-industrial-track-/3/Rethinking-Code-Review-Workflows-with-LLM-Assistance-An-Empirical-Study; https://doi.org/10.1145/1357054.1357072",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["open-questions", "measurement", "research-agenda"]
+    },
+    {
+      "id": "w8-review-claim-ai-pr-size-inflation",
+      "kind": "claim",
+      "title": "AI-assisted PRs are reported at roughly 2.6x the changed lines of unassisted ones",
+      "body": "LinearB telemetry across a reported 8.1 million pull requests from 4,800 organisations puts AI-assisted PRs at 408 changed lines at the 75th percentile against 157 without assistance, a ratio of about 2.6x. If that holds, the diff-size problem in agent review is not the individual patch but the distribution's tail, since the p75 patch is already at the 400 LOC hard cap that the Cisco data recommend. Two reasons for low confidence: the figure reached me through a secondary aggregator rather than LinearB's own report, and selection is uncontrolled, because teams that adopt AI assistance differ from those that do not. It nonetheless sharpens the loom comparison usefully: loom's mean of 58.6 lines per patch is far below this reported industry p75, which means loom is not experiencing the size inflation that general AI adoption is reported to produce, and any size-based explanation of its review bottleneck is misdirected.",
+      "source": "https://prlens.dev/guides/ai-pr-summaries-vs-diagrams; ledger:exp-human-007",
+      "confidence": "low",
+      "topic": "w8-review",
+      "tags": ["pr-size", "ai-adoption", "secondary-source", "selection-bias"]
+    },
+    {
+      "id": "w8-review-claim-dora-stability",
+      "kind": "claim",
+      "title": "DORA 2024 estimated a 7.2 percent stability penalty per 25 percent AI adoption increase",
+      "body": "The 2024 Accelerate State of DevOps report, surveying over 39,000 professionals, estimated that a 25 percent increase in AI adoption was associated with an estimated 1.5 percent reduction in delivery throughput and a 7.2 percent reduction in delivery stability, which the authors framed as contrary to their expectations. DORA's 2025 survey reportedly found the throughput bottleneck resolved while stability and trust issues remained, which is the shape a review-capacity story predicts: once generation is fast, the constraint moves to whoever must check it, and quality degrades before speed does. The measurement caveat is important: this is a cross-sectional survey with self-reported adoption, not a controlled trial, and the 2024 wave largely predates agentic rather than autocomplete usage. It is cited here as the only large-N estimate tying AI adoption to a stability outcome, and its direction is consistent with the human-gate bottleneck this graph describes.",
+      "source": "https://www.infoq.com/news/2024/11/2024-dora-report/; https://www.techtarget.com/news/Google-DORA-Software-delivery-caught-up-to-AI-coding-tools/857536/",
+      "confidence": "medium",
+      "topic": "w8-review",
+      "tags": ["dora", "stability", "survey", "throughput"]
+    },
+    {
+      "id": "w8-review-src-aidev",
+      "kind": "project",
+      "title": "AIDev is the only public instrument for longitudinal agent-review behavior",
+      "body": "The AIDev dataset underlies the Habituation study and is the closest thing the field has to a panel of human review of agent output: 16,895 human reviews by 2,494 reviewers across five agents (Copilot Autofix, Devin, Codex CLI, Cursor, Claude Code), spanning 207 days, from which the authors drew a study cohort of 400 repeat reviewers with at least 10 agent PRs each, totalling 11,429 reviews, with 52 heavy reviewers at 50 or more reviews and individual spans up to 178 days. Its value for loom is structural: it is a within-reviewer design on real agent output, which is the only design that can distinguish reviewer drift from change-mix drift. Its limits are equally structural, since it observes open-source maintainers on public PRs with no access to whether a merged patch was later reverted for a defect, so approval rate is a proxy for scrutiny rather than for correctness. Any loom claim about its own reviewers should be built to beat this instrument, not to cite it.",
+      "source": "https://arxiv.org/abs/2606.22721",
+      "confidence": "high",
+      "topic": "w8-review",
+      "tags": ["dataset", "aidev", "longitudinal", "instrument"]
+    }
+  ],
+  "edges": [
+    {"from": "w8-review-num-queue-shape", "rel": "contradicts", "to": "w8-review-src-smartbear", "note": "The queue's 58.6-line mean sits inside the Cisco comfort band, so the vendor size guidance predicts easy review while the observed queue behaves as if review were hard; the contradiction is the reason to look past size."},
+    {"from": "w8-review-num-inspection-rate", "rel": "derived-from", "to": "w8-review-src-smartbear", "note": "Derived: the 200/300/500 LOC-per-hour bands are the vendor figures, applied to the ledger line count."},
+    {"from": "w8-review-num-inspection-rate", "rel": "requires", "to": "w8-review-fail-dwell-is-not-minutes", "note": "Requires the missing human-minutes field to become a measurement rather than an estimate."},
+    {"from": "w8-review-fail-dwell-is-not-minutes", "rel": "fails-at", "to": "w8-review-an-cost-ratio", "note": "The cost ratio cannot be closed at the point where dwell time is mistaken for review time."},
+    {"from": "w8-review-an-cost-ratio", "rel": "measures", "to": "w8-review-fail-dwell-is-not-minutes", "note": "Measures the size of the hole: the ratio is bounded between roughly 3x and 171x depending only on an unrecorded number."},
+    {"from": "w8-review-claim-habituation", "rel": "supports", "to": "w8-review-an-trust-calibration-curve", "note": "Supplies the only longitudinal drift estimate the calibration curve has."},
+    {"from": "w8-review-claim-cognitive-forcing", "rel": "refines", "to": "w8-review-claim-habituation", "note": "Refines: habituation names the drift, cognitive forcing names the mechanism (heuristic substitution) and shows explanations do not undo it."},
+    {"from": "w8-review-claim-automation-bias", "rel": "supports", "to": "w8-review-an-approval-asymmetry", "note": "Omission and commission errors explain why a confirm-or-deny prompt yields 97 percent approval."},
+    {"from": "w8-review-fail-binary-gate-no-signal", "rel": "applies-to", "to": "w8-review-claim-automation-bias", "note": "Applies the automation-bias mechanism to loom's specific aid: a near-always-green binary score is the reliability profile that maximizes omission."},
+    {"from": "w8-review-src-aidev", "rel": "applies-to", "to": "w8-review-fail-binary-gate-no-signal", "note": "Applies the AIDev approval-rate baseline as the external comparison for loom's 97 percent action-level approval; the node's actual parents are the ledger ids exp-score-001, exp-ver-001, exp-ver-003 and exp-gate-001 listed in its source field."},
+    {"from": "w8-review-an-lgtm-smell", "rel": "refines", "to": "w8-review-fail-binary-gate-no-signal", "note": "Refines: the observable that should reveal rubber-stamping (comment presence) is correlated with care but does not predict reopen, so it cannot be used as the gate's quality metric either."},
+    {"from": "w8-review-an-review-is-not-a-bug-gate", "rel": "contradicts", "to": "w8-review-claim-summary-hurts", "note": "Tension rather than clean contradiction: industrial review does not find bugs, yet a controlled trace study shows reviewers catching 0.76 to 0.80 of defects when given frozen mechanical evidence, so the difference is the evidence format, not the human."},
+    {"from": "w8-review-claim-summary-hurts", "rel": "refines", "to": "w8-review-an-summary-first-preferred-not-validated", "note": "Refines the preference result into a risk: the summary people prefer is the intervention that raises false rejection when unchecked."},
+    {"from": "w8-review-an-summary-first-preferred-not-validated", "rel": "requires", "to": "w8-review-q-unmeasured", "note": "Requires the missing control-arm experiment before any summary-first design is adopted in the gate."},
+    {"from": "w8-review-claim-checklist-limits", "rel": "contradicts", "to": "w8-review-src-smartbear", "note": "Contradicts the checklist-as-best-practice assumption implicit in the vendor guidance: a registered report found no strong performance relationship and higher cognitive load predicting better scores."},
+    {"from": "w8-review-num-interruption-cost", "rel": "supports", "to": "w8-review-an-batch-economics", "note": "Supplies the 23-minute unit that the batching derivation multiplies."},
+    {"from": "w8-review-an-batch-economics", "rel": "applies-to", "to": "w8-review-q-unmeasured", "note": "Applies the unmeasured-optimum question to the specific three-arm experiment loom could run."},
+    {"from": "w8-review-an-transfer-failure-analogue", "rel": "applies-to", "to": "w8-review-claim-habituation", "note": "Applies the 0-of-100 lesson-transfer result as a constraint on the habituation reading: the general prior grows while the per-campaign knowledge that would justify it does not."},
+    {"from": "w8-review-an-approval-asymmetry", "rel": "measures", "to": "w8-review-an-review-is-not-a-bug-gate", "note": "Measures the reframing directly: the human rejects plans (intent, consistency) and approves actions (confirmation), which is review working inside its measured competence."},
+    {"from": "w8-review-an-trust-calibration-curve", "rel": "requires", "to": "w8-review-fail-binary-gate-no-signal", "note": "Requires better per-item signal before calibration can be measured at all, since a binary score gives the reviewer nothing to calibrate against."},
+    {"from": "w8-review-claim-dora-stability", "rel": "supports", "to": "w8-review-an-cost-ratio", "note": "Supports the bottleneck framing at population scale: stability degrades more than throughput as AI adoption rises."},
+    {"from": "w8-review-claim-ai-pr-size-inflation", "rel": "contradicts", "to": "w8-review-num-queue-shape", "note": "Contradicts a size-inflation explanation for loom: industry p75 is 408 lines against loom's 58.6-line mean, so loom is not facing that particular mechanism."},
+    {"from": "w8-review-src-aidev", "rel": "supports", "to": "w8-review-claim-habituation", "note": "Is the instrument behind the habituation numbers; listed separately because its design limits bound how far the claim travels."}
+  ],
+  "gaps": [
+    "No study measures planted-defect catch rate as a function of diff size for machine-generated patches; the only size curve is the Cisco human-authored band, and arXiv:2610.01023 reports catch 0.76 and 0.80 without varying diff size.",
+    "No controlled comparison of summary-first against diff-first review with escaped defects as the outcome; the only field data (ESEM 2025, WirelessCar) is preference plus two conditional moderators.",
+    "No measurement of total human minutes as a function of batching interval, so the 23-minute resumption cost from CHI 2008 has never been converted into an actual queue schedule.",
+    "Loom records checkpoint dwell time but never reviewer minutes, so the human-to-compute cost ratio is bounded only between roughly 3x and 171x and cannot be closed without one added field.",
+    "Nothing measures how long reviewer attention survives in a production gate over months; the habituation study spans seven months of open-source PRs but has no ground truth on whether approved patches were later reverted for defects.",
+    "No data on whether partial coverage (the Cisco 20-33 percent spot-check result) beats complete coverage in a gate where the diff is machine-authored and the verifier is nearly always green.",
+    "No measurement of what per-item evidence format restores scrutiny over months rather than in a single session; cognitive forcing was tested at N=199 in one sitting and produced its benefit only for high Need-for-Cognition participants.",
+    "Whether the 39 percent plan-level rejection rate is caused by the generativity of the task (the human must construct the judgment) or by plan-level severity is untested; the approval asymmetry is measured but its mechanism is inferred."
+  ]
+}

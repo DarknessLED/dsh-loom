@@ -1,0 +1,62 @@
+{
+ "nodes": [
+  {
+   "id": "exp-ver-005",
+   "kind": "number",
+   "title": "Our verifiers are deterministic and cheap: 105 tasks x 3 runs, zero flaked, 3.07 s per run",
+   "body": "Measured the flake rate of our own task oracles, the number w8-measure found nobody publishes (research/exp/e44.mjs). For every distinct task in the ledger (105, deduplicated by task id, using each task's own spec rather than the chained guard suite), the verify command was run three times against the same unchanged tree and the verdicts compared: 0 verdict disagreements, 0 tasks whose assertion counts drifted between runs, 968.4 s of wall clock total, mean 3.07 s per run. Two conclusions that change design decisions. First, the differential oracle ana-012 recommends is cheap here: a base run plus a patched run is about 6 s per round, against round durations of 166-204 s (exp-trend-001), i.e. under 4% overhead, so the flake-filter precondition ana-013 sets costs nothing to satisfy at this scale. Second, the flakiness w8-differential documented (Google's 84% of pass-to-fail transitions being flakes) comes from dependency drift and shared environments; our tasks run in one repo with a pinned interpreter, and the measurement says that regime is clean. The risk that remains is not flakiness but staleness: a verifier that always passes is stable and uninformative at the same time (exp-ver-003), which the flake test cannot see.",
+   "source": "research/exp/e44.mjs (105 tasks x 3 runs, same tree, 968.4 s total)",
+   "confidence": 0.93,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "verifier",
+    "flaky-tests",
+    "determinism"
+   ]
+  },
+  {
+   "id": "exp-ver-006",
+   "kind": "analysis",
+   "title": "A zero flake rate in one repo is a property of the setup, not of the verifiers, and that is the useful part",
+   "body": "The tempting reading of exp-ver-005 is 'our tests are good'. The correct reading is narrower: a clean repo, a pinned interpreter and no network produce deterministic verdicts, and our whole task corpus lives inside that envelope. That is worth knowing because it removes the main objection to the differential oracle - the fear that the second run would introduce noise - and it localises the remaining risk. The moment a task's verify command reaches outside the envelope (installs a dependency, hits a service, reads a clock), determinism is no longer measured by this test and the flake filter becomes necessary again. So the useful artifact is not the number 0, it is the rule: every task whose verify command leaves the pinned-interpreter envelope must carry its own 3-run stability record before its verdict can be used as an oracle. That check costs 9 s and can be run at task registration, which is the only point where the loop still knows what the command depends on.",
+   "source": "exp-ver-005 + w8-differential (dependency drift as flake source)",
+   "confidence": 0.9,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "verifier",
+    "determinism",
+    "oracle"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-ver-005",
+   "rel": "supports",
+   "to": "ana-013"
+  },
+  {
+   "from": "exp-ver-005",
+   "rel": "contradicts",
+   "to": "w8-differential-google-flake",
+   "note": "the 84% figure is a property of shared/drifting environments, not of differential oracles as such; in a pinned single repo the rate is 0/105"
+  },
+  {
+   "from": "exp-ver-005",
+   "rel": "supports",
+   "to": "ana-012"
+  },
+  {
+   "from": "exp-ver-006",
+   "rel": "derived-from",
+   "to": "exp-ver-005"
+  },
+  {
+   "from": "exp-ver-006",
+   "rel": "requires",
+   "to": "exp-ver-004"
+  }
+ ]
+}

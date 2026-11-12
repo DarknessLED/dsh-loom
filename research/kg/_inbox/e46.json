@@ -1,0 +1,65 @@
+{
+ "nodes": [
+  {
+   "id": "exp-trend-001",
+   "kind": "number",
+   "title": "The test corpus grew 14 to 193 files in six days while the promotion rate fell from 34% to 13%",
+   "body": "Two trends measured from independent sources (research/exp/e46.mjs). From git: the number of committed .test.mjs files under tests/ went 14 (first commit) -> 82 -> 102 -> 119 -> 137 -> 169 -> 193 (HEAD), i.e. most of the suite was written in the same six days the loop ran. From the ledger, splitting the 69 campaigns by creation time into thirds: the first third ran 166 attempts and promoted 57 (0.343), mean attempt 204 s; the last third ran 174 attempts and promoted 23 (0.132), mean attempt 166 s. So over the night the loop got faster per attempt and much less likely to promote. Two readings are consistent with this and the data does not separate them: (a) the easy tasks were solved first and later rounds re-attempt solved tasks, which exp-ver-003 says cannot promote at all; (b) the verifier corpus got harder because it grew, so the same work clears less often. Both are ceiling effects, and both mean the headline 'the loop promoted 114 times' is largely a count of first encounters.",
+   "source": "research/exp/e46.mjs (git ls-tree over 30 sampled commits + 69 campaigns split into creation thirds)",
+   "confidence": 0.9,
+   "topic": "rsi",
+   "tags": [
+    "measurement",
+    "trend",
+    "saturation",
+    "rsi"
+   ]
+  },
+  {
+   "id": "exp-trend-002",
+   "kind": "analysis",
+   "title": "A rising test count is not evidence of self-improvement, and this loop's own numbers show why",
+   "body": "The tempting story from exp-trend-001 is 'the loop wrote 179 test files, so it improved the codebase'. That story does not survive contact with the other measurements. The loop's tasks were mostly 'make this spec pass', so each spec it wrote is a task it then had to solve; the corpus growth and the promotion-rate decay are the same phenomenon seen from two sides. Genuine self-improvement would need the loop to get better at tasks it has not authored, and w8-minimal-rsi found the published ablations split exactly there: the archive is worth ~27 points (DGM 50.0 -> 23.0 without it), while the self-modifier is worth ~11 (50.0 -> 39.0), and neither is measured on tasks the system authored. For our loop the honest statement is narrower and still useful: it reliably converts a spec into a passing patch (114 times, 73 committed and verified in git, exp-dura-004), and it has no measurement at all of whether it is getting better at that conversion.",
+   "source": "exp-trend-001 + exp-dura-004 + w8-minimal-rsi (DGM archive/self-modifier ablations)",
+   "confidence": 0.92,
+   "topic": "rsi",
+   "tags": [
+    "analysis",
+    "rsi",
+    "evidence"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-trend-001",
+   "rel": "supports",
+   "to": "exp-ver-003"
+  },
+  {
+   "from": "exp-trend-001",
+   "rel": "supports",
+   "to": "exp-gate-003"
+  },
+  {
+   "from": "exp-trend-001",
+   "rel": "measures",
+   "to": "exp-dura-004"
+  },
+  {
+   "from": "exp-trend-002",
+   "rel": "derived-from",
+   "to": "exp-trend-001"
+  },
+  {
+   "from": "exp-trend-002",
+   "rel": "supports",
+   "to": "w8-minimal-rsi-006"
+  },
+  {
+   "from": "exp-trend-002",
+   "rel": "refines",
+   "to": "ana-002"
+  }
+ ]
+}

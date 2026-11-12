@@ -1,0 +1,66 @@
+{
+ "nodes": [
+  {
+   "id": "exp-ver-003",
+   "kind": "failure",
+   "title": "89 of 94 task verifiers pass on today's tree, so re-running any finished campaign can promote nothing",
+   "body": "Ran every single-spec task verifier against the clean tree (research/exp/e42.mjs): 89 pass, 5 fail, and the 5 failures are exactly the red specs from exp-guard-001 (plateau 14/15, holdout-gate, no-test-edits, human-node, holdout-report). The passing 89 are the campaigns' own landed work - each was solved at some point, and the patch is in HEAD. That has a consequence the loop does not handle: src/runtime/round.js computes earned = checks.baseFailed !== false, so on a task whose verifier passes on the base tree, earned is false and no patch can be promoted regardless of quality. Combined with exp-gate-002 (baseFailed missing in 192 of 208 gates, because the cache only records it when the campaign chose to measure), the picture is: the only reason 114 promotions happened is that baseFailed was usually *absent*, not false. Re-running loom-self3 today would produce 0 promotions on all 7 of its tasks. The loop has no way to re-open a solved task, and no metric to climb above the solved baseline - the same ceiling as taskBest (exp-gate-003), reached from the other side.",
+   "source": "research/exp/e42.mjs (94 task verifiers on the clean tree) + exp-gate-002 + exp-guard-001",
+   "confidence": 0.94,
+   "topic": "ver",
+   "tags": [
+    "measurement",
+    "verifier",
+    "re-runnability",
+    "blocking"
+   ]
+  },
+  {
+   "id": "exp-ver-004",
+   "kind": "analysis",
+   "title": "A verifier that already passes is a statement about the past, not a test of the patch",
+   "body": "The loop's central assumption is that verifierOk certifies the patch. On a task whose spec passed before the patch existed, verifierOk is true whether or not the worker did anything - and 89 of 94 tasks are in that state today. This is why the same number of attempts produced 14 no-op promotions (exp-gate-002): with a green base tree, 'the verifier passed' carries no information about the attempt, and the gate's other checks (hasPatch, noop, minGain) were written to catch exactly that but are defeated when baseFailed is unmeasured. The correct oracle for this loop is differential by construction: run the verifier on the base tree and on the patched tree in the same round, and score on the transition. That costs one extra verifier run (measured 1.5 s mean, research/exp/e42.mjs) - the cheapest measurement in the whole system. w7-attribution's 'differential replay' proposal reaches the same conclusion from the failure side.",
+   "source": "exp-ver-003 + exp-gate-002 + exp-ver-001 + w7-attribution",
+   "confidence": 0.95,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "verifier",
+    "differential",
+    "oracle"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-ver-003",
+   "rel": "supports",
+   "to": "exp-guard-001"
+  },
+  {
+   "from": "exp-ver-003",
+   "rel": "refines",
+   "to": "exp-gate-002"
+  },
+  {
+   "from": "exp-ver-003",
+   "rel": "supports",
+   "to": "exp-gate-003"
+  },
+  {
+   "from": "exp-ver-004",
+   "rel": "derived-from",
+   "to": "exp-ver-003"
+  },
+  {
+   "from": "exp-ver-004",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "exp-ver-004",
+   "rel": "refines",
+   "to": "ana-003"
+  }
+ ]
+}

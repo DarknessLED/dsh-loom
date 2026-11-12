@@ -1,0 +1,379 @@
+{
+  "nodes": [
+    {
+      "id": "w8-differential-src-swebench",
+      "kind": "source",
+      "title": "SWE-bench task construction: F2P/P2P is defined as a transition, not a pass check",
+      "body": "SWE-bench collects 2,294 task instances from PRs in 12 Python repositories; an instance is a PR associated with an issue that modified 1+ testing files. Per instance it builds a Docker image at the commit the PR is based on. The site states the construction criterion verbatim: \"Without the Pull Request's changes, a number of test(s) fail. After the PR is merged, the same set of test(s) pass. These 'Fail-to-Pass' tests are the primary signal for evaluation.\" Evaluation requires both sets: FAIL_TO_PASS must pass (did the patch fix it) and PASS_TO_PASS must not regress (did the patch break anything else); the tests are hidden from the agent. This matters for the proposal because the benchmark oracle is already a differential oracle: the unit of measurement is an ordered pair of runs in one environment, base-tree then patched-tree, and a single passing run carries no label at all.",
+      "source": "https://www.swebench.com/original.html ; arXiv:2310.06770",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["swe-bench", "fail-to-pass", "pass-to-pass", "oracle-definition", "primary-source"]
+    },
+    {
+      "id": "w8-differential-base-pass-certifies-nothing",
+      "kind": "claim",
+      "title": "A verifier that already passes on the base tree has zero mutual information with the patch",
+      "body": "Ledger measurement exp-ver-003: 89 of 94 task verifiers pass on the clean base tree. Ledger measurement exp-ver-001: the median task verifier has 3 assertions and all 94 tasks together have 348, i.e. 3.7 assertions per task. A boolean that is 1 before the patch and 1 after the patch cannot distinguish a correct patch from an empty patch from a destructive patch that happens to miss the 3 asserted behaviors; its only possible signal is an accidental regression. With 3 assertions the detection surface for an unrelated regression is tiny, so the current oracle is close to a constant function of the patch. Falsifiable prediction: revert the patch on 20 of the 89 base-passing tasks (base tree minus the accepted change) and re-run the unmodified verifier; if it still reports pass on >=17 of 20, the verifier is proven patch-independent at 85% rate, and every promotion it ever granted was unfalsifiable.",
+      "source": "exp-ver-003 ; exp-ver-001",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["ledger", "base-tree", "degenerate-oracle", "falsifiable-prediction"]
+    },
+    {
+      "id": "w8-differential-transition-score",
+      "kind": "concept",
+      "title": "Score the transition, not the state: (F2P gained, P2P lost) as the round's oracle",
+      "body": "The proposal is to run the verifier twice in the same round, once on the base tree and once on the patched tree, and score the pair: F2P gained = assertions that fail on base and pass on the patch; P2P lost = assertions that pass on base and fail on the patch. SWE-bench already formalizes exactly this, so the design is not novel research, it is adopting a known oracle. The ledger's current verifier is the degenerate case with an empty F2P set: it is a P2P-only oracle whose P2P set was selected to pass, so it is structurally incapable of awarding credit. Two consequences follow. First, a base run becomes mandatory, so the loop acquires a reproducibility precondition it did not have. Second, the score stops being binary (exp-score-001) and becomes a pair of small integers, which restores gradient where minGain previously could never change a decision (exp-gate-001) because 0->1 was the only available move. Prediction: on the 5 non-base-passing tasks the change is neutral; on the 89 it is the only change that can produce a non-zero F2P term at all.",
+      "source": "https://www.swebench.com/original.html ; exp-ver-003 ; exp-gate-001 ; exp-score-001",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["proposal", "transition-score", "base-run", "gradient"]
+    },
+    {
+      "id": "w8-differential-lite-flaky-34",
+      "kind": "number",
+      "title": "34 of SWE-bench Lite's 300 problems have flaky suites; 30 of them contaminate the gold patch",
+      "body": "Appendix evidence from Brown et al. (Large Language Monkeys, 2407.21787) on SWE-bench Lite: the authors identified 34 problems whose test suites had flaky tests, and 30 of those affected the dataset-provided correct solutions - meaning the gold patch itself sometimes fails, so a differential oracle would score a correct patch as P2P-lost. Their mitigation was brute force: on any problem with flaky tests they ran the suite 11 times and used majority voting to decide pass/fail, and they also report a 266-problem subset with the flaky problems removed. Their preliminary cause was unpinned dependency versions in the Docker environments running the unit tests, and one instance (astropy__astropy-6938) was flaky on some machines and not others - the SWE-bench authors could reproduce it, these authors could not. That is the crucial shape of the problem for a self-hosted loop: flakiness is environment-local, so 11.3% of instances (34/300) is a lower bound borrowed from someone else's image, not a property transferable to your runner.",
+      "source": "arXiv:2407.21787 (Appendix: SWE-bench Lite, 'Test Suite Flakiness')",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["flaky-tests", "swe-bench-lite", "majority-voting", "unpinned-dependencies"]
+    },
+    {
+      "id": "w8-differential-google-flake",
+      "kind": "number",
+      "title": "At Google, 84% of pass-to-fail transitions are flaky tests - the exact signal a differential oracle reads",
+      "body": "Micco's ICSE-SEIP 2017 industrial report ('Taming Google-Scale Continuous Testing') and the derived talks report: about 4.2 million tests on the CI system, roughly 62,000 (~1.5%) exhibiting flaky behavior in a week, ~16% of tests showing some level of flakiness, 84% of pass-to-fail transitions coming from flaky tests, only 1.23% of tests ever finding a breakage, and 2-16% of compute spent re-running flaky tests. This is the single most damaging number for the proposal: the transition a differential oracle interprets as 'the patch broke a P2P test' is, in Google's data, a flake 84% of the time. Two mechanisms follow. A P2P-lost event is 6:1 more likely to be noise than a real regression at that base rate, so a naive differential score would reject most correct patches; and the same asymmetry makes a P2P-gained event untrustworthy as credit. Any two-run oracle therefore needs a flake discriminator between the runs, not a majority vote after the fact.",
+      "source": "https://ieeexplore.ieee.org/abstract/document/7965447 (ICSE-SEIP 2017)",
+      "confidence": "medium",
+      "topic": "w8-differential",
+      "tags": ["flaky-tests", "google", "pass-to-fail", "industrial-measurement"]
+    },
+    {
+      "id": "w8-differential-deflaker",
+      "kind": "number",
+      "title": "DeFlaker: a failing test that covers no changed code is flaky, with no rerun (1.5% false alarms, 95.5% recall)",
+      "body": "Bell et al. (ICSE 2018, DeFlaker) detect flakiness by lightweight differential coverage tracking: if a test fails but did not cover any changed code, it is reported flaky without re-execution. Evaluation over re-runs of 5,966 builds across 26 open-source projects found 4,846 flaky tests, with a 1.5% false-alarm rate and 95.5% recall versus 23% for Maven's default flaky detector; only the very costly Reboot strategy found more. The mechanism generalizes to a two-run differential oracle almost without modification: the patched tree has an explicit diff, so every assertion that transitions fail->pass or pass->fail can be cross-checked against whether its test executed the changed lines. A pass->fail on a test that never touched the diff is a flake or an environment effect by construction, and a fail->pass on such a test is not attributable to the patch and should not earn credit. This is the cheapest available substitute for k-times rerun voting, and it is one coverage map per run rather than k extra suites.",
+      "source": "https://dl.acm.org/doi/10.1145/3180155.3180164 (ICSE 2018)",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["deflaker", "differential-coverage", "flake-filter", "cheap"]
+    },
+    {
+      "id": "w8-differential-openai-false-reject",
+      "kind": "number",
+      "title": "61.1% of 1,699 SWE-bench samples were flagged for F2P tests that unfairly reject valid solutions",
+      "body": "OpenAI's SWE-bench Verified campaign annotated 1,699 random samples with 93 Python developers, three annotators per sample, taking the highest-severity label. Result: 38.3% of samples flagged for underspecified problem statements, 61.1% flagged for unit tests that may unfairly mark valid solutions as incorrect, and 68.3% filtered out overall for underspecification, unfair unit tests, or other issues. The filtering is explicitly overzealous by design, so 61.1% is an upper bound on the flag rate, not a false-reject rate - the honest reading is that more than half of the human-written F2P suites were judged capable of rejecting a correct alternative implementation. The canonical example given is scikit-learn-14520, where the F2P test requires an exact DeprecationWarning message negotiated in the PR, a string the issue text never mentions. For a differential oracle this sets the false-reject floor: an over-specific F2P assertion fails a correct patch on the patched tree while passing on base, which the transition score reads as 'no credit', not as 'oracle defect'.",
+      "source": "https://openai.com/index/introducing-swe-bench-verified/",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["false-reject", "swe-bench-verified", "over-specific-tests", "human-annotation"]
+    },
+    {
+      "id": "w8-differential-swebenchplus",
+      "kind": "number",
+      "title": "SWE-Bench+: 32.67% of successful patches were leaked, 31.08% were weak-test passes; resolve rate falls 12.47% to 3.97%",
+      "body": "Aleithan et al. (arXiv:2410.06992) manually screened instances that SWE-Agent + GPT-4 resolved and compared model patches to the real PRs. Findings: 32.67% of successful patches involved cheating because the solution was directly present in the issue report or comments (solution leakage); 31.08% of passed patches were suspicious because the tests were not adequate to verify correctness (weak test cases); over 94% of issues predate model knowledge cutoffs. After filtering both classes, the resolution rate fell from 12.47% to 3.97%, and the same quality problems were present in SWE-bench Lite and SWE-bench Verified. The false-accept number that matters for the proposal is the 31.08%: those patches genuinely passed the F2P suite, so no amount of correct base-run/patch-run bookkeeping fixes them. A differential oracle fixes the base-passes-already failure mode; it does not fix under-specified assertions, and this paper is the measurement showing the two are separable failure modes that need separate remedies.",
+      "source": "arXiv:2410.06992",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["false-accept", "weak-tests", "solution-leakage", "swe-bench-plus"]
+    },
+    {
+      "id": "w8-differential-utboost",
+      "kind": "number",
+      "title": "UTBoost: 36 under-tested instances and 345 patches falsely marked passed, moving 40.9% of Lite ranks",
+      "body": "Yu et al. (ACL 2025, arXiv:2506.09289) build UTGenerator, an LLM-driven test generator that analyzes codebases and dependencies to synthesize additional test cases for real Python projects, then re-score existing SWE-bench submissions with the augmented suites. They identify 36 task instances with insufficient test cases and uncover 345 erroneous patches incorrectly labeled as passed in the original SWE-bench. Those corrections impact 40.9% of SWE-Bench Lite and 24.4% of SWE-Bench Verified leaderboard entries, producing 18 and 11 ranking changes respectively. This is the strongest published evidence that a passing F2P suite is a weak certificate: hundreds of patches that satisfied every original assertion were still wrong, and the only way to expose them was to write more assertions, not to run the existing ones more carefully. It is also the closest thing to a measured false-accept rate for a well-run F2P oracle on real submissions, and it is a lower bound because UTBoost only adds tests it managed to generate.",
+      "source": "arXiv:2506.09289",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["false-accept", "test-augmentation", "leaderboard-churn", "acl-2025"]
+    },
+    {
+      "id": "w8-differential-patchdiff",
+      "kind": "number",
+      "title": "PatchDiff: 7.8% of 'solved' patches fail the developer's own suite; 29.6% differ behaviorally from the gold patch",
+      "body": "Wang et al. (arXiv:2503.15223, 'Are Solved Issues in SWE-bench Really Solved Correctly?') introduce PatchDiff, differential patch testing that exposes behavioral discrepancies between two patches, and apply it to three state-of-the-art issue solvers on SWE-bench Verified. Results: 7.8% of all patches count as correct while failing the developer-written test suite; 29.6% of plausible patches induce different behavior than the ground-truth patch; of those divergences, 46.8% come from similar-but-divergent implementations and 27.3% from patches that adapt more behavior than the ground truth; manual inspection judges 28.6% of behaviorally divergent patches certainly incorrect; combined, 6.2 absolute percentage points of reported resolution rate are inflation. This is the closest published mechanism to the proposal, and it is a differential oracle between two patches rather than between base and patched - which is strictly stronger information and strictly more expensive, since it needs a trusted reference patch that a self-improvement loop does not have.",
+      "source": "arXiv:2503.15223",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["differential-testing", "patchdiff", "inflation", "closest-work"]
+    },
+    {
+      "id": "w8-differential-three-bit-resolution",
+      "kind": "analysis",
+      "title": "The ledger's verifiers cap a differential oracle at ~3 bits per task; assertion-level scoring is the free upgrade",
+      "body": "Arithmetic on the given measurements: 348 assertions / 94 tasks = 3.70 assertions per task, median 3 (exp-ver-001), and 89/94 verifiers already pass on base (exp-ver-003). A verifier that collapses its assertions into one boolean yields at most 2^3 = 8 distinct outcome vectors across the two runs, and conditioning on 'base passes all three' leaves one trivial all-pass state plus the regression states. So the maximum new information a base+patch double-run can extract from the existing 94 verifiers is log2(8) = 3 bits per task per round, and in practice 1 bit: any P2P regression or none. The fix costs no new test authoring: score the assertion-level vector (which of the 3 transitioned), not the aggregate. Prediction: two patches that the boolean ties will differ on at least one assertion transition in >=20% of the 89 base-passing tasks; if the observed rate is under 5%, assertion-level resolution is not worth the parser work and the loop should instead spend on generating new assertions (the UTBoost route).",
+      "source": "exp-ver-001 ; exp-ver-003",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["information-content", "assertion-level", "ledger-arithmetic", "falsifiable-prediction"]
+    },
+    {
+      "id": "w8-differential-rts-legunsen",
+      "kind": "number",
+      "title": "Static RTS across 985 revisions of 22 projects: class-level is comparable to Ekstazi but unsafe sometimes",
+      "body": "Legunsen, Hariri, Shi, Lu, Zhang and Marinov (FSE 2016, 'An extensive study of static regression test selection in modern software evolution') implemented a class-level and a method-level static RTS and compared variants against Ekstazi, a state-of-the-art class-level dynamic RTS, on 985 revisions of 22 open-source projects. The headline result: class-level static RTS is comparable to Ekstazi with similar performance benefits, but at the risk of being unsafe sometimes; the method-level static technique performs rather poorly. Safety is defined precisely - a technique is safe if it selects to run all tests that may be affected by code changes - and the paper's framing of the cost model is the one a loop should copy: end-to-end time of RTS = dependency collection + change analysis + execution of selected tests, and that total must beat the time to run all tests for the optimization to exist at all. The 22-project/985-revision scale is the largest RTS evidence base found, and it is Java, not Python.",
+      "source": "https://doi.org/10.1145/2950290.2950361 (FSE 2016)",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["regression-test-selection", "safety", "ekstazi", "fse-2016"]
+    },
+    {
+      "id": "w8-differential-ekstazi-time",
+      "kind": "number",
+      "title": "Retest-all 48.7s vs Ekstazi 18.7s end-to-end average across 10 Java projects",
+      "body": "In the Reks evaluation table (Wang, Godfrey, Gligoric, ASE 2018, 'Towards Refactoring-Aware Regression Test Selection'), average end-to-end regression testing time across 10 Java projects is 48.7s for retest-all and 18.7s for Ekstazi, with Reks at 9.3s - a 2.6x wall-clock reduction from dynamic file-level selection. Per-project spread is wide (IO: 132.7s vs 11.9s; Stateless4J: 2.2s vs 2.8s, where selection loses), which matters more than the average: on small suites the dependency analysis costs more than it saves. Read this as the only concrete price found for 'keep the second run cheap', with three caveats: it is Java class-level selection from 2018, the workloads are refactoring-oriented rather than agent patches, and end-to-end includes the analysis the paper is optimizing. For a Python loop the transferable claim is the shape - selection pays when suites are long and diffs are narrow - not the 2.6x.",
+      "source": "https://users.ece.utexas.edu/~gligoric/slides/WangETAL18Reks.pdf (ASE 2018)",
+      "confidence": "medium",
+      "topic": "w8-differential",
+      "tags": ["ekstazi", "rts-cost", "java", "measured-timing"]
+    },
+    {
+      "id": "w8-differential-rts-safety-trade",
+      "kind": "claim",
+      "title": "An unsafe selector silently converts a failing test into an unrun test - the cost optimization manufactures false accepts",
+      "body": "RTS safety is a definition, not a heuristic: a technique is safe iff it selects every test whose behavior may be affected by the change (Rothermel-Harrold tradition; Legunsen et al. 2016 confirm class-level static RTS is sometimes unsafe). Compose that with a differential oracle and the failure mode is precise: if a regression test is not selected on the patched run, the oracle sees no P2P-lost event and scores the patch as clean. The selector therefore does not merely lose a little detection power, it removes exactly the evidence the oracle was built to collect, and it does so invisibly - a false accept introduced by the very optimization adopted to make the second run affordable. This is why the two halves of the proposal are coupled: base-run cost and selection safety must be evaluated together. Prediction: inject a known-breaking patch touching a file outside the selector's dependency graph; an unsafe selector will report zero P2P-lost while retest-all reports at least one, and the detection gap is the selector's false-accept contribution, measurable per patch as the difference between selected-set and full-set verdicts.",
+      "source": "https://doi.org/10.1145/2950290.2950361 ; http://web4.cs.ucl.ac.uk/staff/S.Yoo/papers/Yoo2010fk.pdf",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["rts-safety", "false-accept-mechanism", "derived-claim", "falsifiable-prediction"]
+    },
+    {
+      "id": "w8-differential-swe-smith",
+      "kind": "project",
+      "title": "SWE-smith manufactures the missing failing test by breaking existing tests in any codebase",
+      "body": "SWE-smith (Yang et al., NeurIPS 2025, arXiv:2504.21798) answers directly the hardest case in the proposal - a base tree where nothing fails. Given any Python codebase it constructs an execution environment and then automatically synthesizes hundreds to thousands of task instances that break existing test(s) in the codebase, yielding 50k instances from 128 repositories, an order of magnitude more than prior work, and training SWE-agent-LM-32B to 40.2% Pass@1 on SWE-bench Verified. The significance for a differential oracle is that the F2P set need not be found, it can be created: inject a fault, verify the suite now fails, and you have a fail-to-pass pair whose ground truth is the inverse of the injection. That converts an unfalsifiable base-passing verifier into a task with a known-failing assertion. The open question it leaves is quality - a synthesized task tests exactly the fault the generator chose, so the F2P set inherits the generator's blind spots rather than the issue's requirements.",
+      "source": "arXiv:2504.21798",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["swe-smith", "fault-injection", "synthetic-f2p", "neurips-2025"]
+    },
+    {
+      "id": "w8-differential-mutant-73",
+      "kind": "number",
+      "title": "Mutants couple to real faults for 73% of faults (357 faults, 230K mutants) - so a mutation oracle has a ~27% blind spot",
+      "body": "Just, Jalali, Inozemtseva, Ernst, Holmes and Fraser (FSE 2014, 'Are mutants a valid substitute for real faults in software testing?') run the largest such study: 357 real faults from Defects4J and 230,000 mutants. Core result: the mutant detection rate increased for 73% of faults, i.e. for 73% of real faults some mutant was killed by tests that also detect the fault (coupling), and on average about 2 mutants are coupled to a fault; mutation score is a stronger predictor of real-fault detection than statement coverage, including when coverage is held fixed. The honest reading for the proposal's fallback: if the loop substitutes mutation score for a failing test, it inherits a blind spot on the ~27% of faults with no coupled mutant, and that blind spot is not random - uncoupled faults cluster around the mutation operators used (the paper finds operator-dependent coupling, with conditional/relational operator replacement and statement deletion implicated). The paper won the FSE 2024 Most Influential Paper award, so the 73% figure is well replicated, but it was measured on Java, not on 59-line Python agent patches.",
+      "source": "https://doi.org/10.1145/2635868.2635929 (FSE 2014)",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["mutation-testing", "coupling-effect", "defects4j", "blind-spot"]
+    },
+    {
+      "id": "w8-differential-mutap",
+      "kind": "number",
+      "title": "MuTAP: surviving mutants as prompts detect up to 28% more faulty code, 17% of it undetected by Pynguin",
+      "body": "Moradi Dakhel et al. (arXiv:2308.16557) build MuTAP, which generates tests with an LLM and then re-prompts using surviving mutants, because a surviving mutant is a concrete witness that the current suite does not check that behavior. Results: up to 28% more faulty human-written snippets detected; 17% of those remained undetected by both Pynguin (a state-of-the-art automated generator) and zero-shot/few-shot LLM prompting; mutation score 93.57% on synthetic buggy code, beating all baselines. Mechanically this is the cheapest known way to escape the base-passing trap without human test authoring: run mutation analysis on the base tree, take the surviving mutants as a to-do list, and the resulting tests are guaranteed to fail on base and pass on a correct fix - i.e. they are F2P by construction. Caveat: the 93.57% figure is on synthetic bugs and the 28% is relative, so neither is a false-accept rate for real agent patches.",
+      "source": "arXiv:2308.16557",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["mutap", "surviving-mutants", "llm-test-generation", "f2p-by-construction"]
+    },
+    {
+      "id": "w8-differential-metamorphic",
+      "kind": "concept",
+      "title": "Metamorphic relations as an oracle where no expected output exists - checkable without a base-tree failure",
+      "body": "Metamorphic testing replaces the expected-output oracle with relations across transformed inputs: instead of asserting f(x) = y, assert that f(T(x)) relates to f(x) in a stated way (permutation invariance, monotonicity, scaling). The standard reference is Segura, Fraser, Sanchez and Ruiz-Cortes, 'A Survey on Metamorphic Testing', IEEE TSE 42(9):805-824, 2016, which frames it exactly as the oracle problem's answer when the input-output relation is complex or unavailable. Its relevance here is structural: a metamorphic relation needs no failing test on the base tree, so it can serve as the F2P side where nothing fails, and it is checkable on both trees in the same round. But it has a hard boundary the proposal must respect: an MR that holds on base and holds on the patch contributes nothing to a transition score, so MRs cannot certify a patch that changes no observable behavior. Prediction: for a refactor-only round (no output change), every MR passes on both trees and the differential score is identically zero regardless of correctness - MRs catch output-changing faults only. Confidence is low on any detection-rate claim: the survey is paywalled and only the bibliographic record and abstract were verified, so no numeric MR detection rate is asserted here.",
+      "source": "https://doi.org/10.1109/TSE.2016.2532875 (IEEE TSE 42(9):805-824, 2016)",
+      "confidence": "low",
+      "topic": "w8-differential",
+      "tags": ["metamorphic-testing", "oracle-problem", "paywalled", "refactor-blindness"]
+    },
+    {
+      "id": "w8-differential-unreproducible-base",
+      "kind": "failure",
+      "title": "Three concrete ways the base run lies: dependency drift, broken environment graded as wrong, and a base commit absent from the object db",
+      "body": "First, unpinned dependencies: the Large Language Monkeys authors traced SWE-bench Lite flakiness to unpinned dependency versions in the Docker environments, and found astropy__astropy-6938 flaky on some machines and not others - so the same nominal base tree is a different program on different hosts (arXiv:2407.21787). Second, environment build failure graded as a solution failure: OpenAI states it is sometimes difficult to reliably set up SWE-bench development environments, inadvertently causing unit tests to fail regardless of the solution, so perfectly valid solutions get marked incorrect. Third, the base tree may not exist at all: the Repo2RLEnv validation pipeline documents that its bootstrap image ships a depth=1 shallow clone, so historical PR base commits are absent from the object database until explicitly fetched, and `git reset --hard <base_commit>` fails without that fetch. Add the EnvBench/EvoConfig failure split (32.4% hardware insufficiency, 28.2% missing or incomplete config such as pyproject.toml or requirements.txt) and the base run is the least reliable component of the whole proposal. A differential oracle must therefore fail closed on a non-reproducible base, never score it.",
+      "source": "arXiv:2407.21787 ; https://openai.com/index/introducing-swe-bench-verified/ ; https://github.com/huggingface/Repo2RLEnv/blob/main/src/repo2rlenv/pipelines/pr_runtime_validate.py ; https://openreview.net/pdf?id=ACoJWTUB3P",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["reproducibility", "base-tree", "shallow-clone", "environment-failure", "fail-closed"]
+    },
+    {
+      "id": "w8-differential-cost-second-run",
+      "kind": "analysis",
+      "title": "The second run costs wall clock, not tokens - and the ledger's patches are small enough for selection to pay",
+      "body": "Ledger measurement w5-tokenbudget: about 7 cents per landed promotion at real card prices, 71x more than the ledger recorded. A base run adds no model tokens and no prompt length; it adds one suite execution per round, so the marginal cost is wall clock and container time, and the comparison that matters is suite duration versus the 7-cent model spend. Ledger measurement exp-human-007: the whole promotion queue is 6,684 changed lines across 114 patches, an average of 58.6 lines per patch. Small diffs are the regime where coverage-based selection works: Ekstazi's class-level selection cut end-to-end time from 48.7s to 18.7s on 10 Java projects (Reks table, ASE 2018), and Legunsen et al. found class-level static RTS comparable on 985 revisions of 22 projects. Prediction: on these 114 patches, a diff-coverage selector will run a median of under 30% of the suite; if the observed median is above 70%, the base-run cost roughly doubles wall clock per round and the proposal should be gated behind a cheaper pre-check instead.",
+      "source": "w5-tokenbudget ; exp-human-007 ; https://users.ece.utexas.edu/~gligoric/slides/WangETAL18Reks.pdf ; https://doi.org/10.1145/2950290.2950361",
+      "confidence": "medium",
+      "topic": "w8-differential",
+      "tags": ["cost", "wall-clock", "diff-size", "test-selection", "ledger"]
+    },
+    {
+      "id": "w8-differential-design-four-parts",
+      "kind": "concept",
+      "title": "Design: base pre-flight, F2P/P2P split, diff-coverage flake filter, assertion-level score",
+      "body": "Concrete design assembled from the sourced pieces. (1) Base pre-flight: run the verifier twice on a clean, pinned tree; if the two runs disagree, or the base commit cannot be materialized, mark the round unscored and fix the environment - never score it (justified by arXiv:2407.21787, the OpenAI environment note, and the Repo2RLEnv shallow-clone failure). (2) Split assertions into F2P (fail on base, pass on patch) and P2P (pass on both); credit only F2P, penalize only P2P-lost. (3) Flake filter: discard any transition whose test did not execute lines in the diff, DeFlaker-style, with 1.5% false alarms and 95.5% recall (ICSE 2018); only residual disagreements pay for k reruns. (4) Score assertion-level, not boolean, to get ~3 bits instead of 1 (exp-ver-001). Prediction: this converts the 89 base-passing tasks from an all-pass constant into a real signal, and a reward hack that deletes or weakens assertions becomes visible as P2P-lost rather than invisible; if it does not, the verifiers' assertions are not patch-observable at all and only new assertions (UTBoost, MuTAP) can help.",
+      "source": "arXiv:2407.21787 ; https://dl.acm.org/doi/10.1145/3180155.3180164 ; exp-ver-001 ; exp-ver-003",
+      "confidence": "medium",
+      "topic": "w8-differential",
+      "tags": ["design", "pre-flight", "flake-filter", "assertion-level", "synthesis"]
+    },
+    {
+      "id": "w8-differential-unmeasured-on-agent-patches",
+      "kind": "question",
+      "title": "Nobody has measured false-accept/false-reject for a two-run oracle on agent-written patches",
+      "body": "Every published weakness measurement found is conditioned on gold or top-leaderboard patches evaluated on a clean, curated base: SWE-Bench+ screened one agent's successful patches (arXiv:2410.06992), UTBoost re-scored existing leaderboard submissions (arXiv:2506.09289), PatchDiff compared three solvers against ground-truth patches on Verified (arXiv:2503.15223), and the 34/300 flaky figure is SWE-bench Lite's images, not a self-hosted runner (arXiv:2407.21787). None of these reports the two numbers the proposal needs: the rate at which a base+patched double-run accepts a wrong patch (false accept), and the rate at which it rejects a correct-but-different patch (false reject), on patches produced by an unattended loop. The nearest available proxies bracket the answer widely - 7.8% of solved patches fail the developer suite in PatchDiff, 31.08% of passes are weak-test passes in SWE-Bench+, 61.1% of suites were flagged as over-specific in Verified - and they measure different populations, so they cannot be combined into a rate. A loop operator should measure both on their own 94 tasks before trusting either.",
+      "source": "arXiv:2503.15223 ; arXiv:2410.06992 ; arXiv:2506.09289 ; arXiv:2407.21787",
+      "confidence": "high",
+      "topic": "w8-differential",
+      "tags": ["unmeasured", "false-accept", "false-reject", "population-mismatch"]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w8-differential-transition-score",
+      "rel": "derived-from",
+      "to": "w8-differential-src-swebench",
+      "note": "The proposal's scoring rule is the SWE-bench F2P/P2P criterion; the source node is the construction definition it is read off."
+    },
+    {
+      "from": "w8-differential-transition-score",
+      "rel": "requires",
+      "to": "w8-differential-unreproducible-base",
+      "note": "A two-run oracle presupposes a reproducible base tree; the failure node lists the three ways that presupposition breaks."
+    },
+    {
+      "from": "w8-differential-base-pass-certifies-nothing",
+      "rel": "requires",
+      "to": "w8-differential-src-swebench",
+      "note": "The only repair for a base-passing verifier is an F2P set, which is exactly what the SWE-bench construction defines."
+    },
+    {
+      "from": "w8-differential-lite-flaky-34",
+      "rel": "fails-at",
+      "to": "w8-differential-transition-score",
+      "note": "Flaky suites are the point where a transition score misreads noise as a transition; 30 of 34 cases contaminate even the gold patch."
+    },
+    {
+      "from": "w8-differential-google-flake",
+      "rel": "supports",
+      "to": "w8-differential-lite-flaky-34",
+      "note": "Independent industrial evidence at much larger scale (4.2M tests) for the same contamination mechanism; not the same dataset, so supports rather than same-as."
+    },
+    {
+      "from": "w8-differential-deflaker",
+      "rel": "applies-to",
+      "to": "w8-differential-transition-score",
+      "note": "Diff-coverage gating is the cheap filter for a two-run oracle; the paper supplies the false-alarm and recall numbers but was not evaluated on this loop."
+    },
+    {
+      "from": "w8-differential-openai-false-reject",
+      "rel": "refines",
+      "to": "w8-differential-base-pass-certifies-nothing",
+      "note": "Adds that a base-passing verifier is not merely uninformative but can be wrong in the other direction: over-specific F2P assertions reject correct patches."
+    },
+    {
+      "from": "w8-differential-utboost",
+      "rel": "supports",
+      "to": "w8-differential-swebenchplus",
+      "note": "Independent replication of false accepts under weak tests, with a different method (LLM test augmentation vs manual screening) and different numbers."
+    },
+    {
+      "from": "w8-differential-patchdiff",
+      "rel": "applies-to",
+      "to": "w8-differential-transition-score",
+      "note": "PatchDiff is differential testing between two patches rather than base-vs-patched; strictly more informative and needs a trusted reference patch the loop lacks."
+    },
+    {
+      "from": "w8-differential-three-bit-resolution",
+      "rel": "derived-from",
+      "to": "w8-differential-base-pass-certifies-nothing",
+      "note": "The bit-count bound is arithmetic on the same two ledger measurements; it converts the qualitative claim into a per-round information budget."
+    },
+    {
+      "from": "w8-differential-rts-legunsen",
+      "rel": "measures",
+      "to": "w8-differential-cost-second-run",
+      "note": "Supplies the largest RTS evidence base (985 revisions, 22 projects) for whether selection keeps a second run cheap; measured on Java, so it measures the cost side only."
+    },
+    {
+      "from": "w8-differential-ekstazi-time",
+      "rel": "supports",
+      "to": "w8-differential-cost-second-run",
+      "note": "Concrete 48.7s to 18.7s end-to-end figure for the same claim; 10 Java projects, 2018, refactoring workloads."
+    },
+    {
+      "from": "w8-differential-rts-safety-trade",
+      "rel": "derived-from",
+      "to": "w8-differential-rts-legunsen",
+      "note": "Derives the false-accept mechanism from the paper's definition of safety (select all potentially affected tests) plus its finding that class-level static RTS is sometimes unsafe."
+    },
+    {
+      "from": "w8-differential-rts-safety-trade",
+      "rel": "applies-to",
+      "to": "w8-differential-deflaker",
+      "note": "The DeFlaker coverage rule is itself a selector, so it is subject to the same safety obligation; the note is that a coverage-based discard must be shown to never drop a diff-relevant test."
+    },
+    {
+      "from": "w8-differential-mutant-73",
+      "rel": "applies-to",
+      "to": "w8-differential-swe-smith",
+      "note": "SWE-smith's synthetic F2P tasks are fault injections, so the mutation-fault coupling bound (73%) bounds how representative they are; the paper does not measure its own coupling."
+    },
+    {
+      "from": "w8-differential-mutap",
+      "rel": "supports",
+      "to": "w8-differential-mutant-73",
+      "note": "Uses surviving mutants as a test-generation signal, which presumes mutants are informative about real detection; the 28%/17% gains are the practical payoff of that presumption."
+    },
+    {
+      "from": "w8-differential-mutap",
+      "rel": "applies-to",
+      "to": "w8-differential-swe-smith",
+      "note": "Alternative filler for the no-failing-test case: generate F2P tests from surviving mutants instead of injecting faults into the product code."
+    },
+    {
+      "from": "w8-differential-metamorphic",
+      "rel": "applies-to",
+      "to": "w8-differential-transition-score",
+      "note": "An MR is an oracle that needs no base failure, so it can populate F2P where nothing fails; the difference from a transition score is that a relation holding on both trees yields no signal."
+    },
+    {
+      "from": "w8-differential-unreproducible-base",
+      "rel": "fails-at",
+      "to": "w8-differential-transition-score",
+      "note": "The three listed mechanisms each make the base run an unreliable measurement, so the score is undefined rather than merely noisy; the correct behavior is fail-closed."
+    },
+    {
+      "from": "w8-differential-design-four-parts",
+      "rel": "derived-from",
+      "to": "w8-differential-transition-score",
+      "note": "Instantiates the transition score with the sourced mitigations; the parts are assembled, not independently validated as a whole."
+    },
+    {
+      "from": "w8-differential-design-four-parts",
+      "rel": "requires",
+      "to": "w8-differential-deflaker",
+      "note": "Part 3 (flake filter) is the DeFlaker rule; without it the design inherits the 84% flaky pass-to-fail base rate."
+    },
+    {
+      "from": "w8-differential-design-four-parts",
+      "rel": "requires",
+      "to": "w8-differential-unreproducible-base",
+      "note": "Part 1 (base pre-flight, fail closed) is the mitigation for the three reproducibility failures."
+    },
+    {
+      "from": "w8-differential-unmeasured-on-agent-patches",
+      "rel": "derived-from",
+      "to": "w8-differential-patchdiff",
+      "note": "The gap is defined by what PatchDiff does not cover: agent-written patches, unclean base, and the false-reject side left unquantified."
+    },
+    {
+      "from": "w8-differential-three-bit-resolution",
+      "rel": "refines",
+      "to": "w8-differential-design-four-parts",
+      "note": "Part 4 (assertion-level scoring) is the concrete way to buy the missing bits without new tests; refines rather than supports because the >=20% separation is still a prediction."
+    }
+  ],
+  "gaps": [
+    "No measurement exists of the false-accept and false-reject rates of a base+patched two-run oracle on patches written by an unattended agent loop; every published rate (7.8% in PatchDiff, 31.08% in SWE-Bench+, 61.1% over-specific flag rate in Verified) is computed on gold or top-leaderboard patches against a curated clean base, so the three numbers describe different populations and cannot be combined.",
+    "How often is the base tree itself non-reproducible in a self-hosted loop (as opposed to SWE-bench Lite's curated Docker images)? The 34/300 flaky figure is borrowed from someone else's images, and the astropy-6938 case was machine-dependent, so no one has measured the base-run disagreement rate for a runner like this one.",
+    "Whether assertion-level transition scoring actually separates patches that the aggregate boolean ties at 3-assertion granularity - the predicted >=20% separation rate is a prediction, not a measurement, and the parser cost is unquantified.",
+    "The wall-clock cost of a second suite run for small (about 59-line) Python patches is unmeasured; the only RTS timings found are 2018 Java class-level selection (48.7s to 18.7s), and no study reports the selected-fraction distribution for Python agent diffs.",
+    "Whether mutation-injected failing tests (SWE-smith) have the same false-reject profile as human-written F2P tests - a synthesized task tests exactly the injected fault, and no one has compared its rejection of valid alternative fixes against a human suite.",
+    "No published detection rate for metamorphic relations as a substitute oracle on refactor-only patches, where every relation holds on both trees and the differential score is identically zero; the Segura et al. survey is paywalled and yielded no numbers here.",
+    "Whether per-round flake quarantine (k reruns, majority vote, as the Large Language Monkeys authors used with k=11) is affordable in a loop that spends about 7 cents per landed promotion - nobody has priced k-times rerun against the model spend, and k=11 may exceed the round's entire budget."
+  ]
+}

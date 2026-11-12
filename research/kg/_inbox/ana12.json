@@ -1,0 +1,72 @@
+{
+ "nodes": [
+  {
+   "id": "ana-012",
+   "kind": "analysis",
+   "title": "The whole loop is missing one measurement: whether the patch changed the verdict, not whether the verdict is green",
+   "body": "Eight waves of research and forty of my own probes converge on a single structural finding: every decision the loop makes reads a quantity that is either degenerate or absent, and all of those quantities trace back to the same omission. verifierOk answers 'is the tree green', not 'did this attempt make it greener'. On 89 of 94 tasks the tree was green before the attempt existed (exp-ver-003), so that bit is worse than uninformative - it is constant. baseFailed was meant to carry the missing half and is unmeasured in 192 of 208 gates (exp-gate-002). From that one gap follow: binary scores (exp-score-001), minGain never binding (exp-gate-001), the per-task ceiling at 1.0 (exp-gate-003), 14 empty promotions (exp-gate-002), the blank score in the brief (exp-brief-002), and the tie-break deciding winners (exp-slot-001). w8-differential establishes that the fix is not novel - SWE-bench was built as an ordered base/patched pair from the start, and the loop's verifier is the degenerate case with an empty fail-to-pass set. So the honest summary of this night is: a well-instrumented loop was built around a one-sided oracle, and the literature's standard oracle costs one extra verifier run (1.5 s mean, exp-ver-001). Everything else in the backlog is downstream of that.",
+   "source": "w8-differential + exp-ver-003 + exp-gate-002 + exp-score-001 + exp-gate-001 + exp-gate-003 + exp-slot-001 + exp-brief-002",
+   "confidence": 0.95,
+   "topic": "tri",
+   "tags": [
+    "analysis",
+    "synthesis",
+    "oracle",
+    "root-cause"
+   ]
+  },
+  {
+   "id": "ana-013",
+   "kind": "analysis",
+   "title": "A flake filter is a precondition, not an optimisation: without it the differential oracle is net-negative",
+   "body": "w8-differential found that at Google 84% of pass-to-fail transitions are flakes and only 1.23% of tests ever found a real breakage, which means a naive two-run oracle would read a correct patch as a regression about six times for every true regression it catches. That inverts the cost of the fix I would otherwise recommend: adding the second run without a flake discriminator does not make the gate sharper, it makes it randomly reject good work, and this loop's recovery path already treats an unexplained rejection as no-gain (exp-gate-002's masking of holdout-failed is the same failure shape). The design consequence is concrete and cheap for us: a pass-to-pass assertion that flipped from green to red must be re-run before it counts, and a task whose assertions are known flaky should be excluded from the oracle rather than retried indefinitely. Our own data gives the filter for free - the same verifier on the same tree is already run twice in some campaigns, so intra-campaign agreement measures our flake rate without new infrastructure. w8-differential's other half matters too: test selection cannot be adopted separately, because an unsafe selector deletes exactly the pass-to-pass evidence the oracle is built from.",
+   "source": "w8-differential (Google 84% P2F flake rate, 1.23% of tests find breakage) + exp-gate-002",
+   "confidence": 0.92,
+   "topic": "ver",
+   "tags": [
+    "analysis",
+    "oracle",
+    "flaky-tests",
+    "differential"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "ana-012",
+   "rel": "derived-from",
+   "to": "exp-ver-004"
+  },
+  {
+   "from": "ana-012",
+   "rel": "derived-from",
+   "to": "exp-gate-002"
+  },
+  {
+   "from": "ana-012",
+   "rel": "supports",
+   "to": "exp-score-001"
+  },
+  {
+   "from": "ana-012",
+   "rel": "refines",
+   "to": "ana-003"
+  },
+  {
+   "from": "ana-013",
+   "rel": "derived-from",
+   "to": "w8-differential-google-flake"
+  },
+  {
+   "from": "ana-013",
+   "rel": "requires",
+   "to": "ana-012"
+  },
+  {
+   "from": "ana-013",
+   "rel": "contradicts",
+   "to": "exp-cand-002",
+   "note": "that analysis said the fix is a per-policy invariant; this one says the oracle itself is the single upstream invariant"
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+{
+  "tasksRun": 105,
+  "runsPerTask": 3,
+  "verdictUnstable": 0,
+  "verdictUnstableIds": [],
+  "stableVerdictButDifferentAssertionCount": 0,
+  "assertionCountDriftIds": [],
+  "totalWallSeconds": 968.4,
+  "meanSecondsPerRun": 3.07,
+  "flakeRate": 0
+}

@@ -1,0 +1,60 @@
+{
+ "nodes": [
+  {
+   "id": "exp-dura-004",
+   "kind": "number",
+   "title": "All 73 committed promotions are real commits in the repo's history; 15 more were marked applied and left nothing",
+   "body": "Independently verified every autopilot promotion against git rather than against the ledger (research/exp/e45.mjs): 73 records carry a commit sha, all 73 exist as commit objects, all 73 are ancestors of HEAD, and none is orphaned on a side branch. So the loop's durability claim for committed work holds under a witness that does not share the ledger's assumptions. The other 15 autopilot.applied records carry committed:false and no patch file at all - they are the pre-commit-workspace era, when autopilot wrote into the live tree without staging a patch, and they are exactly the 5 round.unlanded events' neighbourhood (exp-human-002). 88 applied = 73 committed + 15 empty. The residual risk is therefore not 'commits are lost' but 'apply succeeded with nothing to commit and nobody noticed', which is the same failure shape as the 14 no-op promotions (exp-gate-002) showing up one layer down.",
+   "source": "research/exp/e45.mjs (73 commit shas cross-checked against git, 15 empty applies)",
+   "confidence": 0.96,
+   "topic": "prod",
+   "tags": [
+    "measurement",
+    "durability",
+    "git",
+    "provenance"
+   ]
+  },
+  {
+   "id": "exp-dura-005",
+   "kind": "analysis",
+   "title": "The repo is a better ledger than the ledger for exactly one question, and that is enough to test every other claim",
+   "body": "This measurement matters less for its result (no lost commits) than for its method: git history is an independent witness of what landed, written by a different program, with a different failure mode. The ledger is written by the loop about itself, which is precisely the circularity ana-011 named - measuring a system with its own definition. For landed work there is a second witness available, and using it converts 'the loop says it promoted 114 times' into '73 commit shas exist and are ancestors of HEAD'. The same move is available for the other questions people will ask about this loop: does the brief actually reach the worker (the session archive is a second witness), did the verifier actually run (exit codes in the child log), was the guard actually green (re-run it). Each is cheap, and each replaces a self-report with an observation made by something that has no stake in the answer.",
+   "source": "research/exp/e45.mjs + ana-011 (measuring a system with its own definition)",
+   "confidence": 0.93,
+   "topic": "prod",
+   "tags": [
+    "analysis",
+    "provenance",
+    "method"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-dura-004",
+   "rel": "supports",
+   "to": "exp-human-002"
+  },
+  {
+   "from": "exp-dura-004",
+   "rel": "refines",
+   "to": "exp-dura-002"
+  },
+  {
+   "from": "exp-dura-004",
+   "rel": "supports",
+   "to": "exp-gate-002"
+  },
+  {
+   "from": "exp-dura-005",
+   "rel": "derived-from",
+   "to": "exp-dura-004"
+  },
+  {
+   "from": "exp-dura-005",
+   "rel": "supports",
+   "to": "ana-011"
+  }
+ ]
+}

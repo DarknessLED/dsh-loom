@@ -1,0 +1,478 @@
+{
+  "nodes": [
+    {
+      "id": "w8-measure-claim-binary-floor",
+      "kind": "claim",
+      "title": "A 0/1 verifier at 94 tasks resolves effects no finer than about 10 points",
+      "body": "At the ledger's 94 tasks (exp-ver-001) a 0/1 verifier result gives a 95% binomial half-width of +/-10.1 points at p=0.5 (1.96*sqrt(0.25/94)=0.101); at the 458-attempt level the same arithmetic gives +/-4.6 points. Because exp-score-001 makes each attempt worth exactly one bit and exp-gate-001 shows minGain never changed a decision, every promotion in this ledger was decided at a resolution coarser than the effects claimed for it (6684 changed lines over 114 patches, exp-human-007). Mechanism: a binary gate can only report 'the same or better', so a true +2-point change and a true -2-point change are the same observation unless the sample is large. Falsifiable prediction: score the next 100 rounds the same way and the round-to-round promotion-rate change will stay inside +/-10 points at 95% confidence, so any claimed gain below that is unidentifiable from the measurement rather than absent from the system.",
+      "source": "exp-ver-001; exp-score-001; exp-gate-001; exp-human-007",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "resolution",
+        "binomial",
+        "binary-score"
+      ]
+    },
+    {
+      "id": "w8-measure-number-mcnemar-mde",
+      "kind": "number",
+      "title": "McNemar minimum detectable effect depends only on discordant pairs: 1145 pairs were needed where 500 were run",
+      "body": "Paired binary data is analysed with McNemar, and the minimum detectable effect depends only on the discordant pairs: n = (z(1-a/2)+z(1-b))^2 * (p01+p10) / (p01-p10)^2. Worked instance from a public SWE-bench Verified run (single call 388/500 = 77.6%, team-solve 400/500 = 80.0%): both solved 373, team-only 27, single-only 15, neither 85, so p01+p10 = 42/500 = 0.084 and the observed difference is 0.024. Plugging in gives n = 7.849*0.084/0.000576 = 1145 pairs for 80% power at alpha=0.05, so the experiment needed roughly 2.3x the 500 instances it had; exact McNemar duly returned p = 0.09, a 2.4-point difference a naive pass-rate comparison would have called a win. The same run's own direct attempt scored 393/500 against the team's 400/500 with 7 discordant pairs one way and 0 the other, p = 0.016.",
+      "source": "https://github.com/guregodevo/memdoor (memdoor-swe-bench/README.md); McNemar formula as standard",
+      "confidence": "medium",
+      "topic": "w8-measure",
+      "tags": [
+        "mcnemar",
+        "mde",
+        "paired",
+        "power"
+      ]
+    },
+    {
+      "id": "w8-measure-claim-pairing",
+      "kind": "claim",
+      "title": "Pairing on the same task removes the dominant variance term and is the cheapest resolution upgrade available",
+      "body": "The 94 tasks in this ledger differ by orders of magnitude in difficulty (median verifier 3 assertions, 348 total, exp-ver-001), so between-task variance swamps any policy effect; a retried task is its own control and the only quantity left is the discordance rate. The worked SWE-bench example shows why this matters: 42 of 500 pairs disagreed at all, and inference came from those 42 rather than from the 888 concordant results, which is what makes a 2.4-point difference unreadable even though the paired design is already the efficient one. It applies here because 89 of 94 verifiers pass on the clean base tree (exp-ver-003): the tasks are near-saturated, so between-task variance is small but the usable signal is smaller still. Falsifiable prediction: converting the loop from 'new task per round' to 'same task, changed policy, 20 paired retries' cuts the rounds needed to detect a 10-point effect from >100 to about 20.",
+      "source": "exp-ver-001; exp-ver-003; https://github.com/guregodevo/memdoor",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "paired-design",
+        "variance",
+        "retry"
+      ]
+    },
+    {
+      "id": "w8-measure-claim-weak-oracle",
+      "kind": "claim",
+      "title": "The bottleneck is not the binary score but an oracle that is already green on 89 of 94 unpatched trees",
+      "body": "89 of 94 task verifiers pass on the clean base tree (exp-ver-003). A verifier that is already green before the patch cannot testify that the patch did anything; it can only testify that the patch did not break something, and even that only for the 3 median assertions it contains (exp-ver-001, 348 assertions across all 94 tasks). That is the real measurement bottleneck: the oracle attached to the score is too weak to separate 'fixed' from 'untouched', and the published analogue is the SWE-bench Pro audit in which five senior engineers judged 249 of 731 public tasks (34.1%) broken, with 'test scope too narrow' - a partial fix passes - counted as one of four failure classes. Falsifiable prediction: for every task whose verifier passes on base, a seeded regression in the patched lines has a >50% chance of also passing the verifier, measurable with 10 mutants per task.",
+      "source": "exp-ver-003; exp-ver-001; https://arxiv.org/abs/2509.16941 (SWE-bench Pro audit, via secondary reports)",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "oracle",
+        "verifier",
+        "saturation"
+      ]
+    },
+    {
+      "id": "w8-measure-number-benchmark-resolution",
+      "kind": "number",
+      "title": "Published audit claims 129 of 133 adjacent system pairs are not separable on SWE-bench Verified (snippet only, unverified)",
+      "body": "A paired-resolution audit (Zenodo record 22541066) is reported to take 134 systems x 500 SWE-bench Verified instances and find 129 of 133 adjacent-rank pairs not separable at the 5% level, with roughly 14,000 instances needed to resolve a 1-percentage-point gap. If true this is the cleanest published statement of the resolution limit of a 500-item code benchmark, and it is the same arithmetic as the McNemar result above. The PDF could not be fetched: both attempts returned HTTP 404 through the fetch endpoint, so this node rests on a search snippet alone and is marked low confidence. It is included because the number is load-bearing for the 'no budget for a benchmark' argument and should be re-verified against the primary PDF before being quoted, not because it has been read.",
+      "source": "https://zenodo.org/records/22541066 (unfetched; HTTP 404 on PDF)",
+      "confidence": "low",
+      "topic": "w8-measure",
+      "tags": [
+        "resolution",
+        "benchmark",
+        "unverified"
+      ]
+    },
+    {
+      "id": "w8-measure-number-mutation-cost",
+      "kind": "number",
+      "title": "Google's mutation cost curve: one mutant per line, 7 per file, several minutes each, 15% productive at first",
+      "body": "Google's deployment is the only public cost curve for mutation at scale: about 2 billion lines, >500,000,000 test executions per day gating 60,000 changelists, mutation restricted to changed and covered lines, at most one mutant per line, five operators (AOR, LCR, ROR, UOI, SBR), at most 7 reported mutants per file, median 2 live mutants per changelist and 99th percentile 43. Evaluating and resolving a single mutant takes 'several minutes' of developer time, and developers initially classified 85% of reported mutants as unproductive, i.e. 15% were worth acting on; six years of feedback from >20,000 developers plus arid-node suppression moved that to 89% productive over 24,000 developers and 1,000+ projects. The supporting dataset is 14,730,562 mutants over 662,584 changes in 446,604 files. Google explicitly declined to ship a mutation score because it was not actionable; they ship individual mutants.",
+      "source": "https://arxiv.org/abs/2102.11378 (arXiv:2102.11378); https://arxiv.org/abs/2103.07189 (arXiv:2103.07189)",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "mutation-testing",
+        "cost",
+        "google"
+      ]
+    },
+    {
+      "id": "w8-measure-claim-mutation-buys-oracle",
+      "kind": "claim",
+      "title": "A verifier mutation score buys oracle strength, not code quality, and costs at most one test run per changed line",
+      "body": "A pass rate answers 'did the verifier go green'; a mutation score answers 'would the verifier have gone red if the patch had been wrong', and only the second is evidence that a promotion means anything. Concretely: take the 6684 changed lines in the 114-patch promotion queue (exp-human-007), seed at most one mutant per line - the same one-per-line cap Google uses - and score each verifier by the fraction of those mutants it kills. The compute cost is one compile-and-test run per mutant, so the whole queue is bounded by 6684 runs, a number this loop can afford in a way Google's human review cost of 'several minutes per mutant' never could. The rationale is the Buffer.view() case: the line is covered, the test asserts nothing about the appended buffer, and only a statement-deletion mutant exposes it. Falsifiable prediction: verifiers in the bottom quartile of mutation score will account for the majority of patches later repaired or reverted.",
+      "source": "exp-human-007; https://arxiv.org/abs/2102.11378; https://arxiv.org/abs/2103.07189",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "mutation-testing",
+        "verifier",
+        "oracle",
+        "cost"
+      ]
+    },
+    {
+      "id": "w8-measure-number-retry-inflation",
+      "kind": "number",
+      "title": "Same 1/3 skill reports 33%, 70% or 4% depending on how retries are counted",
+      "body": "Retrying a task changes what the number means. With per-attempt success p, reporting the best of k attempts gives pass@k = 1-(1-p)^k while reporting 'solved every time' gives pass^k = p^k; at p = 1/3 and k = 3 those are 70% and 4% from the same 33% success rate (worked example in the Caliper README). For this ledger the direction is already fixed by exp-ver-003: 89 of 94 verifiers pass on the clean base tree, so retrying a solved task cannot promote anything and a pass@k-style metric would be measuring verifier saturation rather than agent skill. The actionable statistic is the opposite one: count how often the same task, retried under the same policy, flips after having been solved. Nobody in this ledger has recorded that number, and it bounds how much of the 458 attempts is signal rather than a coin landing differently.",
+      "source": "https://github.com/edonadei/caliper (README, pass@k vs pass^k); exp-ver-003",
+      "confidence": "medium",
+      "topic": "w8-measure",
+      "tags": [
+        "retry",
+        "pass@k",
+        "variance"
+      ]
+    },
+    {
+      "id": "w8-measure-concept-anytime-valid",
+      "kind": "concept",
+      "title": "A loop that peeks after every round needs a confidence sequence or alpha spending, not a per-round p-value",
+      "body": "Continuous monitoring is the specific statistical hazard here, because the loop looks after every round and promotes when it likes. Repeated looks at a fixed-alpha test inflate Type I error; the two accepted fixes are group-sequential alpha spending (Pocock, O'Brien-Fleming, implemented in R ldbounds and rpact and in SAS SEQDESIGN) and anytime-valid confidence sequences built from mixture martingales, which give a valid interval at every stopping time rather than only at a pre-declared N (Anytime-Valid Inference For Multinomial Count Data, NeurIPS 2022, builds on Howard et al.). Mechanism: the martingale construction pays a modest constant factor in interval width in exchange for validity under arbitrary stopping, so the honest error bar is wider than the naive one but never wrong. For a 0/1 promotion outcome the Bernoulli form is the one to use; a per-round p-value over 'did this round promote' is not.",
+      "source": "https://proceedings.neurips.cc/paper_files/paper/2022/file/12f3bd5d2b7d93eadc1bf508a0872dc2-Paper-Conference.pdf; https://support.sas.com/resources/papers/proceedings09/311-2009.pdf",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "sequential",
+        "confidence-sequence",
+        "type-i-error"
+      ]
+    },
+    {
+      "id": "w8-measure-concept-phat",
+      "kind": "concept",
+      "title": "Probability of superiority beats standardized mean difference at N=5..20 on non-normal SE data",
+      "body": "Kitchenham and Madeyski's simulation study (Empirical Software Engineering 29:137, 2024) is the direct authority for small-n SE measurement: SE datasets are non-normal, parametric standardized mean difference (StdMD) is biased and low-powered at the N=5, 10, 20 per-group grid their reproducer package defaults to, and the probability of superiority (p-hat, the chance a random observation from one condition exceeds one from the other) plus Cliff's d 'consistently outperformed StdMD in terms of negligible small sample bias'. p-hat's power was always at least Cliff's d's; it beat StdMD on log-normal and Laplace data and lost on normal and gamma; its Type I error was less biased in all but one condition. Their conclusion is quotable: 'Using p-hat is a low-risk option ... Parametric methods are only preferable if you have prior knowledge of the data distribution.'",
+      "source": "https://link.springer.com/article/10.1007/s10664-024-10504-1; https://cran.r-project.org/package=reproducer",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "small-sample",
+        "effect-size",
+        "nonparametric"
+      ]
+    },
+    {
+      "id": "w8-measure-project-livecodebench",
+      "kind": "project",
+      "title": "LiveCodeBench dates every problem and only scores a model on problems released after its cutoff",
+      "body": "LiveCodeBench (arXiv:2403.07974) collects problems from LeetCode, AtCoder and CodeForces from May 2023 onward and tags each with its contest release date, then evaluates a model only on problems released after that model's training cutoff; the published set is >500 problems for May 2023-May 2024 at roughly 17 tests per problem, run across 18 base and 34 instruction-tuned models. The mechanism is contamination resistance by construction rather than by audit: a problem that did not exist cannot be in the training set. The measured effect is a 'stark drop' for DeepSeek, GPT-4-O and Codestral on post-cutoff problems, and HumanEval+ shows the same direction when tests alone are strengthened (up to 8% drop), while some models are good on HumanEval and not on LiveCodeBench - direct evidence of benchmark overfitting. Their design principle 4 also warns that when most SoTA models score near zero on most items, 'the variance in performances is low', i.e. difficulty must be balanced or the benchmark stops discriminating.",
+      "source": "https://arxiv.org/abs/2403.07974; https://github.com/livecodebench/livecodebench",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "benchmark",
+        "contamination",
+        "dated-tasks"
+      ]
+    },
+    {
+      "id": "w8-measure-project-swebench-pro",
+      "kind": "project",
+      "title": "SWE-bench Pro resists contamination by license and by private repos, and still saturated in eight months",
+      "body": "SWE-bench Pro (arXiv:2509.16941) is 1,865 problems over 41 repositories split three ways: a public set of 11 repos, a held-out set of 12 repos that are not public, and a commercial set of 18 proprietary repos from partner startups whose results are released but whose problems are not. Contamination resistance is structural - copyleft (GPL) licences create legal barriers to including the code in training corpora, and the commercial repos are simply private - rather than statistical. That is the strongest available design for 'a suite the system did not author', and it still was not enough: the July 2026 audit reported the public split rising from 23.3% to 80.3% solve rate in eight months, with 200 of 731 public tasks (27.4%) flagged broken by the pipeline and 249 (34.1%) judged broken by five senior engineers, roughly the ~30% figure OpenAI itself estimated, across four failure classes (tests too strict, prompt underspecified, test scope too narrow, misleading prompt).",
+      "source": "https://arxiv.org/abs/2509.16941; secondary reports of the July 2026 audit (tmtpost, ifeng) - primary post not fetched",
+      "confidence": "medium",
+      "topic": "w8-measure",
+      "tags": [
+        "benchmark",
+        "held-out",
+        "contamination",
+        "audit"
+      ]
+    },
+    {
+      "id": "w8-measure-project-swe-rebench",
+      "kind": "project",
+      "title": "SWE-rebench is the published answer to 'a benchmark that grows': a pipeline, not a dataset",
+      "body": "SWE-rebench (arXiv:2505.20411, NeurIPS 2025) replaces the dataset with a pipeline: it continuously extracts interactive SWE tasks from diverse GitHub repositories, yielding over 21,000 Python tasks usable for RL, and uses the continuous supply of fresh tasks as a contamination-free benchmark for agentic software engineering. The evaluation claim is the important part for this ledger: comparing models on the fresh stream against SWE-bench Verified shows that some models' performance 'might be inflated due to contamination issues'. The design lesson is that the unit of measurement is the collection procedure and its date, not a frozen file - a suite authored once and reused has a shelf life measured in months, whereas a suite regenerated from a rule has a shelf life set by the rule. Cost moves from curation to infrastructure: the pipeline must keep producing solvable, well-specified tasks, which is exactly where SWE-bench Pro's 34.1% broken rate shows the failure mode.",
+      "source": "https://arxiv.org/abs/2505.20411",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "benchmark",
+        "pipeline",
+        "fresh-tasks",
+        "contamination"
+      ]
+    },
+    {
+      "id": "w8-measure-project-atlas",
+      "kind": "project",
+      "title": "ATLAS measures a model with 41 adaptively chosen items where the whole bank has 5,600",
+      "body": "ATLAS (Adaptive Testing for LLM Evaluation, ICML 2026, arXiv:2511.04689) applies item-response theory to benchmark administration: item parameters are estimated once, then each new system is measured on items chosen for maximum Fisher information at its current ability estimate. Reported results: up to 90% fewer items at equal measurement precision, matching whole-bank ability estimates with 41 items at 0.157 MAE on HellaSwag's 5,600 items, and - across more than 3,000 models - 23% to 31% of models shifting more than 10 rank positions when ranked by latent ability theta instead of raw accuracy, with models of identical accuracy receiving different ability estimates. This is the direct answer to 'a measurement that gets sharper as it runs': the bank is fixed and the cost per measurement falls as the item parameters converge, so the nth system costs a fraction of the first. It does not solve contamination; it solves cost and resolution.",
+      "source": "https://arxiv.org/abs/2511.04689 (arXiv:2511.04689)",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "adaptive-testing",
+        "irt",
+        "resolution",
+        "cost"
+      ]
+    },
+    {
+      "id": "w8-measure-project-trace",
+      "kind": "project",
+      "title": "TRACE evolves new tasks and rejects any task a blind solver can still solve",
+      "body": "TRACE (Towards Self-Evolving Agent Benchmarks, ICLR 2026) is the closest published attempt to a benchmark whose difficulty tracks the system under test. Three stages: evolutionary proposal mining (mutate and recombine existing task seeds), problem construction via free exploration in which successful trajectories are recorded and reused, and multi-level validation that includes a 'trajectory-free blind solver' given the same tool permissions; if the blind solver consistently solves the evolved task within budget, the task is rejected as not difficult enough. On GAIA and AIME-2024 the reported result is that task complexity increases over generations while correctness reliability is maintained. The mechanism to copy is the rejection rule: difficulty is not asserted, it is demonstrated by a solver that does not have the benefit of the exploration that produced the task. The threat it does not address is validity drift - a task can be hard because it is ambiguous rather than because it is deep.",
+      "source": "https://proceedings.iclr.cc/paper_files/paper/2026/hash/da8860a2fe8ddb7589136853bcc313fc-Abstract-Conference.html",
+      "confidence": "medium",
+      "topic": "w8-measure",
+      "tags": [
+        "self-evolving",
+        "difficulty",
+        "blind-solver"
+      ]
+    },
+    {
+      "id": "w8-measure-failure-peeking-gate",
+      "kind": "failure",
+      "title": "The gate promotes on a single green verifier and reads the running rate as progress",
+      "body": "The current gate is not wrong in principle, it is unidentifiable at this resolution: exp-gate-001 records that minGain never changed a decision, and with a binary score and a verifier that is green on 89 of 94 base trees (exp-ver-003) the only thing left to decide on is that single green run. Each round then reads the running promotion rate as evidence of progress, which is exactly the repeated-peeking pattern that inflates Type I error absent alpha spending or a confidence sequence. Consequence measured elsewhere in the ledger: cost per landed promotion is about 7 cents at real card prices, 71x what the ledger recorded (w5-tokenbudget), and 80 of 127 real failures carried no diagnostic even though all 80 had the diagnosis in the child log (exp-fail-005) - so most rounds buy neither a promotion nor information. Prediction: adding a stopping rule alone will not change the promotion rate but will cut the number of rounds that end in an uninformative failure.",
+      "source": "exp-gate-001; exp-ver-003; exp-fail-005; w5-tokenbudget",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "gate",
+        "peeking",
+        "cost",
+        "diagnostics"
+      ]
+    },
+    {
+      "id": "w8-measure-failure-static-saturation",
+      "kind": "failure",
+      "title": "A fixed suite saturates in about eight months; this ledger's is already at 89 of 94 green",
+      "body": "Three independent measurements agree on the shelf life of a static code suite. SWE-bench Pro's public split went from 23.3% to 80.3% in eight months; LiveCodeBench's authors report frontier models above 99% Pass@1 on easy splits and about 90% average, which is why they had to balance difficulty; and this ledger's own 94 tasks are green on the clean base tree in 89 cases (exp-ver-003). The structural reason is that a suite is authored against a particular system's weaknesses, so once those weaknesses are fixed the suite measures the residue. This is a failure of the measurement, not of the loop: a suite that cannot fail cannot certify a promotion, and re-running a solved task cannot promote anything. Prediction: leaving the task set unchanged, the promotion rate will decay toward the 5/94 residual and the cost per landed promotion will rise above 7 cents even if the agent does not change.",
+      "source": "exp-ver-003; https://arxiv.org/abs/2509.16941; https://arxiv.org/abs/2403.07974",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "saturation",
+        "shelf-life",
+        "benchmark"
+      ]
+    },
+    {
+      "id": "w8-measure-analysis-instrument-stack",
+      "kind": "analysis",
+      "title": "Five measurements that need no new benchmark, ordered by information per unit of work",
+      "body": "The stack, cheapest first. (1) Paired discordance: retry each task under two policies, report the 2x2 table and its McNemar p, never the two pass rates; at 42 discordant pairs per 500 this is the only quantity with power. (2) Verifier mutation score: at most one mutant per changed line over the 6684-line, 114-patch queue (exp-human-007), bounded at 6684 test runs, reported per verifier so it can be tracked round to round. (3) Diagnostic coverage: the fraction of failed rounds whose failure message names a cause - currently 47 of 127 (80 of 127 lacked one, exp-fail-005), with the diagnosis already present in the child log, so this is a formatting fix, not a modelling one. (4) Anytime-valid interval on the promotion outcome instead of a per-round rate. (5) Process numbers already known and not yet used as targets: brief redundancy 69% identical text and 47% report contract (exp-brief-001), 7 cents per landed promotion at 71x the recorded cost (w5-tokenbudget), and 0 of 100 lessons reused across campaigns (exp-transfer-001). Prediction: (1) and (3) alone move cost per landed promotion before any change to the agent.",
+      "source": "exp-human-007; exp-fail-005; exp-brief-001; w5-tokenbudget; exp-transfer-001",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "instrumentation",
+        "recommendation",
+        "cost"
+      ]
+    },
+    {
+      "id": "w8-measure-question-mutation-validity",
+      "kind": "question",
+      "title": "Does a verifier's mutation score predict whether a human accepts the patch it passed?",
+      "body": "This is the one link the argument for mutation scoring still needs and nobody has measured. The claim in claim-mutation-buys-oracle is that a verifier which kills seeded mutants is a stronger oracle, and that a weak verifier will let through partial patches of the kind the SWE-bench Pro audit classified as 'test scope too narrow' (249 of 731 public tasks judged broken, 34.1%). But the outcome that matters for this loop is a human accepting or repairing the 114 queued patches (exp-human-007), and no study - Google's included, since their unit was developer-perceived productivity at review time, not downstream acceptance - reports the correlation between a suite's mutation score and whether the change it approved was later repaired. It is cheap to measure here: for each of the 114 patches, compute the verifier's mutation score on the patched lines and cross it with the human verdict. Falsifiable prediction: mutation score will separate accepted from repaired patches better than the number of assertions in the verifier does (AUC higher than the assertion count's), because assertion count measures size and mutation score measures sensitivity.",
+      "source": "exp-human-007; https://arxiv.org/abs/2103.07189; https://arxiv.org/abs/2509.16941",
+      "confidence": "medium",
+      "topic": "w8-measure",
+      "tags": [
+        "open-question",
+        "mutation-testing",
+        "validity"
+      ]
+    },
+    {
+      "id": "w8-measure-source-kitchenham",
+      "kind": "source",
+      "title": "Kitchenham & Madeyski 2024, small-sample analysis recommendations, with the reproducer R package",
+      "body": "Primary source for the small-sample statistics used above: Kitchenham and Madeyski, 'Recommendations for analysing and meta-analysing small sample size software engineering experiments', Empirical Software Engineering 29:137 (2024), open access at Springer. It reports a simulation study over N=5, 10, 20 per group comparing standardized mean difference against probability of superiority (p-hat) and Cliff's d, and concludes p-hat is the low-risk default because parametric effects are unreliable on non-normal SE data. The simulation is shipped as the CRAN package reproducer v0.7.0 with functions calculate2GBias, calculate4GBias, calculate2GType1Error, calcCliffdConfidenceIntervals and calcPHatConfidenceIntervals, so the grid and the defaults are inspectable rather than asserted - the package defaults are N=c(5,10,20), diffs c(0.2,0.5,0.8), 100-200 replications, which is the published convention for how small an SE experiment is assumed to be.",
+      "source": "https://link.springer.com/article/10.1007/s10664-024-10504-1; https://cran.r-project.org/package=reproducer",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "paper",
+        "statistics",
+        "small-sample"
+      ]
+    },
+    {
+      "id": "w8-measure-source-google-mutation",
+      "kind": "source",
+      "title": "The two Google mutation papers that supply both the benefit case and the cost curve",
+      "body": "Two papers, same group, complementary. 'Practical Mutation Testing at Scale: A view from Google' (arXiv:2102.11378) supplies the cost curve: 2 billion lines, 500M test executions per day, mutation only on changed and covered lines, one mutant per line, at most 7 reported per file, several minutes of developer time per mutant, 85% unproductive at first rising to 89% productive after six years of feedback, and the explicit decision not to ship a mutation score because it was not actionable. 'Does mutation testing improve testing practices?' (arXiv:2103.07189, ICSE'21) supplies the benefit case: 14,730,562 mutants over 662,584 changes in 446,604 files, mutants coupled with real high-priority faults (had mutation run on the fault-introducing change it would have reported a live mutant the fix killed), and one mutant per line sufficing because most mutants in a line share a fate. Neither paper measures downstream human acceptance of the change, which is the gap noted above.",
+      "source": "https://arxiv.org/abs/2102.11378; https://arxiv.org/abs/2103.07189",
+      "confidence": "high",
+      "topic": "w8-measure",
+      "tags": [
+        "paper",
+        "mutation-testing",
+        "cost"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "w8-measure-number-mcnemar-mde",
+      "rel": "supports",
+      "to": "w8-measure-claim-pairing",
+      "note": "The formula and the 1145-vs-500 arithmetic are the quantitative basis for preferring paired retries; the claim node states the design implication, this node states the power requirement."
+    },
+    {
+      "from": "w8-measure-claim-pairing",
+      "rel": "refines",
+      "to": "w8-measure-claim-binary-floor",
+      "note": "Pairing does not raise the information ceiling, it removes the between-task variance that makes the ceiling unreachable at n=94; refines rather than contradicts because the floor arithmetic still holds for unpaired data."
+    },
+    {
+      "from": "w8-measure-claim-weak-oracle",
+      "rel": "supports",
+      "to": "w8-measure-claim-binary-floor",
+      "note": "The floor is worse than the binomial arithmetic implies, because a 0/1 outcome from an already-green verifier carries less than one bit."
+    },
+    {
+      "from": "w8-measure-claim-mutation-buys-oracle",
+      "rel": "requires",
+      "to": "w8-measure-claim-weak-oracle",
+      "note": "Mutation scoring is only worth its cost if the existing oracle is the bottleneck; exp-ver-003 is what establishes that it is."
+    },
+    {
+      "from": "w8-measure-number-mutation-cost",
+      "rel": "measures",
+      "to": "w8-measure-claim-mutation-buys-oracle",
+      "note": "Supplies the price side of the trade: several minutes of human time per mutant and 85% unproductive at first, against a compute-only cost of one test run per mutant when no human is in the loop."
+    },
+    {
+      "from": "w8-measure-source-google-mutation",
+      "rel": "supports",
+      "to": "w8-measure-number-mutation-cost",
+      "note": "Both Google papers were read in full HTML; every number in the cost node comes from them."
+    },
+    {
+      "from": "w8-measure-source-kitchenham",
+      "rel": "supports",
+      "to": "w8-measure-concept-phat",
+      "note": "Primary source for p-hat, Cliff's d and the N=5..20 simulation grid."
+    },
+    {
+      "from": "w8-measure-concept-phat",
+      "rel": "applies-to",
+      "to": "w8-measure-analysis-instrument-stack",
+      "note": "The stack's paired-discordance step is a proportion comparison, but the same small-n caution governs any per-task continuous metric added later."
+    },
+    {
+      "from": "w8-measure-concept-anytime-valid",
+      "rel": "requires",
+      "to": "w8-measure-claim-binary-floor",
+      "note": "A confidence sequence is the only interval that stays valid when the sample size is whatever the loop happens to have reached."
+    },
+    {
+      "from": "w8-measure-failure-peeking-gate",
+      "rel": "derived-from",
+      "to": "w8-measure-concept-anytime-valid",
+      "note": "The failure is defined by the concept: without alpha spending or a confidence sequence, reading the running rate as progress is the error the concept describes."
+    },
+    {
+      "from": "w8-measure-failure-peeking-gate",
+      "rel": "fails-at",
+      "to": "w8-measure-claim-binary-floor",
+      "note": "The gate does not fail on its own logic, it fails at the resolution floor - the same green run is consistent with a 2-point gain and a 2-point regression."
+    },
+    {
+      "from": "w8-measure-project-swebench-pro",
+      "rel": "supports",
+      "to": "w8-measure-claim-weak-oracle",
+      "note": "The 34.1% broken-task finding, with 'test scope too narrow' as one of four classes, is the public evidence that green tests routinely do not certify the change."
+    },
+    {
+      "from": "w8-measure-project-livecodebench",
+      "rel": "supports",
+      "to": "w8-measure-failure-static-saturation",
+      "note": ">99% Pass@1 on easy splits and ~90% average is the saturation the failure node describes, and the paper's design principle 4 names the variance collapse that follows."
+    },
+    {
+      "from": "w8-measure-project-swebench-pro",
+      "rel": "supports",
+      "to": "w8-measure-failure-static-saturation",
+      "note": "23.3% to 80.3% in eight months is the fastest measured saturation of a code benchmark, on the split most resistant to contamination by construction."
+    },
+    {
+      "from": "w8-measure-project-swe-rebench",
+      "rel": "supersedes",
+      "to": "w8-measure-project-swebench-pro",
+      "note": "A continuously regenerated task stream makes a frozen held-out split unnecessary for contamination control; supersedes only for that purpose, not as a source of comparable numbers, since a moving stream has no fixed denominator."
+    },
+    {
+      "from": "w8-measure-project-swe-rebench",
+      "rel": "applies-to",
+      "to": "w8-measure-analysis-instrument-stack",
+      "note": "Supplies the 'grows as it runs' half of the stack: the rule that generates tasks is the durable artifact, and its date is the version number."
+    },
+    {
+      "from": "w8-measure-project-atlas",
+      "rel": "applies-to",
+      "to": "w8-measure-analysis-instrument-stack",
+      "note": "Supplies the 'sharper per unit cost' half: item parameters estimated once, then 41 items at 0.157 MAE against a 5,600-item bank."
+    },
+    {
+      "from": "w8-measure-project-trace",
+      "rel": "applies-to",
+      "to": "w8-measure-analysis-instrument-stack",
+      "note": "The blind-solver rejection rule is the one part of the self-evolving literature that transfers to a loop with no benchmark budget: difficulty is demonstrated, not asserted."
+    },
+    {
+      "from": "w8-measure-project-atlas",
+      "rel": "same-as",
+      "to": "w8-measure-project-trace",
+      "note": "Closest relation, not identity: ATLAS shrinks the measurement to the informative items of a fixed bank, TRACE grows the bank and rejects items a blind solver can still beat. Both buy resolution by spending the budget where information is, by opposite mechanisms."
+    },
+    {
+      "from": "w8-measure-number-retry-inflation",
+      "rel": "refines",
+      "to": "w8-measure-claim-pairing",
+      "note": "Pairing must count repeated attempts, not the best attempt: pass@3 and pass^3 report 70% and 4% from the same 1/3 skill, so a paired design that takes the maximum has silently changed the outcome variable."
+    },
+    {
+      "from": "w8-measure-number-benchmark-resolution",
+      "rel": "supports",
+      "to": "w8-measure-claim-binary-floor",
+      "note": "If the ~14,000-instance figure holds, it is the same arithmetic at benchmark scale; marked low confidence, so it corroborates rather than establishes."
+    },
+    {
+      "from": "w8-measure-failure-static-saturation",
+      "rel": "derived-from",
+      "to": "w8-measure-claim-weak-oracle",
+      "note": "Saturation is the oracle claim generalised over time: a suite green on 89 of 94 base trees has already run out of things it can fail."
+    },
+    {
+      "from": "w8-measure-analysis-instrument-stack",
+      "rel": "requires",
+      "to": "w8-measure-claim-pairing",
+      "note": "Step 1 of the stack is the paired design; without it the other four numbers have no comparison."
+    },
+    {
+      "from": "w8-measure-analysis-instrument-stack",
+      "rel": "requires",
+      "to": "w8-measure-claim-mutation-buys-oracle",
+      "note": "Step 2 is only bounded and affordable because mutation is seeded at one per changed line over a known 6684-line queue."
+    },
+    {
+      "from": "w8-measure-analysis-instrument-stack",
+      "rel": "requires",
+      "to": "w8-measure-concept-anytime-valid",
+      "note": "Step 4 replaces the running rate with an interval valid under continuous monitoring."
+    },
+    {
+      "from": "w8-measure-question-mutation-validity",
+      "rel": "derived-from",
+      "to": "w8-measure-claim-mutation-buys-oracle",
+      "note": "The question is the unmeasured link in the claim: mutation score as a proxy for oracle strength has never been cross-tabulated against human acceptance of the patch it approved."
+    },
+    {
+      "from": "w8-measure-number-mutation-cost",
+      "rel": "contradicts",
+      "to": "w8-measure-analysis-instrument-stack",
+      "note": "Apparent contradiction only: at Google's scale mutation needed 89% filtering and human minutes per mutant, which is why the stack caps it at one mutant per changed line and no human reviewer. Resolved by the scale difference, not by disagreeing about the numbers."
+    }
+  ],
+  "gaps": [
+    "Nobody has published a per-task retry variance for SE agent benchmarks: how often the same task under the same policy flips between solved and unsolved is unmeasured, so the within-task noise floor of a binary verifier is unknown.",
+    "Whether a verifier's mutation score predicts human acceptance (or later repair) of the patch it passed is unmeasured here and, on this search, unmeasured publicly - Google measured developer-perceived productivity, not downstream acceptance.",
+    "The ~14,000-instance and 129-of-133-pairs resolution figures come from a Zenodo PDF that returned HTTP 404 on two fetch attempts; the numbers need re-verification against the primary document before being quoted.",
+    "No one has measured whether a self-evolving benchmark drifts toward tasks that are hard for the wrong reason (ambiguous or unsolvable); the blind-solver check in TRACE bounds difficulty but not validity.",
+    "There is no published cost-per-mutant figure for mutation testing an agent-authored patch pipeline rather than a human code review; Google's 'several minutes per mutant' is human review time and does not transfer.",
+    "It is unmeasured whether anytime-valid confidence sequences stay tight enough to be decision-useful at n around 100 binary outcomes with a 10-point effect; the Bernoulli confidence-sequence literature is motivated by larger A/B samples.",
+    "No experiment has measured whether cutting the report contract (47% of a brief that is 69% identical text, exp-brief-001) changes the promotion rate, so the cheapest available cost reduction is also the least tested.",
+    "Cross-campaign lesson reuse is 0 of 100 (exp-transfer-001), but nobody has measured whether reuse improves when lessons are stored as measurements with thresholds instead of as prose advice."
+  ]
+}
