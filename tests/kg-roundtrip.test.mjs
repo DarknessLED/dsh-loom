@@ -69,6 +69,11 @@ try {
         confidence: 0.93,
       },
       {
+        id: 'rt-unsound', kind: 'failure', topic: 'ver',
+        title: 'A held-out split computed inside reach of the candidate',
+        body: 'Contradicts the acceptance rule.',
+      },
+      {
         id: 'rt-untopiced', kind: 'claim',
         title: 'A node with no topic at all',
         body: 'No topic set, and that must stay "no topic", not become the pack default.',
@@ -77,20 +82,35 @@ try {
     edges: [
       { from: 'rt-blank', rel: 'supports', to: 'rt-plain', note: 'a note with a | pipe in it' },
       { from: 'rt-pipes', rel: 'requires', to: 'rt-blank' },
+      // A contradiction exists to be decided, so the decision is part of the
+      // graph: a pack that carried the pair but not the verdict would hand the
+      // next machine 174 open questions we had already answered.
+      { from: 'rt-unsound', rel: 'contradicts', to: 'rt-untopiced', note: 'same evidence, two readings' },
+      { from: 'rt-blank', rel: 'contradicts', to: 'rt-plain', note: 'a pipe | in the contradiction note' },
     ],
   }), 'utf8')
 
   const add = run(['add', payloadFile], a)
   ok(add.status === 0, 'the fixture imports', add.stderr)
 
+  const resolved = run(['resolve', 'rt-unsound', 'rt-untopiced', '--verdict', 'both',
+    '--note', 'two regimes, and the note carries a | pipe'], a)
+  ok(resolved.status === 0, 'a contradiction can be decided before packing', resolved.stderr)
+  const resolved2 = run(['resolve', 'rt-blank', 'rt-plain', '--verdict', 'a',
+    '--note', 'the first record wins'], a)
+  ok(resolved2.status === 0, 'a second decision is recorded', resolved2.stderr)
+
   const packed = run(['pack'], a)
   ok(packed.status === 0, 'pack runs', packed.stderr)
   writeFileSync(packFile, packed.stdout, 'utf8')
   const heads = packed.stdout.split('\n').filter((l) => l.startsWith('#'))
-  ok(heads.length === 4, `pack writes one record per node (got ${heads.length})`)
+  ok(heads.length === 5, `pack writes one record per node (got ${heads.length})`)
+  const decisions = packed.stdout.split('\n').filter((l) => l.startsWith('!'))
+  ok(decisions.length === 2, `pack carries the decisions (got ${decisions.length})`)
   ok(heads.some((h) => h.includes('| topic ver')), 'the topic is a field, not a body line')
 
   const unpacked = run(['unpack', packFile], b)
+  ok(/decisions \+2/.test(unpacked.stdout), 'unpack reports the decisions it carried', unpacked.stdout)
   ok(unpacked.status === 0, 'unpack runs', unpacked.stderr)
 
   const read = (file) => {
@@ -110,7 +130,7 @@ try {
   const before = read(a)
   const after = read(b)
 
-  ok(before.rows.length === 4, `four nodes in the source (got ${before.rows.length})`)
+  ok(before.rows.length === 5, `five nodes in the source (got ${before.rows.length})`)
   ok(after.rows.length === before.rows.length, `four nodes after the round-trip (got ${after.rows.length})`)
 
   const byId = new Map(after.rows.map((r) => [r.id, r]))
@@ -132,6 +152,25 @@ try {
 
   ok(after.edges.length === before.edges.length, `both edges survive (got ${after.edges.length})`)
   ok(after.edges.some((e) => e.note === 'a note with a | pipe in it'), 'an edge note with a pipe survives')
+
+  // The decisions survive whole: verdict, reason, and the fact that they are
+  // decisions and not still-open questions.
+  const readResolutions = (file) => {
+    const db = new DatabaseSync(file)
+    const rows = db.prepare('SELECT from_id, to_id, verdict, note FROM resolution ORDER BY from_id, to_id').all()
+    db.close()
+    return rows
+  }
+  const beforeDecisions = readResolutions(a)
+  const afterDecisions = readResolutions(b)
+  ok(afterDecisions.length === 2, `both decisions arrive (got ${afterDecisions.length})`)
+  ok(JSON.stringify(afterDecisions) === JSON.stringify(beforeDecisions),
+    'every decision arrives with its verdict and its reason',
+    `before ${JSON.stringify(beforeDecisions)}\nafter  ${JSON.stringify(afterDecisions)}`)
+  ok(afterDecisions.some((r) => r.note === 'two regimes, and the note carries a | pipe'),
+    'a decision reason containing a pipe survives whole')
+  const reopened = run(['contradictions'], b)
+  ok(/every contradiction has been decided/.test(reopened.stdout), 'the unpacked graph does not reopen decided pairs', reopened.stdout)
 
   // Packing the unpacked graph must reproduce the same text: idempotent, so a
   // two-machine exchange does not drift with every hop.

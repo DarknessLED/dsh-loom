@@ -582,6 +582,14 @@ function cmdPack(args) {
       JOIN node b ON b.id=e.to_id ${topic ? 'WHERE a.topic = ?' : ''} ORDER BY e.from_id, e.rel`)
     .all(...(topic ? [topic] : []))
   for (const e of edges) parts.push(`> ${e.from_id} ${e.rel} ${e.to_id}${e.note ? ` | ${escapeField(e.note)}` : ''}`)
+  // A decision is part of the graph, not commentary on it: a pack that dropped
+  // these would round-trip 174 resolved contradictions back into 174 open ones,
+  // silently. The timestamp is deliberately not carried -- when we concluded it is
+  // bookkeeping; what we concluded and why is the record.
+  const resolutions = db.prepare(`SELECT r.* FROM resolution r JOIN node a ON a.id = r.from_id
+      JOIN node b ON b.id = r.to_id ${topic ? 'WHERE a.topic = ?' : ''} ORDER BY r.from_id, r.to_id`)
+    .all(...(topic ? [topic] : []))
+  for (const r of resolutions) parts.push(`! ${r.from_id} ${r.to_id} | ${r.verdict} | ${escapeField(r.note)}`)
   out(parts.join('\n\n'))
 }
 
@@ -592,6 +600,7 @@ function cmdUnpack(args) {
   const topic = args.values.topic || null
   let nodes = 0
   let edges = 0
+  let decisions = 0
   const blocks = text.split(/\n\s*\n/)
   for (const block of blocks) {
     // Keep every line: a blank line inside a body is already encoded as the
@@ -600,6 +609,26 @@ function cmdUnpack(args) {
     if (!lines.length) continue
     const head = lines[0].trim()
     if (!head) continue
+    if (head.startsWith('!')) {
+      // `! <a> <b> | verdict | note`
+      const body = head.replace(/^!\s*/, '')
+      const bars = body.split(/(?<!\\)\|/)
+      const ids = bars[0].trim().split(/\s+/)
+      const verdict = (bars[1] || '').trim().toLowerCase()
+      const note = unescapeField((bars[2] || '').trim())
+      if (ids.length !== 2 || !VERDICTS.includes(verdict)) {
+        process.stderr.write(`  bad resolution line: ${head}\n`)
+        continue
+      }
+      const pair = db.prepare(`SELECT from_id, to_id FROM edge
+         WHERE rel='contradicts' AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))`)
+        .get(ids[0], ids[1], ids[1], ids[0])
+      if (!pair) { process.stderr.write(`  no contradiction recorded between "${ids[0]}" and "${ids[1]}"\n`); continue }
+      db.prepare('INSERT OR REPLACE INTO resolution (from_id, to_id, verdict, note, decided_at) VALUES (?,?,?,?,?)')
+        .run(pair.from_id, pair.to_id, verdict, note || null, now())
+      decisions += 1
+      continue
+    }
     if (head.startsWith('>')) {
       const m = head.match(/^>\s*(\S+)\s+(\S+)\s+(\S+)(?:\s*\|\s*(.*))?$/)
       if (!m) { process.stderr.write(`  bad edge line: ${head}\n`); continue }
@@ -638,7 +667,7 @@ function cmdUnpack(args) {
     } catch (err) { process.stderr.write(`  ${err.message}\n`) }
   }
   db.close()
-  out(`nodes +${nodes} · edges +${edges}`)
+  out(`nodes +${nodes} · edges +${edges} · decisions +${decisions}`)
 }
 
 function cmdRecent(args) {
@@ -697,6 +726,7 @@ const USAGE = `kg — local knowledge graph for dsh-loom research
     #claim orch-001 | title | conf 0.8 | tags scheduling cost | src https://...
     body, as many lines as you like
     > orch-001 applies-to tri-004        (edges are their own blocks)
+    ! ana-010 exp-meter-002 | a | the 198x figure is a price-table artefact
 
   relations: ${RELS.join(' ')}
   kinds:     ${KINDS.join(' ')}

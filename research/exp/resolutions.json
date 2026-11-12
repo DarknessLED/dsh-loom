@@ -1,0 +1,1046 @@
+[
+ [
+  "ana-002",
+  "rsi-001",
+  "both",
+  "DGM's gain is attributable to its archive (ablation: removing it costs 27 points), not to the policy and gate layers the ladder criticism targets; L2 and L3 remain unexercised."
+ ],
+ [
+  "ana-007",
+  "ctx-005",
+  "both",
+  "Different consumers, not different facts: a raw trace is what a diagnosis needs, an itemized claim is what an injection can carry."
+ ],
+ [
+  "ana-010",
+  "exp-meter-002",
+  "a",
+  "Both measured the same sessions; at the billed DeepSeek card the gap is 71x, and the 198x figure is an artefact of the repo price table."
+ ],
+ [
+  "ana-013",
+  "exp-cand-002",
+  "both",
+  "Same finding at two altitudes: per-policy input invariants versus one upstream invariant on the oracle itself."
+ ],
+ [
+  "ana-013",
+  "exp-goodhart-001",
+  "a",
+  "The 1.6% evaluator-touch figure undercounted: nine promotions touched scripts/ or the verifier, which is the surface the analysis names."
+ ],
+ [
+  "ana-014",
+  "ana-001",
+  "neither",
+  "No tension: verification being the dominant term is the reason attention should buy instrument precision first."
+ ],
+ [
+  "c-ib-monitor",
+  "c-judge-agreement",
+  "both",
+  "Judge-human agreement is not cheat detection: monitors fall to 42-65% on repository-scale tasks however well they agree with humans."
+ ],
+ [
+  "c-minja",
+  "a-minimal-store",
+  "both",
+  "MINJA is the threat the design answers: worker-written claims are untrusted input, so shipping them wide is what the design refuses."
+ ],
+ [
+  "c-papadakis18",
+  "f-size-confound",
+  "both",
+  "One finding named twice: mutation score measures suite size once that is controlled."
+ ],
+ [
+  "c-reward-inflation",
+  "a-minimal-store",
+  "both",
+  "The design's re-earn-counters-locally clause is the direct response to the EIA result."
+ ],
+ [
+  "c-skillsbench",
+  "c-skillopt",
+  "both",
+  "The difference is the held-out acceptance gate, not prose versus prose."
+ ],
+ [
+  "c-survivor-bias",
+  "c-hyperband",
+  "both",
+  "The winner's-curse bias applies to the re-measured score of a promoted configuration, not to the wall-clock speedup claim."
+ ],
+ [
+  "c-survivor-bias",
+  "c-sh-nonstochastic",
+  "both",
+  "The non-stochastic guarantee does not survive measurement noise, which is the setting we are in."
+ ],
+ [
+  "c-swebench-illusion",
+  "c-swebench-verified",
+  "both",
+  "Fixing the oracles did not fix validity: scores still track memorization signatures after both repairs."
+ ],
+ [
+  "ctx-003",
+  "ctx-002",
+  "both",
+  "Receiver strength and state format are separate axes; full history beats structured state only for the same receiver."
+ ],
+ [
+  "ctx-013",
+  "ctx-014",
+  "both",
+  "A pushed clock line works because tool timeouts enforce time; an injected spend counter has nothing enforcing it."
+ ],
+ [
+  "ctx-017",
+  "ctx-027",
+  "both",
+  "The variable is enforcement, not information: a writable field the harness checks changes behaviour, standing context does not."
+ ],
+ [
+  "ctx-023",
+  "ctx-020",
+  "both",
+  "97% interference is real, but peer visibility is the wrong remedy and majority voting loses correct candidates."
+ ],
+ [
+  "ctx-026",
+  "ctx-033",
+  "a",
+  "The controlled test exists here and it is null-ish; the gap describes the literature, not our ability to measure."
+ ],
+ [
+  "ctx-031",
+  "ctx-012",
+  "both",
+  "Selection helps at equal budget and does not by itself buy correctness."
+ ],
+ [
+  "exp-cand-001",
+  "exp-slot-005",
+  "a",
+  "The sequential policy is the right shape; the gate that would choose it computes a structurally zero tail."
+ ],
+ [
+  "exp-chain-001",
+  "ana-002",
+  "a",
+  "Stronger than overbuilt: L2 has never executed a second version at all."
+ ],
+ [
+  "exp-cost-003",
+  "ana-005",
+  "both",
+  "Delegation buys noise-retry rather than diversity here, so the case for it needs rounds scarcer than dollars."
+ ],
+ [
+  "exp-curric-001",
+  "ana-009",
+  "both",
+  "Adaptive branching assumes the task sits at the learning boundary; ours sit at 0 and 92 percent."
+ ],
+ [
+  "exp-diff-001",
+  "exp-gate-002",
+  "both",
+  "Disjoint sets: seven promotions the oracle blocks, fourteen empty-patch rounds with nothing to run."
+ ],
+ [
+  "exp-diff-002",
+  "w8-differential-swebenchplus",
+  "both",
+  "The same split at two scales; weak-test false passes are not what a differential oracle fixes."
+ ],
+ [
+  "exp-diff-003",
+  "exp-graded-003",
+  "both",
+  "One names the symptom, one the mechanism; both described the same defect, now fixed by reading the metric."
+ ],
+ [
+  "exp-diff-007",
+  "exp-diff-006",
+  "both",
+  "Both true in sequence: the first cache shape would have restored the blind spot on every warm host."
+ ],
+ [
+  "exp-fail-002",
+  "w3-falsify-metr-selection",
+  "neither",
+  "Different subjects: selection effects in published productivity data versus missing diagnostics in our own failures."
+ ],
+ [
+  "exp-fail-005",
+  "w2-horizon-context-not-primary-bottleneck",
+  "both",
+  "The dominant failure is neither context nor capability but a provider that glued two JSON objects into one tool-call argument."
+ ],
+ [
+  "exp-gate-001",
+  "ana-004",
+  "both",
+  "The multiple-testing machine is disconnected, so the inflation ana-004 predicts cannot happen yet."
+ ],
+ [
+  "exp-gate-004",
+  "ana-002",
+  "both",
+  "L2 has no continuous signal to optimise until scores are graded, which is why the layer has never run."
+ ],
+ [
+  "exp-graded-001",
+  "exp-gate-001",
+  "both",
+  "The gate's inertness is a declaration problem, not an unfixable one."
+ ],
+ [
+  "exp-graded-003",
+  "exp-score-003",
+  "both",
+  "The machinery scores correctly in isolation and was unreachable through round.js; both were true before the wiring."
+ ],
+ [
+  "exp-human-001",
+  "gap-w1-006",
+  "both",
+  "The number nobody publishes is obtainable from a local ledger; the gap is about public reporting."
+ ],
+ [
+  "exp-human-005",
+  "w3-humanminutes-rubber-stamp-seconds",
+  "both",
+  "Seconds and twelve minutes both measure queue clearing; neither is human attention."
+ ],
+ [
+  "exp-human-007",
+  "w3-humanminutes-rubber-stamp-seconds",
+  "both",
+  "Reading volume is small and latency measures the queue, so neither number is a review-minute count."
+ ],
+ [
+  "exp-lesson-001",
+  "gap-w1-004",
+  "both",
+  "The controlled measurement exists in our ledger; the gap was about the literature having none."
+ ],
+ [
+  "exp-score-001",
+  "ana-004",
+  "both",
+  "A binary score is a different and worse failure than noise inflation, not the same one."
+ ],
+ [
+  "exp-slot-001",
+  "exp-lesson-001",
+  "both",
+  "The null is explained by a one-line tie-break, not by lessons being worthless."
+ ],
+ [
+  "exp-slot-003",
+  "exp-lesson-001",
+  "both",
+  "The pool mean is a mixture of two slot-biased arms, so it is not an effect estimate."
+ ],
+ [
+  "exp-slot-005",
+  "exp-lesson-001",
+  "both",
+  "The paired design is confounded by round difficulty, not merely underpowered."
+ ],
+ [
+  "exp-slot-006",
+  "w2-decide-mde-formula-agent-sigma",
+  "both",
+  "The sigma in the formula is within-task; ours is between-task and bimodal, so the sample-size arithmetic does not transfer."
+ ],
+ [
+  "exp-slot-008",
+  "w2-decide-mde-formula-agent-sigma",
+  "both",
+  "74% of the variance is between-campaign, which breaks a within-task sampling formula."
+ ],
+ [
+  "exp-transfer-001",
+  "ana-007",
+  "a",
+  "ana-007 assumed a shared corpus the L2 could grep; there is no shared corpus, so the design premise fails."
+ ],
+ [
+  "exp-ver-001",
+  "exp-mut-002",
+  "both",
+  "Not a testing-practice failure: three-assertion oracles are exactly what a 3-assertion spec can pin."
+ ],
+ [
+  "exp-ver-005",
+  "w8-differential-google-flake",
+  "both",
+  "84% flake is a property of shared, drifting environments; in a pinned single repo the rate is 0 of 105."
+ ],
+ [
+  "exp-wall-001",
+  "gap-w1-003",
+  "both",
+  "Wall clock inside the machinery is measurable from our own ledger; the gap is that nobody publishes it."
+ ],
+ [
+  "f-cluster-fpr",
+  "n-candidates-nine",
+  "both",
+  "The two readings disagree about what counts as n: a campaign-unit flip is an attempt-unit false positive."
+ ],
+ [
+  "kg-007",
+  "kg-008",
+  "both",
+  "The archive notice changes which fork is live, not whether N concurrent writers are possible."
+ ],
+ [
+  "ledger-slots",
+  "variance-bound",
+  "both",
+  "Zero gradient at p=1 does not transfer to a stochastic per-attempt worker, where the p=1 band still promotes 0.818."
+ ],
+ [
+  "n-30x-variance",
+  "n-per-fix-prices",
+  "both",
+  "A 30x same-task spread is what makes a fixed per-fix price indefensible."
+ ],
+ [
+  "n-false-winner",
+  "n-confidence-flat",
+  "both",
+  "The apparent signal is composition, not stored quality: 99 of 100 lessons carry an uninformative 0.5."
+ ],
+ [
+  "n-loom-shape",
+  "n-store-spec",
+  "a",
+  "Current records are precisely the form XRepoSkill excludes: facts without triggers or predicates."
+ ],
+ [
+  "n-metarag",
+  "n-locagent",
+  "both",
+  "Granularity-specific: a condensed summary index wins at file level, a symbol graph at symbol level."
+ ],
+ [
+  "n-sprt-savings",
+  "c-sprt-bechhofer",
+  "both",
+  "The 50% folklore is the large-effect limit; the loop sits at the opposite end."
+ ],
+ [
+  "n-swe-skills-bench",
+  "n-expel",
+  "both",
+  "The difference is admission testing, not prose versus prose."
+ ],
+ [
+  "n-swebench-infra-audit",
+  "n-loom-died-three-things",
+  "both",
+  "Different populations: either our tasks are healthier than SWE-bench Pro or our label misses most of the infrastructure."
+ ],
+ [
+  "orch-002",
+  "orch-001",
+  "both",
+  "Research and coding parallelise differently, so one default cannot serve both."
+ ],
+ [
+  "orch-004",
+  "orch-001",
+  "both",
+  "Parallel layers pay only when the critical path plus re-exploration plus alignment beats serial."
+ ],
+ [
+  "order-spread",
+  "order-cheap",
+  "both",
+  "A roughly ten-point spread across 24 orderings of four tasks is the strongest published counterexample to order being worthless."
+ ],
+ [
+  "prod-015",
+  "prod-016",
+  "both",
+  "'Git is the net' presupposes a working stop; the shipped stop is ambiguous and can silently kill the subagents whose work git would have captured."
+ ],
+ [
+  "prod-016",
+  "prod-007",
+  "both",
+  "Amp denies that gate design is the lever, and ritual gates are the evidence it cites."
+ ],
+ [
+  "prod-019",
+  "prod-016",
+  "both",
+  "Opposite product bets shipping at the same time; the disagreement is the finding."
+ ],
+ [
+  "rsi-010",
+  "rsi-005",
+  "both",
+  "A no-regression acceptance rule can still pass overfit edits; HDA's 54% and Self-Harness's 9/9 are different measurements."
+ ],
+ [
+  "rsi-013",
+  "rsi-005",
+  "both",
+  "An aggregate no-regression rule would not catch a redistribution from one failure class to another if totals held."
+ ],
+ [
+  "rsi-017",
+  "rsi-016",
+  "both",
+  "A sealed holdout still needs anchor discipline: a collapsed evaluator matches the working one on task score."
+ ],
+ [
+  "rsi-030",
+  "rsi-003",
+  "both",
+  "HGM's sophistication pays in CPU-hours; the RSI Tax says the improvement process can cost more than the improvement."
+ ],
+ [
+  "src-impossible",
+  "src-testgen-llm",
+  "both",
+  "Meta's permissive filter assumed cooperative generation; under impossible tests the same freedom is exploited."
+ ],
+ [
+  "tri-consistency-cost",
+  "tri-coverage-scaling",
+  "both",
+  "Coverage scales cheaply and buys pass@k; it cannot buy the reliability a promoted patch needs."
+ ],
+ [
+  "tri-output-share",
+  "tri-cache-input-share",
+  "both",
+  "Workload-dependent: a single where-the-money-goes model is wrong for one of the two workloads."
+ ],
+ [
+  "tri-routing-breaks-silently",
+  "tri-cascade-economics",
+  "both",
+  "The same mechanism with opposite conclusions: a reported saving was reversed four to five times by quality loss the aggregate could not see."
+ ],
+ [
+  "tri-specbench-gap",
+  "tri-cost-per-solved-task",
+  "both",
+  "Cost per solved task is only as honest as the pass check, and a saturating visible suite makes the denominator a fiction."
+ ],
+ [
+  "tri-verifier-precision-ceiling",
+  "tri-coverage-scaling",
+  "both",
+  "More samples stop helping once selection saturates at verifier precision."
+ ],
+ [
+  "ver-008",
+  "ver-016",
+  "both",
+  "More candidates cannot substitute for a better verifier; adding samples under a leaky oracle is bounded."
+ ],
+ [
+  "ver-009",
+  "n-one-run-suffices",
+  "both",
+  "If infrastructure noise is really 3-6pp rather than 1-2 points, one run per arm is no longer enough."
+ ],
+ [
+  "w2-decide-irt-selective",
+  "w2-decide-hierarchical-lowrank",
+  "both",
+  "Item-level information selection compressed variance less than hoped; model-by-task sharing is the axis that paid."
+ ],
+ [
+  "w2-decide-winner-curse-zoom",
+  "w2-decide-paired-cancels-item-difficulty",
+  "both",
+  "Pairing is valid for a pre-specified pair only; selecting the best of m on the same data invalidates the interval."
+ ],
+ [
+  "w2-horizon-checkpoint-hides-errors",
+  "w2-horizon-oracle-state-continuous",
+  "both",
+  "Both give the agent better state: snapshot replay degrades integrity, continuous state raises verified success."
+ ],
+ [
+  "w2-human-maintainer-vs-grader",
+  "w2-human-review-outcomes-not-defects",
+  "both",
+  "Small single-round reviews suffice at Google; for agent PRs the same maintainers reject half of what a grader accepts."
+ ],
+ [
+  "w2-memory-reconstruct-not-replay",
+  "w2-memory-mode-asymmetry-transfer",
+  "both",
+  "Transfer depends on the task family, so neither memory mode is universally right."
+ ],
+ [
+  "w2-meta-sample-more-reflect-less",
+  "w2-meta-gepa-reflection-density",
+  "both",
+  "GEPA wins at few rollouts, not at matched tokens; the two claims hold in different budgets."
+ ],
+ [
+  "w2-verify-evilgenie-heldout-weak",
+  "w2-verify-oracle-substitutes",
+  "both",
+  "Oracle machinery does not help while the agent can still see and satisfy the visible oracle."
+ ],
+ [
+  "w3-attention-23min-is-folklore",
+  "w3-attention-interruption-speed-not-quality",
+  "neither",
+  "One is about a number's provenance, the other about the cost's nature; they do not compete."
+ ],
+ [
+  "w3-attention-approval-rate-95",
+  "ana-001",
+  "both",
+  "A gate approving 95% is a signature, which is why a quality-per-attention axis presumes a decision is being made at all."
+ ],
+ [
+  "w3-attention-batch-threshold-3x",
+  "ana-001",
+  "both",
+  "Batching pays only above a cadence, so the axis needs a number attached to it rather than a principle."
+ ],
+ [
+  "w3-attention-card-doubles-mental-demand",
+  "ana-001",
+  "both",
+  "Spending attention has to be a ratio rather than a catch count, because the measured price was a doubling of mental demand."
+ ],
+ [
+  "w3-attention-interruption-speed-not-quality",
+  "ana-001",
+  "both",
+  "The cost sits in strain on the reviewer, so a throughput justification for batching fails on its premise."
+ ],
+ [
+  "w3-attention-no-agreed-burden-metric",
+  "ana-001",
+  "a",
+  "Quality per human attention has no agreed denominator, so the axis cannot be measured as stated."
+ ],
+ [
+  "w3-attention-presentation-order-bias",
+  "ana-001",
+  "both",
+  "Ordering sets what gets attended to over 219k pull requests, which makes card layout part of the safety argument."
+ ],
+ [
+  "w3-attention-queue-not-card",
+  "ana-001",
+  "both",
+  "83% of latency is queue wait, so fewer and shallower gates is the larger lever than a better decision surface."
+ ],
+ [
+  "w3-attention-reviewer-decides-before-reading",
+  "w3-attention-card-doubles-mental-demand",
+  "both",
+  "Density does not buy scrutiny: a card that does not violate the reader's expected model is approved however much it shows."
+ ],
+ [
+  "w3-cheapwin-context-files-null",
+  "w3-cheapwin-aci-biggest-lever",
+  "both",
+  "Prompt text measured null in 288 runs while the tool interface measured +10.7pp, so spend should follow the interface."
+ ],
+ [
+  "w3-cheapwin-framework-effect-shrinks",
+  "w3-cheapwin-aci-biggest-lever",
+  "both",
+  "The +10.7pp magnitude is a 2024 artefact for the models we actually run."
+ ],
+ [
+  "w3-cheapwin-noise-floor",
+  "n-one-run-suffices",
+  "both",
+  "At a 2.2-6.0pp single-run spread the one-look argument holds only barely."
+ ],
+ [
+  "w3-falsify-approval-rates",
+  "exp-guard-001",
+  "both",
+  "An always-approve gate is a guard that never fires, which is why the guard needs seeded known-bad items to stay falsifiable."
+ ],
+ [
+  "w3-falsify-context-injection-null",
+  "w3-falsify-swe-interact",
+  "both",
+  "Both point at implementation skill and late constraints rather than missing written knowledge, which weakens lesson injection as a lever."
+ ],
+ [
+  "w3-falsify-eval-noise",
+  "exp-gate-001",
+  "both",
+  "At n=1 a minGain of 0.05 sits inside the sampling spread, so the gate experiment must use k>=5 or a paired same-task design."
+ ],
+ [
+  "w3-falsify-lcrd-provenance-hack",
+  "exp-guard-001",
+  "both",
+  "Provenance has to be a guard rather than part of the score, because a test-outcome check cannot see where code came from."
+ ],
+ [
+  "w3-falsify-no-head-to-head",
+  "w3-falsify-vaccaro-meta",
+  "both",
+  "The meta-analysis studies minute-scale decisions, not hour-scale agent work, so it is the nearest available evidence and not the comparison needed."
+ ],
+ [
+  "w3-falsify-verifier-decay",
+  "exp-gate-001",
+  "both",
+  "A frozen shell verifier is a Goodhart target, so the experiment should log whether accepted edits touch tests or the verifier."
+ ],
+ [
+  "w3-holdout-decay-bound",
+  "w3-holdout-benchmark-decay-measured",
+  "both",
+  "Theory predicts decay proportional to 1/sqrt(n); the re-collection measurements attribute their movement to item difficulty."
+ ],
+ [
+  "w3-holdout-gate-is-binary-not-score",
+  "exp-gate-001",
+  "both",
+  "The holdout branch that could add an orthogonal signal never runs, so resolution cannot be improved from there."
+ ],
+ [
+  "w3-holdout-rotation-precedent",
+  "w3-holdout-pool-is-one-id",
+  "both",
+  "A working implementation rotates on measured saturation; ours never rotated and never tested saturation."
+ ],
+ [
+  "w3-humanminutes-defects-are-minority",
+  "ana-005",
+  "a",
+  "Scoring human value on detected defects prices fourteen percent of what review produces and misses the seventy-five percent that a shell verifier cannot see."
+ ],
+ [
+  "w3-humanminutes-esem2026-ai-looks-cheaper",
+  "exp-coverage-002",
+  "both",
+  "Centrality must be stratified before any review-time comparison is believed, because AI code lands in less central files."
+ ],
+ [
+  "w3-humanminutes-interruption-23min",
+  "ana-004",
+  "both",
+  "Fewer minutes with more decisions can still lose on the denominator, which is why the re-entry cost belongs in the calculation."
+ ],
+ [
+  "w3-humanminutes-metr-19pct-slower",
+  "exp-mut-001",
+  "both",
+  "Total task time rises even when the assistance is used, because review and rework are charged to the same budget as generation."
+ ],
+ [
+  "w3-humanminutes-rubber-stamp-seconds",
+  "exp-guard-002",
+  "both",
+  "Seconds-level approval is the failure mode the guard must detect, via latency versus diff size and seeded known-bad items."
+ ],
+ [
+  "w3-humanminutes-size-does-not-predict-latency",
+  "ana-003",
+  "both",
+  "If size barely predicts review time at Meta scale, no inference from diff size or pipeline latency to human minutes is sound."
+ ],
+ [
+  "w3-restart-append-is-the-safe-primitive",
+  "w3-restart-atomic-js-unhardened",
+  "a",
+  "The design already contains a write path that survives the same load, and the snapshots do not use it."
+ ],
+ [
+  "w4-curriculum-bimodal-difficulty",
+  "exp-gate-001",
+  "both",
+  "A 0/1 score makes every delta exactly 1.0 or 0, so the noise-budget argument never engages."
+ ],
+ [
+  "w4-curriculum-curriculum-not-monotone",
+  "w4-curriculum-85-percent-rule",
+  "a",
+  "The one measured coding curriculum put easy-to-hard sequencing below shuffling; only a mixed schedule beat baseline."
+ ],
+ [
+  "w4-curriculum-starvation-43of59",
+  "w4-curriculum-no-cross-campaign-state",
+  "both",
+  "A missing difficulty registry costs little while most tasks are never attempted once, and matters only after coverage is fixed."
+ ],
+ [
+  "w4-graded-llm-suite-correlation-regime",
+  "w2-verify-mutation-score-size-confound",
+  "both",
+  "The confound depends on who wrote the suite: the structure itself is regime-specific."
+ ],
+ [
+  "w4-graded-metric-regex-shadowing",
+  "exp-score-003",
+  "both",
+  "Enabling the graded path also enables the forge, because the channel it reads is written by the candidate."
+ ],
+ [
+  "w4-graded-mutation-resists-padding",
+  "w4-graded-padding-buys-partial-credit",
+  "both",
+  "Measured contrast: the same 100 no-op assertions moved partial credit by 0.7 points and mutation score by zero kills."
+ ],
+ [
+  "w4-graded-smallest-credible",
+  "w4-graded-partial-credit-narrow-band",
+  "a",
+  "Per-assertion credit was rejected for the measured reason that its 0.833-0.987 band sits inside minGain and cannot order patches."
+ ],
+ [
+  "w4-graded-suite-breadth-kills-nothing",
+  "w2-verify-evalplus-80x-passk-drop",
+  "both",
+  "EvalPlus added new oracles for uncovered behaviour; 28 extra files tested the same behaviour again."
+ ],
+ [
+  "w4-metering-246x-undercount",
+  "w4-metering-attempt-cost-caveat-claims",
+  "both",
+  "A large error and the need for caveats are compatible: the caveats are what make the number usable once it is fixed."
+ ],
+ [
+  "w4-metering-cache-read-95pct",
+  "w4-metering-fallback-blind-preamble",
+  "both",
+  "A fallback that hardcodes cache-read to zero cannot represent 95.3% of the tokens an attempt actually consumed."
+ ],
+ [
+  "w4-metering-cap-never-bound",
+  "w2-meta-gap-no-matched-budget-headtohead",
+  "both",
+  "The cap never binding is exactly why no matched-budget comparison exists here."
+ ],
+ [
+  "w4-metering-chars4-undercount",
+  "w4-metering-246x-undercount",
+  "both",
+  "A minus-forty-percent character bias cannot explain a 246x gap; the gap is dominated by the omitted preamble and cache traffic."
+ ],
+ [
+  "w4-metering-comment-false-usage-exists",
+  "w4-metering-meter-wrong-argument",
+  "both",
+  "The fallback covers a gap the comment claimed; the gap does not exist and the fallback is reached only because the meter call fails."
+ ],
+ [
+  "w4-metering-fallback-blind-preamble",
+  "w4-metering-tokensof-drops-cache",
+  "both",
+  "Both omissions point the same way: the recorded number is a strict undercount of the prompt side."
+ ],
+ [
+  "w4-metering-otel-cache-double-count",
+  "w4-metering-cache-read-95pct",
+  "both",
+  "The convention invites exactly the addition that would erase the distinction this measurement depends on."
+ ],
+ [
+  "w4-metering-price-table-inverted",
+  "tri-harness-cost-3x",
+  "both",
+  "Harness comparisons inherit a 2.78x error from the price table itself."
+ ],
+ [
+  "w4-metering-publisher-api-not-realtime",
+  "tri-budget-blind",
+  "both",
+  "Budget-aware agents need a live number, and a daily-only cost endpoint omitting whole service tiers is not one."
+ ],
+ [
+  "w4-metering-within-round-cost-spread",
+  "tri-session-cost-variance",
+  "both",
+  "The same session variance appears inside one round as a 1.36x median spread between two candidates."
+ ],
+ [
+  "w4-parallel-round-wall-grew",
+  "w4-parallel-speedup-145",
+  "both",
+  "The ratio misleads: the same change made rounds 2.7x longer in absolute terms."
+ ],
+ [
+  "w4-parallel-throwaway-425",
+  "w4-parallel-collision-98",
+  "both",
+  "42.5% is a merge-time cost across different tasks, and our candidates never merge, so it does not transfer as a conflict rate."
+ ],
+ [
+  "w4-review-judge-ceiling-hard-code",
+  "ver-q02",
+  "both",
+  "Published agreement figures disagree, and this benchmark bounds them at a controlled 52-82%."
+ ],
+ [
+  "w4-review-self-preference-same-family",
+  "rsi-017",
+  "both",
+  "A co-evolved evaluator retained held-out lift there, which bounds how strongly self-preference transfers."
+ ],
+ [
+  "w4-selfedit-activate-has-no-evidence-check",
+  "w4-selfedit-mutate-whitelist-four-kinds",
+  "both",
+  "The whitelist bounds the mutator, but activation accepts any hand-written spec, so containment depends on which tool the agent calls."
+ ],
+ [
+  "w4-selfedit-ledger-actor-is-not-provenance",
+  "w3-restart-append-is-the-safe-primitive",
+  "both",
+  "Append-only makes the record durable, not true: the actor is an unverified literal at the call site."
+ ],
+ [
+  "w4-selfedit-rollback-swallows-failures",
+  "w4-selfedit-mutate-whitelist-four-kinds",
+  "both",
+  "Containment by we-can-always-revert is weaker than the whitelist, because the revert is silent on failure."
+ ],
+ [
+  "w4-selfedit-sabotage-evals-only-low-level",
+  "w4-selfedit-palisade-shutdown-rewrite",
+  "both",
+  "A capability-level negative and a small-n positive disagree about how far current models go, and both are small-n."
+ ],
+ [
+  "w5-interface-allow-rule-81pct-silent",
+  "w3-attention-batch-threshold-3x",
+  "both",
+  "The batching advice assumes approval does not persist; persisting one approval bought 81% silent completion."
+ ],
+ [
+  "w5-interface-coderabbit-56-rejected",
+  "w3-attention-approval-rate-95",
+  "both",
+  "The unit of approval decides which number you get: permission-level approvals pass at 95%, claim-level comments are rejected 56% of the time."
+ ],
+ [
+  "w5-interface-interp-5x-faster-17pct-worse",
+  "w5-interface-groundability-missing-item",
+  "both",
+  "The difference is whether the evidence is checkable: structured evidence raised catch, an explanation surface raised speed and lowered accuracy."
+ ],
+ [
+  "w5-interface-vac-oracle-0pct",
+  "w2-human-catch-rate-13-6",
+  "both",
+  "Zero attack success holds only for an oracle user; real humans caught 13.6%, so the card number is an upper bound."
+ ],
+ [
+  "w5-selfreport-advani-confident-rewrite-flip",
+  "w5-selfreport-claimcheck-structural-facts-free",
+  "both",
+  "Structural checks are safe only where the fact is genuinely structural in the trace; any check reading the claim text is flippable."
+ ],
+ [
+  "w5-selfreport-advani-judge-ceiling-065",
+  "w4-review-hybrid-tests-then-rubric-judge",
+  "both",
+  "A rubric judge reading the trajectory is not a false-completion monitor: no configuration exceeded AUROC 0.65."
+ ],
+ [
+  "w5-selfreport-local-count-check-is-not-name-check",
+  "exp-human-004",
+  "a",
+  "The 73/84 figure compares counts, so a worker that swaps one filename for another still scores a match."
+ ],
+ [
+  "w5-tokenbudget-dollar-split-45-36-19",
+  "tri-cache-input-share",
+  "both",
+  "Different rate cards, and the graph does not name its card; on the billed card cache reads buy 19.2% while output takes 45.1%."
+ ],
+ [
+  "w5-tokenbudget-dollar-split-45-36-19",
+  "tri-output-share",
+  "both",
+  "Same direction and different magnitude: 69% of a session versus 45.1%, and this measurement is on the card we actually pay."
+ ],
+ [
+  "w5-tokenbudget-price-ratio-drives-split",
+  "w5-tokenbudget-arxiv-per-task-gap",
+  "both",
+  "Published dollar conclusions are card-bound, so a per-task figure cannot be quoted as a task property."
+ ],
+ [
+  "w5-tokenbudget-ttl-never-expires-intra-attempt",
+  "tri-cache-input-share",
+  "both",
+  "The graph measured human-paced turns and we measured loop-fired turns, where the p99 gap is 120s and TTL never bites."
+ ],
+ [
+  "w5-tokenbudget-undercount-71x-at-true-card",
+  "exp-meter-002",
+  "a",
+  "At the billed card the honest multiple is 71x; the larger figure is a price-table artefact."
+ ],
+ [
+  "w5-transfer-backfires-inverted-u",
+  "w2-meta-warm-start-library",
+  "both",
+  "A warm-started library is not a monotone asset: pass@1 returned to plus two points over seed after the pool grew fivefold."
+ ],
+ [
+  "w5-transfer-hda-13-of-15-below-search",
+  "rsi-005",
+  "both",
+  "Different settings: held-out gain came in below search-set gain in thirteen of fifteen, which bounds the nine-of-nine claim."
+ ],
+ [
+  "w5-transfer-loom-round-curve-confound",
+  "w5-transfer-loom-ab-53-null",
+  "both",
+  "A 27.9% infrastructure-error rate makes the declining-round-curve reading unsupported as evidence of lesson harm."
+ ],
+ [
+  "w5-transfer-selfharness-no-portability",
+  "rsi-005",
+  "both",
+  "There is no cross-model or cross-campaign test, and the paper itself says harness design is model-specific."
+ ],
+ [
+  "w5-transfer-skillinfinity-no-heldout",
+  "w2-meta-warm-start-library",
+  "both",
+  "The 60.7% figure comes from optimizing and testing on the same 83 tasks."
+ ],
+ [
+  "w6-alphaevolve-selection-bias-67",
+  "w6-alphaevolve-arxiv-2506-13131",
+  "both",
+  "The public results repo excludes matched-but-not-better problems, so the artifact states 30% as 100%."
+ ],
+ [
+  "w6-attn-classifier-83-17fn",
+  "w6-attn-human-catch-13.6",
+  "both",
+  "On the same per-item judgement the classifier is six to seven times the human, so a human gate is not a safety net over it."
+ ],
+ [
+  "w6-attn-escalation-band-10-15",
+  "w6-attn-loom-zero-open",
+  "both",
+  "A target escalation band is incompatible with an observed zero, and the two readings have opposite prescriptions; the zero is the thing to explain."
+ ],
+ [
+  "w6-attn-loom-zero-open",
+  "w6-attn-loom-20min-allocation",
+  "both",
+  "Allocating twenty minutes presupposes a queue that does not exist, which makes it a design question rather than an optimisation."
+ ],
+ [
+  "w6-attn-stanford-71-vs-30",
+  "w6-attn-per-iteration-rubber-stamp",
+  "a",
+  "Approval-per-step was measurably the worse of the two deployment patterns across 51 sites."
+ ],
+ [
+  "w6-continual-forgetting-arxiv-2611-03219",
+  "w6-selfharness-arxiv-2606-09498",
+  "both",
+  "Single-dataset gains do not compose: 94.0 to 32.0 after five rounds on another dataset."
+ ],
+ [
+  "w6-dgm-feedback-directedness-evalue",
+  "w6-dgm-arxiv-2505-22954",
+  "a",
+  "The randomised audit is the stronger evidence: modifications repair their target less often than chance."
+ ],
+ [
+  "w6-selfmod-benchjack",
+  "w6-selfmod-acceptance-rule",
+  "both",
+  "No-regression assumes both splits are computed outside the candidate's reach, and conftest.py plus curl say they are not."
+ ],
+ [
+  "w6-selfmod-heldout-unsound",
+  "w6-selfmod-acceptance-rule",
+  "both",
+  "A non-negative held-out delta only bounds overfitting to visible tests."
+ ],
+ [
+  "w6-selfmod-monitor",
+  "w6-selfmod-actor",
+  "both",
+  "A monitor is independent only if its own provenance is verifiable, and a literal human actor string gives it nothing to check."
+ ],
+ [
+  "w6-selfmod-open-question",
+  "w6-selfmod-windows-failopen",
+  "both",
+  "The open question is answered here: a deny list keyed on paths is bypassable by a second name."
+ ],
+ [
+  "w6-verse-selfevo-no-verification-below-blank",
+  "w6-metaharness-arxiv-2603-28052",
+  "both",
+  "The same optimizer family falls below the blank harness once the reporting protocol is disjoint."
+ ],
+ [
+  "w8-attention-devils-advocate",
+  "w8-attention-bulk-approve",
+  "both",
+  "They act on different axes: per-item judgement versus consolidation of the decision count."
+ ],
+ [
+  "w8-measure-number-mutation-cost",
+  "w8-measure-analysis-instrument-stack",
+  "neither",
+  "A scale difference, not a conflict: Google's cost curve is why the stack caps it at one mutant per changed line."
+ ],
+ [
+  "w8-review-an-review-is-not-a-bug-gate",
+  "w8-review-claim-summary-hurts",
+  "neither",
+  "A tension rather than a contradiction: the difference is whether the evidence is frozen and mechanical."
+ ],
+ [
+  "w8-review-claim-ai-pr-size-inflation",
+  "w8-review-num-queue-shape",
+  "both",
+  "Loom's 58.6-line mean does not face that mechanism, so size inflation does not explain our queue."
+ ],
+ [
+  "w8-review-claim-checklist-limits",
+  "w8-review-src-smartbear",
+  "both",
+  "The vendor band is a self-report, and a registered report found no strong checklist effect."
+ ],
+ [
+  "w8-review-num-queue-shape",
+  "w8-review-src-smartbear",
+  "both",
+  "The queue sits inside the comfort band yet behaves as if review were hard, which is the reason to look past size."
+ ],
+ [
+  "w8-selfmod-claim-ghost-scorer",
+  "w8-selfmod-analysis-gate-cannot-see-harness",
+  "both",
+  "Opposite signs and the same root cause: the check does not read the changed artefact."
+ ],
+ [
+  "w8-selfmod-question-hallucination-marker-claim",
+  "w8-selfmod-fail-manual-lineage-review",
+  "both",
+  "The anecdote inflates an absence of evidence into a report of misbehaviour."
+ ]
+]

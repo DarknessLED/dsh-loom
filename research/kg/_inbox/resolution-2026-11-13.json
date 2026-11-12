@@ -1,0 +1,61 @@
+{
+ "nodes": [
+  {
+   "id": "exp-resolve-001",
+   "kind": "number",
+   "topic": "digestion",
+   "confidence": 0.96,
+   "title": "All 174 recorded contradictions decided: 153 both, 16 one-sided, 5 neither",
+   "source": "kg contradictions --resolved (research/exp/resolutions.json, research/exp/resolve-all.mjs)",
+   "body": "Every contradiction the corpus had accumulated is now decided through `kg resolve`, each with a written reason: 153 `both`, 16 `a`, 5 `neither`, 0 disputed.\n\nThe shape is the finding. 88% came out `both`, and reading them one by one the pattern is uniform: the two sides were measured in different regimes and each named a true thing about its own. Output is 69% of one session's bill and 45% of another's, because the rate cards differ (#71, #145, #146). One-run-per-arm is enough at sigma 1-2pp and not enough at 3-6pp (#76, #95). 42.5% of parallel attempts are thrown away at merge time and 0% of ours are, because ours never merge (#131). Roughly twenty of the pairs are not even regime differences -- they say the same thing twice in different vocabulary (#9, #10, #47, #168).\n\nThe 16 `a` verdicts are the only place where one side was simply wrong, and they cluster: five are my own measurements correcting an earlier version of themselves (the 198x meter figure, the 14-empty-patch attribution, the dev-to-spec count check, the resolve of the untracked-file class), and the rest are a paper's claim losing to a stronger measurement of the same thing (DGM's randomised re-audit, the AlphaEvolve public repo, the approval-per-step pattern).\n\nThis changes what the remaining `question`-kind nodes mean. A gap node is a question nobody answered; a resolved `both` pair is a question that did not exist. 153 of the 174 were the second kind."
+  },
+  {
+   "id": "ana-019",
+   "kind": "analysis",
+   "topic": "digestion",
+   "confidence": 0.95,
+   "title": "A contradiction set is mostly a vocabulary defect, and resolving it is how you find out",
+   "source": "derived from exp-resolve-001 and the wave build scripts",
+   "body": "Why does a corpus collect 174 contradictions and then decide 88% of them are not contradictions?\n\nThe problem it solved: the graph needed a way to record that two records could not both be in force, because otherwise the corpus silently averages them and every downstream count is a mixture of two regimes.\n\nThe difficulty: a relation name is a claim, and the builder wrote those claims at speed. `research/wave8/_build.mjs:13` maps `challenges`, `falsifies`, `undermines`, `confounds`, `threatens` and `warns` all onto `contradicts` -- 20 of the 174 pairs come from that one table. A researcher writing \"this challenges X\" and a researcher writing \"this falsifies X\" were recorded as making the same claim, and 13 challenges plus 2 warns turned into 15 contradictions. The `RELMAP` exists because wave3 lost 32 edges to names outside the schema, so the mapping fixed a silent data loss and introduced a silent inflation: the edges stopped disappearing and started lying.\n\nThe principle: a weak relation promoted to a strong one is worse than a dropped edge, because a dropped edge is visibly absent while a promoted one is confidently wrong. The mapping should have gone to `refines` (X narrows Y's scope) and left `contradicts` for pairs that actually cannot both hold.\n\nThe cost of resolving: 174 pairs x a written reason each. At the pace this took, that is an evening -- and it is the only way to find out how many were real, because the note text is the only place the regime is recorded.\n\nWhat remains unsolved: `kg resolve` has no way to say \"this pair is a mapping artefact, reclassify it\" -- `both` is the closest available verdict, and using it files a vocabulary error under a measurement verdict. The fix for future waves is upstream in the builder; the 20 already-recorded pairs keep their `both` verdict with the note carrying the trace."
+  },
+  {
+   "id": "exp-resolve-002",
+   "kind": "failure",
+   "topic": "digestion",
+   "confidence": 0.94,
+   "title": "One pair in the list was written with a truncated id and only the resolve pass caught it",
+   "source": "research/exp/resolve-all.mjs first run: 173/174",
+   "body": "`resolve-all.mjs` applied 173 of 174 verdicts and failed on `w2-verify-evilgenie-heldout-weak vs w2-verify-oracle-substitutes`: `no contradiction recorded`.\n\nThe id printed by `kg contradictions` for that pair is `w2-verify-oracle-substitutes-metamorphic-property-differential`, and the edge is stored against that full id -- so the printed list was right and my transcription was short. The tool refused rather than creating a partial record, which is the property that made this cheap: a writer that accepted an unknown pair would have filed a verdict about nothing and the count would have read 174/174 while one pair stayed undecided.\n\nRule: an id that names a record should be copyable from the output that printed it. `kg contradictions` prints both ids on the header line for exactly this reason; I read the `B:` title instead, which is prose."
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-resolve-001",
+   "rel": "measures",
+   "to": "ana-019",
+   "note": "the distribution is what makes the vocabulary claim checkable"
+  },
+  {
+   "from": "ana-019",
+   "rel": "derived-from",
+   "to": "exp-resolve-001"
+  },
+  {
+   "from": "exp-resolve-002",
+   "rel": "supports",
+   "to": "exp-resolve-001"
+  },
+  {
+   "from": "ana-019",
+   "rel": "supersedes",
+   "to": "ana-016",
+   "note": "ana-016 said check the denominator; this says check whether the two records were making the same claim at all"
+  },
+  {
+   "from": "exp-resolve-001",
+   "rel": "applies-to",
+   "to": "ana-001",
+   "note": "the quality-per-attention axis survives 12 challenges as a regime question, not a refutation"
+  }
+ ]
+}
