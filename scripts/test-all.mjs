@@ -58,6 +58,13 @@ const standing = [
   'tests/chaos2/recover-idempotent.test.mjs',
   // the master switch must never move campaign history
   'tests/switch/switch.test.mjs',
+  // a graded task's verdict is its metric, not its exit code: loom-graded's
+  // verifier prints QUALITY=<n> and exits 0 in every state, so an exit-code
+  // oracle read a 0.500 -> 1.000 climb as three rounds of no work.
+  'tests/self6/graded-earned.test.mjs',
+  // and a cache entry that predates the metric must be re-measured, or the same
+  // blind spot returns on exactly the machines that already ran the campaign.
+  'tests/self6/baseline-cache-version.test.mjs',
   // the loop control is a switch, and the money is labelled truthfully
   'tests/ui/a11y.test.mjs',
   'tests/ui/cost-honest.test.mjs',

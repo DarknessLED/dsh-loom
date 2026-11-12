@@ -22,7 +22,13 @@ import { join } from 'node:path'
 const CACHE_FILE = 'baseline-cache.json'
 
 const sha1 = (value) => createHash('sha1').update(value).digest('hex')
-const keyOf = (taskId, base, command) => sha1(JSON.stringify([String(taskId ?? ''), String(base ?? ''), String(command ?? '')]))
+// Bumped when the shape of a stored verdict changes. Version 2 added `metrics`:
+// entries written by version 1 answer "did the base pass?" but carry no metric,
+// so reusing them would silently disable the graded-task reading in
+// src/gate/earned.js -- the cache would keep the oracle blind exactly where the
+// fix was needed. Bumping the key costs one re-measurement per live task.
+const CACHE_VERSION = 2
+const versionedKey = (taskId, base, command) => sha1(JSON.stringify([CACHE_VERSION, String(taskId ?? ''), String(base ?? ''), String(command ?? '')]))
 
 const keyFile = (dir) => join(dir, CACHE_FILE)
 
@@ -50,7 +56,7 @@ function readCache(dir) {
  */
 export async function baseVerdict({ dir, cwd, taskId, base, command, run }) {
   if (typeof run !== 'function') throw new TypeError('baseVerdict requires run')
-  const key = keyOf(taskId, base, command)
+  const key = versionedKey(taskId, base, command)
   const cache = readCache(dir)
   const hit = cache[key]
   if (hit && typeof hit === 'object' && typeof hit.ok === 'boolean') {
