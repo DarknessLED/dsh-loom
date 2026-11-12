@@ -1,0 +1,47 @@
+{
+ "nodes": [
+  {
+   "id": "exp-farc-001",
+   "kind": "number",
+   "confidence": 0.92,
+   "topic": "balance",
+   "title": "False rejects cost 11.3 round-equivalents of work; false accepts cost 0.24s each to detect, so the ratio is 1624:1 against rejecting",
+   "body": "w2-decide-gap-false-accept-cost-unmeasured asked for the ratio between a false accept and a false reject, noting that without it no threshold can be set.\n\nMeasured with research/exp/e80.mjs over 169 rounds with a duration and all attempt/verifier events:\n\n**False rejects** (verifier shell went green, the gate still said no -- e43b's population, recomputed here rather than read from a file e43b does not write): 22 cases, 1.23 h of attempt wall clock discarded, equal to 11.3 median rounds (median round 389,753 ms, mean 437,954 ms).\n\n**False accepts** (a promotion whose spec already passed at base -- e47's 7 of 71): detection cost is one base re-run, median 240 ms, 1.7 s for all seven.\n\nSo the detection-cost ratio is 389,753 / 240 = 1624:1 in favour of accepting. A false reject costs a whole round of thrown-away work; a false accept costs a fraction of a second to detect -- once someone runs the check, which is exactly what did not happen for 7 promotions.\n\nThis inverts the usual reading of the asymmetry. The cheap action (accept) carries unbounded exposure because detection is not on any schedule; the expensive action (reject) is priced and visible. The correct bias follows the *total* cost, not the detection cost: rejecting on suspicion burns 390 s of real work every time, so a gate that rejects more must be right more often than 1 in 1624 relative to what it saves -- which is why the differential oracle (which converts a false accept into a false reject *before* the work is thrown away) is the cheap fix and a stricter threshold is not.",
+   "source": "research/exp/e80.mjs; 169 rounds, 22 false rejects (1.23h), e47's 7/71 false accepts, median base re-run 240ms"
+  },
+  {
+   "id": "ana-038",
+   "kind": "analysis",
+   "confidence": 0.93,
+   "topic": "balance",
+   "title": "Cheap to detect is not cheap to have: a gate's bias should follow total cost, and detection cost is the wrong axis",
+   "body": "The measured asymmetry is striking and misleading in the obvious direction. A false accept is detected in 240 ms; a false reject throws away 390 s. Read naively that says 'be permissive'.\n\nThe error is treating detection cost as the cost of being wrong. A false accept's cost is the exposure window -- every round that builds on an unsound promotion -- and that window's length is set by whether a detection step is scheduled. Here it was not: 7 promotions sat accepted until a research script replayed them days later. An unpriced risk and a small risk look identical in a table of means.\n\nWhat makes this actionable is not the ratio but which fix it recommends. Tightening the threshold trades a known 390 s per rejection for an unknown reduction in exposure -- the trade is unpriced on one side. The differential oracle converts the false accept into a false reject *before* the round's work is spent, which removes the exposure at 240 ms and costs the round only when the spec was genuinely already green (where the work was not progress anyway). Same information, different timing, 1624x cheaper.\n\nGeneral shape, third instance tonight: the cheap measurement (e55's 461 patches, e52's 116 promotions, e45's 73 commits) is the one that can be run without a scheduler; the expensive one (false-accept exposure) needs a standing job nobody had. Prefer fixes that make the expensive measurement unnecessary over fixes that improve the cheap one.",
+   "source": "derived from exp-farc-001, exp-diff-001, exp-audit-001"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-farc-001",
+   "rel": "measures",
+   "to": "w2-decide-gap-false-accept-cost-unmeasured",
+   "note": "answers the gap with both arms measured from the ledger"
+  },
+  {
+   "from": "exp-farc-001",
+   "rel": "refines",
+   "to": "exp-diff-001"
+  },
+  {
+   "from": "ana-038",
+   "rel": "derived-from",
+   "to": "exp-farc-001"
+  },
+  {
+   "from": "ana-038",
+   "rel": "same-as",
+   "to": "ana-028",
+   "note": "both: measure the precondition before the experiment because it is cheaper"
+  }
+ ],
+ "gaps": []
+}

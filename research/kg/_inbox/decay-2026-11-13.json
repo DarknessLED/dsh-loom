@@ -1,0 +1,57 @@
+{
+ "nodes": [
+  {
+   "id": "exp-decay-001",
+   "kind": "number",
+   "confidence": 0.93,
+   "topic": "curriculum",
+   "title": "Eval-set power does not decay with reuse; 41.8% of re-judgements land on tasks that can no longer discriminate",
+   "body": "w2-decide-gap-eval-set-decay-under-reuse asked how fast an eval set's discriminative power decays under repeated accept/reject use.\n\nMeasured on 34 tasks judged more than once (119 repeat pairs) from the ledger, three ways, because the first two were confounded:\n\n1. **Appearance-index buckets** (research/exp/e81.mjs): pass rate 58.8% -> 73.5% -> 76.2% -> 46.2% -> 55.6% -> 37.5% -> 16.7% by k-th appearance. This looks like decay and is not: it is composition. k=1 is dominated by first tries, k>=7 by a handful of hard tasks the selector keeps returning to.\n2. **First half vs second half within task**: 60.0% -> 47.0% (-13.0 pp). Also confounded -- the selector prefers unsolved tasks, so second halves are disproportionately the tasks that keep failing.\n3. **Paired first-vs-last, task fixed** (research/exp/e83.mjs): of 21 tasks with >=3 appearances, 2 gained and 2 lost; exact two-sided p = 1.000. A task's difficulty does not measurably drift with reuse.\n\nWhat does degrade is where the judging budget goes. Of 153 appearances on repeated tasks: **always-pass tasks 56 (36.6%), always-fail tasks 8 (5.2%), mixed 89 (58.2%)** -- so **41.8% of re-judgements land on a task whose verdict never changed**. `graded` was judged 12 times and passed 12 times; `plateau` 6/6; `deferred` 6/6; `exposure` 5/5; `noop` 4/4; `sampling` 4/4.\n\nSo the set does not decay, it **saturates**: it keeps answering questions already settled. That is a scheduler finding, not a corpus finding -- the fix is to stop re-judging saturated tasks (or re-judge them only when something changed), not to grow the set. Note this is the same shape as the campaign-level saturation already recorded (n-round1-monopoly: 56 of 67 campaigns promoted in round 1).",
+   "source": "research/exp/e81.mjs, e82.mjs, e83.mjs; 34 repeated tasks, 21 with >=3 appearances, 153 appearances"
+  },
+  {
+   "id": "exp-decay-002",
+   "kind": "failure",
+   "confidence": 0.94,
+   "topic": "curriculum",
+   "title": "Two analyses of the same question were both confounded, and the first also printed p = 1.375",
+   "body": "The decay question produced three answers in sequence and the first two were wrong for different reasons.\n\n**Wrong answer 1** (e81): pass rate by appearance index falls from 58.8% to 16.7%, read as decay. It is composition -- later buckets contain only the tasks the selector keeps retrying because they keep failing.\n\n**Wrong answer 2** (e81's within-task halves): 60.0% -> 47.0%, read as decay with task held fixed. Still confounded: the selector's preference for unsolved tasks means the second half of a repeated task's appearances is not a random sample of that task's rounds.\n\n**Bug on top** (e82): my exact-binomial helper summed the lower tail and doubled it without capping at 1, so a 2-vs-2 discordant split printed 'p = 1.3750'. A p-value above 1 is not a borderline result, it is an arithmetic error, and it printed in the same line as a substantive claim.\n\n**Correct** (e83): paired first-vs-last with the task fixed gives 2 gained, 2 lost, p = 1.000 -- no drift. And the real phenomenon is saturation of the budget (41.8% of re-judgements on never-changing verdicts).\n\nThe lesson is about which comparison isolates the variable: any within-corpus comparison where the *selection* process depends on the outcome is confounded, and here the selector reads scores by design. The only clean comparisons are ones where the pairing is set before the outcome is known, or where the endpoint pair is chosen symmetrically (first vs last rather than halves).",
+   "source": "research/exp/e81.mjs, e82.mjs, e83.mjs; see e82's printed p=1.3750"
+  },
+  {
+   "id": "ana-039",
+   "kind": "analysis",
+   "confidence": 0.94,
+   "topic": "curriculum",
+   "title": "Decay and saturation present identically in a pass-rate curve; only the composition of the population separates them",
+   "body": "A falling pass rate as a corpus is reused is consistent with two mechanisms that call for opposite fixes:\n\n* **decay** -- the set gets easier to satisfy because the fixes accumulate (the same code keeps getting better at the same tests); fix = grow or rotate the set.\n* **saturation** -- the set stops discriminating because the scheduler keeps returning to tasks whose verdict is settled; fix = change the scheduler.\n\nBoth produce a downward curve. What separates them is whether the individual items change: here, held fixed, they do not (2 gained, 2 lost, p = 1.0), while the mix of settled versus open items shifts (41.8% of re-judgements on never-changing verdicts).\n\nThat distinction is only visible if you measure the item level and the population level separately. A corpus-level pass rate merges them, and the merged number supports either story -- which is why the first two analyses of this question reached the wrong conclusion with correct arithmetic.\n\nPractical rule: when a reused eval set's pass rate falls, report (a) paired per-item change and (b) share of evaluations on items with no observed variance. If (a) is zero and (b) is high, the answer is scheduling. Do not report (only) the aggregate curve.",
+   "source": "derived from exp-decay-001 and exp-decay-002"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-decay-001",
+   "rel": "measures",
+   "to": "w2-decide-gap-eval-set-decay-under-reuse",
+   "note": "answers: no per-item decay (p=1.0), but 41.8% of re-judgements are on saturated tasks"
+  },
+  {
+   "from": "exp-decay-001",
+   "rel": "refines",
+   "to": "n-round1-monopoly",
+   "note": "same shape at task level: saturation, not decay"
+  },
+  {
+   "from": "exp-decay-002",
+   "rel": "contradicts",
+   "to": "exp-decay-001",
+   "note": "the first two analyses of this same question were confounded"
+  },
+  {
+   "from": "ana-039",
+   "rel": "derived-from",
+   "to": "exp-decay-001"
+  }
+ ],
+ "gaps": []
+}

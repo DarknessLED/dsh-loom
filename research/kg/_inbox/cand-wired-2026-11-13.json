@@ -1,0 +1,27 @@
+{
+ "nodes": [
+  {
+   "id": "exp-cand-004",
+   "kind": "number",
+   "confidence": 0.93,
+   "topic": "balance",
+   "title": "The second-candidate gate is wired on the default path; 'evidence' was absent because the price was zero, not because the branch was dead",
+   "body": "gap-cand-001 asked whether the repaired gate changes round behaviour or whether `autoCandidateMode` is the only thing that ever acts -- the tell being that `candidateModeSource` is 'evidence' in 0 of 241 recorded rounds.\n\nReading src/runtime/round.js:1043-1075: the evidence branch is gated on `candidateMode === 'parallel'` and `secondCandidate !== 'always'`, and `candidateMode` defaults to 'parallel' (source 'default'). So the branch runs on every campaign that has not configured otherwise -- no `autoCandidateMode` needed. `autoCandidateMode` governs a different decision (whether to infer `cascade` from the record), not this one.\n\nThe absence of 'evidence' therefore had exactly one cause: `secondCandidateGate` never returned admit:false, because the tail it priced was identically zero (exp-cand-003). A dead-looking branch and a branch whose condition is never satisfied look the same in the log.\n\nEvidence that it now fires:\n* tests/balance/second-candidate-gate.test.mjs case 2 drives real runRound with three losing rounds whose attempts carry measured durations, and asserts candidatesPlanned=1, candidateModeSource='evidence', secondCandidate.tailMs>0 (4/4).\n* e74 replays 114 priceable historical rounds: refusals go 0 -> 23, declining 6,584 s (1.83 h) of hedging across 8 campaigns.\n\nThe residual is that no live campaign has recorded 'evidence' yet -- the fix is loaded but no campaign has run since. That is a fact about the clock, not about the wiring, and one round of any campaign with a losing record will produce the first instance.",
+   "source": "src/runtime/round.js:1043-1075; tests/balance/second-candidate-gate.test.mjs 4/4; research/exp/e74.json"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-cand-004",
+   "rel": "measures",
+   "to": "gap-cand-001",
+   "note": "answers the gap: wired on the default path, absent only because the price was zero"
+  },
+  {
+   "from": "exp-cand-004",
+   "rel": "refines",
+   "to": "exp-cand-003"
+  }
+ ],
+ "gaps": []
+}

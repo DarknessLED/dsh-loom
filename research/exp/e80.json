@@ -1,0 +1,10 @@
+{
+  "roundsWithDuration": 169,
+  "medianRoundMs": 389753,
+  "meanRoundMs": 437953.8402366864,
+  "falseRejects": 22,
+  "falseRejectMs": 4418892,
+  "falseAccepts": 7,
+  "checkable": 71,
+  "baseRerunMs": 240
+}

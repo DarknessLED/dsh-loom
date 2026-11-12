@@ -1,0 +1,15 @@
+{
+  "n": 21,
+  "gained": 2,
+  "lost": 2,
+  "p": 1,
+  "saturatedPass": 15,
+  "saturatedFail": 3,
+  "mixed": 16,
+  "appearances": {
+    "alwaysPass": 56,
+    "alwaysFail": 8,
+    "mixed": 89,
+    "total": 153
+  }
+}

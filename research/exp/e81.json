@@ -1,0 +1,351 @@
+{
+  "tasksRepeated": 34,
+  "repeatPairs": 119,
+  "flips": 9,
+  "buckets": {
+    "1": {
+      "n": 34,
+      "pass": 20
+    },
+    "2": {
+      "n": 34,
+      "pass": 25
+    },
+    "3": {
+      "n": 21,
+      "pass": 16
+    },
+    "4": {
+      "n": 13,
+      "pass": 6
+    },
+    "5": {
+      "n": 9,
+      "pass": 5
+    },
+    "6": {
+      "n": 8,
+      "pass": 3
+    },
+    "7": {
+      "n": 6,
+      "pass": 1
+    },
+    "8": {
+      "n": 6,
+      "pass": 1
+    },
+    "9": {
+      "n": 6,
+      "pass": 1
+    },
+    "10": {
+      "n": 4,
+      "pass": 1
+    },
+    "11": {
+      "n": 4,
+      "pass": 1
+    },
+    "12": {
+      "n": 3,
+      "pass": 1
+    },
+    "13": {
+      "n": 2,
+      "pass": 0
+    },
+    "14": {
+      "n": 2,
+      "pass": 0
+    },
+    "15": {
+      "n": 1,
+      "pass": 0
+    }
+  },
+  "early": {
+    "n": 70,
+    "pass": 42
+  },
+  "late": {
+    "n": 83,
+    "pass": 39
+  },
+  "firstPassed": 20,
+  "firstFailed": 14,
+  "perTask": [
+    {
+      "task": "planning-accounting",
+      "n": 3,
+      "rate": 0.3333333333333333,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "010"
+    },
+    {
+      "task": "queue-wait",
+      "n": 11,
+      "rate": 0.09090909090909091,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "00100000000"
+    },
+    {
+      "task": "card-actions",
+      "n": 15,
+      "rate": 0.13333333333333333,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "011000000000000"
+    },
+    {
+      "task": "planning-chip",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "head-dot",
+      "n": 14,
+      "rate": 0.21428571428571427,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "11001000000000"
+    },
+    {
+      "task": "policy-set",
+      "n": 3,
+      "rate": 0,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "000"
+    },
+    {
+      "task": "brief-clock",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "panel-degrade",
+      "n": 3,
+      "rate": 0.6666666666666666,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "101"
+    },
+    {
+      "task": "exhausted-round",
+      "n": 3,
+      "rate": 0.6666666666666666,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "101"
+    },
+    {
+      "task": "claim",
+      "n": 4,
+      "rate": 0.5,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "0110"
+    },
+    {
+      "task": "refactor",
+      "n": 3,
+      "rate": 0,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "000"
+    },
+    {
+      "task": "fallover",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "graded",
+      "n": 12,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "111111111111"
+    },
+    {
+      "task": "hedge-stats",
+      "n": 2,
+      "rate": 0.5,
+      "gainedLate": false,
+      "lostLate": true,
+      "seq": "10"
+    },
+    {
+      "task": "noop",
+      "n": 4,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "1111"
+    },
+    {
+      "task": "dispose-recovery",
+      "n": 9,
+      "rate": 0.3333333333333333,
+      "gainedLate": false,
+      "lostLate": true,
+      "seq": "111000000"
+    },
+    {
+      "task": "node-attribution",
+      "n": 9,
+      "rate": 0.1111111111111111,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "001000000"
+    },
+    {
+      "task": "planner-chain",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "report-lessons",
+      "n": 3,
+      "rate": 0.6666666666666666,
+      "gainedLate": true,
+      "lostLate": false,
+      "seq": "011"
+    },
+    {
+      "task": "quiet-hours",
+      "n": 2,
+      "rate": 0.5,
+      "gainedLate": true,
+      "lostLate": false,
+      "seq": "01"
+    },
+    {
+      "task": "lessons-preview",
+      "n": 2,
+      "rate": 0.5,
+      "gainedLate": true,
+      "lostLate": false,
+      "seq": "01"
+    },
+    {
+      "task": "parallel-candidates",
+      "n": 3,
+      "rate": 0.3333333333333333,
+      "gainedLate": true,
+      "lostLate": false,
+      "seq": "001"
+    },
+    {
+      "task": "plateau",
+      "n": 6,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "111111"
+    },
+    {
+      "task": "deferred",
+      "n": 6,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "111111"
+    },
+    {
+      "task": "sampling",
+      "n": 4,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "1111"
+    },
+    {
+      "task": "policydiff",
+      "n": 3,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "111"
+    },
+    {
+      "task": "exposure",
+      "n": 5,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11111"
+    },
+    {
+      "task": "roundtable",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "plateau-checkpoint",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "holdout-rotation",
+      "n": 4,
+      "rate": 0.25,
+      "gainedLate": true,
+      "lostLate": true,
+      "seq": "0100"
+    },
+    {
+      "task": "plan-model",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    },
+    {
+      "task": "guard-reuse",
+      "n": 2,
+      "rate": 0.5,
+      "gainedLate": true,
+      "lostLate": false,
+      "seq": "01"
+    },
+    {
+      "task": "tones",
+      "n": 2,
+      "rate": 0,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "00"
+    },
+    {
+      "task": "verifier-reuse",
+      "n": 2,
+      "rate": 1,
+      "gainedLate": false,
+      "lostLate": false,
+      "seq": "11"
+    }
+  ]
+}
