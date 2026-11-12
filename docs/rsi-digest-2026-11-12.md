@@ -16,13 +16,30 @@
 
 ---
 
-## 1. 必修：把验证器变成差分预言机
+## 1. 必修（**已实现，但有一个真缺陷**）：差分预言机已存在，它只读退出码，因此对分级任务失明
+
+`6bc00e1`（2026-11-11 02:35）已加 `src/runtime/baseline.js` + `src/runtime/round.js:1862-1874`，把基线判决按
+`(task, base, command)` 缓存并写进 `checks.baseFailed`。我写这节时没查，差点又写一遍。真缺陷在别处：
+
+`loom-graded` 的验证器故意**恒 exit 0**、只打印 `QUALITY=<n>`（这就是「分级任务」的定义）。于是基线「通过」，
+`baseFailed` 恒 false，`const earned = checks.baseFailed !== false`（`round.js:1977`）**永远为假** ——
+三轮里 `QUALITY` 从 0.500 爬到 1.000，全被丢弃，战役结论三次「no gain」（`exp-diff-003`）。
+attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 `QUALITY=1.000`、score 1。
+
+**已修**：新增 `src/gate/earned.js`，两种读法二选一 —— 基线红→候选绿算挣到；基线已绿时只认**声明的指标**动了
+≥ minGain；基线没测出保持放行。回放 4 次被 `baseFailed=false` 拒掉的晋升：`loom-graded` 三轮全部恢复，
+`loom-ui8` round 3 仍然正确拒绝（无指标）—— 见 `exp-diff-004`。测试 `tests/self6/graded-earned.test.mjs` 8/8。
+
+---
+
+## 1b. 必修：把验证器变成差分预言机（原始建议，保留作背景）
 
 | 项 | 内容 |
 |---|---|
 | 证据 | `exp-ver-003`：94 个单 spec 验证器在今天这棵树上 **89 个已经通过**；`exp-gate-002`：208 个闸门里 **192 个根本没测过 `baseFailed`**（真 12、假 1） |
 | 机制 | `src/runtime/round.js:1977` `const earned = checks.baseFailed !== false` —— 缺测时按「不是 false」放行；而 `baseFailed` 只在 `hasPatch && verifierOk` 时才测（同文件 1862–1874）。所以 114 次晋升靠的是**缺席**，不是「基线失败」 |
 | 改法 | 每轮在**同一棵树**上跑两次验证器：`base` 与 `candidate`，把「绿→绿」「红→绿」「绿→红」「红→红」四态写进 `gate.evaluated`，`earned` 只认「红→绿」 |
+| 状态 | **已实现**（`6bc00e1`），本节保留为「它为什么存在」的背景；分级任务的盲区见 §1 |
 | 预期收益（**已在 71 次落到提交上的晋升上回放，数字是实测不是估计**） | **拦下 7 次**（`exp-diff-001`：64 次基线红→候选绿、7 次基线本来就绿 ⇒ 不earned）；基线跑一次 mean 1,000 ms / 中位 240 ms / p90 2,093 ms / max 9,757 ms，71 次共 71 s = 那 4.9 小时轮时长的 <1%。**不包含** 14 次空补丁晋升 —— 那 14 次 `hasPatch=false`、根本没有补丁可跑，预言机不会碰到它们（`exp-diff-002`，我原文把两件事混成一件） |
 | 成本 | **3.07 s / 次**（`exp-ver-005`：105 个任务 ×3 次、零 flake、共 968 s）⇒ 相对 166–204 s 的轮时长 < 4% |
 | 怎么验证（**回放已做，这一步只剩把规则写进代码**） | ① 新测试：`tests/selfN/differential-earned.test.mjs` —— 用 `tests/self4/` 那套「临时 git repo + 真 runRound + 恒失败验证器」骨架，断言基线已绿时 `earned=false`；② 回放 211 个历史 `gate.evaluated`，断言只有那 4 个（3 个 graded 轮 + loom-life r1）翻转（`exp-graded-005` 已给出期望值） |
