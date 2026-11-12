@@ -1,0 +1,60 @@
+{
+  "attentionAsksTotal": 60,
+  "gateAsks": 25,
+  "byKind": {
+    "gate": 25,
+    "anomaly": 12,
+    "plateau": 10,
+    "setup": 8,
+    "stuck": 1,
+    "holdout": 3,
+    "infrastructure": 1
+  },
+  "batchingSweep": {
+    "immediate": {
+      "gateInterruptions": 25,
+      "allInterruptions": 60,
+      "reductionVsImmediate": 0
+    },
+    "15m": {
+      "gateInterruptions": 9,
+      "allInterruptions": 30,
+      "reductionVsImmediate": 64
+    },
+    "1h": {
+      "gateInterruptions": 6,
+      "allInterruptions": 23,
+      "reductionVsImmediate": 76
+    },
+    "4h": {
+      "gateInterruptions": 6,
+      "allInterruptions": 12,
+      "reductionVsImmediate": 76
+    },
+    "1d": {
+      "gateInterruptions": 4,
+      "allInterruptions": 6,
+      "reductionVsImmediate": 84
+    }
+  },
+  "clustering": {
+    "interArrivalMedianSec": 1832.632,
+    "fractionUnder60s": 0.333,
+    "fractionUnder600s": 0.625
+  },
+  "perCampaignGateAsks": {
+    "campaigns": 11,
+    "median": 2,
+    "max": 6,
+    "maxCampaign": [
+      "loom-graded2",
+      6
+    ]
+  },
+  "dwell": {
+    "n": 25,
+    "median": 261077,
+    "over1h": 6,
+    "over24h": 2
+  }
+}

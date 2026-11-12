@@ -1,0 +1,39 @@
+{
+  "landingsWithCommit": 75,
+  "checkableAgainstGit": 75,
+  "era": {
+    "gates": 220,
+    "firstGateWithTestsClean": "2026-11-06T21:23:24.184Z",
+    "firstGateWithOracleClean": "2026-11-12T16:46:05.216Z",
+    "firstGateWithEarnedReason": "2026-11-12T16:04:08.680Z",
+    "landingsBeforeTestsCleanRule": 14,
+    "landingsAfter": 61
+  },
+  "a_touchedTests": {
+    "total": 1,
+    "beforeRule": 1,
+    "afterRule": 0,
+    "detail": [
+      {
+        "campaign": "loom-self4",
+        "round": 2,
+        "files": [
+          "tests/selector.test.mjs"
+        ],
+        "gateHadTestsClean": false,
+        "value": null
+      }
+    ]
+  },
+  "b_ordering": {
+    "resolvedOracle": 75,
+    "unresolved": 0,
+    "oracleExistedAtParent": 75,
+    "oracleAbsentAtParent": 0,
+    "oracleTouchedByPromotion": 0,
+    "absentSample": []
+  },
+  "fileSize": {
+    "median": 2
+  }
+}
