@@ -1,0 +1,15 @@
+{
+  "plateauCheckpoints": 10,
+  "windowValues": {
+    "3": 10
+  },
+  "campaigns": 71,
+  "withCp": 10,
+  "roundsPerCheckpoint": {
+    "min": 3,
+    "median": 6,
+    "max": 18
+  },
+  "gapsUnder60": 16,
+  "totalGaps": 59
+}

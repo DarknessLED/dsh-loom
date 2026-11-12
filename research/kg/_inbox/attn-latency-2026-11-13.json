@@ -1,0 +1,49 @@
+{
+ "nodes": [
+  {
+   "id": "exp-attn-001",
+   "kind": "number",
+   "confidence": 0.92,
+   "topic": "w3-attention",
+   "title": "Dashboard open rate proxy: 33% of alerts are acted on within 5 minutes, 58% within an hour, and the gate subset is 5x faster than the rest",
+   "body": "w3-attention-gap-dashboard-open-rate asked for a figure nobody publishes: how often a human opens a dashboard that is available to them. We have the closest analogue in our own record -- every checkpoint is an alert that blocks the loop until a decision, so its raise-to-decision latency is exactly 'did the person act on the thing sitting there'.\n\nMeasured with research/exp/e84.mjs over 60 checkpoints in 72 campaigns, all 60 answered:\n\n| acted within | count | share |\n|---|---|---|\n| 2 min | 9/60 | 15% |\n| 5 min | 20/60 | 33% |\n| 15 min | 29/60 | 48% |\n| 1 h | 35/60 | 58% |\n| 4 h | 41/60 | 68% |\n| 1 day | 45/60 | 75% |\n\nFull latency: min 34 s, p25 222 s, median 1,326 s, p75 84,976 s, p90 245,439 s, max 76.2 h.\n\n**The kinds must be split**, or this contradicts e67: gate checkpoints have median 261 s (n=25) while all other kinds have median 7,542 s (n=35) -- a 29x difference, and 5x on the 15%-vs-75% share. e67 measured only gate cards and reported 261 s; the all-kind median here is 1,326 s. Both are correct and neither is the answer to 'how fast does the person respond' -- the answer is that they respond fast to the kind they can decide (a diff plus a verdict) and slowly to the kind that needs investigation.\n\n16 of 60 alerts arrived within 60 s of the previous one, confirming the batching observation (exp-gap-013) from the latency side.",
+   "source": "research/exp/e84.mjs, e84.json; 60 checkpoints, 25 gate / 35 other"
+  },
+  {
+   "id": "exp-attn-002",
+   "kind": "failure",
+   "confidence": 0.94,
+   "topic": "w3-attention",
+   "title": "Date.parse on an epoch-millisecond number is NaN, and the NaN was filtered out as a missing value",
+   "body": "The event log's `t` field is epoch milliseconds as a number (1794249633742), not an ISO string. research/exp/e84.mjs first computed `Date.parse(e.t)` for both raise and answer times, got NaN for every row, and then filtered `x != null && x >= 0` -- which drops NaN silently. The output was:\n\n  checkpoints raised: 60; answered: 60 (100.0%)\n  latency from raise to decision (n=0):\n    min NaNs  p25 NaNs  median NaNs ...\n\ni.e. a report that simultaneously claimed all 60 were answered and that zero latencies existed. Two internally inconsistent numbers printed side by side, and neither line threw.\n\nFixed by using `e.t` directly and adding an assertion: if there are rows but no usable latencies, throw naming the likely cause. That assertion is the general fix -- a count of zero after a filter is a fact about the filter until proven otherwise.\n\nSame family as exp-audit-002 (reading a field that does not exist) and exp-kg-004 (assuming an output format): three silent zeros in one session, all from not asserting the shape of the input before deriving a number from it.",
+   "source": "research/exp/e84.mjs first version; event t field is epoch ms"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-attn-001",
+   "rel": "measures",
+   "to": "w3-attention-gap-dashboard-open-rate",
+   "note": "answers with a 60-checkpoint latency distribution split by kind"
+  },
+  {
+   "from": "exp-attn-001",
+   "rel": "refines",
+   "to": "exp-gap-012",
+   "note": "e67's 261s was gate-only; all kinds median 1326s, other kinds 7542s"
+  },
+  {
+   "from": "exp-attn-001",
+   "rel": "refines",
+   "to": "exp-gap-013",
+   "note": "batching confirmed from the latency side: 16 of 60 within 60s of the previous"
+  },
+  {
+   "from": "exp-attn-002",
+   "rel": "same-as",
+   "to": "exp-audit-002",
+   "note": "third silent zero from an unasserted input shape"
+  }
+ ],
+ "gaps": []
+}

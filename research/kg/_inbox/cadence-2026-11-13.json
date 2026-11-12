@@ -1,0 +1,42 @@
+{
+ "nodes": [
+  {
+   "id": "exp-attn-004",
+   "kind": "number",
+   "confidence": 0.91,
+   "topic": "w3-attention",
+   "title": "Checkpoint cadence is a parameter nobody could discover: window=3 read from config but absent from the defaults table, and never varied in 10 recorded plateaus",
+   "body": "w3-attention-gap-no-cadence-ab said nobody has randomised checkpoint cadence in an agent supervision loop. The first question is whether cadence can vary here at all.\n\nMy first answer was wrong. research/exp/e86.mjs printed 'cadence is not a parameter; it is a hard-coded window', based on the observation that all 10 recorded plateau checkpoints carried window=3. Reading src/runtime/round.js:2221 shows the opposite: `oncePlateau(finished, { window: config.checkpoint?.window ?? 3 })` -- it is read from config. Verified directly: `normalizeConfig({checkpoint:{window:5}}).checkpoint.window === 5`.\n\nWhat is true is narrower:\n\n* **absent from DEFAULT_CONFIG.checkpoint** -- the default lives in the call site, so the knob is undiscoverable from the config table;\n* **install-wide, not per-campaign** -- one plugin config governs every campaign, so a within-record randomisation would still need a per-campaign override;\n* **never varied** -- 10 of 10 plateau checkpoints used 3, and 61 of 71 campaigns raised none at all (rounds per plateau: min 3.0, median 6.0, max 18.0 over the 10 that did).\n\nFixed the discoverability half: `window: 3` is now declared in DEFAULT_CONFIG.checkpoint with the reason, and tests/checkpoint-window.test.mjs (5/5) pins that the default is in the table, survives normalization, and actually changes when plateauReached/oncePlateau fire.\n\nSo the AB test is not blocked by the system, it is blocked by the config surface: one value exists in the record because one value exists in the install, and there is no per-campaign field to randomise over.",
+   "source": "src/runtime/round.js:2221, src/core/config.js DEFAULT_CONFIG.checkpoint, research/exp/e86.mjs, tests/checkpoint-window.test.mjs 5/5"
+  },
+  {
+   "id": "exp-attn-005",
+   "kind": "failure",
+   "confidence": 0.94,
+   "topic": "w3-attention",
+   "title": "'Never varied in the record' was read as 'cannot vary', and the fix for one was a one-line table entry",
+   "body": "e86 concluded 'cadence is not a parameter' from the observation that all recorded plateau checkpoints used window=3. That is the same inference as reading a coefficient of variation of zero off a sample of a constant-valued config and concluding the config has one field.\n\nThe distinction that was missing: **never varied** is a fact about the population; **cannot vary** is a fact about the code. Only the second blocks an experiment, and it takes one grep to check (`config.checkpoint?.window`). The grep found a live read at src/runtime/round.js:2221.\n\nThree times tonight the same conflation appeared in a different costume: exp-gap-001 (a classifier for 'nobody published this' vs 'we have not measured it'), exp-audit-001 (a revert audit with no target in this population), and here. The tell is identical -- a zero from the data being explained by a property of the system.\n\nThe repair is also identical and cheap: read the code that would have to be different for the zero to be a choice, before writing the sentence that says the choice does not exist. In this case the code said it did, and the only thing missing was a default entry -- so the finding 'cadence is fixed' became the finding 'cadence is invisible'.",
+   "source": "research/exp/e86.mjs first version vs src/runtime/round.js:2221"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-attn-004",
+   "rel": "measures",
+   "to": "w3-attention-gap-no-cadence-ab",
+   "note": "partially answers: the knob exists but is install-wide and undocumented"
+  },
+  {
+   "from": "exp-attn-004",
+   "rel": "refines",
+   "to": "exp-attn-001"
+  },
+  {
+   "from": "exp-attn-005",
+   "rel": "same-as",
+   "to": "exp-audit-001",
+   "note": "both: a zero in the data explained by a property of the system without checking the system"
+  }
+ ],
+ "gaps": []
+}

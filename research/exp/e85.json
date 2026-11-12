@@ -1,0 +1,40 @@
+{
+  "total": 60,
+  "hedge": 12,
+  "certain": 0,
+  "neither": 48,
+  "byBucket": {
+    "hedge": {
+      "n": 12,
+      "medianMs": 248281,
+      "rejectRate": 0.6666666666666666
+    },
+    "certain": {
+      "n": 0,
+      "medianMs": null,
+      "rejectRate": 0
+    },
+    "neither": {
+      "n": 48,
+      "medianMs": 2301305,
+      "rejectRate": 0.9166666666666666
+    }
+  },
+  "distinctMessages": 13,
+  "messages": [
+    "the last 3 rounds promoted nothing; the loop is not making progress",
+    "promotion could not be applied to the workspace: workspace-dirty",
+    "3 rounds in a row died before any child got to work (the model layer ended the turn with no diagnostic); the loop is paused rather than spending more budget on a broken provider",
+    "Promote the winning attempt?",
+    "task refactor produced a patch in each of its last 3 rounds and the verifier failed identically every time; the gate looks unreachable",
+    "round 1 produced a passing patch (score 1); review and apply",
+    "round 2 produced a passing patch (score 1); review and apply",
+    "round 1 was rejected by holdout task suite; nothing was applied",
+    "round 4 produced a passing patch (score 1); review and apply",
+    "round 3 produced a passing patch (score 1); review and apply",
+    "promotion could not be applied to the workspace: check-failed",
+    "campaign has no workspace",
+    "round 2 was rejected by holdout task suite; nothing was applied"
+  ],
+  "withConf": 28
+}

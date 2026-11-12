@@ -16,6 +16,15 @@ export const DEFAULT_CONFIG = {
   },
   checkpoint: {
     on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout', 'stuck', 'exhausted'],
+    /**
+     * How many consecutive no-promotion rounds the plateau detector looks at
+     * before it raises. It was read as `config.checkpoint?.window ?? 3` in
+     * src/runtime/round.js and defaulted there, so it worked but never appeared in
+     * this table -- i.e. it was an undocumented knob that looked like a constant
+     * (measured: all 10 recorded plateau checkpoints used 3). Declaring it here
+     * costs nothing and makes the cadence adjustable on purpose.
+     */
+    window: 3,
     /** "HH:MM-HH:MM" local quiet window; checkpoints are batched until it ends. */
     quietHours: null,
     batch: true,

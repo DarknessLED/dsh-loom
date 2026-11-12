@@ -1,0 +1,47 @@
+{
+ "nodes": [
+  {
+   "id": "exp-attn-003",
+   "kind": "number",
+   "confidence": 0.9,
+   "topic": "w3-attention",
+   "title": "The loop never states a confidence: 0 of 60 alerts carry one, and the 28 'score' fields are the candidate's verdict, not the asker's certainty",
+   "body": "w8-attention-uncertainty-defers-question asks whether showing uncertainty makes a supervisor defer more, or whether any claim of competence does that. Before that question can be asked of this system, the system has to be able to express either.\n\nMeasured with research/exp/e85.mjs over 60 checkpoints:\n\n* **Distinct messages: 13 of 60 raised.** The strings are templated (`Promote the winning attempt?`, `the last 3 rounds promoted nothing; the loop is not making progress`), so the language does not vary within a kind.\n* **Numeric confidence/uncertainty: 0 of 60.** Enumerating payload key shapes shows 8 shapes total -- `message,rounds,window` (plateau), `detail,message,patch` (anomaly), `hint,message,rounds,roundsList` (infrastructure), `attempt,message,node,patch,prompt,review,score` (gate with node), `message,rounds,signature,taskId` (stuck), `detail,failures,message,round,score,task` (holdout), `attempt,message,patch,score` (gate without node), `message` (setup). The `score` field appears in 28 of 60 and is the **candidate's** verifier score -- a fact about the patch, not a hedge about the decision.\n\nCrude lexicon split on the message text (12 hedge / 0 competence / 48 neither) shows hedge-worded alerts getting a faster median decision (248 s vs 2,301 s) and a lower reject rate (67% vs 92%). **That comparison is not evidence**: the hedge words come from the plateau and infrastructure templates, which are different kinds with different decisions available. It is exactly the confound the question names, reproduced in our own alert vocabulary.\n\nSo the answer available tonight is a precondition, not the effect: this loop cannot study uncertainty display because it displays none. Any experiment needs the payload to carry a stated confidence first, and `gate` already has the material for it -- `checks.earnedMetric` and `secondCandidate.p` are numbers the loop computed and then threw away before writing the message.",
+   "source": "research/exp/e85.mjs, e85.json; 60 checkpoints, 8 payload shapes, 13 distinct messages"
+  },
+  {
+   "id": "ana-040",
+   "kind": "analysis",
+   "confidence": 0.93,
+   "topic": "w3-attention",
+   "title": "Before testing whether a display changes behaviour, check the display can differ; a templated sentence cannot carry a signal",
+   "body": "The question assumes the loop's alerts can be more or less confident. They cannot: 13 distinct strings across 60 alerts, zero numeric confidence, and the only number in a payload (`score`) is about the patch rather than about the decision.\n\nThis is ana-028's move one step further upstream. ana-028 said measure the precondition (who is exposed, what is on the card) because it is cheaper than the experiment. Here the precondition is stronger than cheap -- it is decisive: no variation in the independent variable means no effect to measure, regardless of sample size. And unlike a null result, it cannot be overturned by more data; it can only be fixed by changing the system.\n\nThe same check applies to the other display questions in the corpus: w3-attention-gap-no-cadence-ab (can cadence be randomised? -- only if cadence is a parameter, which it is not; every campaign runs back-to-back) and w8-attention-uncertainty-defers-question (can uncertainty be shown? -- no). In both cases the honest answer to 'nobody has run this experiment' is 'and this system cannot host it yet', which is a different and more actionable sentence.\n\nWhat would make it hostable: gate payloads already compute `earnedMetric` (name, from, to) and `secondCandidate.p`; writing either into the message turns a constant into a variable at zero cost. That is the change to make before any display experiment.",
+   "source": "derived from exp-attn-003; cf. ana-028"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-attn-003",
+   "rel": "measures",
+   "to": "w8-attention-uncertainty-defers-question",
+   "note": "answers the precondition: the loop displays no uncertainty, so no effect can be measured here"
+  },
+  {
+   "from": "exp-attn-003",
+   "rel": "refines",
+   "to": "exp-attn-001"
+  },
+  {
+   "from": "ana-040",
+   "rel": "derived-from",
+   "to": "exp-attn-003"
+  },
+  {
+   "from": "ana-040",
+   "rel": "same-as",
+   "to": "ana-028",
+   "note": "both: the precondition is cheaper than the experiment and sometimes decides it"
+  }
+ ],
+ "gaps": []
+}
