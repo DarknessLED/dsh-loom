@@ -501,6 +501,13 @@ function cmdMerge(args) {
     for (const t of tagsOf(db, drop)) {
       db.prepare('INSERT OR IGNORE INTO tag (node_id, tag) VALUES (?, ?)').run(keep, t)
     }
+    // A decision names two nodes, so re-pointing edges is not enough: a merge that
+    // left the resolution behind would silently reopen a question we answered, and
+    // a merge that put both endpoints on the survivor would leave a "contradiction"
+    // of a node with itself. Move what can move, delete what has collapsed.
+    db.prepare('UPDATE OR IGNORE resolution SET from_id = ? WHERE from_id = ?').run(keep, drop)
+    db.prepare('UPDATE OR IGNORE resolution SET to_id = ? WHERE to_id = ?').run(keep, drop)
+    db.prepare('DELETE FROM resolution WHERE from_id = to_id').run()
     db.prepare("UPDATE node SET status='merged', merged_into=?, updated_at=? WHERE id=?")
       .run(keep, now(), drop)
     db.prepare('DELETE FROM node_fts WHERE id = ?').run(drop)

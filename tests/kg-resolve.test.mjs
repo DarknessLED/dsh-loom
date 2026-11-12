@@ -96,4 +96,9 @@ const raw = kg('sql', 'SELECT verdict, note FROM resolution')
 assert.match(raw, /neither/)
 ok('the decision is queryable from the store')
 
-console.log(`\n${pass}/9 passed`)
+// The denominator is a claim too. It said 9 while ten assertions ran, so a suite
+// that silently lost one would still have printed "9/9". Assert the count instead
+// of transcribing it.
+const EXPECTED = 10
+assert.equal(pass, EXPECTED, `ran ${pass} assertions, declared ${EXPECTED}`)
+console.log(`\n${pass}/${EXPECTED} passed`)

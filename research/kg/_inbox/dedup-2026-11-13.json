@@ -1,0 +1,34 @@
+{
+ "nodes": [
+  {
+   "id": "exp-dedup-001",
+   "kind": "number",
+   "topic": "digestion",
+   "confidence": 0.95,
+   "title": "The corpus has 26 near-duplicate node pairs at 0.34 title overlap and 4 duplicate questions out of 319",
+   "source": "research/exp/e48.mjs and research/exp/e49.mjs against research/kg/store.sqlite (1424 live nodes)",
+   "body": "Two duplicate hunts, because the graph grew by appending eight waves of agents that each wrote their own vocabulary.\n\nTITLES: 1424 live nodes, 26 candidate pairs at title-jaccard >= 0.34, and only the top handful are real. The real ones are the same paper recorded by two waves: Mark/Gudith/Klocke CHI 2008 appears three times (w2-human-interruption-cost, w3-attention-interruption-speed-not-quality, w8-attention-interruption-buys-speed), DGM node 114's marker deletion twice (w4-selfedit, w6-selfmod), the held-out-unsound pair twice, the holdout decay bound twice, the testsClean scope twice. Every one of those six pairs is a w3/w4 record and a w6/w8 record of the same finding -- the waves were given overlapping briefs and no shared dedupe step.\n\nQUESTIONS: 319 question nodes = 254 generated `gap-w<N>-NNN` plus 65 agent-written. Comparing generated gaps against agent-written questions on TITLES (bodies are not comparable: a gap's body is the finding prose, a question's body argues why it matters, so body jaccard is ~0 even for identical questions) gives 4 pairs at >=0.40, 2 at >=0.50, 0 at >=0.60. So the gap bucket is not a duplicate of the question corpus -- 4 of 254, and those 4 are a real w7/w8 overlap (gap-w7-037 vs q-audit both ask for the verifier's measured false-accept rate).\n\nWhy this matters for reading the graph: the inflated counts are not in the question bucket, which is what I expected. They are in the finding bucket, where the same paper is quoted twice under two topic names, so any count of \"how many distinct findings do we have\" is high by roughly the six known pairs and any set of claims that reads \"w3-attention AND w6-attention\" double-counts one CHI 2008 study."
+  },
+  {
+   "id": "ana-020",
+   "kind": "analysis",
+   "topic": "digestion",
+   "confidence": 0.94,
+   "title": "The duplicate rate is low because the waves were briefed apart, and the six duplicates are all papers that two waves both needed",
+   "source": "derived from exp-dedup-001",
+   "body": "What problem this answers: after eight waves and ~1420 nodes the corpus could plausibly be a pile of restatements, which would make every count in the digest suspect.\n\nThe measurement: 26 pairs above 0.34 title overlap out of ~1M possible, six genuine. That is under half a percent, and the reason is structural rather than careful: each wave got a disjoint brief (`differential`, `minimal-rsi`, `measure`, `review`, `attention`, ...), so two waves wrote about the same thing only when the same paper was load-bearing for both. Mark's interruption study is load-bearing for attention *and* for human-minutes; DGM node 114 is load-bearing for self-modification *and* for documented reward hacks. Overlap is a function of the brief's subject matter, not of the agents' diligence.\n\nThe cost of the duplicates: none mechanically -- the graph is a set of edges, and a duplicated node just means two nodes with the same source. The cost is in reading: a count that crosses topics double-counts, and `around` traversal reaches the same finding by two doors and looks like two hops of agreement.\n\nThe unresolved part: there is no canonicalisation step, and `kg merge` is manual. A builder that deduped on (source URL, normalized title) before insert would have prevented five of the six -- but not the sixth, where one wave wrote `CHI 2008 (DOI 10.1145/1357054.1357072)` and another wrote `Mark, Gudith, Klocke (CHI 2008, doi 10.1145/1357054.1357072)`, so a URL-keyed dedupe needs the DOI extracted first. That is the general shape: dedupe by identifier, and identifiers have to be canonicalised before they can dedupe."
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-dedup-001",
+   "rel": "measures",
+   "to": "ana-020"
+  },
+  {
+   "from": "ana-020",
+   "rel": "derived-from",
+   "to": "exp-dedup-001"
+  }
+ ]
+}
