@@ -72,6 +72,11 @@ const standing = [
   // and the rule holds where it matters -- driven through a real round, one
   // candidate rewriting the instrument and one fixing the code it measures.
   'tests/oracle-gate.test.mjs',
+  // and the instrument can be *created* rather than edited: the existence filter in
+  // oracleScripts makes the pre-patch set empty, so the base run failed because the
+  // script was missing -- a red base that looks like a bug fixed (e70 found this on
+  // 75 landings, all by habit rather than check).
+  'tests/oracle-creation.test.mjs',
 
   // a contradiction that can only be listed is a museum: it is decided, the
   // decision is kept as evidence, and it survives a pack/unpack and a merge.

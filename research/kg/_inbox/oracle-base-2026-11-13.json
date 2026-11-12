@@ -1,0 +1,47 @@
+{
+  "nodes": [
+    {
+      "id": "exp-oracle-003",
+      "kind": "number",
+      "title": "the oracle can be created, not just edited: 0 of 75 landings did it, 0 of 172 tasks can",
+      "body": "e70 asked whether the oracle existed in the parent commit for every landing whose patch touched it; the answer was yes 75/75. That measured the past. This measures the future and the blast radius of closing the hole.\n\ne72 walked all 172 registered tasks across 72 campaigns with oracleCandidates (unfiltered path tokens) against oracleScripts (existence-filtered). Result: 12 commands run no path at all (inline `node -e`), 160 name a path that already exists (both sets agree, so the new check adds nothing), and 0 name a path that does not exist. So the rule cannot fire on anything registered today.\n\nHistorical landings where the instrument was absent at base and the patch then created it: 0 of 75 checkable.\n\nThe first run of e72 reported 12 tasks with a missing oracle, and all 12 were the inline ones: `node -e \"process.exit(...)\"` was tokenised with the source read as a path because the generic dash-skip ran before the value-flag check. So `-e` (a dash token that owns the next token) had its value processed. That is a real bug in the new helper, found by the blast-radius measurement rather than by the feature it enables, and it is the reason the measurement runs before the rule is trusted.",
+      "confidence": 0.95,
+      "topic": "gate",
+      "tags": ["oracle", "gate", "blast-radius"]
+    },
+    {
+      "id": "ana-033",
+      "kind": "analysis",
+      "title": "the instrument has two attack surfaces and only one of them was a path",
+      "body": "The oracle-scope rule answered 'did the candidate edit the file the verifier runs'. That is a question about paths, and paths have a fixed vocabulary, so the check was exact. The hole is that a candidate can also make a path exist: write the file the command names, and the base run fails because the script was missing rather than because the task was broken. A red base then means nothing, and red-to-green is the one reason that promotes.\n\nThe shape is worth naming because it is not the same as the earlier misses in this session. exp-oracle-001 was a rule that quantified over a category (tests/) that the interesting members lived outside of. This is a check whose *input derivation* filters by a property (existence) that the adversary controls, so the filter silently answers 'not applicable' exactly when it matters. A filter by a property the attacker can change is not a filter; it is an invitation.\n\nThe fix separates the two questions by their own vocabularies: oracleScripts (existence-filtered) answers 'which file does the command run now', oracleCandidates (unfiltered) answers 'which path does the command name'. Only the second can be resolved against a base commit, because only it is meaningful before the file exists.\n\nThe cost: three answers, not two. `null` (unanswerable sha, no repo) must not read as 'absent', or an unknown base becomes a refusal; and `absent` must not read as 'unanswerable', or a real forgery passes. The first implementation used `cat-file -e` and could not tell them apart -- a zeroed sha and a genuinely absent path both exit 128, and the stderr for the zeroed sha still says 'path ... does not exist in ...', so grepping it answers backwards. `ls-tree <sha> -- <path>` separates them: empty output for a real tree that lacks the path, exit 128 'not a tree object' for a sha that is not one. That took two failed attempts and a test that sabotages the base to see.",
+      "confidence": 0.96,
+      "topic": "gate",
+      "tags": ["oracle", "adversary", "derivation"]
+    },
+    {
+      "id": "exp-oracle-004",
+      "kind": "failure",
+      "title": "a helper whose input derivation is filtered by what the candidate creates reports clean",
+      "body": "The first version of the base-commit check reused oracleScripts, the existence-filtered derivation. On a fixture whose verify command names oracle.mjs and whose base tree lacks it, oracleScripts returns [] -- the honest answer to 'which file does this command run', and the wrong input for 'did that file exist at base'. The check then read as 'no oracle, rule not applicable' and the forged candidate promoted.\n\nThis is a specific class: reusing a derivation across two questions that differ in whether the file exists. The two questions are 'what does the command run' and 'what does the command name', and they agree everywhere except the case the check is for.\n\nDetection: e72's blast-radius walk surfaced it immediately once it filtered for disagreement between the two sets -- 12 of 172 tasks disagreed, and all 12 were inline `node -e` commands whose source had been read as a path. A second ordering bug in the same helper (`-e` skipped as a dash token before being recognised as a value-taking flag) was found by the same walk. Two bugs, neither of which the passing round-level test could see, because that test used a command with an existing oracle.",
+      "confidence": 0.94,
+      "topic": "gate",
+      "tags": ["oracle", "derivation", "blast-radius"]
+    }
+  ],
+  "edges": [
+    { "from": "exp-oracle-003", "rel": "refines", "to": "exp-ver-007" },
+    { "from": "exp-oracle-003", "rel": "measures", "to": "n-loom-exit0-passes" },
+    { "from": "ana-033", "rel": "derived-from", "to": "exp-oracle-003" },
+    { "from": "ana-033", "rel": "refines", "to": "ana-021" },
+    { "from": "exp-oracle-004", "rel": "contradicts", "to": "exp-oracle-003" },
+    { "from": "exp-oracle-004", "rel": "refines", "to": "exp-oracle-001" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-oracle-001",
+      "title": "does the base-commit check belong in the gate, or is it a one-time authoring discipline?",
+      "confidence": 0.65,
+      "body": "Measured: 75/75 landings had the oracle in the parent commit, 0/172 registered tasks can create one. So the check currently refuses nothing. The case for keeping it: it costs one `git ls-tree` per oracle path against a base commit already in hand, and it converts a habit into a property. The case against: it is a rule that has never fired, and rules that have never fired are indistinguishable from dead code in every subsequent refactor.\n\nWhat would decide it: whether a task can be authored *by an agent* (a plan-mode chain node writing tests/self* specs is exactly that) and then immediately used as the oracle. If the same agent authors both the spec and the campaign, the creating-a-forged-oracle case becomes the normal case rather than a hypothetical, and 0/172 stops being reassuring."
+    }
+  ]
+}

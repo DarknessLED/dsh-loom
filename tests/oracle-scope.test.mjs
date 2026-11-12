@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { commandTokens, oracleClean, oracleScripts, patchPaths, touchesOracle } from '../src/gate/oracle.js'
+import { commandTokens, oracleClean, oracleCandidates, oracleScripts, patchPaths, touchesOracle } from '../src/gate/oracle.js'
 
 let pass = 0
 const ok = (name) => { pass += 1; console.log('ok ' + name) }
@@ -107,7 +107,24 @@ assert.equal(oracleClean({ patchFile: patch, oraclePaths: [] }), true)
 assert.equal(oracleClean({ patchFile: join(root, 'gone.patch'), oraclePaths: ['check.mjs'] }), false)
 ok('no oracle does not apply; an unreadable patch fails closed')
 
+
+// The unfiltered derivation exists only for the base-commit question, and it has
+// one ordering trap: `-e` starts with a dash, so a generic dash-skip before the
+// value-flag check reads the inline source as a path. That shipped for an hour and
+// made 12 of 172 registered tasks look like they named a missing file (e72).
+{
+  const inline = "node -e \"process.exit(require('fs').existsSync('note.txt') ? 0 : 1)\""
+  assert.deepEqual(commandTokens(inline).slice(0, 2), ['node', '-e'], 'the flag is its own token')
+  assert.deepEqual(oracleCandidates(inline), [], 'inline source is not a path')
+  assert.deepEqual(oracleCandidates('node check.mjs'), ['check.mjs'], 'a script is a path even if absent')
+  assert.deepEqual(oracleCandidates('node --loader ./tsx.mjs run.ts'), ['run.ts'], 'a flag value is skipped')
+  assert.deepEqual(oracleCandidates('node -r ./hooks.mjs check.mjs'), ['check.mjs'], '-r takes a path-shaped value it owns')
+  assert.deepEqual(oracleCandidates('C:/x/node.exe check.mjs'), ['check.mjs'], 'an absolute interpreter is skipped')
+  assert.deepEqual(oracleCandidates('node C:/abs/check.mjs'), [], 'an absolute script is outside the workspace')
+  ok('the unfiltered derivation skips inline source before it skips flags')
+}
+
 // The denominator is a claim too.
-const EXPECTED = 16
+const EXPECTED = 17
 assert.equal(pass, EXPECTED, `ran ${pass} assertions, declared ${EXPECTED}`)
 console.log(`\n${pass}/${EXPECTED} passed`)

@@ -294,6 +294,35 @@ true 84 / false 9。
 
 ---
 
+## 1k. 判据可以被「创造」而不只是被编辑（已实现，`src/runtime/round.js` + `src/exec/worktree.js`）
+
+上一节（§1c）修的是「候选改写判据文件」。这一节是同一个洞的另一半：**候选可以把判据文件写出来**。
+
+**为什么旧规则看不见**：`oracleScripts` 用「这个 token 在 workspace 里存在且是文件」来推导判据集。当 base 树里没有这个文件时，它返回 `[]` —— 这是「这条命令跑哪个文件」的诚实答案，但对「base 测量时这个文件在不在」是错的答案。于是检查读到「无判据，规则不适用」，全部放行；而 base 跑红的原因是脚本根本不存在，不是任务坏了。`red-to-green` 恰是唯一会晋升的理由。
+
+**实测爆炸半径（`research/exp/e72.mjs`，172 个已注册任务 / 72 个战役）**
+- 命令完全不跑文件的（inline `node -e`）：**12**
+- 命令点名一个已存在的文件（两个集合一致，新检查不增加信息）：**160**
+- 命令点名一个**不存在**的文件（新检查唯一有信息的地方）：**0**
+- 历史上「判据在 base 缺席且补丁创建了它」的落盘：**0 / 75**（e70 的总体）
+
+⇒ 这条规则今天**拒绝 0 个历史晋升、在 0 个已注册任务上开火**。它买到的是「属性」而不是「拦截」。
+
+**实现（三态，第三种不是第四种假）**
+- `src/exec/worktree.js` 新增 `fileAtCommit(repo, sha, relPath) -> true | false | null`：`git ls-tree <sha> -- <path>`。真树缺该路径 ⇒ 退出 0、输出空 ⇒ `false`；sha 不是本仓的树 ⇒ 退出 128 `not a tree object` ⇒ `null`；无 repo / 空 sha ⇒ `null`。
+- `src/gate/oracle.js` 新增 `oracleCandidates(spec)`：**不做存在性过滤**的路径 token 集（跳过解释器、跳过吞值的 flag、跳过绝对路径）。它回答「命令点名了哪些路径」，这个问句在文件创建之前就有意义。
+- `src/runtime/round.js`：`checks.oracleInBase`（三态）+ `checks.oracleCreated`（补丁创建了哪些缺席的判据）；`oracleInBase === false` ⇒ `checks.earnedReason = 'oracle-absent-at-base'` 且 `earned = false`（**拒绝，不是降级** —— 若按 `'skipped'` 走进 `earnedByDifferential` 会被读成「未测量」而**通过**，方向正好相反）。
+- 新测试 `tests/oracle-creation.test.mjs`（**4/4** 声明，13 条断言）：造出这个候选过真闸门 → 拒绝且指名 `oracle.mjs`；判据本就在 base 的诚实修复 → 仍晋升且 `metric-improved`；**base 不可读（把 attempt 的 `base` 改成全零 sha）→ `oracleInBase === null`、其余证据路径不变**。
+- `tests/oracle-scope.test.mjs` 扩到 **17/17**，新增一个块专门钉住 token 化的顺序陷阱。
+
+**两个 bug，都是爆炸半径测量抓出来的，不是功能测试抓出来的**
+1. `oracleCandidates` 先 `token.startsWith('-')` 就 `continue`，导致 `-e` 后面的**内联源码被当成路径**。第一版 e72 因此报「12 个任务点名了缺失的判据」，全是 inline 命令。修法：吞值 flag 的检查必须在通用 dash-skip **之前**。
+2. `ls-tree -1` 这个 flag 在 Git for Windows 上不存在（`error: unknown switch '1'`、退出 129），而我的错误分支把**任何非 0 退出都当 `null`**，`null` 又被 `present.length === all.length ? true : null` 读成「不是 false」。是测试里那个「base 不可读」的用例把它照出来的（它期望 `null` 却拿到 `false`）。修法：去掉 `-1`，并让 `true` 要求**每一个**路径都得到 `true`。
+
+**为什么值得记（`ana-033`）**：前几次同族的漏洞是「规则量化了一个类别，有趣的成员住在类别外」（`exp-oracle-001`）。这一次不同：**检查的输入推导，被对手控制的一个属性过滤了**。按对手能改变的性质过滤，不是过滤，是邀请 —— 因为它在最关键的那一次会静默地回答「不适用」。
+
+---
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
@@ -420,6 +449,7 @@ node research/exp/e68.mjs   # 已有的刹车信号与延迟（plateau 19.5 分�
 node research/exp/e69.mjs   # 教训注入 A/B 的真实 n（36 轮，3 轮有分歧）
 node research/exp/e70.mjs   # 测试是否冻结在补丁之前（75/75，唯一违例在规则之前）
 node research/exp/e71.mjs   # 批处理曲线（15 分钟砍 64% 中断，1 小时后饱和）
+node research/exp/e72.mjs   # 判据创造规则的爆炸半径（0/172 任务、0/75 落盘）
 node scripts/test-all.mjs   # 168/168
 ```
 

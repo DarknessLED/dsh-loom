@@ -108,6 +108,53 @@ export function oracleScripts(spec, opts) {
 }
 
 /**
+ * Every path-shaped token in the command, whether or not it exists yet.
+ *
+ * `oracleScripts` filters by existence, which is right for "which file does this
+ * command run" but blind to the one case the gate has to catch: a candidate that
+ * *creates* the file the command runs. The path does not exist in the workspace,
+ * so existence-based derivation returns nothing and every path rule passes. The
+ * candidate then adds `check.mjs` and the command runs it.
+ *
+ * So the base question needs the unfiltered candidate set, and it resolves the
+ * answer against the base commit rather than the working tree.
+ *
+ * @param {{cmd?: string, cwd?: string}|string|null} spec
+ * @returns {string[]} path-shaped workspace-relative tokens, deduplicated
+ */
+export function oracleCandidates(spec) {
+  const command = typeof spec === 'string' ? spec : typeof spec?.cmd === 'string' ? spec.cmd : ''
+  if (command.trim() === '') return []
+  const out = []
+  const seen = new Set()
+  const tokens = commandTokens(command)
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]
+    if (!token || token.startsWith('#')) continue
+    // Order matters: `-e` starts with a dash, so a generic dash-skip placed first
+    // would leave the inline source to be read as a path. Measured on the
+    // registered tasks (e72): 12 of 172 commands are `node -e "..."`, and every
+    // one of them then looked like a command naming a missing file.
+    if (TAKES_VALUE.has(token)) {
+      i += 1
+      continue
+    }
+    if (token.startsWith('-')) continue
+    const base = token.split(/[\\/]/).pop() ?? ''
+    if (INTERPRETER.test(base)) continue
+    if (!/[\\/.]/.test(token)) continue
+    const norm = token.replace(/\\/g, '/').replace(/^\.\//, '')
+    // A drive-letter prefix means an absolute path outside the workspace, which a
+    // workspace-relative patch cannot touch; leave those to `oracleScripts`.
+    if (/^[a-z]:/i.test(norm)) continue
+    if (seen.has(norm)) continue
+    seen.add(norm)
+    out.push(norm)
+  }
+  return out
+}
+
+/**
  * Every path a patch touches, from its `diff --git` headers.
  *
  * Content lines can begin with `+++`/`---`, so those prefixes are not reliable

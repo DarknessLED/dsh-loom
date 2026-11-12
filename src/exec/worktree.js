@@ -440,6 +440,45 @@ export async function changedFiles(repo, from, to) {
 }
 
 /**
+ * Is `<path>` present in the tree of `<sha>`?
+ *
+ * `ls-tree <sha> -- <path>` is the cheapest reliable way to ask: it walks no
+ * working tree, it matches at any depth, and its two failure modes are separable.
+ * A real tree that lacks the path exits 0 with empty output; a sha that is not a
+ * tree in this repository exits 128 with "not a tree object".
+ *
+ * That distinction is the whole point, because the check it feeds must never
+ * confuse "the file was not there" with "we could not look":
+ *   true   -- present in that tree
+ *   false  -- git answered and it is not in that tree
+ *   null   -- the question could not be asked (no repo, unknown sha, spawn
+ *             failure); an unreadable base is not a base that lacked the file.
+ *
+ * (`cat-file -e` was the first attempt and it cannot tell the two apart: an
+ * unknown sha and an absent path both exit 128, and its stderr for a zeroed sha
+ * still reads "path ... does not exist in ...", so a grep on it answers the
+ * question backwards. Measured in tests/oracle-creation.test.mjs.)
+ * @param {string} repo
+ * @param {string|null} sha
+ * @param {string} relPath workspace-relative POSIX path
+ * @returns {Promise<boolean|null>}
+ */
+export async function fileAtCommit(repo, sha, relPath) {
+  if (typeof repo !== 'string' || repo === '') return null
+  if (typeof sha !== 'string' || sha.trim() === '') return null
+  if (typeof relPath !== 'string' || relPath === '') return null
+  const norm = relPath.replace(/\\/g, '/').replace(/^\.\//, '')
+  const result = await runGit(repo, ['ls-tree', sha.trim(), '--', norm])
+  if (result.code === null || result.timedOut) return null
+  if (result.code !== 0) {
+    // Unknown sha / not a tree / unusable repo: the tree was not readable, so no
+    // claim can be made about what it contained.
+    return null
+  }
+  return String(result.stdout || '').trim() !== ''
+}
+
+/**
  * The repository's tracked files, used to bound which words in a prose plan are
  * paths. An unreadable list is an empty list: the caller then cannot identify
  * the plan's subject and will plan again.

@@ -11,6 +11,7 @@ import {
   commitWorkspace,
   changedFiles,
   trackedFiles,
+  fileAtCommit,
 } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
@@ -34,7 +35,7 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
-import { oracleClean, oracleScripts } from '../gate/oracle.js'
+import { oracleClean, oracleScripts, oracleCandidates, patchPaths } from '../gate/oracle.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -1841,12 +1842,48 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // promoted. Resolving against the workspace (not the worktree) is what makes
     // the paths the same vocabulary as the patch's.
     const oraclePaths = oracleScripts(acceptanceSpec, { cwd: state.workspace })
+    // oracleClean says the candidate did not *edit* the file its verifier runs.
+    // It cannot say the file was there when the base was measured. If the oracle
+    // did not exist at base, the base run did not fail because the task was
+    // broken -- it failed because the script was missing -- so a red base verdict
+    // stops being evidence of work, which is the one claim that actually promotes.
+    //
+    // Measured on 75 landings (e70): the oracle was in the parent commit every
+    // time, by habit, not by check. One `git cat-file -e` per oracle path (the
+    // same command the base run names) makes the habit a property.
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
       testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
       oracleClean: oracleClean({ patchFile: best?.patch, oraclePaths, filesChanged: best?.diff?.filesChanged ?? null }),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
+    }
+    // The existence filter in `oracleScripts` is the right answer to "which file
+    // does this command run" and the wrong one for "did that file exist when the
+    // base was measured": a candidate that creates the instrument makes the first
+    // question return nothing at all, so every path rule passes and the base run
+    // fails for the trivial reason that the script was missing. The base question
+    // therefore uses the *unfiltered* candidates and resolves them against the
+    // base commit rather than the worktree.
+    const oracleCandidatesAll = oracleCandidates(acceptanceSpec)
+    if (Boolean(best?.patch) && typeof best?.base === 'string' && best.base !== '' && oracleCandidatesAll.length > 0) {
+      try {
+        const answers = await Promise.all(oracleCandidatesAll.map((p) => fileAtCommit(state.workspace, best.base, p)))
+        const absent = oracleCandidatesAll.filter((_, i) => answers[i] === false)
+        const added = new Set(patchPaths(best?.patch) ?? [])
+        const created = absent.filter((p) => added.has(p))
+        // `true` only when the whole oracle set was already there; a `null` answer
+        // (unreadable base) leaves the check unmeasured rather than guessing.
+        // `true` needs a positive answer for every path: a `null` (unreadable
+        // base, or a git flag that does not exist) must not read as "present".
+        // That is how an exit-129 from a bad flag first looked like a pass.
+        const present = oracleCandidatesAll.filter((_, i) => answers[i] === true)
+        checks.oracleInBase = created.length > 0 ? false : present.length === oracleCandidatesAll.length ? true : null
+        if (created.length > 0) checks.oracleCreated = created
+      } catch (err) {
+        log('oracle-in-base check failed:', err?.message ?? err)
+        checks.oracleInBase = null
+      }
     }
     // Name the files the command runs whenever they exist, so a refusal can say
     // which one was edited instead of only that the round lost.
@@ -1994,8 +2031,19 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // the metric is the only evidence left. earnedByDifferential is the one place
     // that decides between the two readings; keeping the choice in a pure
     // function is what lets the four historical decisions be replayed.
-    let earned = checks.baseFailed !== false
-    if (!earned) {
+    // A red base measured on a tree that did not contain the oracle script is a
+    // red about the missing script, not about the task: `red-to-green` would be
+    // true for a candidate that merely wrote the file the command runs. This is a
+    // refusal, not a downgrade -- routing it through `earnedByDifferential` as
+    // 'skipped' would read as "unmeasured" and *pass*, which is the opposite.
+    let earned
+    if (checks.oracleInBase === false) {
+      checks.earnedReason = 'oracle-absent-at-base'
+      earned = false
+    } else if (checks.baseFailed !== false) {
+      checks.earnedReason = checks.baseFailed === true ? 'red-to-green' : 'base-unmeasured'
+      earned = true
+    } else {
       const verdict = earnedByDifferential({
         baseFailed: checks.baseFailed,
         baseMetrics: checks.baseMetrics,
@@ -2006,8 +2054,6 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       if (verdict.metric) checks.earnedMetric = { name: verdict.metric, from: verdict.from, to: verdict.to }
       checks.earnedByMetric = verdict.reason === 'metric-improved'
       earned = verdict.earned
-    } else {
-      checks.earnedReason = checks.baseFailed === true ? 'red-to-green' : 'base-unmeasured'
     }
     const basePass =
       checks.verifierOk &&
