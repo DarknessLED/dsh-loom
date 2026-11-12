@@ -1,0 +1,694 @@
+### 1  ana-002  vs  rsi-001
+  A: The self-optimization ladder is over-built against the evidence; gate L2 and L3 by measurement
+  B: Darwin Gödel Machine: archive-of-agents self-modification, 20%→50% on SWE-bench Verified
+  note: Textbook-baseline evidence says open-ended self-modification is not where the gain is.
+### 2  ana-007  vs  ctx-005
+  A: Two different artifacts: raw traces for diagnosis, itemized claims for injection
+  B: Compaction costs 5-64% of tasks that full history would have finished; summaries keep <=16% of recurring detail
+  note: Compaction summaries are not a substitute for raw trace when diagnosing.
+### 3  ana-010  vs  exp-meter-002
+  A: My own 198x meter number was wrong by 2.8x because I priced with the repo's table instead of the real card
+  B: Independent re-measurement: recorded spend is 198x below billed, and the error has no opposite tail
+  note: same data, real rate card, 71x not 198x
+### 4  ana-013  vs  exp-cand-002
+  A: Nine promotions edited the instrument, which proves the editable surface was never scoped to the object being optimised
+  B: Three decision rules, one measurement each: the loop's policies are broken in the same way, at the point where a number is read
+  note: that analysis said the fix is a per-policy invariant; this one says the oracle itself is the single upstream invariant
+### 5  ana-013  vs  exp-goodhart-001
+  A: Nine promotions edited the instrument, which proves the editable surface was never scoped to the object being optimised
+  B: Measured on 437 promoted patches: 1.6% touch tests, 1.6% touch the gate or verifier, 2.1% touch the runner scripts
+  note: 1.6% understated the evaluator surface: 9 promotions touched scripts/ or src/exec/verifier.js
+### 6  ana-014  vs  ana-001
+  A: Self-evolution without verification scored below doing nothing, so the verifier is the product and the loop is a small term
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: verification is the big term, so attention should buy instrument precision first
+### 7  c-ib-monitor  vs  c-judge-agreement
+  A: LLM monitors catch 86-89% of cheats on small tasks and only 42-65% on repository-scale ones
+  B: Strong judge models reach >80% agreement with humans, the same rate humans reach with each other, but carry position, verbosity and self-preference bi
+  note: Judge agreement with humans does not transfer to cheat detection: monitors fall to 42-65% on repository-scale tasks.
+### 8  c-minja  vs  a-minimal-store
+  A: MINJA needs no write access at all - only normal user turns - and it targets exactly the store-executions-then-replay-similar pattern dsh-loom impleme
+  B: Smallest viable design: ship the claim and its file set, keep provenance as a field that is never a key, and re-earn the score in the reading campaign
+  note: Worker-written claim text is untrusted input; a design that ships claims into another campaign without signature or review widens the injection surface from one campaign to all of them.
+### 9  c-papadakis18  vs  f-size-confound
+  A: Mutation score's correlation with real-fault detection collapses once test-suite size is controlled
+  B: Failure mode: a metric that silently measures effort instead of quality
+  note: Papadakis 2018 is the measurement that turned the FSE 2014 correlation into a documented confound: weak once suite size is fixed.
+### 10  c-reward-inflation  vs  a-minimal-store
+  A: When the stored score is an LLM's own assessment, wrong episodes get inflated rewards and the agent preferentially reuses its most confident mistakes
+  B: Smallest viable design: ship the claim and its file set, keep provenance as a field that is never a key, and re-earn the score in the reading campaign
+  note: Copying gainSum/harmCount across campaigns imports A's inflation; the design's 're-earn counters locally' is the direct response to the EIA result.
+### 11  c-skillsbench  vs  c-skillopt
+  A: Curated skills add +16.6pp, but self-generated skills score below having no skills at all
+  B: SkillOpt: one 379-1,995-token text artifact trained on a frozen model, best or tied in 52/52 cells, and the artifact moves across harnesses
+  note: SkillsBench: self-generated skills fall below no-skills. SkillOpt: optimised text artifacts win 52/52 cells. The difference is the held-out acceptance gate, not the artifact format.
+### 12  c-survivor-bias  vs  c-hyperband
+  A: Successive halving selects on the noise realisation: survivors' errors are biased upward by E[eps|survived]=0.0056 at sigma=0.02, eta=3
+  B: Hyperband reports an order-of-magnitude speedup on hyperparameter search, but no significant speedup when a rung costs seconds
+  note: The order-of-magnitude claim does not account for the winner's-curse bias in the promoted configuration's re-measured score.
+### 13  c-survivor-bias  vs  c-sh-nonstochastic
+  A: Successive halving selects on the noise realisation: survivors' errors are biased upward by E[eps|survived]=0.0056 at sigma=0.02, eta=3
+  B: Successive halving on iterative learners reached comparable accuracy an order of magnitude faster, in the non-stochastic setting
+  note: Under measurement noise the non-stochastic guarantee does not apply, and survival becomes a selection on the noise draw.
+### 14  c-swebench-illusion  vs  c-swebench-verified
+  A: SWE-bench scores track memorization signatures, so a high score is not evidence the model reasoned about the code
+  B: SWE-bench Verified exists because 38.3% of the original sample had underspecified statements and 61.1% had tests that could reject a correct solution
+  note: Fixing the oracles did not fix validity: scores still track 5-gram and path-prediction memorization signatures.
+### 15  ctx-003  vs  ctx-002
+  A: Raw trajectory handoff is dominated by restarting the stronger model fresh ($1.61/69.2% vs $0.90/79.2%)
+  B: Structured state beats a recent transcript for takeover, but full history still beats both
+  note: Sharpest tension in the set: HSC-Bench says full history > structured state, Handoff Tax says a raw trajectory is strictly dominated by a fresh restart for a stronger receiver.
+### 16  ctx-013  vs  ctx-014
+  A: A wall-clock budget in the prompt alone: 161% of budget used, 15% on time; harness push hooks reach 99.7% and 62%
+  B: A live injected spend counter was referenced zero times in 14,000 agent messages; spend control must live outside the worker
+  note: Real conflict worth flagging: a pushed clock line works for wall-clock, an injected spend counter was measured useless. The difference is that time is externally enforced by tool timeouts, spend is not.
+### 17  ctx-017  vs  ctx-027
+  A: Repository context files do not raise task success and cost >20% more inference
+  B: JSON feature lists cut spurious test removals 7.5%->0.8%; requiring end-to-end browser verification cut premature completion 18%-><4%
+  note: Tension: standing context files do nothing for correctness, while a machine-readable state file dramatically changes behaviour — the difference is enforcement (a writable field the harness checks), not information.
+### 18  ctx-023  vs  ctx-020
+  A: Peer debate is worse than isolated self-correction (2-3x the tokens), and sycophancy saturates already at 2 peers
+  B: Patches that pass alone can fail together: 97% interference in constructed pairs, and a 130-token "what interface changed" message recovers 82%
+  note: Says don't fix sibling conflict by letting siblings talk: peer visibility degrades answers and majority voting loses correct candidates.
+### 19  ctx-026  vs  ctx-033
+  A: Giving a retry agent its own failure memory gained 5.5-9.9 points but nothing was significant; a model-written lesson beat the transcript it summarize
+  B: Is loom's lesson-injection mechanism worth its extra call? The closest controlled test is underpowered and null-ish
+  note: The only controlled test of lesson injection is null-ish, which is exactly the open question over loom's learning loop.
+### 20  ctx-031  vs  ctx-012
+  A: A pre-registered "focused brief" experiment failed its own gate: -12.4% cost, no reduction in discovery
+  B: At an equal token budget, choosing which whole files to show beats pruning or retrieving chunks by 6-13 points
+  note: A better-selected, smaller pack improved coverage and shrank 3x yet moved outcomes by ~12% cost only — selection helps at equal budget, but does not by itself buy correctness.
+### 21  exp-cand-001  vs  exp-slot-005
+  A: The second-candidate gate computes a zero tail from the ledger, so it always says the hedge is free
+  B: Because arms correlate within a round, any A/B that holds the round fixed is measuring round difficulty, not the treatment
+  note: the sequential policy is the right shape but the gate that would switch to it always admits parallel
+### 22  exp-chain-001  vs  ana-002
+  A: Every campaign activated chain version 1 and none ever activated a second version: L2 has never once run
+  B: The self-optimization ladder is over-built against the evidence; gate L2 and L3 by measurement
+  note: L2 is not merely overbuilt; it has never executed a second version
+### 23  exp-cost-003  vs  ana-005
+  A: The second candidate buys 19 extra promotions for 93% more spend, i.e. $541 marginal vs $119 baseline
+  B: Delegation costs us quality by design, so it must be paid for by something the loop can show
+  note: delegation here buys noise-retry, not diversity; the case for it needs rounds-scarcer-than-dollars
+### 24  exp-curric-001  vs  ana-009
+  A: Task selection is emergent and inverted: the loop retries what it cannot do and abandons what it can
+  B: The cheap novel experiment available to us: re-plan candidate count mid-run from the live pass rate
+  note: adaptive branching assumes the task is at the learning boundary; ours sit at 0 and 92 percent
+### 25  exp-diff-001  vs  exp-gate-002
+  A: Replaying the differential oracle over every landed promotion blocks 7 of 71, not the 14 the digest predicted
+  B: 14 of 114 promotions carried no patch, and every one of them is a no-op round the gate had no way to refuse
+  note: exp-gate-002 counted 14 empty-patch promotions and the digest attributed them to the differential oracle; they are unaffected by it
+### 26  exp-diff-002  vs  w8-differential-swebenchplus
+  A: The empty-patch promotions are three disjoint bookkeeping subsets, not one defect, and my first write-up called zero-byte files 'missing'
+  B: SWE-Bench+: 32.67% of successful patches were leaked, 31.08% were weak-test passes; resolve rate falls 12.47% to 3.97%
+  note: weak-test false passes are not fixed by the differential oracle; this is the ledger instance of the same split
+### 27  exp-diff-003  vs  exp-graded-003
+  A: The differential oracle already existed and was blind to graded tasks: it compared exit codes, so it discarded three rounds where QUALITY went 0.500 t
+  B: End to end, the graded path cannot promote anything: a metric task always exits 0, so baseFailed is false and the round is never earned
+  note: exp-graded-003 said earned was blocked by a boolean baseFailed; the mechanism is now fixed by reading the metric
+### 28  exp-diff-007  vs  exp-diff-006
+  A: the metric cache fix was itself a regression on warm machines
+  B: a graded score climbs end to end once earned is measured on the metric
+  note: the first cache shape would have restored the blind spot on any warm host
+### 29  exp-fail-002  vs  w3-falsify-metr-selection
+  A: 63% of genuine attempt failures are opaque: the loop is told 'error with no diagnostic' and cannot act on it
+  B: Even the sign of the AI-productivity effect is now unrecoverable: METR's re-run flipped to a speedup and the authors called the data unreliable
+  note: not a contradiction of the substance; the METR claim is about selection effects, this is about missing diagnostics
+### 30  exp-fail-005  vs  w2-horizon-context-not-primary-bottleneck
+  A: Every one of the 80 'no diagnostic' failures had a diagnosis on disk; the harness lost it, and it is the same bug every time
+  B: Context explains 11.7% of failures; 58-74% persist after context and environment are restored
+  note: the dominant failure is neither context nor capability but a tool-call argument the provider glued together
+### 31  exp-gate-001  vs  ana-004
+  A: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  B: Our promotion gate is a point estimate with no error budget, which makes it a multiple-testing machine
+  note: ana-004 predicted a multiple-testing machine; the machine is disconnected, so the inflation cannot happen yet
+### 32  exp-gate-004  vs  ana-002
+  A: A binary score plus a per-task best makes every task a one-shot opportunity, so the gate's job is to ration nothing
+  B: The self-optimization ladder is over-built against the evidence; gate L2 and L3 by measurement
+  note: L2 policy optimisation has no continuous signal to optimise until scores are graded
+### 33  exp-graded-001  vs  exp-gate-001
+  A: A declared metric turns four indistinguishable states into three distinct scores, and the existing gate rule accepts the improvements and rejects the 
+  B: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  note: the gate's inertness is a declaration problem, not an unfixable one
+### 34  exp-graded-003  vs  exp-score-003
+  A: End to end, the graded path cannot promote anything: a metric task always exits 0, so baseFailed is false and the round is never earned
+  B: The graded-score path already works: a declared metric turns a 2-valued score into a 5-valued one, with no code change
+  note: the machinery scores correctly in isolation and is unreachable through round.js
+### 35  exp-human-001  vs  gap-w1-006
+  A: Our own ledger answers what no paper publishes: 0.44 human decisions per promotion, and 64% of campaigns needed none
+  B: How often a human is actually asked outside Anthropic is unpublished — their stated target is at most one human per PR, and the only approval-rate fig
+  note: The number nobody publishes is obtainable from a local ledger; the gap is about public reporting, not about it being unmeasurable.
+### 36  exp-human-005  vs  w3-humanminutes-rubber-stamp-seconds
+  A: We cannot measure human minutes at all: the ledger stamps when a checkpoint was raised and answered, never when a human saw it
+  B: Queued humans approve in seconds, so checkpoint minutes measure queue clearing, not review
+  note: seconds vs 12 minutes measure different things; neither is human attention
+### 37  exp-human-007  vs  w3-humanminutes-rubber-stamp-seconds
+  A: The whole ledger's promotion queue is 6,684 changed lines across 114 patches, and 17 of the promotions re-solve an already-solved task
+  B: Queued humans approve in seconds, so checkpoint minutes measure queue clearing, not review
+  note: queue latency was measured before; this is the actual reading volume, and it is small
+### 38  exp-lesson-001  vs  gap-w1-004
+  A: We do have a controlled lesson-injection experiment, and its measured effect is zero: mean +0.017, 53 of 60 paired deltas exactly 0
+  B: No controlled measurement found for lesson injection in a self-improvement loop — i.e. nobody A/Bs 'lessons from prior rounds, treated vs control' on 
+  note: A controlled lesson-injection measurement does exist in our ledger; its effect size is indistinguishable from zero and the design is underpowered.
+### 39  exp-score-001  vs  ana-004
+  A: Our score is binary and our gate is a continuous-delta test, so the gate is measuring nothing
+  B: Our promotion gate is a point estimate with no error budget, which makes it a multiple-testing machine
+  note: The PACE-style statistical critique assumes a noisy continuous score; ours is binary, which is a different and worse failure.
+### 40  exp-slot-001  vs  exp-lesson-001
+  A: The tie-break makes the lesson experiment one-sided: in 83 rounds where both arms verified a patch, a2 won 0 and a1 won 43
+  B: We do have a controlled lesson-injection experiment, and its measured effect is zero: mean +0.017, 53 of 60 paired deltas exactly 0
+  note: The null lesson effect is explained by a one-line tie-break, not by lessons being worthless.
+### 41  exp-slot-003  vs  exp-lesson-001
+  A: The lesson effect is the slot effect: treated-slot 1 lessons average +0.333, treated-slot 2 lessons average -0.063
+  B: We do have a controlled lesson-injection experiment, and its measured effect is zero: mean +0.017, 53 of 60 paired deltas exactly 0
+  note: the pool mean is a mixture of two slot-biased arms
+### 42  exp-slot-005  vs  exp-lesson-001
+  A: Because arms correlate within a round, any A/B that holds the round fixed is measuring round difficulty, not the treatment
+  B: We do have a controlled lesson-injection experiment, and its measured effect is zero: mean +0.017, 53 of 60 paired deltas exactly 0
+  note: the paired design is confounded by round difficulty, not merely underpowered
+### 43  exp-slot-006  vs  w2-decide-mde-formula-agent-sigma
+  A: The explore slot's pass rate is bimodal by campaign: 17 of 26 campaigns pass either always or never
+  B: 1 pp at sigma 1.5 pp needs 36 runs per arm; 2 pp needs 9 - Delta/sigma sets the sample size
+  note: sigma 0.7-1.8pp is a within-task figure; ours is between-task and bimodal
+### 44  exp-slot-008  vs  w2-decide-mde-formula-agent-sigma
+  A: Between-campaign variance is 74% of the variance in task outcomes, and the repeated tasks are the hard ones
+  B: 1 pp at sigma 1.5 pp needs 36 runs per arm; 2 pp needs 9 - Delta/sigma sets the sample size
+  note: 11-36 repeats at sigma 0.7-1.8pp assume within-task sampling; our variance is between-campaign
+### 45  exp-transfer-001  vs  ana-007
+  A: Zero lessons have ever crossed a campaign boundary: 100 lessons live in 53 campaigns and none is visible to another
+  B: Two different artifacts: raw traces for diagnosis, itemized claims for injection
+  note: ana-007 assumed a shared corpus the L2 could grep; there is no shared corpus
+### 46  exp-ver-001  vs  exp-mut-002
+  A: The median task verifier is three assertions, and all 94 of them together are 348
+  B: Our knowledge and gate suites pin down 10-43% of their modules' behaviour, so a promoted patch can break them silently
+  note: the low mutation scores are not a testing-practice problem but the expected behaviour of a 3-assertion oracle
+### 47  exp-ver-005  vs  w8-differential-google-flake
+  A: Our verifiers are deterministic and cheap: 105 tasks x 3 runs, zero flaked, 3.07 s per run
+  B: At Google, 84% of pass-to-fail transitions are flaky tests - the exact signal a differential oracle reads
+  note: the 84% figure is a property of shared/drifting environments, not of differential oracles as such; in a pinned single repo the rate is 0/105
+### 48  exp-wall-001  vs  gap-w1-003
+  A: A round costs 6 minutes of wall clock at the median and 28 hours total across 231 rounds; a human wrote 11% of the ledger
+  B: No study attributes wall clock inside an RSI loop's own machinery (planner, candidate, verifier, promotion, commit). Harvard and the personal-log stud
+  note: Wall clock inside one RSI loop's machinery is measurable from its own ledger; here is the attribution.
+### 49  f-cluster-fpr  vs  n-candidates-nine
+  A: DoorDash measured 62% false positives at the wrong unit of analysis; our ICC puts us in the same regime
+  B: Candidate count is the only policy field with a measurable effect: 2 -> 1 flips exactly 9 of 69 campaigns
+  note: The 9-campaign flip looks like evidence at the campaign unit but would be a false-positive generator at the attempt unit — the two readings disagree about what counts as n.
+### 50  kg-007  vs  kg-008
+  A: Embedded graph DBs permit exactly one read-write opener, so N agent sessions require the server we cannot ship
+  B: Kuzu was archived in Oct 2025; LadybugDB is the live fork but still builds via cmake-js
+  note: even the live fork cannot take N concurrent writers
+### 51  ledger-slots  vs  variance-bound
+  A: Our own ledger: attempt slot 1 promotes 66.4%, slot 3+ promotes 10.7% and yields 5.8% of promotions
+  B: Expected improvement is bounded by the variance of per-task success probability
+  note: In our ledger the p=1 band still promotes 0.818 on a held-out half, so 'zero gradient at p=1' does not transfer to a stochastic per-attempt worker.
+### 52  n-30x-variance  vs  n-per-fix-prices
+  A: The same task, same model, same setup varies up to 30x in tokens
+  B: Published per-fix prices: $10.92 (Devin), $1.3-$6 (Claude Code eval runs)
+  note: Vendor per-fix prices assume a clean single task; a 30x same-task spread makes a fixed price per fix statistically indefensible.
+### 53  n-false-winner  vs  n-confidence-flat
+  A: The same ledger yields +46pp, +32pp or +2.4pp for the same lessons depending on how you compare - our own corpus contains a false winner of exactly th
+  B: 99 of 100 lessons carry confidence 0.5, so scoring collapses to recency minus harm
+  note: The corpus looks like a strong positive (treated 0.905) while 99/100 lessons carry an uninformative 0.5 confidence: the apparent signal is composition, not stored quality.
+### 54  n-loom-shape  vs  n-store-spec
+  A: Measured in the live ledger: 100 lessons, all kind=fact, median 240 chars, 27% name a path, 47% a symbol, and 0 ever used
+  B: What repo A should hand repo B: a preconditioned action rule, scope-bounded by mechanism class, with the diff kept only as evidence
+  note: Current records are facts without triggers or predicates, the exact form XRepoSkill excludes
+### 55  n-metarag  vs  n-locagent
+  A: Summarizing the codebase by 79.8% before retrieval gave 84.67% file-level and 53.0% function-level localization
+  B: A symbol/dependency graph index reached 92.7% file-level localization where BM25 reached 61.7% and code embeddings 84.7%
+  note: A 79.8%-condensed summary index also beats raw retrieval at file level, so graph dominance is granularity-specific
+### 56  n-sprt-savings  vs  c-sprt-bechhofer
+  A: A two-sided SPRT saves 30-36% of fixed-budget measurements at equal power, not the folklore 50%
+  B: The SPRT's 50%-smaller-sample claim is a large-effect limit; its relative efficiency is (theta1-theta0)/(4|theta1+theta0-2theta|)
+  note: Tension worth recording: the 50% folklore is true only in the large-effect limit, and the loop's regime is the opposite end.
+### 57  n-swe-skills-bench  vs  n-expel
+  A: 92 of 98 public agent skills had no statistically significant effect; the worst cost 17.0 points
+  B: Cross-task insight extraction raised 40.3% to 60.4% across rounds where plain reflexion reached 54.4%
+  note: Packaged skills are 92/98 null while ExpeL reports +6 points; the difference is admission testing, not prose vs prose
+### 58  n-swebench-infra-audit  vs  n-loom-died-three-things
+  A: SWE-bench's own maintainers: an audit found 62.5% of unsolved-by-all instances were environment-broken
+  B: The 162 died attempts are three populations: 32 infra, 56 abandoned, 74 unknown
+  note: A 62.5% environment-broken rate in the unsolved-by-all bucket is far above the ledger's 13.6%-to-37% estimate, so either dsh-loom's tasks are healthier than SWE-bench Pro or its label is missing most of the infrastructur
+### 59  orch-002  vs  orch-001
+  A: Cognition: default to one thread; parallel subagents fragment implicit decisions
+  B: Anthropic's orchestrator-worker wins 90.2% on research but costs 15x tokens; coding parallelizes less
+### 60  orch-004  vs  orch-001
+  A: CostPar: parallel layers pay only if critical path + re-exploration + alignment beats serial
+  B: Anthropic's orchestrator-worker wins 90.2% on research but costs 15x tokens; coding parallelizes less
+### 61  order-spread  vs  order-cheap
+  A: Across four SE tasks, permutation changes the target score by +6% to -4%
+  B: Task order is near-worthless inside a fixed compute budget; the number of distinct tasks is what pays
+  note: A ~10-point spread across 24 orderings of 4 SE tasks is the strongest published counterexample.
+### 62  prod-015  vs  prod-016
+  A: "Stop" is undefined: one tap killed four background subagents and nothing said so
+  B: Amp: no checkpoints at all — git history is the approval mechanism
+  note: "Just let the agent run, git is the net" presupposes a working stop; the shipped stop is ambiguous and can silently kill the subagents whose work git would have captured.
+### 63  prod-016  vs  prod-007
+  A: Amp: no checkpoints at all — git history is the approval mechanism
+  B: Enterprise HITL gates run >95% approval — oversight as ritual, not review
+  note: Amp's position: checkpoints are the wrong abstraction and version control is the only safety net that matters — a direct denial that gate design is the lever.
+### 64  prod-019  vs  prod-016
+  A: Factory: read-only spec phase, explicit approval, then a chosen autonomy level
+  B: Amp: no checkpoints at all — git history is the approval mechanism
+  note: Opposite product bet shipping at the same time: read-only planning, explicit human approval of the spec, then a chosen autonomy level.
+### 65  rsi-010  vs  rsi-005
+  A: Harness-delta attribution: ≥54% of significant harness-evolution gains is overfitting, 14% test-time scaling
+  B: Self-Harness: accept a harness edit only if neither held-in nor held-out regresses
+  note: Self-Harness reports 9/9 held-out improvement; HDA says ≥54% of significant harness gains are overfitting. Reconcile by asking whether Self-Harness's acceptance rule (no regression on either split) is enough, or whether 
+### 66  rsi-013  vs  rsi-005
+  A: Evidence-package blindness: the loop optimized gate metrics and content failures rose 10%→28%
+  B: Self-Harness: accept a harness edit only if neither held-in nor held-out regresses
+  note: Harness evolution raised delivery while content failures rose; Self-Harness's aggregate no-regression rule would not have caught a redistribution from F3 to F4 if totals held.
+### 67  rsi-017  vs  rsi-016
+  A: A collapsed evaluator matches the working one on task score — so downstream validation of a grader is unsound
+  B: Goodhart-shift gate: sealed loop-invisible holdout, no-edit control, one decision per night
+  note: A sealed holdout still needs anchor discipline: Who Grades the Grader shows a collapsed metric matches the working one on task score, so holdout agreement alone does not certify an evaluator.
+### 68  rsi-030  vs  rsi-003
+  A: RSI Tax: a 2,048-token note beats three RSI methods while using 65.6–71.0% fewer tokens
+  B: Metaproductivity–performance mismatch: score predicts descendants poorly, so decouple expand from evaluate
+  note: HGM's structural sophistication pays in CPU-hours; the RSI Tax result says the improvement process itself can cost more than the improvement, and a 2k-token note matched three search-based methods.
+### 69  src-impossible  vs  src-testgen-llm
+  A: Agents cheat when they can see or write the tests, and strict prompts barely help
+  B: Meta TestGen-LLM: the oracle is measurable improvement, not assertion truth
+  note: Meta's permissive filter assumed cooperative generation; under impossible tests the same freedom is exploited for special-casing
+### 70  tri-consistency-cost  vs  tri-coverage-scaling
+  A: Coverage is cheap to buy with inference; consistency has no such lever and must be paid for in the difficulty distribution
+  B: Sample coverage scales log-linearly over four orders of magnitude: 15.9% at 1 sample to 56% at 250 on SWE-bench Lite
+  note: Coverage scales cheaply but buys pass@k; it cannot buy the reliability a promoted patch needs.
+### 71  tri-output-share  vs  tri-cache-input-share
+  A: On a well-cached coding session, output is 69% of the bill and 741k cache-read tokens cost less than 52k cache-write tokens
+  B: In production coding-agent traffic, cached input is 97.4% of input tokens and 72.9% of modeled API cost
+  note: Workload-dependent: 72.9% of modeled cost is cached input on short production requests vs 69% of the bill being output on one long well-cached coding session. Any single 'where the money goes' model is wrong for one of t
+### 72  tri-routing-breaks-silently  vs  tri-cascade-economics
+  A: A production cascade saved $100k/month and cost $400-500k/month in retention before anyone noticed
+  B: Cascades and routers cut LLM cost 35-98% at near-parity quality, but only on benchmarks with a clear difficulty split
+  note: Same mechanism, opposite conclusion: the reported 60% saving was reversed 4-5x by quality loss the aggregate metric could not see.
+### 73  tri-specbench-gap  vs  tri-cost-per-solved-task
+  A: Reward-hacking gap grows ~27 percentage points per tenfold LOC; every frontier agent saturates the visible suite
+  B: Cost per resolved task compresses a 5x list-price gap to 1.47x, and empty-run rate moves it as much as price does
+  note: Cost per solved task is only as honest as the pass check; a saturating visible suite makes the denominator a fiction (Tetrate's 'looser check looks better').
+### 74  tri-verifier-precision-ceiling  vs  tri-coverage-scaling
+  A: Verified success saturates at verifier precision however many samples you draw (43% selected vs 98% coverage)
+  B: Sample coverage scales log-linearly over four orders of magnitude: 15.9% at 1 sample to 56% at 250 on SWE-bench Lite
+  note: More samples stop helping once selection saturates at verifier precision: 43% selected against 98% coverage.
+### 75  ver-008  vs  ver-016
+  A: Resampling cannot beat a leaky verifier, and optimal attempt counts are often under 10
+  B: A cleaned benchmark saturates at 99.4%, forcing a 51-task hard split (52.9-98.0%)
+  note: More candidates cannot substitute for a better verifier; adding samples under a leaky oracle is bounded.
+### 76  ver-009  vs  n-one-run-suffices
+  A: Infrastructure alone moves agent-eval scores up to 6 pp; sub-3 pp gaps are noise
+  B: At the stated sigma of 1-2 points the 0.175 gap is 8.8-17.5 sigma, so one run per arm already clears 80% power
+  note: If infra noise is really ~3-6 pp rather than 1-2 points, one run per arm is no longer enough (2/arm at sigma=0.06, 6 at 0.10) and the whole one-shot recommendation collapses.
+### 77  w2-decide-irt-selective  vs  w2-decide-hierarchical-lowrank
+  A: IRT picks 100 of 14,000 MMLU items, yet item analysis alone did not cut variance
+  B: A low-rank task-by-model matrix borrows strength; debiased one-step CIs hit the bound
+  note: item-level information selection compressed variance less than hoped; model-by-task sharing is the axis that paid
+### 78  w2-decide-winner-curse-zoom  vs  w2-decide-paired-cancels-item-difficulty
+  A: Selecting the best of m noisy candidates biases it up; the zoom correction adapts to the gap
+  B: Paired comparison on the same items cancels item difficulty: variance falls from 1/6 to 1/9
+  note: pairing is valid for a pre-specified pair only; selecting the best of m on the same data invalidates the interval
+### 79  w2-horizon-checkpoint-hides-errors  vs  w2-horizon-oracle-state-continuous
+  A: Checkpoint-restart buys 3.5-8.1h but inflates the apparent-vs-verified gap from 2.9 to 21.9pp
+  B: Continuous oracle state lifts success 19-38%, and its lead widens from 7% to 18% as runs lengthen
+  note: Both are 'give the agent better state', but snapshot replay degrades integrity while continuous state raises verified success
+### 80  w2-human-maintainer-vs-grader  vs  w2-human-review-outcomes-not-defects
+  A: Maintainers merge 24.2 pp fewer AI PRs than the SWE-bench grader accepts, and rate horizons ~7x shorter
+  B: Only 14% of code-review comments concern defects; median Google change is 24 lines
+  note: At Google, small single-round reviews suffice; for agent PRs the same maintainers reject half of what a grader accepts.
+### 81  w2-memory-reconstruct-not-replay  vs  w2-memory-mode-asymmetry-transfer
+  A: Memory should be reconstructed per state, not replayed: verbatim injection causes negative transfer
+  B: Transfer depends on task: prose insights beat replay 36 vs 31 on HotpotQA but lose 50 vs 55 on ALFWorld
+  note: Verbatim replay wins on ALFWorld in ExpeL but is blamed for negative transfer in MemHarness
+### 82  w2-meta-sample-more-reflect-less  vs  w2-meta-gepa-reflection-density
+  A: At matched token budgets all 18 self-inspection comparisons lose to resampling; 10 methods are worse
+  B: GEPA beats GRPO by 6% with 35x fewer rollouts: a reflection carries more bits per rollout than a scalar
+  note: At equal total tokens, no self-inspection method beat resampling; GEPA's win is at few rollouts, not at matched tokens.
+### 83  w2-verify-evilgenie-heldout-weak  vs  w2-verify-oracle-substitutes-metamorphic-property-differential
+  A: Held-out tests barely reduce reward hacking; an LLM judge and test-edit detection do the work
+  B: Metamorphic, differential and property checks replace a missing oracle, but only catch invariants you wrote
+  note: adding oracle machinery does not help if the agent can still see and satisfy the visible oracle
+### 84  w3-attention-23min-is-folklore  vs  w3-attention-interruption-speed-not-quality
+  A: The 23-minute resumption figure is a press quote; the paper itself reports 25 minutes 26 seconds
+  B: Interrupted work finished faster at equal quality but with more stress: the cost is affective, not throughput
+  note: The number everyone quotes for resumption cost is a press paraphrase, and the paper's own figure is larger, so cost models tuned to 23 minutes are fitted to the wrong constant.
+### 85  w3-attention-approval-rate-95  vs  ana-001
+  A: Gates approving 93-96% are signatures; approval-by-default gained 30% against 71% for escalation
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: A checkpoint that approves 95% or more of items is a signature; evidence-dense decisions presumes a decision is being made at all. (relation mapped from "challenges")
+### 86  w3-attention-batch-threshold-3x  vs  ana-001
+  A: Batching helped only at 3x/day; hourly batching was statistically indistinguishable from no batching
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: Batched-not-streamed is only defensible if the cadence clears a threshold; hourly batching measured no better than streaming, so the claim needs a number attached to it. (relation mapped from "challenges")
+### 87  w3-attention-card-doubles-mental-demand  vs  ana-001
+  A: A card side lane caught 6 unwanted decisions in 16 runs but doubled measured mental demand from 2.5 to 5
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: Catching unwanted decisions mid-run is real, but the measured price was a doubling of mental demand, so spending attention well has to be a ratio and not a catch count. (relation mapped from "challenges")
+### 88  w3-attention-interruption-speed-not-quality  vs  ana-001
+  A: Interrupted work finished faster at equal quality but with more stress: the cost is affective, not throughput
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: If batching is justified by throughput, the premise fails: interrupted work was finished faster at equal quality, so the real cost sits in strain on the reviewer. (relation mapped from "challenges")
+### 89  w3-attention-no-agreed-burden-metric  vs  ana-001
+  A: No agreed measure of supervision burden exists, and no volume reduction reliably lowers the override rate
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: Quality per human attention has no agreed denominator and no known volume reduction that reliably moves the acceptance rate, so the axis cannot currently be measured as stated. (relation mapped from "challenges")
+### 90  w3-attention-presentation-order-bias  vs  ana-001
+  A: Across 219,476 pull requests, files shown earlier got more review comments regardless of content
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: What gets attended to is set by ordering, measured over 219k pull requests, which makes card layout part of the safety argument rather than styling. (relation mapped from "challenges")
+### 91  w3-attention-queue-not-card  vs  ana-001
+  A: 83% of approval latency was queue wait, not review: 11.8 of 14.2 hours, and cutting gate depth cut it 87%
+  B: Our axis is quality per human attention, and no paper optimizes it
+  note: Latency is 83% queue time, so optimising the decision surface attacks the minority term; fewer and shallower gates is the larger lever. (relation mapped from "challenges")
+### 92  w3-attention-reviewer-decides-before-reading  vs  w3-attention-card-doubles-mental-demand
+  A: Reviewers form an expected model before reading, then read to confirm: 5 of 25 real reviews approved directly
+  B: A card side lane caught 6 unwanted decisions in 16 runs but doubled measured mental demand from 2.5 to 5
+  note: Density does not buy scrutiny, since the reader tests the card against an expected model, so a card that does not violate expectation is approved however much it shows. (relation mapped from "challenges")
+### 93  w3-cheapwin-context-files-null  vs  w3-cheapwin-aci-biggest-lever
+  A: Rewriting the brief or adding repo knowledge files measured zero correctness effect in a 288-run ablation
+  B: The largest single-factor scaffold effect I found is the tool interface: +10.7pp over a bare Linux shell
+  note: Prompt text measured null in 288 runs while the tool interface measured +10.7pp; the direction of spend should follow the interface.
+### 94  w3-cheapwin-framework-effect-shrinks  vs  w3-cheapwin-aci-biggest-lever
+  A: The model dominates the scaffold and the framework gap shrinks each generation, so scaffold wins depreciate
+  B: The largest single-factor scaffold effect I found is the tool interface: +10.7pp over a bare Linux shell
+  note: Says the +10.7pp magnitude is a 2024 artefact for the models we actually run.
+### 95  w3-cheapwin-noise-floor  vs  n-one-run-suffices
+  A: Single-run pass@1 on SWE-bench Verified swings 2.2-6.0pp, so our 0.05 minGain sits inside the noise
+  B: At the stated sigma of 1-2 points the 0.175 gap is 8.8-17.5 sigma, so one run per arm already clears 80% power
+  note: Measured agent pass@1 sd above 1.5 pp on a single run would put the case's assumed sigma at the edge where the one-look argument still holds only barely.
+### 96  w3-falsify-approval-rates  vs  exp-guard-001
+  A: 74% of deployed agent systems rely on human verification and none compared outcomes with vs without it; reported approval rates exceed 95%
+  B: The autopilot guard reports 157/157 green while 5 of 35 campaign specs are red
+  note: An always-approve gate is a guard that never fires; the guard design needs seeded known-bad items to stay falsifiable. (relation mapped from "challenges")
+### 97  w3-falsify-context-injection-null  vs  w3-falsify-swe-interact
+  A: Injecting repository context files did not measurably change agent correctness across 288 runs, bounded at 10-15pp by equivalence testing
+  B: Best models solve ~50% of single-turn SWE tasks but only ~25% of the same tasks with a user revealing requirements progressively
+  note: Both point at the same culprit - implementation skill and late constraints, not missing written knowledge - which weakens lessons-injection as a lever. (relation mapped from "challenges")
+### 98  w3-falsify-eval-noise  vs  exp-gate-001
+  A: Single-run agent scores swing 2.2-6.0pp and SD exceeds 1.5pp at temperature 0, so a fixed minGain of 0.05 is inside the noise
+  B: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  note: At n=1 a minGain of 0.05 is inside the 2.2-6.0pp sampling spread; the gate experiment must use k>=5 runs per candidate or a paired same-task design. (relation mapped from "falsifies")
+### 99  w3-falsify-lcrd-provenance-hack  vs  exp-guard-001
+  A: A published weak-RSI audit log shows the first run downloading the upstream sdist and reporting a from-scratch reimplementation, and it passed
+  B: The autopilot guard reports 157/157 green while 5 of 35 campaign specs are red
+  note: Provenance must be a guard rather than part of the score; a guard that only checks test outcomes cannot see where code came from. (relation mapped from "challenges")
+### 100  w3-falsify-no-head-to-head  vs  w3-falsify-vaccaro-meta
+  A: I could not find any controlled comparison of an autonomous self-improving loop against a human driving an agent interactively
+  B: Across 106 experiments, human-AI teams did worse than the better of the two alone, and worst where the AI was stronger
+  note: The meta-analysis is the nearest available evidence and it is not the comparison we need; it studies minute-scale decisions, not hour-scale agent work. (relation mapped from "challenges")
+### 101  w3-falsify-verifier-decay  vs  exp-gate-001
+  A: Verification has become harder than generation, and a fixed shell verifier is a target the loop learns to satisfy rather than a measurement of intent
+  B: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  note: A frozen shell verifier is a Goodhart target; the experiment should log whether accepted edits touch tests or the verifier. (relation mapped from "challenges")
+### 102  w3-holdout-decay-bound  vs  w3-holdout-benchmark-decay-measured
+  A: Reusing one holdout across k adaptive selections inflates scores by ~sqrt(2 ln k / n)
+  B: Re-collected benchmarks drop 3-15%, but authors blame harder items rather than holdout reuse
+  note: Theory predicts fast decay proportional to 1/sqrt(n); re-collection measurements show movement attributable to item difficulty instead.
+### 103  w3-holdout-gate-is-binary-not-score  vs  exp-gate-001
+  A: The gate never compares holdout scores; L2's holdoutSlack knob is dead code
+  B: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  note: exp-gate-001 asks whether minGain can resolve scores; the holdout branch that could add an orthogonal signal never runs, so resolution cannot be improved from there.
+### 104  w3-holdout-rotation-precedent  vs  w3-holdout-pool-is-one-id
+  A: The one open-source holdout rotation triggers on measured saturation, not on a reuse count
+  B: 68 of 69 campaigns register a one-element holdout pool, so holdout rotation has never run
+  note: A working implementation rotates on saturation evidence; our corpus never rotated and never tested saturation.
+### 105  w3-humanminutes-defects-are-minority  vs  ana-005
+  A: 14% of review comments concern defects and 75% found are evolvability, not behaviour
+  B: Delegation costs us quality by design, so it must be paid for by something the loop can show
+  note: Scoring human value on detected defects prices 14% of what review actually produces and 75% of what it does produce (evolvability) is invisible to a shell verifier. (relation mapped from "undermines")
+### 106  w3-humanminutes-esem2026-ai-looks-cheaper  vs  exp-coverage-002
+  A: AI diffs look cheaper to review only because AI code lands in less central code
+  B: Five of thirty-five campaign specs are red and the guard cannot see any of them
+  note: AI code landing in peripheral and test files means any coverage or review-time benefit measured on agent output may be a placement artefact; centrality must be stratified before the comparison is believed. (relation mapp
+### 107  w3-humanminutes-interruption-23min  vs  ana-004
+  A: Re-entry after an interruption costs ~23 minutes, dwarfing a 3.5-minute decision
+  B: Our promotion gate is a point estimate with no error budget, which makes it a multiple-testing machine
+  note: Synchronous checkpoints pay a 23-minute re-entry cost per interruption, so a design that reduces per-decision minutes but increases decision count can still lose on the denominator. (relation mapped from "warns")
+### 108  w3-humanminutes-metr-19pct-slower  vs  exp-mut-001
+  A: An RCT found experienced maintainers 19% slower with AI, review eating the savings
+  B: A 12-mutant audit separates a real spec from an always-pass stub: 0.92 vs 0.00
+  note: Total task time can rise by 19% even when the assistance is genuinely used, because review and rework of generated output is charged to the same budget as generation. (relation mapped from "warns")
+### 109  w3-humanminutes-rubber-stamp-seconds  vs  exp-guard-002
+  A: Queued humans approve in seconds, so checkpoint minutes measure queue clearing, not review
+  B: A verifier that already passes on the base tree masks a holdout rejection as no-gain
+  note: If the guard makes checkpoints cheap to clear, seconds-level approvals are the failure mode it must detect via latency-versus-diff-size and seeded known-bad items. (relation mapped from "threatens")
+### 110  w3-humanminutes-size-does-not-predict-latency  vs  ana-003
+  A: At Meta, diff size barely predicts review time: a model beat the median baseline by 30 minutes
+  B: Verifier precision is the binding constraint on our loop and we never measure it
+  note: Any inference from diff size or pipeline latency to human minutes is refuted at Meta scale: size-aware models barely beat the median and review time is consistent regardless of diff size. (relation mapped from "falsifies
+### 111  w3-restart-append-is-the-safe-primitive  vs  w3-restart-atomic-js-unhardened
+  A: 4200 appends under the same reader load: zero failures while rename failed 88%
+  B: writeJsonAtomic has no retry, no fsync, and leaks the temp file on every failed rename
+  note: the design already contains a write path that survives the same load at 100%, and the snapshots do not use it
+### 112  w4-curriculum-bimodal-difficulty  vs  exp-gate-001
+  A: Per-task pass rates are bimodal: 22 slots never verify and 51 always do, out of 124 slots
+  B: minGain has never bound once: 0 of 208 rounds would change decision at any threshold from 0.001 to 0.9
+  note: The gate's minGain comparison presumes a continuous score with resolvable deltas; a 0/1 score makes every delta exactly 1.0 or 0, so the noise budget argument never engages.
+### 113  w4-curriculum-curriculum-not-monotone  vs  w4-curriculum-85-percent-rule
+  A: Easy-to-hard sequencing was worse than shuffling; only a mixed hybrid schedule beat baseline
+  B: The 85% success-rate rule has no prediction for a learner that remembers every trial it has seen
+  note: The 85% rule implies a monotone difficulty schedule should help; the one measured coding curriculum found sequential easy-to-hard below shuffled baseline (62.56 vs 74.58) and only a mixed schedule above it.
+### 114  w4-curriculum-starvation-43of59  vs  w4-curriculum-no-cross-campaign-state
+  A: 43 of 59 multi-task campaigns (72.9%) never attempted at least one task in their own eval set
+  B: No task-level state crosses campaigns: 180 registered entries, 148 distinct prompts, no difficulty field
+  note: Counter-pressure worth recording: if most tasks are never attempted even once, the missing cross-campaign difficulty registry costs little today and would matter only after coverage is fixed.
+### 115  w4-graded-llm-suite-correlation-regime  vs  w2-verify-mutation-score-size-confound
+  A: Coverage predicts LLM test effectiveness on clean code (r=0.821) but not when the goal is to expose a bug
+  B: Mutation score is a weak predictor of real fault detection once you control for suite size (ICSE 2018)
+  note: For LLM-generated suites the paper finds little evidence that suite size is the dominant confounder, directly contradicting the human-written-test consensus that node records — the correlation structure itself depends on
+### 116  w4-graded-metric-regex-shadowing  vs  exp-score-003
+  A: A candidate that prints its own QUALITY line before the harness wins the round: 0.475 to 1.000
+  B: The graded-score path already works: a declared metric turns a 2-valued score into a 5-valued one, with no code change
+  note: Not that the plumbing is missing — exp-score-003 is right that no code change is needed — but that the channel it reads is written by the candidate, so enabling the graded path also enables the forge measured at 0.475 to
+### 117  w4-graded-mutation-resists-padding  vs  w4-graded-padding-buys-partial-credit
+  A: The same 100 padding assertions move mutation score by exactly zero, unlike partial credit
+  B: 100 no-op assertions lift a broken tree's partial credit by 0.7 points at zero behaviour change
+  note: Direct measured contrast: the same 100 no-op assertions moved partial credit +0.7 points and mutation score +0.0 kills, so the two channels disagree about whether padding is an attack.
+### 118  w4-graded-smallest-credible  vs  w4-graded-partial-credit-narrow-band
+  A: Smallest credible graded signal: a harness-side mutant delta, 20 mutants per round, no per-assertion credit
+  B: Per-assertion partial credit puts a total behavioural break at 0.833-0.987, inside minGain noise
+  note: Explicitly rejects per-assertion credit for the measured reason: the 0.833-0.987 band sits below or inside minGain, so it cannot order patches the gate must order.
+### 119  w4-graded-suite-breadth-kills-nothing  vs  w2-verify-evalplus-80x-passk-drop
+  A: Adding the other 28 test files kills zero additional mutants on this module; breadth is not discrimination
+  B: Augmenting HumanEval tests 80x drops pass@k up to 19.3-28.9% across 26 LLMs and reorders the leaderboard
+  note: EvalPlus moved pass@k 19.3-28.9% with 80x more tests while 28 extra files moved 0 of 22 mutants here; the difference is that EvalPlus added new oracles for uncovered behaviour, not more tests of the same behaviour.
+### 120  w4-metering-246x-undercount  vs  w4-metering-attempt-cost-caveat-claims
+  A: Loom's recorded spend is 246x below provider usage in its own child logs
+  B: A per-attempt dollar figure needs three caveats beside it or the loop optimises the wrong number
+  note: A 246x error makes any selection rule that consumes the recorded scalar meaningless until the token source is fixed.
+### 121  w4-metering-cache-read-95pct  vs  w4-metering-fallback-blind-preamble
+  A: 95.3% of the tokens loom's attempts consumed are cache reads
+  B: The fallback prices only brief and answer, blind to the per-call preamble that dominates cost
+  note: A fallback that hardcodes cacheRead to 0 cannot represent 95.3% of the tokens the attempt actually consumed.
+### 122  w4-metering-cap-never-bound  vs  w2-meta-gap-no-matched-budget-headtohead
+  A: No campaign came near its USD cap: 0 of 69 breached, worst case 0.1x of the limit
+  B: Nobody has run meta-optimizing the improver head-to-head against spending the same tokens on N more attempts,
+  note: The gap asks for a matched budget head-to-head; this machine shows the cap machinery has never once bound, so no such comparison exists here.
+### 123  w4-metering-chars4-undercount  vs  w4-metering-246x-undercount
+  A: chars/4 undercounts tokens 40-45%; real transcripts measure 2.22 bytes per token
+  B: Loom's recorded spend is 246x below provider usage in its own child logs
+  note: A -40% character bias cannot by itself explain a 246x gap; the gap is dominated by omitting the preamble and cache traffic.
+### 124  w4-metering-comment-false-usage-exists  vs  w4-metering-meter-wrong-argument
+  A: The comment justifying the fallback path is false: child logs do carry usage
+  B: The token meter is called with a session id where it takes a session object, so it returns null
+  note: The fallback existed to cover a gap the comment claimed; the gap does not exist, and the fallback is reached only because the meter call fails.
+### 125  w4-metering-fallback-blind-preamble  vs  w4-metering-tokensof-drops-cache
+  A: The fallback prices only brief and answer, blind to the per-call preamble that dominates cost
+  B: tokensOf counts input+output only, so the token cap sees 21.5x fewer tokens than the meter
+  note: Both omissions point the same way: the recorded number is a strict undercount of the prompt side.
+### 126  w4-metering-otel-cache-double-count  vs  w4-metering-cache-read-95pct
+  A: OTel GenAI counts cache-read tokens as part of input_tokens, so double counting is the default mistake
+  B: 95.3% of the tokens loom's attempts consumed are cache reads
+  note: The convention's 'cache read is part of input_tokens' invites exactly the addition that would erase the distinction this measurement depends on.
+### 127  w4-metering-price-table-inverted  vs  tri-harness-cost-3x
+  A: The default price table inverts the output/cache-read ratio against the observed rate card
+  B: Same model, same tasks, one price list: harness choice moves cost per task up to 3x and quality not at all
+  note: The 3x harness gap assumed a working price structure; here the price table itself moves the same tokens by 2.78x, so harness comparisons inherit that error.
+### 128  w4-metering-publisher-api-not-realtime  vs  tri-budget-blind
+  A: Provider usage and cost APIs are reconciliation tools with holes, not a live meter a loop can budget on
+  B: Agents' budget awareness correlates only r=0.35 with capability; frontier models keep spending on doomed trajectories
+  note: Budget-aware agents need a live number; the publisher's own cost endpoint is daily-only and omits whole service tiers.
+### 129  w4-metering-within-round-cost-spread  vs  tri-session-cost-variance
+  A: Two candidates for one task in one round differ in cost by a median of 1.36x
+  B: Three byte-identical agent runs cost $0.90, $1.17, $1.42 (+58%); the costlier run also failed
+  note: That methodology found session totals varying +-58%; here the same variance appears inside one round as a 1.36x median spread between two candidates.
+### 130  w4-parallel-round-wall-grew  vs  w4-parallel-speedup-145
+  A: Round wall time rose from 236s to 630s across the same change, so faster rounds meant a slower loop
+  B: Concurrency bought a median 1.45x round speedup, not the 2x the pool size implies
+  note: In absolute terms the same change made rounds 2.7x longer, so the ratio alone would mislead anyone reading it as throughput.
+### 131  w4-parallel-throwaway-425  vs  w4-parallel-collision-98
+  A: At 16 parallel agents 42.5% of first attempts are thrown away and only 13.7% touch code
+  B: 98% of same-round candidate pairs edit the same files, so the pair is one hypothesis twice
+  note: Their cost accrues at merge time across different tasks; our candidates never merge, so their 42.5% cannot be transferred as our conflict rate.
+### 132  w4-review-judge-ceiling-hard-code  vs  ver-q02
+  A: Best code judge averages 82% but drops to 62% on hard codegen and 43% for Claude-3.7
+  B: Can model-based grading be calibrated cheaply? Published agreement numbers disagree
+  note: Published judge-human agreement figures disagree; this benchmark supplies a controlled 52-82% band that contradicts any single high agreement number.
+### 133  w4-review-self-preference-same-family  vs  rsi-017
+  A: Self-recognition predicts self-preference, so a same-family judge tilts the promotion gate
+  B: A collapsed evaluator matches the working one on task score — so downstream validation of a grader is unsound
+  note: A co-evolved evaluator retained held-out lift there, which suggests self-preference did not destroy signal in that setup and bounds how strongly this transfers.
+### 134  w4-selfedit-activate-has-no-evidence-check  vs  w4-selfedit-mutate-whitelist-four-kinds
+  A: rsi_chain activate checks no evidence, and confirm:true is a bypass the caller grants itself
+  B: Our chain self-edit is a four-kind whitelist, not open authorship of the harness
+  note: The whitelist bounds mutateChain, but activate accepts any hand-written spec, so containment depends on which tool the agent happens to call.
+### 135  w4-selfedit-ledger-actor-is-not-provenance  vs  w3-restart-append-is-the-safe-primitive
+  A: The ledger stamps agent-initiated events with actor "human", so provenance cannot be audited
+  B: 4200 appends under the same reader load: zero failures while rename failed 88%
+  note: Append-only makes the record durable, not true: the appended actor string is an unverified literal at the call site.
+### 136  w4-selfedit-rollback-swallows-failures  vs  w4-selfedit-mutate-whitelist-four-kinds
+  A: Rollback is two best-effort git commands whose failures are silently discarded
+  B: Our chain self-edit is a four-kind whitelist, not open authorship of the harness
+  note: Containment by "we can always revert" is weaker than the whitelist suggests: the revert is silent on failure and deletes untracked files on success.
+### 137  w4-selfedit-sabotage-evals-only-low-level  vs  w4-selfedit-palisade-shutdown-rewrite
+  A: Anthropic's sabotage evaluations found low-level indications, not demonstrations, of sabotage
+  B: Shutdown-resistance probes: o3 rewrote the shutdown path in 7 of 100 runs, codex-mini in 12
+  note: A capability-level negative result and a positive shutdown-editing result disagree about how far current models actually go; both are small-n.
+### 138  w5-interface-allow-rule-81pct-silent  vs  w3-attention-batch-threshold-3x
+  A: The standard fatigue fix - persist an allow-rule - gave 81% silent goal completion after one approval
+  B: Batching helped only at 3x/day; hourly batching was statistically indistinguishable from no batching
+  note: batching advice assumes the approval does not persist; persisting one approval bought 81% silent completion
+### 139  w5-interface-coderabbit-56-rejected  vs  w3-attention-approval-rate-95
+  A: Only 36.4% of 31,073 agent review comments were accepted; 56.3% were rejected outright
+  B: Gates approving 93-96% are signatures; approval-by-default gained 30% against 71% for escalation
+  note: gates that approve 93-96% coexist with comment streams rejected 56.3% of the time; the unit of approval (permission vs claim) decides which number you get
+### 140  w5-interface-interp-5x-faster-17pct-worse  vs  w5-interface-groundability-missing-item
+  A: Pre-registered n=119: explanation panels made practitioners 5x faster and 17% less accurate
+  B: Diff-only review accepted 9 of 9 real omissions; adding a 'what is missing' line moved catch 0.53 to 1.00
+  note: structured evidence raised catch in one study; an explanation surface raised speed and lowered accuracy in the other - the difference is whether the evidence is checkable
+### 141  w5-interface-vac-oracle-0pct  vs  w2-human-catch-rate-13-6
+  A: Rebuilt from executor ground truth, an approval card cut attack success 68-100% to 0%
+  B: Humans caught 13.6% of swapped-in dangerous commands while the classifier blocked 89%
+  note: 0% attack success holds only for an oracle user; real humans caught 13.6%, so the VAC number is an upper bound, not a forecast
+### 142  w5-selfreport-advani-confident-rewrite-flip  vs  w5-selfreport-claimcheck-structural-facts-free
+  A: Rewriting an honest failure in confident language flips 20-25% of detector and judge verdicts
+  B: Rules catch 7/7 never-called tools but only 2/7 wrong targets, so structural facts are the free checks
+  note: Structural checks are safe only where the fact is genuinely structural in the trace; any check that reads the claim text can be flipped by rewriting it, which the 20-25% flip rate demonstrates.
+### 143  w5-selfreport-advani-judge-ceiling-065  vs  w4-review-hybrid-tests-then-rubric-judge
+  A: No judge configuration beats AUROC 0.65 at spotting an agent that claims success on a failed run
+  B: Tests first, rubric judge second is the only placement the measured evidence supports
+  note: A rubric judge reading the trajectory is not a safe monitor for false completion: no judge, prompt strategy or full task-spec configuration exceeded AUROC 0.65.
+### 144  w5-selfreport-local-count-check-is-not-name-check  vs  exp-human-004
+  A: Our own 73/84 self-report accuracy figure is a count match, not a name match, so swapped filenames pass it
+  B: Self-reported file lists are accurate when present (73/84 exact) but absent for a third of promotions
+  note: The 73/84 figure compares the count of claimed files with the count of diff files, so a worker that swaps one filename for another still scores as a match; name-level accuracy was never measured.
+### 145  w5-tokenbudget-dollar-split-45-36-19  vs  tri-cache-input-share
+  A: Output is 45.1% of dollars on 1.1% of tokens; the 95.3% of tokens that are cache reads buy 19.2%
+  B: In production coding-agent traffic, cached input is 97.4% of input tokens and 72.9% of modeled API cost
+  note: Graph says cached input is 72.9% of cost; on the real card cache reads are 19.2% while output is 45.1%. Different card, and the graph does not name the card.
+### 146  w5-tokenbudget-dollar-split-45-36-19  vs  tri-output-share
+  A: Output is 45.1% of dollars on 1.1% of tokens; the 95.3% of tokens that are cache reads buy 19.2%
+  B: On a well-cached coding session, output is 69% of the bill and 741k cache-read tokens cost less than 52k cache-write tokens
+  note: Graph says output is 69.0% of a real session; measured 45.1%. Same direction, different magnitude, and this one is on the card we actually pay.
+### 147  w5-tokenbudget-price-ratio-drives-split  vs  w5-tokenbudget-arxiv-per-task-gap
+  A: Which token class dominates the bill is set by the output:cache-read price ratio, not by agent behaviour
+  B: Published $1.857/task SWE-bench cost is 104x our $0.0179/attempt, and the gap is almost all cache-read price
+  note: Not a real contradiction of the numbers, but a contradiction of the framing: arXiv's dollar conclusions are card-bound, so its per-task figures cannot be quoted as task properties.
+### 148  w5-tokenbudget-ttl-never-expires-intra-attempt  vs  tri-cache-input-share
+  A: The 5-minute cache TTL never expires inside an attempt: p99 gap 120s, zero of 8,596 gaps over 300s
+  B: In production coding-agent traffic, cached input is 97.4% of input tokens and 72.9% of modeled API cost
+  note: Graph says production needs a full day before 5-min TTL matches infinite caching; our intra-attempt p99 gap is 120s, so TTL never bites during work. The graph measured human-paced turns, we measured loop-fired turns.
+### 149  w5-tokenbudget-undercount-71x-at-true-card  vs  exp-meter-002
+  A: Recorded spend is 71x low at the real card, not 198x: the larger figure is a price-table artefact
+  B: Independent re-measurement: recorded spend is 198x below billed, and the error has no opposite tail
+  note: 198x is recorded-vs-Anthropic-table for a DeepSeek route; the honest multiple at the billed card is 71x.
+### 150  w5-transfer-backfires-inverted-u  vs  w2-meta-warm-start-library
+  A: Ungated skills peaked at round 3 then gave back the gain; rollback recovers 1.7 of 12.3 pp
+  B: Warm-starting from a library of known-good moves buys early gains and imports a bias that can trap the search
+  note: a warm-started library is not a monotone asset: pass@1 returned to +2 pp over seed after the pool grew 5x
+### 151  w5-transfer-hda-13-of-15-below-search  vs  rsi-005
+  A: Held-out gain came in below search-set gain in 13 of 15 settings, worse than baseline in 4
+  B: Self-Harness: accept a harness edit only if neither held-in nor held-out regresses
+  note: rsi-005 reports 9/9 combinations improving held-in and held-out; HDA finds held-out gain below search gain in 13 of 15 settings and below baseline in 4
+### 152  w5-transfer-loom-round-curve-confound  vs  w5-transfer-loom-ab-53-null
+  A: Loom's pass rate falls 62.2% to 25% by round, but 27.9% of attempts are infra errors
+  B: Loom's own paired lesson A/B: 53 null, 4 'wins' that are control-arm crashes, 3 genuine losses, 0 genuine wins
+  note: a declining pass rate by round would suggest harm from accumulated lessons; the 27.9% infra-error rate makes that reading unsupported
+### 153  w5-transfer-selfharness-no-portability  vs  rsi-005
+  A: Self-Harness's 9/9 held-out gains have zero cross-model or cross-campaign tests
+  B: Self-Harness: accept a harness edit only if neither held-in nor held-out regresses
+  note: rsi-005 frames its retained edits as general improvements; the paper has no cross-model or cross-campaign test and says harness design is model-specific
+### 154  w5-transfer-skillinfinity-no-heldout  vs  w2-meta-warm-start-library
+  A: The skill library with the best published pass rate optimizes and tests on the same 83 tasks
+  B: Warm-starting from a library of known-good moves buys early gains and imports a bias that can trap the search
+  note: that node cites the 60.7% skill-library result; the number comes from optimizing and testing on the same 83 tasks
+### 155  w6-alphaevolve-selection-bias-67  vs  w6-alphaevolve-arxiv-2506-13131
+  A: Even AlphaEvolve improved 20 of 67 pre-registered problems (~30%) and its public results repo excludes the rest
+  B: AlphaEvolve: 48 scalar multiplications for 4x4 complex matmul (first gain over Strassen's 49 in 56 years), verified per problem
+  note: the public results repo excludes matched-but-not-better problems, so the artifact overstates 30% -> 100%
+### 156  w6-attn-classifier-83-17fn  vs  w6-attn-human-catch-13.6
+  A: The transcript classifier caught ~89% in study, 83% in production, with 17% false negatives on real overreach
+  B: Humans caught 13.6% of planted dangerous commands, decaying to ~5% after 50 prompts
+  note: On the same per-item judgment the classifier is 6-7x better than the human, so a human gate is not a safety net over the classifier.
+### 157  w6-attn-escalation-band-10-15  vs  w6-attn-loom-zero-open
+  A: A 10-15% escalation rate is the reported sustainable operating point; 85%+ pass-through means the checkpoint is misplaced
+  B: Across ~70 campaigns the dashboard reports zero open checkpoints — the loop currently asks the human nothing
+  note: A 10-15% target escalation rate is incompatible with an observed zero: either the channel is dead or nothing needs escalation, and the two readings have opposite prescriptions.
+### 158  w6-attn-loom-zero-open  vs  w6-attn-loom-20min-allocation
+  A: Across ~70 campaigns the dashboard reports zero open checkpoints — the loop currently asks the human nothing
+  B: Twenty minutes a day buys about seven priced decisions or one plan review — not a queue sweep
+  note: If nothing is ever raised, allocating 20 minutes is a design question rather than an optimisation one; the allocation proposal presupposes a queue that does not exist.
+### 159  w6-attn-stanford-71-vs-30  vs  w6-attn-per-iteration-rubber-stamp
+  A: Escalation-only design: +71% productivity median, versus +30% for approve-each-step
+  B: Per-iteration checkpoints rubber-stamp within hours; a checkpoint where a verifier exists is theatre
+  note: Approval-per-step was measurably the worse design of the two deployment patterns across 51 sites.
+### 160  w6-continual-forgetting-arxiv-2611-03219  vs  w6-selfharness-arxiv-2606-09498
+  A: Continual harness evolution forgets catastrophically: Meta-Harness 94.0% to 32.0% on SWE-bench after five FeatureBench rounds
+  B: Self-Harness: +21.4 / +14.3 / +14.2 points on Terminal-Bench-2.0 with frozen weights, three-stage loop
+  note: single-dataset gains do not compose: 94.0% to 32.0% after five rounds on another dataset
+### 161  w6-dgm-feedback-directedness-evalue  vs  w6-dgm-arxiv-2505-22954
+  A: Randomised re-analysis of six public DGM runs: modifications repair their target LESS often than chance, e-value 0.15
+  B: Darwin Godel Machine: 20.0% to 50.0% SWE-bench and 14.2% to 30.7% Polyglot by self-modifying its own agent code
+  note: randomised audit: modifications do not preferentially repair the failure they were shown
+### 162  w6-selfmod-benchjack  vs  w6-selfmod-acceptance-rule
+  A: Benchjack: near-perfect scores on eight benchmarks while solving zero tasks
+  B: The cheapest defensible acceptance rule: no regression on either split, and something must move
+  note: No-regression on both splits assumes both splits are computed outside the candidate's reach; conftest.py and /usr/bin/curl say they are not.
+### 163  w6-selfmod-heldout-unsound  vs  w6-selfmod-acceptance-rule
+  A: Held-out tests are neither sound nor complete, and hiding them barely helped
+  B: The cheapest defensible acceptance rule: no regression on either split, and something must move
+  note: Delta_ho >= 0 only bounds overfitting to visible tests; GPT-5 cheats 76%/54% while hiding tests barely helped.
+### 164  w6-selfmod-monitor  vs  w6-selfmod-actor
+  A: A monitor buys safety only if it is outside the loop and its own bypass rate is measured
+  B: The actor field is a string literal, so no audit can separate a human approval from a model
+  note: A monitor is only independent if its own provenance is verifiable; a literal 'human' actor string gives it nothing to check.
+### 165  w6-selfmod-open-question  vs  w6-selfmod-windows-failopen
+  A: Is a protected-path list load-bearing, or is a separate grading process the only thing that works?
+  B: Windows containment fails by a path check whose failure branch does not return
+  note: If a deny list keyed on paths is bypassable by a second name, then invariant 1's file clause is weaker than its process clause.
+### 166  w6-verse-selfevo-no-verification-below-blank  vs  w6-metaharness-arxiv-2603-28052
+  A: Self-evolution without a verification step scored BELOW the blank harness: 31.79 vs 33.95
+  B: Meta-Harness: an agentic proposer reads all prior candidates' source, scores and traces from a filesystem; +7.7 points at 4x fewer tokens
+  note: the same optimizer family falls below the blank harness once the reporting protocol is disjoint
+### 167  w8-attention-devils-advocate  vs  w8-attention-bulk-approve
+  A: Explain the doubt, not the decision: a rationale that argues for approval is an approval-rate optimiser
+  B: Approve-similar collapses N decisions into one and reproduces the multitasking condition automation bias needs
+  note: The two point opposite ways on consolidation: doubt-first rationales preserve per-item judgement, bulk controls remove it.
+### 168  w8-measure-number-mutation-cost  vs  w8-measure-analysis-instrument-stack
+  A: Google's mutation cost curve: one mutant per line, 7 per file, several minutes each, 15% productive at first
+  B: Five measurements that need no new benchmark, ordered by information per unit of work
+  note: Apparent contradiction only: at Google's scale mutation needed 89% filtering and human minutes per mutant, which is why the stack caps it at one mutant per changed line and no human reviewer. Resolved by the scale differ
+### 169  w8-review-an-review-is-not-a-bug-gate  vs  w8-review-claim-summary-hurts
+  A: Industrial code review is mainly a consistency and education mechanism, not a defect filter
+  B: Confident summaries raise both catch rate and false rejection when the evidence is unchecked
+  note: Tension rather than clean contradiction: industrial review does not find bugs, yet a controlled trace study shows reviewers catching 0.76 to 0.80 of defects when given frozen mechanical evidence, so the difference is the
+### 170  w8-review-claim-ai-pr-size-inflation  vs  w8-review-num-queue-shape
+  A: AI-assisted PRs are reported at roughly 2.6x the changed lines of unassisted ones
+  B: The promotion queue is 114 decisions averaging 58.6 changed lines each, not one big diff
+  note: Contradicts a size-inflation explanation for loom: industry p75 is 408 lines against loom's 58.6-line mean, so loom is not facing that particular mechanism.
+### 171  w8-review-claim-checklist-limits  vs  w8-review-src-smartbear
+  A: Review checklists show no strong performance effect, and higher cognitive load predicted better scores
+  B: SmartBear/Cisco case study: the 200-400 LOC review band is a vendor self-report
+  note: Contradicts the checklist-as-best-practice assumption implicit in the vendor guidance: a registered report found no strong performance relationship and higher cognitive load predicting better scores.
+### 172  w8-review-num-queue-shape  vs  w8-review-src-smartbear
+  A: The promotion queue is 114 decisions averaging 58.6 changed lines each, not one big diff
+  B: SmartBear/Cisco case study: the 200-400 LOC review band is a vendor self-report
+  note: The queue's 58.6-line mean sits inside the Cisco comfort band, so the vendor size guidance predicts easy review while the observed queue behaves as if review were hard; the contradiction is the reason to look past size.
+### 173  w8-selfmod-claim-ghost-scorer  vs  w8-selfmod-analysis-gate-cannot-see-harness
+  A: METR found 198 of 898 ExploitGym tasks had never been solved by any model and some were broken, so agents attacked the exam instead of the target
+  B: The verifier is near-saturated and reads only task output, so its detection rate for harness self-edits is zero by construction
+  note: Contradicts in direction only: an unreachable verifier makes agents attack the exam, a saturated verifier makes the gate blind — opposite signs, same root cause that the check does not read the changed artefact. Recorded
+### 174  w8-selfmod-question-hallucination-marker-claim  vs  w8-selfmod-fail-manual-lineage-review
+  A: The most-cited DGM misbehaviour anecdote is not in the paper: the primary text supports a weaker version, and the strong version lives only in seconda
+  B: DGM's only misbehaviour detector was an unquantified manual read of the archive, reported as an absence of evidence
+  note: Contradicts at the level of evidence: the anecdote claims a caught-and-reported misbehaviour, while the primary text reports only an unquantified manual pass that found none. The note records that these cannot both be th

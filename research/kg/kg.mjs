@@ -35,6 +35,11 @@ const KINDS = ['claim', 'concept', 'project', 'source', 'question', 'failure', '
 const RELS = ['supports', 'contradicts', 'refines', 'requires', 'supersedes', 'applies-to',
   'derived-from', 'measures', 'fails-at', 'same-as']
 
+// How a contradiction came out. `both` is not a cop-out: most of these are two
+// true measurements taken in different regimes, and naming the regime is the
+// decision. `neither` keeps a pair we refuted on both sides.
+const VERDICTS = ['both', 'a', 'b', 'neither', 'superseded']
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS node (
   id          TEXT PRIMARY KEY,
@@ -81,6 +86,19 @@ CREATE VIRTUAL TABLE IF NOT EXISTS node_fts USING fts5(
 );
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
+
+-- A contradiction is a decision we have not made. Resolving one must record the
+-- decision rather than delete the evidence that produced it: the pair stays, the
+-- edge stays, and this table says what we concluded and why. The CLI lists the
+-- undecided ones by default and everything with --resolved.
+CREATE TABLE IF NOT EXISTS resolution (
+  from_id    TEXT NOT NULL,
+  to_id      TEXT NOT NULL,
+  verdict    TEXT NOT NULL,
+  note       TEXT,
+  decided_at INTEGER NOT NULL,
+  PRIMARY KEY (from_id, to_id)
+);
 `
 
 function open({ create = true } = {}) {
@@ -377,20 +395,66 @@ function cmdTag(args) {
   out(`\n${rows.length} node(s)`)
 }
 
-function cmdContradictions() {
+// Resolve one contradiction. The evidence stays -- the edge and both nodes keep
+// existing -- and the decision is recorded beside it, so a later reader can see
+// what we concluded without losing why the pair was recorded in the first place.
+function cmdResolve(args) {
+  const [a, b] = args.positionals
+  const verdict = args.values.verdict
+  const note = args.values.note
+  if (!a || !b) fail('usage: kg resolve <a> <b> --verdict both|a|b|neither|superseded --note "..."')
+  if (!VERDICTS.includes(verdict)) fail(`verdict must be one of ${VERDICTS.join(', ')}`)
+  if (!note) fail('resolve needs --note: a decision without its reason is not a decision')
   const db = open()
+  // Accept the pair in either direction: the edge is stored one way round and
+  // nobody should have to look up which.
+  const row = db.prepare(`SELECT from_id, to_id FROM edge
+     WHERE rel='contradicts' AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))`).get(a, b, b, a)
+  if (!row) fail(`no contradiction recorded between "${a}" and "${b}"`)
+  db.prepare('INSERT OR REPLACE INTO resolution (from_id, to_id, verdict, note, decided_at) VALUES (?,?,?,?,?)')
+    .run(row.from_id, row.to_id, verdict, note, now())
+  db.close()
+  out(`${row.from_id} vs ${row.to_id}: ${verdict}`)
+}
+
+function cmdUnresolve(args) {
+  const [a, b] = args.positionals
+  if (!a || !b) fail('usage: kg unresolve <a> <b>')
+  const db = open()
+  const row = db.prepare(`SELECT from_id, to_id FROM edge
+     WHERE rel='contradicts' AND ((from_id=? AND to_id=?) OR (from_id=? AND to_id=?))`).get(a, b, b, a)
+  if (!row) fail(`no contradiction recorded between "${a}" and "${b}"`)
+  const del = db.prepare('DELETE FROM resolution WHERE from_id=? AND to_id=?').run(row.from_id, row.to_id)
+  db.close()
+  out(del.changes ? `reopened ${row.from_id} vs ${row.to_id}` : `was not resolved: ${row.from_id} vs ${row.to_id}`)
+}
+
+function cmdContradictions(args) {
+  const db = open()
+  const showResolved = Boolean(args.values.resolved)
   const rows = db.prepare(`
-    SELECT e.from_id, e.note, e.to_id, a.title AS at, b.title AS bt
-      FROM edge e JOIN node a ON a.id = e.from_id JOIN node b ON b.id = e.to_id
-     WHERE e.rel = 'contradicts' ORDER BY e.from_id`).all()
-  if (!rows.length) { out('no recorded contradictions'); return }
+    SELECT e.from_id, e.note, e.to_id, a.title AS at, b.title AS bt,
+           r.verdict, r.note AS rnote, r.decided_at
+      FROM edge e
+      JOIN node a ON a.id = e.from_id
+      JOIN node b ON b.id = e.to_id
+      LEFT JOIN resolution r ON r.from_id = e.from_id AND r.to_id = e.to_id
+     WHERE e.rel = 'contradicts' AND (r.verdict IS NULL OR ? = 1)
+     ORDER BY (r.verdict IS NOT NULL), e.from_id`).all(showResolved ? 1 : 0)
+  if (!rows.length) { out(showResolved ? 'no recorded contradictions' : 'every contradiction has been decided'); return }
+  let undecided = 0
   for (const r of rows) {
-    out(`\n${r.from_id}  vs  ${r.to_id}`)
+    const decided = r.verdict ? `  [${r.verdict}]` : ''
+    out(`\n${r.from_id}  vs  ${r.to_id}${decided}`)
     out(`  A: ${r.at}`)
     out(`  B: ${r.bt}`)
     if (r.note) out(`  note: ${r.note}`)
+    if (r.verdict) out(`  decided: ${r.rnote}`)
+    if (!r.verdict) undecided += 1
   }
-  out(`\n${rows.length} contradiction(s) — each is a decision we have not made`)
+  out(showResolved
+    ? `\n${rows.length} contradiction(s), ${undecided} still undecided`
+    : `\n${undecided} contradiction(s) — each is a decision we have not made`)
 }
 
 function cmdGaps() {
@@ -621,7 +685,9 @@ const USAGE = `kg — local knowledge graph for dsh-loom research
   kg link <from> <rel> <to>     add an edge   [--note "..."]
   kg merge <keep> <drop>...     fold duplicates into the survivor
   kg tag <name>                 everything carrying a tag
-  kg contradictions             pairs we have not resolved
+  kg contradictions             pairs we have not resolved   [--resolved]
+  kg resolve <a> <b> --verdict both|a|b|neither|superseded --note "..."
+  kg unresolve <a> <b>          reopen a decision
   kg gaps                       open questions
   kg recent [--limit 20]        newest nodes
   kg stats                      shape of the graph
@@ -646,6 +712,8 @@ const { values, positionals } = parseArgs({
     note: { type: 'string' },
     topic: { type: 'string' },
     'gap-prefix': { type: 'string' },
+    resolved: { type: 'boolean' },
+    verdict: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
 })
@@ -666,7 +734,9 @@ const COMMANDS = {
   link: () => cmdLink(rest),
   merge: () => cmdMerge(rest),
   tag: () => cmdTag(rest),
-  contradictions: () => cmdContradictions(),
+  contradictions: () => cmdContradictions(rest),
+  resolve: () => cmdResolve(rest),
+  unresolve: () => cmdUnresolve(rest),
   gaps: () => cmdGaps(),
   pack: () => cmdPack(rest),
   unpack: () => cmdUnpack(rest),
