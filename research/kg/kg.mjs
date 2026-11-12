@@ -622,8 +622,15 @@ function cmdGaps(args) {
     out(`\n${rows.length} open question(s) of ${total} asked — ${loadBearing} have a node depending on the answer, ${rows.length - loadBearing} have none`)
   }
   if (modal) {
+    // 'above' has to mean the rows the reader can see. `shown` drops rows with no
+    // confidence, so naming shown.length as 'the N above' was a denominator about a
+    // different population than the printed list -- the fault this very note warns
+    // about. Name both counts whenever they differ.
+    const declared = shown.length === rows.length
+      ? `the ${rows.length} above`
+      : `the ${shown.length} above that declare one (of ${rows.length} rows)`
     out(
-      `confidence is not the order: ${modal.n} of the ${shown.length} above share the value ${modal.c} because the wave builders write it flat, so ordering by it was ordering by id. Order is dependents, then weight of dependents.`
+      `confidence is not the order: ${modal.n} of ${declared} share the value ${modal.c} because the wave builders write it flat, so ordering by it was ordering by id. Order is dependents, then weight of dependents.`
     )
   }
 }

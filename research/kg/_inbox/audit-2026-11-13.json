@@ -1,0 +1,73 @@
+{
+ "nodes": [
+  {
+   "id": "exp-audit-001",
+   "kind": "number",
+   "confidence": 0.94,
+   "topic": "ver",
+   "title": "1 of 75 promotions adds test lines, so the revert audit q-audit prescribes has no target",
+   "body": "q-audit asked for the verifier's false-accept rate, and named the literature's audit design: revert each promotion to base, run the post-patch suite, classify as fault-enforcing if the promotion's own tests fail on the pre-patch tree.\n\nMeasured with research/exp/e75.mjs over 75 commit-bearing promotions (123 artifact.promoted events, 75 with a commit):\n\n* promotions that added lines to a test file: 1 of 75, adding 2 test lines total (loom-self4 r2, tests/selector.test.mjs +2-2)\n* vacuous acceptance from e47: 7 of 71 checkable promotions had a spec that already passed on base (9.9%)\n\nThe second figure lands inside the literature band (8-17% of LLM-written regression tests encode the bug) but arrives by a different mechanism: our promotions do not write tests at all. 1/75 means fault-enforcing tests are structurally absent here, not rare, so a revert audit run on this ledger would find at most one candidate and would report ~0% by construction -- a number about our task design disguised as a number about our verifier.\n\nThe reachable false-accept risk is the other half: a spec that was already satisfiable (9.9%, caught by the differential oracle since e47) plus a spec that measures the wrong thing, which a revert audit cannot see either.",
+   "source": "research/exp/e75.mjs, research/exp/e75.json, research/exp/e47.json (7 passedAtBase of 71 usable)"
+  },
+  {
+   "id": "ana-035",
+   "kind": "analysis",
+   "confidence": 0.95,
+   "topic": "ver",
+   "title": "An audit's null is only informative when the failure mode it hunts can be represented in the population it samples",
+   "body": "q-audit imported both the question and the audit design. The design assumes promotions contain tests, because in the literature the agent writes tests as part of the fix. Our tasks hand the agent a frozen spec and forbid editing it, so the population the audit samples cannot contain the failure mode the audit detects. Running it would produce a low rate -- and that low rate would be read as evidence about our verifier when it is evidence about our task design.\n\nThis is the same shape as three earlier findings tonight: exp-gap-001 (a classifier for 'nobody has published this' vs 'we have not measured this' returning 8% neither), exp-gap-018/exp-gap-010 (a holdout agreement rate measured over rounds where the holdout could not disagree), and exp-slo-001 (a brake that watches elapsed time rather than harm). In each, a mechanism is present, its number is reported, and the number is about a different population than the one asking.\n\nMechanical check: before adopting an audit design, assert that the population contains the failure mode -- count how many members could be false accepts if the audit is wrong. Here that count is 75 of 75 for a different mechanism and 1 of 75 for the audited one.\n\nThe residual question is not 'what is our false-accept rate' but 'what could our verifier accept that it should not', and the answer available from our own data is: a spec that was already green (closed 2026-11-13 by the differential oracle) and a spec that measures a proxy rather than the goal (not measurable from the ledger, needs a task-level review).",
+   "source": "derived from exp-audit-001, e47, e75; same shape as exp-gap-001, exp-gap-010, exp-slo-001"
+  },
+  {
+   "id": "exp-audit-002",
+   "kind": "failure",
+   "confidence": 0.95,
+   "topic": "ver",
+   "title": "e75's first run read a field that does not exist and reported a plausible zero",
+   "body": "research/exp/e75.mjs first computed the vacuous-acceptance component as\n\n  const baselineGreen = e47.rows.filter((r) => r.baseGreen === true).length\n\nbut e47's rows carry baseOk, not baseGreen. The filter matched nothing and the script printed 'base already green: 0 of 71, rate 0.0%'. Nothing crashed. The number was wrong in the one direction that looks like a finding -- it said the differential oracle catches nothing, when e47 had already recorded 7 of 71.\n\nCaught by comparing against e47's own aggregate block (passedAtBase: 7) while writing the node, not by the script.\n\nFixed by asserting Object.hasOwn(rows[0], 'baseOk') and throwing with the actual key list. The general rule: when a script reads another script's artifact, assert the join field exists before filtering on it -- a filter over a missing field is silent and produces exactly the number that means 'no effect'.",
+   "source": "research/exp/e75.mjs first version vs research/exp/e47.json aggregate"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-audit-001",
+   "rel": "measures",
+   "to": "q-audit",
+   "note": "answers the gap: the audit design has no target in this population"
+  },
+  {
+   "from": "exp-audit-001",
+   "rel": "refines",
+   "to": "exp-diff-001",
+   "note": "reuses e47's 7-of-71 base-green figure as the reachable half of false-accept risk"
+  },
+  {
+   "from": "ana-035",
+   "rel": "derived-from",
+   "to": "exp-audit-001"
+  },
+  {
+   "from": "ana-035",
+   "rel": "same-as",
+   "to": "exp-slo-001",
+   "note": "different mechanism, same shape: a number about a different population than the one asking"
+  },
+  {
+   "from": "exp-audit-002",
+   "rel": "contradicts",
+   "to": "ana-035",
+   "note": "the analyst's own number was the failure this note describes, one step earlier"
+  }
+ ],
+ "gaps": [
+  {
+   "id": "q-audit-v2",
+   "kind": "question",
+   "confidence": 0.6,
+   "topic": "ver",
+   "title": "Could the verifier accept a patch that satisfies the spec's letter while missing its point?",
+   "body": "The revert audit is closed (exp-audit-001). What remains is a proxy-validity question: our specs are 348 assertions over 94 tasks, median 3 assertions per task. A patch that flips those 3 assertions to green is accepted. Whether those 3 assertions encode the task's purpose is a per-task judgement nobody has made, and no ledger measurement can make it.\n\nThe cheap direction: for the 5 tasks with exactly 1 assertion (e42 histogram: 1x2, 2x12), read the assertion and ask what a wrong patch could still pass. That is 2 tasks, minutes each -- and it samples the thinnest part of the distribution, which is where the proxy risk is largest.",
+   "source": "derived from exp-audit-001 + e42 assertion histogram"
+  }
+ ]
+}

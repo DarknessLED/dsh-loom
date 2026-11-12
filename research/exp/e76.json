@@ -1,0 +1,431 @@
+{
+  "n": 60,
+  "before": 18,
+  "after": 20,
+  "beforeTop40": 29,
+  "afterTop40": 60,
+  "moved": 148,
+  "movedByWrongRecord": 2,
+  "detail": [
+    {
+      "label": "answer:gap-w7-030",
+      "before": 1,
+      "after": 0,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "answer:w2-human-gap-miss-rate-on-agent-diffs",
+      "before": -1,
+      "after": 35,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w4-030",
+      "before": 1,
+      "after": 0,
+      "changed": 2,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w5-022",
+      "before": 3,
+      "after": 1,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "answer:cheapest-policy",
+      "before": -1,
+      "after": 35,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w7-007",
+      "before": 1,
+      "after": 0,
+      "changed": 2,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-039",
+      "before": 39,
+      "after": 34,
+      "changed": 2,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-011",
+      "before": 20,
+      "after": 15,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-001",
+      "before": -1,
+      "after": 35,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-018",
+      "before": -1,
+      "after": 35,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-048",
+      "before": 3,
+      "after": 1,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w6-049",
+      "before": -1,
+      "after": 37,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "answer:q-outcome-variable",
+      "before": 13,
+      "after": 9,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "answer:w3-attention-gap-card-vs-diff-decision-time",
+      "before": 1,
+      "after": 0,
+      "changed": 2,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w4-035",
+      "before": 19,
+      "after": 14,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "answer:gap-w1-004",
+      "before": 3,
+      "after": 1,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "answer:ctx-033",
+      "before": 4,
+      "after": 2,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "answer:q-verifier-order",
+      "before": 1,
+      "after": 0,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "answer:w8-review-q-unmeasured",
+      "before": -1,
+      "after": 35,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "answer:q-audit",
+      "before": 12,
+      "after": 7,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "contradicts:tri-routing-breaks-silently",
+      "before": 16,
+      "after": 14,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:tri-output-share",
+      "before": 21,
+      "after": 19,
+      "changed": 4,
+      "n": 40
+    },
+    {
+      "label": "contradicts:tri-consistency-cost",
+      "before": 9,
+      "after": 7,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:tri-verifier-precision-ceiling",
+      "before": 1,
+      "after": 1,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:tri-specbench-gap",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:prod-016",
+      "before": 3,
+      "after": 1,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "contradicts:prod-015",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:prod-019",
+      "before": -1,
+      "after": 39,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:rsi-010",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:rsi-013",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:rsi-017",
+      "before": -1,
+      "after": 39,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:rsi-030",
+      "before": -1,
+      "after": 38,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:orch-002",
+      "before": 3,
+      "after": 1,
+      "changed": 4,
+      "n": 40
+    },
+    {
+      "label": "contradicts:orch-004",
+      "before": 12,
+      "after": 10,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-003",
+      "before": 7,
+      "after": 5,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-013",
+      "before": 6,
+      "after": 4,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-017",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-023",
+      "before": -1,
+      "after": 38,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-026",
+      "before": 1,
+      "after": 1,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ctx-031",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:kg-007",
+      "before": 12,
+      "after": 10,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ana-007",
+      "before": -1,
+      "after": 39,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:ana-002",
+      "before": -1,
+      "after": 39,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-decide-winner-curse-zoom",
+      "before": -1,
+      "after": 38,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-decide-irt-selective",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-horizon-checkpoint-hides-errors",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-human-maintainer-vs-grader",
+      "before": -1,
+      "after": 41,
+      "changed": 2,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-memory-reconstruct-not-replay",
+      "before": 6,
+      "after": 4,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-meta-sample-more-reflect-less",
+      "before": -1,
+      "after": 40,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w2-verify-evilgenie-heldout-weak",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:exp-score-001",
+      "before": 26,
+      "after": 24,
+      "changed": 3,
+      "n": 40
+    },
+    {
+      "label": "contradicts:exp-human-001",
+      "before": -1,
+      "after": 39,
+      "changed": 6,
+      "n": 40
+    },
+    {
+      "label": "contradicts:exp-lesson-001",
+      "before": 8,
+      "after": 8,
+      "changed": 9,
+      "n": 40
+    },
+    {
+      "label": "contradicts:exp-wall-001",
+      "before": -1,
+      "after": 40,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:exp-slot-001",
+      "before": 21,
+      "after": 20,
+      "changed": 8,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w3-attention-batch-threshold-3x",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w3-attention-interruption-speed-not-quality",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w3-attention-23min-is-folklore",
+      "before": -1,
+      "after": 38,
+      "changed": 5,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w3-attention-approval-rate-95",
+      "before": -1,
+      "after": 39,
+      "changed": 0,
+      "n": 40
+    },
+    {
+      "label": "contradicts:w3-attention-no-agreed-burden-metric",
+      "before": -1,
+      "after": 38,
+      "changed": 0,
+      "n": 40
+    }
+  ]
+}

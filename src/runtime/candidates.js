@@ -129,8 +129,20 @@ export function secondCandidateGate(rounds, { window = 10 } = {}) {
       .filter((duration) => duration !== null && duration >= 0)
     if (durations.length >= 2) {
       const sorted = [...durations].sort((a, b) => a - b)
-      const median = sorted[Math.floor(sorted.length / 2)]
-      return Math.max(0, sorted[sorted.length - 1] - median)
+      // The tail is what the hedge adds, i.e. the slowest attempt minus what the
+      // round would have cost with one candidate. With n candidates the reference
+      // is the first one, so the divisor must be the *lower* median: for two
+      // attempts that is the faster one, and the tail is the second's own cost.
+      //
+      // Using `sorted[floor(n / 2)]` instead puts the reference on the slowest
+      // attempt whenever n == 2, which makes every two-candidate round price its
+      // hedge at exactly 0 and every such round admit it. Measured on the real
+      // ledger (e73): every two-candidate round in the record priced tailMs = 0,
+      // so `EV = p(1-p)*roundMs > 0` held for any p in (0, 1) and the gate could
+      // only ever say yes. The formula was never wrong; the price it was handed
+      // was.
+      const reference = sorted[Math.floor((sorted.length - 1) / 2)]
+      return Math.max(0, sorted[sorted.length - 1] - reference)
     }
     const duration = measure(round.durationMs)
     const plan = measure(round.planMs) ?? 0

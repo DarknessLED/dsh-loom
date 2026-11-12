@@ -1,0 +1,18 @@
+{
+  "promotions": 123,
+  "withCommit": 75,
+  "unreadable": 0,
+  "touchedTestFile": 1,
+  "addedTestLines": 2,
+  "perCampaign": [
+    {
+      "campaign": "loom-self4",
+      "round": 2,
+      "files": [
+        "tests/selector.test.mjs +2-2"
+      ]
+    }
+  ],
+  "baseGreenFromE47": 7,
+  "baseTotalFromE47": 71
+}

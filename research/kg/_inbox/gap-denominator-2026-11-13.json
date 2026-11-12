@@ -1,0 +1,42 @@
+{
+ "nodes": [
+  {
+   "id": "exp-gap-014",
+   "kind": "failure",
+   "confidence": 0.93,
+   "topic": "gap",
+   "title": "The gaps footer named a denominator 130 rows smaller than the list it followed",
+   "body": "`kg gaps` ends with a note about modal confidence. After the previous fix (exp-gap-009) it computed that note from the printed rows rather than the whole pile -- correct -- but it named `shown.length` (rows that declare a confidence) as 'the N above', while the reader was looking at `rows.length` (all printed rows).\n\nOn the live graph: '160 of the 181 above' beneath 311 printed rows. 181 was the count of rows with a non-null confidence; 130 rows declare none. Every number in the sentence was correct and the sentence was false about its own list.\n\nFixed in research/kg/kg.mjs: the note now says 'of the 181 above that declare one (of 311 rows)' when the two counts differ, and 'of the 311 above' when they do not. New test tests/kg-gap-denominator.test.mjs (4/4) pins both shapes: a mixed list names both counts, an all-declared list claims only the row count and adds no subset clause.\n\nThis is the fourth time tonight a reported quantity was correct for a population other than the visible one (exp-stop-002 futility arm, exp-diff-002 disjoint sets, exp-dedup-001 gap list, exp-gap-009 the same footer one step earlier). The difference here is that the fix from the earlier instance is what produced the new instance: computing from `rows` was right, and naming `rows` in prose was forgotten.",
+   "source": "research/kg/kg.mjs cmdGaps; live output 'of the 181 above' under 311 rows"
+  },
+  {
+   "id": "ana-037",
+   "kind": "analysis",
+   "confidence": 0.94,
+   "topic": "gap",
+   "title": "Fixing a denominator bug in code does not fix the prose that quotes the code's variables",
+   "body": "exp-gap-009 fixed the calculation: derive the modal note from the rows being printed, not from the whole pile. The next instance appeared in the same function, in the same commit's neighbourhood, with the same shape -- because the calculation was fixed and the sentence still said 'the N above' while interpolating a different N.\n\nCode and prose fail independently. A test that asserts the number is right passes; a test that asserts the sentence is true about its list fails. The second kind is cheap here (regex the footer, count the rows) and was absent, which is why the same fault recurred within the same function an hour later.\n\nGeneralised: whenever a function prints both a list and a summary of that list, the summary's denominator is a claim requiring its own assertion. Prefer printing the population in the sentence ('of the 311 above') over relying on the reader to infer it from the rows -- inference is where the whole class of errors lives.",
+   "source": "derived from exp-gap-014 and exp-gap-009"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-gap-014",
+   "rel": "refines",
+   "to": "exp-gap-009",
+   "note": "same footer, one step later; the earlier fix computed from rows, this one names them"
+  },
+  {
+   "from": "ana-037",
+   "rel": "derived-from",
+   "to": "exp-gap-014"
+  },
+  {
+   "from": "ana-037",
+   "rel": "same-as",
+   "to": "ana-016",
+   "note": "both about a quantity reported without its population"
+  }
+ ],
+ "gaps": []
+}

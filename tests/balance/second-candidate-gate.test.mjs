@@ -129,6 +129,35 @@ const ok = (name) => {
   void started
 }
 
+// The same refusal, but driven through the branch where the attempts record their
+// own durations -- which is the branch every real round takes, and the one the
+// estimate above quietly skipped.
+//
+// The first version of this file drove the skip case with attempts that carried no
+// durationMs, so `secondCandidateGate` fell through to its window fallback
+// ((durationMs - planMs) / attempts.length) and priced a non-zero tail by accident.
+// The primary path -- two attempts with durations, where the reference was the
+// slowest of the two and the tail was identically 0 -- was never executed by any
+// test, which is why the estimate shipped broken (e73: 53 of 53 campaigns read
+// tailMs = 0, 0 refusals in 114 priceable rounds).
+{
+  const { root, dir } = repo('ab-tail')
+  const rounds = [
+    { n: 1, status: 'no-gain', score: 0, durationMs: 86_000, planMs: 0, attempts: [{ id: 'r1a1', durationMs: 62_000, score: 0, verifierOk: false }, { id: 'r1a2', durationMs: 78_000, score: 0, verifierOk: false }] },
+    { n: 2, status: 'no-gain', score: 0, durationMs: 90_000, planMs: 0, attempts: [{ id: 'r2a1', durationMs: 70_000, score: 0, verifierOk: false }, { id: 'r2a2', durationMs: 88_000, score: 0, verifierOk: false }] },
+    { n: 3, status: 'no-gain', score: 0, durationMs: 87_000, planMs: 0, attempts: [{ id: 'r3a1', durationMs: 69_000, score: 0, verifierOk: false }, { id: 'r3a2', durationMs: 85_000, score: 0, verifierOk: false }] },
+  ]
+  const runtime = fakeRuntime(join(root, 'campaign'))
+  const view = { state: stateFor(dir, rounds), dir: join(root, 'campaign') }
+  await runRound({ runtime, view, config: config(), dispatcher, log: () => {} })
+  const finished = runtime.events.filter((e) => e.type === 'round.finished').map((e) => e.data)[0]
+  assert.equal(finished.secondCandidate?.tailMs > 0, true, 'the tail is measured, not assumed zero')
+  assert.equal(finished.candidatesPlanned, 1, 'three failed rounds do not make a second opinion worth buying')
+  assert.equal(finished.candidateModeSource, 'evidence', 'and the round names the evidence')
+  ok('a losing record with measured attempt durations refuses the hedge')
+  rmSync(root, { recursive: true, force: true })
+}
+
 // No record, no refusal: an unknown p is not a licence to skip, and a round that
 // has never had two scored candidates must still plan two.
 {

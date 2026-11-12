@@ -77,6 +77,10 @@ const standing = [
   // script was missing -- a red base that looks like a bug fixed (e70 found this on
   // 75 landings, all by habit rather than check).
   'tests/oracle-creation.test.mjs',
+  // and the hedge is priced by its actual tail: with two candidates the old
+  // reference was the slowest attempt, so 53 of 53 priceable campaigns read
+  // tailMs = 0 and the gate could only say yes (e73).
+  'tests/balance/second-candidate-tail.test.mjs',
 
   // a contradiction that can only be listed is a museum: it is decided, the
   // decision is kept as evidence, and it survives a pack/unpack and a merge.

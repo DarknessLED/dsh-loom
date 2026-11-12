@@ -1,0 +1,65 @@
+{
+  "roundsPriceable": 114,
+  "oldRefusals": 0,
+  "newRefusals": 23,
+  "savedMs": 6584494,
+  "campaignsAffected": 8,
+  "detail": [
+    {
+      "campaign": "loom-acc2",
+      "rounds": 18,
+      "oldRefusals": 0,
+      "newRefusals": 14,
+      "savedMs": 2524086
+    },
+    {
+      "campaign": "loom-acc1",
+      "rounds": 3,
+      "oldRefusals": 0,
+      "newRefusals": 2,
+      "savedMs": 387715
+    },
+    {
+      "campaign": "loom-tri4",
+      "rounds": 3,
+      "oldRefusals": 0,
+      "newRefusals": 2,
+      "savedMs": 1301820
+    },
+    {
+      "campaign": "loom-claim-live",
+      "rounds": 2,
+      "oldRefusals": 0,
+      "newRefusals": 1,
+      "savedMs": 40873
+    },
+    {
+      "campaign": "loom-probe",
+      "rounds": 2,
+      "oldRefusals": 0,
+      "newRefusals": 1,
+      "savedMs": 601335
+    },
+    {
+      "campaign": "loom-tri7",
+      "rounds": 2,
+      "oldRefusals": 0,
+      "newRefusals": 1,
+      "savedMs": 533761
+    },
+    {
+      "campaign": "loom-ui3",
+      "rounds": 2,
+      "oldRefusals": 0,
+      "newRefusals": 1,
+      "savedMs": 567875
+    },
+    {
+      "campaign": "loom-ui4",
+      "rounds": 2,
+      "oldRefusals": 0,
+      "newRefusals": 1,
+      "savedMs": 627029
+    }
+  ]
+}

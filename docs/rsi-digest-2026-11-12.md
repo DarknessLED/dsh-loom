@@ -323,6 +323,35 @@ true 84 / false 9。
 
 ---
 
+### 1l. 验证器的假接受率：审计找不到目标（2026-11-13 03:30）
+
+`q-audit` 问的是「114 次晋升里有多少是错的」，并指明了文献的审计设计：把晋升回退到 base、跑补丁后的测试套件、若该测试在补丁前就失败则判为「把 bug 编码进测试」。
+
+`research/exp/e75.mjs` 在 75 次带提交的晋升上实测：**加过测试行的晋升 1/75**（共 2 行，`loom-self4` r2 的 `tests/selector.test.mjs` +2-2）。另一分量来自 e47：**spec 在 base 就已通过 7/71（9.9%）**。
+
+⇒ 这个失效模式在本仓**结构性缺席**，不是罕见：我们的任务把 spec 冻结、禁止改它，agent 从来不写测试。在这个总体里跑回退审计，最多找到 1 个候选，报告出来接近 0% —— 那个 0% 是关于任务设计的，不是关于验证器的。可达的风险是另一半：spec 在 base 就可满足（9.9%，已由差分预言机关掉）与 spec 测的是代理指标（账本测不出，需要任务级人读）。记 `exp-audit-001` / `ana-035`。
+
+**我自己在同一小时内又犯了两次**：`e75` 第一版读 `e47.rows[].baseGreen`（真字段 `baseOk`），filter 全部不匹配、静默打印「0 of 71」，方向正好是「差分预言机什么都没抓到」；`e76` 第一版假设 `kg sql` 输出竖线分隔而行、全部解析成空数组，打印「cases: 0」。两次都没抛异常。记 `exp-audit-002` / `exp-kg-004`。
+
+### 1m. 缺口排序键修好之后，页脚又说错了自己的分母（2026-11-13 03:40）
+
+`exp-gap-009` 把模态置信度备注从「全体」改成「正在打印的行」。一小时后**同一个函数里出现同形的第二个错**：备注写「160 of the 181 above」，而读者眼前是 311 行 —— 181 只是声明了 confidence 的行数，130 行没声明。句子里每个数字都对，句子对这份清单是假的。
+
+已修：两个计数不同时写「of the 181 above that declare one (of 311 rows)」，相同时只写行数。新测试 `tests/kg-gap-denominator.test.mjs`（4/4）钉住两种形状。记 `exp-gap-014` / `ana-037`：**把计算修对不等于把引用该计算的散文修对** —— 代码与散文独立失效，断言数字正确的测试会通过，断言句子对其清单为真的测试才会失败。
+
+今晚第五次同族（`exp-stop-002` 少 futility 臂 / `exp-diff-002` 两个不相交集合 / `exp-dedup-001` 的 gap 清单 / `exp-gap-009` 同一页脚前一步 / 本次）。
+
+### 1n. 缺口能收口之后：让记录参与检索，净收益为零（2026-11-13 03:35）
+
+`gap-kg-001` 问「已记录的答案与矛盾该不该重排搜索结果」。`e76`/`e77`/`e78`/`e79` 三步去掉循环性后：**FTS top-10 命中答案 9/20（45.0%），从首个命中做一跳扩展后仍是 9/20（45.0%）—— 净增 0**。
+
+两次假阳性值得记：
+- `e76` 从 top-40 每个命中都布种 ⇒ top-40 命中率 48.3%→**100%**。100% 是**可达性**不是相关性（closure 覆盖了大部分图）。判据：任何指标改善到边界（100%、0、全部、没有）都按「这是定义不是发现」处理。
+- `e78` 从首个命中一跳 ⇒ 95%，但 19/20 的查询首命中的是**问题自己**，而问题的记录答案按定义就是答案 —— 这是查一个查询节点本来就携带的字段。
+
+机制解释为什么净增为 0：答案是挂在它所回答的问题上的，而问题对自己的标题本来就会排在前面。记录的价值在**就地标注**（`kg show` / `kg search` 的 ✓ 标记，已在 `exp-kg-001` 实现），不在排序。记 `exp-kg-003` / `ana-036`。
+
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
@@ -419,12 +448,12 @@ true 84 / false 9。
 ## 9. 复跑方式
 
 ```bash
-# 图谱（1,455 节点 / 1,510 边 / 324 个问题，其中 13 个已收口）
+# 图谱（1,487 节点 / 1,572 边 / 332 个问题，其中 21 个已收口）
 node research/kg/kg.mjs stats
 node research/kg/kg.mjs search "differential oracle"
 node research/kg/kg.mjs around ana-012 --depth 2
 node research/kg/kg.mjs contradictions     # 174 对，全部已裁定
-node research/kg/kg.mjs gaps               # 311 个未答 / 共 323 个问过，按依赖数排
+node research/kg/kg.mjs gaps               # 311 个未答 / 共 332 个问过，按依赖数排
 node research/kg/kg.mjs gaps --load-bearing # 只有 28 个有节点在等它的答案
 node research/kg/kg.mjs gaps --answered    # 已收口的 12 个 + 是哪个节点收的
 node research/kg/kg.mjs pack > graph.pack  # 纯文本，可 diff；含 ! 裁定与 ? 收口
@@ -450,7 +479,10 @@ node research/exp/e69.mjs   # 教训注入 A/B 的真实 n（36 轮，3 轮有�
 node research/exp/e70.mjs   # 测试是否冻结在补丁之前（75/75，唯一违例在规则之前）
 node research/exp/e71.mjs   # 批处理曲线（15 分钟砍 64% 中断，1 小时后饱和）
 node research/exp/e72.mjs   # 判据创造规则的爆炸半径（0/172 任务、0/75 落盘）
-node scripts/test-all.mjs   # 168/168
+node research/exp/e75.mjs   # 验证器假接受率的两个分量（1/75 加过测试行、7/71 base 已绿）
+node research/exp/e76.mjs   # 让记录重排检索（从 top-40 布种，100% 是可达性）
+node research/exp/e79.mjs   # 同上但从首个命中、且不许问题自答（净增 0）
+node scripts/test-all.mjs   # 171/171
 ```
 
 ---

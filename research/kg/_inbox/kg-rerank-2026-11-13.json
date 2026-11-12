@@ -1,0 +1,63 @@
+{
+ "nodes": [
+  {
+   "id": "exp-kg-003",
+   "kind": "number",
+   "confidence": 0.95,
+   "topic": "kg",
+   "title": "Re-ranking search by recorded answers yields zero net recall once the query node cannot answer itself",
+   "body": "gap-kg-001 asked whether recorded answers and contradictions should re-rank search results. research/exp/e76.mjs simulated the boost offline against the real FTS index over 20 answer-bearing questions and 40 contradiction pairs, then e77/e78/e79 progressively removed circularity.\n\nThe three measurements, in the order they were taken:\n\n1. e76, boosting from every hit in the top-40: answer/partner in top-10 went 30.0% -> 33.3%, and in top-40 48.3% -> 100%. The 100% is reachability, not relevance: with 40 seeds and one hop each, the closure covers most of the graph. 31 of the 60 answers were injected that FTS had never returned.\n2. e77, boosting from the top hit only: 19 of 20 answers became reachable -- but 19 of 20 queries returned the question itself as the first hit, and a question's recorded answer is 'the answer' by definition, so the lookup was a tautology.\n3. e79, dropping the query node from the hits first: FTS top-10 contains the answer 9 of 20 (45.0%); one-hop expansion from the top hit contains it 9 of 20 (45.0%). Net gain 0.\n\nThe mechanism is why: an answer is attached to the question it answers, and the question already surfaces first for its own title. The person asking has the question in hand, so the expansion delivers what kg show already prints. Where the record does help is a different job -- marking results in place (implemented as kg show / kg search checkmarks in exp-kg-001) so a reader who lands on either end sees the pair.\n\nCost of the re-rank as designed: 148 top-10 slots changed across 60 cases (35 cases changed at all), and 2 of the promoted ids had no relation to any hit. That churn buys nothing measurable on the recall axis.",
+   "source": "research/exp/e76.mjs, e77.mjs, e78.mjs, e79.mjs; e79.json n=20, base10=9, exp10=9"
+  },
+  {
+   "id": "ana-036",
+   "kind": "analysis",
+   "confidence": 0.95,
+   "topic": "kg",
+   "title": "A retrieval metric built from ground truth that the index itself produced cannot fail, and the tell is a suspiciously round improvement",
+   "body": "The first simulation reported top-40 recall rising from 48.3% to 100.0%. 100% is the tell: no real retrieval improvement lands on exactly all of the cases.\n\nTwo circularities were stacked. First, seeding the boost from all 40 hits makes the reachable set a closure, and closure over a dense graph approaches everything -- so the metric measured transitivity, not ranking. Second, using the question's own title as the query means the top hit is the question, and the question's recorded answer is definitionally the expected answer -- so the metric measured lookup of a field the query node already carries.\n\nThis is ana-012's shape (measure the thing by the standard the thing sets) applied to retrieval: the ground truth (gap_answer) was produced by the same tooling that the boost reads, and the query text was the key the record was filed under. The repair in both cases is the same -- name a witness the measured system does not produce. Here that would be a query written by someone who has not read the answer, which is exactly what a user typing into a search box does and exactly what the corpus of question titles cannot represent.\n\nMechanical check adopted: when a metric improves to a bound (100%, 0, all, none), treat it as a suspected definition rather than a finding, and re-run with the seed set cut to one element and the query node excluded.",
+   "source": "derived from exp-kg-003's three measurements; same shape as ana-012, ana-016, ana-027"
+  },
+  {
+   "id": "exp-kg-004",
+   "kind": "failure",
+   "confidence": 0.95,
+   "topic": "kg",
+   "title": "Two silent zero-measurements in one script, from guessing at two output formats",
+   "body": "research/exp/e76.mjs produced two plausible-looking zeros before it produced a number.\n\nFirst: `kg sql` returns a JSON array of objects, but the helper assumed pipe-separated rows and split on '|'. Every query parsed to [], so the script reported 'cases with a non-empty result set: 0' and NaN percentages. Nothing threw.\n\nSecond, in the rerank helper: `partner.set(a, []).push(b)` -- Map.set returns the map, not the array, so the first push for each key threw TypeError. That one did throw, which is why it was fixed first; the sql helper was silent and would have shipped.\n\nBoth are the same fault as exp-audit-002 an hour earlier: a script reading another tool's artifact without asserting the artifact's shape. The rule that would have caught all three: parse, then assert a non-empty result and a known key before using a value derived from it. 'It returned no rows' and 'it returned rows in a format I did not parse' are different facts and only one of them is about the corpus.",
+   "source": "research/exp/e76.mjs revisions; companion to exp-audit-002"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-kg-003",
+   "rel": "measures",
+   "to": "gap-kg-001",
+   "note": "answers the gap: re-ranking gains 0 net recall, marking gains usability"
+  },
+  {
+   "from": "exp-kg-003",
+   "rel": "refines",
+   "to": "exp-kg-001",
+   "note": "keeps the e64 finding (27.3% / 18.4% reachability) but shows the fix is display, not ranking"
+  },
+  {
+   "from": "ana-036",
+   "rel": "derived-from",
+   "to": "exp-kg-003"
+  },
+  {
+   "from": "ana-036",
+   "rel": "same-as",
+   "to": "ana-012",
+   "note": "same fault: measured by a standard the measured system sets"
+  },
+  {
+   "from": "exp-kg-004",
+   "rel": "same-as",
+   "to": "exp-audit-002",
+   "note": "third instance tonight of trusting an artifact's shape"
+  }
+ ],
+ "gaps": []
+}

@@ -1,0 +1,37 @@
+{
+  "nodes": [
+    {
+      "id": "exp-cand-003",
+      "kind": "number",
+      "title": "all 53 priceable campaigns priced the hedge at tailMs=0, so the gate admitted all 53",
+      "body": "e73 replays secondCandidateGate over every campaign's rounds, with the old tail estimator kept inline so the comparison is a replay and not a memory.\n\nResult: 53 of 72 campaigns are priceable (they have at least one round with two sampled candidates and a measured wall clock).\n- before the fix: 53 admitted, 0 refused\n- after the fix: 42 admitted, 11 refused\n- campaigns priced at exactly tailMs = 0 before: 53 of 53\n- decisions flipped admit -> refuse: 11, refuse -> admit: 0, unchanged: 42\n- tail after fix: min 15 ms, p50 531 ms, max 412,577 ms\n\nThe 11 flipped campaigns and their real tails: loom-acc1 (p=0.200, 165,775 ms), loom-acc2 (p=0.083, 50,692), loom-claim-live (p=0.250, 27,757), loom-demo-plan (p=0.200, 108,772), loom-probe (p=0.500, 300,367), loom-tri4 (p=0.800, 239,903), loom-tri7 (p=0.750, 160,867), loom-tri9 (p=0.667, 356,084), loom-ui3 (p=0.750, 275,794), loom-ui4 (p=0.750, 412,577), loom-ui5 (p=0.750, 242,469).\n\nOnly 11 flip because 42 have tails small enough that p(1-p)*roundMs still dominates. That is the honest number: the bug made the gate unconditional in the sense that refusal was unreachable, and the fix makes refusal reachable on 21% of the record.",
+      "confidence": 0.95,
+      "topic": "balance",
+      "tags": ["candidates", "economics", "replay"]
+    },
+    {
+      "id": "ana-034",
+      "kind": "analysis",
+      "title": "a formula that is correct and a price that is not: the inputs are where the decisions actually live",
+      "body": "admitSecondCandidate computes EV = p(1-p)*roundMs - tailMs - marginMs from a single expression and its test suite covers the arithmetic thoroughly: p outside (0,1), negative margin, missing duration, exact break-even. All of those tests pass, and none of them could see the bug, because the bug is not in the function.\n\nsecondCandidateGate estimates tailMs as `slowest - sorted[floor(n/2)]`. With n = 2, sorted[floor(2/2)] = sorted[1] = the slowest attempt, so the estimate is `slowest - slowest = 0` for every two-candidate round. And two candidates is the only population the gate ever looks at, because `attempts.length >= 2` is its filter. So the price handed to the correct formula was identically zero on 100% of the input, EV was always positive, and the gate could only say yes.\n\nThis is the same shape as exp-cand-001 (found earlier by a probe that fed hand-built numbers), exp-gate-001 (minGain acting on binary scores), and exp-graded-003 (earned blocked by a boolean): the decision layer is fine, the measurement layer is degenerate. The general repair is not another rule about the decision; it is a cheap invariant on the input -- here, \"a two-candidate round must price a non-zero tail unless both attempts took exactly the same time\".\n\nWhat made this instance findable was replaying the estimator over the whole record and printing the distribution of a single intermediate value (`tailMs`) rather than the final verdict. The verdict said \"admit\" 53 times, which looks like a working gate; the intermediate said \"0\" 53 times, which is obviously broken. Reporting one number per stage is what turns a plausible output into a legible one.",
+      "confidence": 0.95,
+      "topic": "balance",
+      "tags": ["candidates", "measurement", "invariants"]
+    }
+  ],
+  "edges": [
+    { "from": "exp-cand-003", "rel": "refines", "to": "exp-cand-001" },
+    { "from": "exp-cand-003", "rel": "measures", "to": "gap-w6-048" },
+    { "from": "ana-034", "rel": "derived-from", "to": "exp-cand-003" },
+    { "from": "ana-034", "rel": "refines", "to": "exp-cand-002" },
+    { "from": "ana-034", "rel": "same-as", "to": "ana-023" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-cand-001",
+      "title": "does the corrected gate change what a round buys, or is autoCandidateMode the only thing that ever decides?",
+      "confidence": 0.7,
+      "body": "secondCandidateGate returns a price, but whether a round consults it depends on config.loopPolicy.autoCandidateMode and on an explicit secondCandidate. The record shows candidates: 2 in most rounds, which means the gate's answer was not the binding constraint in practice. So the 11 flipped decisions are a measurement of what the gate would have said, not of what the loop did.\n\nWhat would decide it: whether any round in the record has candidateModeSource = 'record'. If none does, the estimator is tested but unwired, which is the same failure the second-candidate-gate test file was written to prevent ('a priced decision that no round consults is a comment with a test attached')."
+    }
+  ]
+}

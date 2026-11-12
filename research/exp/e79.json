@@ -1,0 +1,170 @@
+{
+  "n": 20,
+  "base10": 9,
+  "exp10": 9,
+  "topIsSelf": 19,
+  "topHadAnswer": 2,
+  "useful": 2,
+  "rows": [
+    {
+      "q": "gap-w7-030",
+      "want": "n-post-promotion-spend",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "w2-human-gap-miss-rate-on-agent-diffs",
+      "want": "w2-human-automation-bias-ecg",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w4-030",
+      "want": "w4-review-judge-skill-is-pair-property",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w5-022",
+      "want": "w5-tokenbudget-half-spend-buys-nothing",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "cheapest-policy",
+      "want": "ledger-slots",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w7-007",
+      "want": "n-loom-wasted-rounds",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-039",
+      "want": "exp-gap-005",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-011",
+      "want": "exp-gap-005",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-001",
+      "want": "exp-gap-005",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-018",
+      "want": "exp-gap-005",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-048",
+      "want": "exp-gap-007",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w6-049",
+      "want": "exp-gap-005",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "q-outcome-variable",
+      "want": "exp-gap-010",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "w3-attention-gap-card-vs-diff-decision-time",
+      "want": "exp-gap-012",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w4-035",
+      "want": "exp-slo-001",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "gap-w1-004",
+      "want": "exp-lesson-002",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": "exp-lesson-002",
+      "topGivesTheAnswer": true
+    },
+    {
+      "q": "ctx-033",
+      "want": "exp-lesson-002",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": "exp-lesson-002",
+      "topGivesTheAnswer": true
+    },
+    {
+      "q": "q-verifier-order",
+      "want": "exp-ver-007",
+      "base": true,
+      "after": true,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "w8-review-q-unmeasured",
+      "want": "exp-gap-013",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    },
+    {
+      "q": "q-audit",
+      "want": "exp-audit-001",
+      "base": false,
+      "after": false,
+      "topGivesAnswer": null,
+      "topGivesTheAnswer": false
+    }
+  ]
+}
