@@ -1,0 +1,20 @@
+{
+  "nodes": [],
+  "edges": [],
+  "gaps": [
+    {
+      "id": "gap-w6-048",
+      "title": "What share of the 20.8% pre-verification attempt deaths (61 aborted, 9 error) is recoverable, and what did it cost?",
+      "body": "In the era where verifier.finished exists, 70 of 336 attempts (20.8%) died before any verifier ran: 61 with stopReason 'aborted' and 9 with an error. All scored 0. At the pooled 0.485 pass rate an attempt is worth ~0.5 expected successes, so this is ~35 foregone successes and roughly the same share of attempt-hours. The ledger records durationMs for each, so the hours are known; campaign.budget.spent records cost per round, so the cash is known. What is not known is whether 'aborted' means the parent gave up, a deadline expired, or a sibling won and this attempt was cancelled -- three causes with three different fixes (raise the deadline, fix the dispatcher, stop paying for a candidate that cannot win once its sibling has been scored). Answering it needs attempt.deadline correlated with attempt.abandoned by attempt id inside the same round, which the log has but nothing joins today.",
+      "confidence": 0.7,
+      "topic": "gap"
+    },
+    {
+      "id": "gap-w6-049",
+      "title": "Does the loop's 7-of-72 human approval rate survive a version that fails closed rather than open?",
+      "body": "60 checkpoints were raised across 72 campaigns and all 60 were answered: 52 reject, 7 approve, 1 continue. 7/72 = 0.097 is the rate at which a human actually had to approve something landing. But most rejects were bookkeeping (a stale patch after a promotion, a campaign stopped by hand), so the human was present mainly as a janitor rather than as a reviewer. If the gate failed closed -- no promotion without an explicit approval -- the checkout rate would be one approval per promotion: 114 for 114 over 25 hours of wall clock, or one every 13 minutes while unattended. Whether one human can sustain that is a queueing question (arrival rate 4.6/h against a service time measured in minutes), and it is the same question gap-w6-007 asks of a model as a rejection predictor.",
+      "confidence": 0.6,
+      "topic": "gap"
+    }
+  ]
+}

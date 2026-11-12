@@ -1,0 +1,206 @@
+{
+  "population": {
+    "campaigns": 72,
+    "events": 3470,
+    "roundsStarted": 239,
+    "roundsWithoutTask": 0,
+    "attempts": 476,
+    "attemptsWithTask": 476,
+    "gateEvaluations": 220,
+    "verifierRuns": 266,
+    "checkpointsRaised": 60,
+    "ledger": "C:\\Users\\Darkness\\.dsh\\loom\\campaigns"
+  },
+  "gap-w6-039": {
+    "question": "Does the pass@1 versus pass@64 reversal appear in our ledger?",
+    "taskCampaignPairs": 127,
+    "pairsWithTwoOrMoreRounds": 51,
+    "tasksThatScoredBothOneAndZero": 11,
+    "flipRate": 0.2157,
+    "passAt1": 24,
+    "passAtK": 31,
+    "roundsGainedByAllowingK": 7,
+    "firstRoundOnlyWouldCallSolved": 98,
+    "reversalPresent": true,
+    "reading": "A flip is the same campaign, same task, same verifier, both a 1 and a 0 in different rounds. That is the reversal in binary form: the score of one attempt is not a property of the task. pass@1 counts round 1 only and therefore understates what k rounds reach; the gap between passAt1 and passAtK is the reversal, and it is also why src/runtime/selector.js preferring unsolved tasks is worse than it looks -- \"unsolved\" is often \"unlucky\".",
+    "examples": [
+      {
+        "task": "panel-degrade",
+        "campaign": "loom-chaos",
+        "scores": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "task": "exhausted-round",
+        "campaign": "loom-chaos",
+        "scores": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "task": "dispose-recovery",
+        "campaign": "loom-life",
+        "scores": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "task": "queue-wait",
+        "campaign": "loom-probe",
+        "scores": [
+          0,
+          1
+        ]
+      },
+      {
+        "task": "report-lessons",
+        "campaign": "loom-self",
+        "scores": [
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "task": "quiet-hours",
+        "campaign": "loom-self",
+        "scores": [
+          0,
+          1
+        ]
+      },
+      {
+        "task": "lessons-preview",
+        "campaign": "loom-self",
+        "scores": [
+          0,
+          1
+        ]
+      },
+      {
+        "task": "parallel-candidates",
+        "campaign": "loom-self14",
+        "scores": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "task": "guard-reuse",
+        "campaign": "loom-tri2",
+        "scores": [
+          0,
+          1
+        ]
+      },
+      {
+        "task": "node-attribution",
+        "campaign": "loom-ui6",
+        "scores": [
+          0,
+          1
+        ]
+      }
+    ]
+  },
+  "gap-w6-011": {
+    "question": "How many verifications were executed rather than asserted?",
+    "eraBoundary": "2026-11-07T16:02:12.322Z",
+    "attempts": 476,
+    "beforeVerifierLoggingExists": {
+      "attempts": 140,
+      "withVerifierEvent": 0,
+      "note": "verifier.finished did not exist yet; absence here is a logging fact, not a measurement of the work."
+    },
+    "afterVerifierLoggingExists": {
+      "attempts": 336,
+      "verifierRan": 266,
+      "verifierDidNotRun": 70,
+      "reachedGate": 150,
+      "reachedGateWithoutVerifier": 5,
+      "reachedGateWithoutVerifierIds": [
+        "loom-acc6/r9a1",
+        "loom-bal4/r3a1",
+        "loom-plan2/r2a1",
+        "loom-ui6/r1a1",
+        "loom-ui7/r3a1"
+      ],
+      "described": {
+        "aborted": 61,
+        "error": 9
+      }
+    },
+    "executedRate": 0.7917,
+    "scoring": {
+      "attempts": 266,
+      "meanScore": 0.421,
+      "shareAtOne": 0.4211
+    },
+    "unverifiedScoring": {
+      "attempts": 70,
+      "meanScore": 0,
+      "shareAtOne": 0
+    },
+    "reading": "The first version of this measurement pooled the eras and reported 75 attempts with a gate verdict and no verifier event, passing at 56.7% against 42.1% for the measured ones -- which would have meant unverified work succeeds more often. It does not. Zero of those 210 attempts before the era line could have had a verifier event (nothing wrote them), and after the line only 5 attempts reached a gate without one, none scoring. The pooled \"executed rate\" of 0.559 is therefore a fact about when the event was added to the log, not about how often we verify; the honest number is 0.792 for the era that can answer. This is exp-gap-004 a second time in one night: a quantity computed over two populations reported as one."
+  },
+  "gap-w6-001": {
+    "question": "What is the actual human decision rate in dsh-loom?",
+    "checkpointsRaised": 60,
+    "checkpointsAnswered": 60,
+    "stillOpen": 0,
+    "answerRate": 1,
+    "campaignsWithACheckpoint": 28,
+    "checkpointsPerCampaign": 0.83,
+    "decisionsPerCampaign": 0.83,
+    "raisedByKind": {
+      "plateau": 10,
+      "anomaly": 12,
+      "infrastructure": 1,
+      "gate": 25,
+      "stuck": 1,
+      "holdout": 3,
+      "setup": 8
+    },
+    "decidedByKind": {
+      "plateau": 10,
+      "anomaly": 12,
+      "infrastructure": 1,
+      "gate": 25,
+      "stuck": 1,
+      "holdout": 3,
+      "setup": 8
+    },
+    "decisionMix": {
+      "reject": 52,
+      "approve": 7,
+      "continue": 1
+    },
+    "openByKind": {},
+    "reading": "The rate that matters for cost is decisions per campaign, not per attempt: a campaign needing zero decisions is the unattended case the design targets. Answer rate is not decision quality -- an answered checkpoint includes \"rejected because stale\", which is a bookkeeping outcome, not a judgement about the work."
+  },
+  "gap-w6-018": {
+    "question": "Is a single-run SEM of 0.8-1.4 points enough to justify the 1-3 point deltas the ledger promotes?",
+    "tasksWithThreeOrMoreAttempts": 34,
+    "sdAcrossAttemptsOfSameTask": {
+      "mean": 0.369,
+      "median": 0.442,
+      "max": 0.577
+    },
+    "pooledPassRate": 0.485,
+    "bernoulliSdOfOneCandidate": 0.5,
+    "sdOfACandidateDifference": 0.707,
+    "reading": "The premise of the question is a units error. A SEM in \"points\" belongs to a benchmark whose score is a share of many tasks; our score is one binary verdict on one task, so its noise is Bernoulli, not 0.8-1.4 points. At the pooled rate that is sqrt(p(1-p)) per candidate and sqrt(2) times that for a difference of two candidates -- both printed above. The consequence for minGain is that any threshold below that difference-SD is a coin flip dressed as a decision, which is what exp-gate-001 measured from the other end (0 of 208 gate decisions had a real incumbent to compare against)."
+  }
+}

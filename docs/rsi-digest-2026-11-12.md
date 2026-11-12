@@ -156,6 +156,39 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 
 ---
 
+## 1f. 四个只在这台机器上答得出来的缺口，答完了
+
+`exp-gap-001` 手工标注说 320 个缺口里 218 个本机能关，但三个分类器都标不准，所以正确反应不是写更好的正则，
+而是**把点名要我们自己数字的那几个直接答掉**。`research/exp/e62.mjs` 只读
+`~/.dsh/loom/campaigns/*/events.jsonl`（72 个战役 / 3,470 事件 / 239 轮 / 476 attempt / 220 次闸门 / 60 个 checkpoint），
+零模型调用，答了四个：
+
+| 缺口 | 问的是什么 | 答案 | 分母 |
+|---|---|---|---|
+| `gap-w6-039` | pass@1 vs pass@k 反转在我们账本里存在吗 | **存在**：51 个 (campaign, task) 有 ≥2 轮，其中 **11 个既得过 1 也得过 0（21.6%）**；只看第 1 轮判 24 个已解，允许更多次看判 31 个 —— **多 7 个（+29%）只因为多看了一眼** | 127 个 (campaign, task) 对 |
+| `gap-w6-011` | 验证是「执行了」还是「断言了」 | **79.2%**（266/336）真正跑了验证器；没跑的 70 个里 **65 个根本没走到闸门**（61 aborted / 9 error），走到闸门的 5 个**全部 0 分** | 336（只算 `verifier.finished` 存在之后的时代） |
+| `gap-w6-001` | 人在环的真实决策率 | **每战役 0.83 个 checkpoint**（60/72），全部已答，0 未决：reject 52 / approve 7 / continue 1。**人类真正批准落地的次数是 7/72 = 0.097 次/战役** | 72 个战役 |
+| `gap-w6-018` | 单跑 SEM 0.8–1.4 点够不够支撑 1–3 点的提升 | **问句的单位错了**：我们的分是一次二值判决，噪声是伯努利不是「点」。合并通过率 0.485 ⇒ 单个候选 SD **0.500**，两个候选之差的 SD **0.707**；34 个有 ≥3 次尝试的任务实测跨次 SD 均值 0.369 / 中位 0.442。**任何低于 0.707 的 minGain 都是抛硬币** | 34 个重复任务 |
+
+顺带量到一个更大的东西（`exp-gap-007`）：在能测量的时代里，**70 个死掉的 attempt 吃掉了 22.91 个 attempt-hour 中的 4.30 个（18.8%）**，
+全部 0 分。按 0.485 通过率算约等于 34 次本该发生的成功、约 8 次本该发生的晋升；现金只值约 $1.25，
+但 **4.3 小时墙钟**是真代价。三次归因里两次可分辨（61 次 aborted = 父级主动停子级；9 次 error = 字面 harness 错误），
+第三次（跑太久被替换）今天分不出来，因为 `attempt.deadline` 与 `attempt.finished` 没有按 id 连起来。
+
+**这一节最该记住的不是四个数，而是我算错了一次**（`exp-gap-006`）：第一版把两个时代合在一起算，
+得出「没验过的 attempt 通过率 56.7% vs 验过的 42.1%」——一个方向反直觉、因而特别容易被相信的结论。
+真相是 `verifier.finished` 这个事件有生日（2026-11-07T16:02），此前 140 个 attempt 没有它是因为没人写，不是因为没人跑。
+`ana-024` 把这条写成规则：**append-only 日志里「缺失」是关于写入者的证据，不是关于世界的证据**；
+机械防御是每次测量都从日志自己推导时代边界（`min(t) of that event type`）并分时代打印分母。
+这与 `ana-012`（差分要两次运行）、`ana-016`（反事实要打印它仍然要花的量）是同一族的第三条。
+
+**同夜又修了两个会静默丢数据的工具缺陷**（`tests/kg-gap-shape.test.mjs` 16/16，`test-all` **166/166**）：
+`gaps[]` 传对象会被 `String(g)` 变成 `"[object Object]"` 存成一个合法问题；而已存在的 gap id 被新批次复用时
+报「updated」并覆盖旧正文。前者现在要求对象带 id 或 title，后者在正文不同时直接失败并提示改用 `kg link`；
+整批校验在写任何一条之前完成，所以失败不会留下半个批次。
+
+---
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
@@ -252,13 +285,13 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 ## 9. 复跑方式
 
 ```bash
-# 图谱（1,437 节点 / 1,477 边 / 320 个问题，其中 6 个已收口）
+# 图谱（1,443 节点 / 1,491 边 / 321 个问题，其中 11 个已收口）
 node research/kg/kg.mjs stats
 node research/kg/kg.mjs search "differential oracle"
 node research/kg/kg.mjs around ana-012 --depth 2
 node research/kg/kg.mjs contradictions     # 174 对，全部已裁定
-node research/kg/kg.mjs gaps               # 314 个未答 / 共 320 个问过
-node research/kg/kg.mjs gaps --answered    # 已收口的 6 个 + 是哪个节点收的
+node research/kg/kg.mjs gaps               # 310 个未答 / 共 321 个问过
+node research/kg/kg.mjs gaps --answered    # 已收口的 11 个 + 是哪个节点收的
 node research/kg/kg.mjs pack > graph.pack  # 纯文本，可 diff；含 ! 裁定与 ? 收口
 
 # 本文引用的测量
@@ -271,7 +304,8 @@ node research/exp/e47.mjs   # 71 次晋升的差分预言机回放
 node research/exp/e57.mjs   # 重复节点合并会塌掉什么
 node research/exp/e59.mjs   # 出生即被回答的缺口
 node research/exp/e61.mjs   # 三种缺口分类器 vs 手工标注
-node scripts/test-all.mjs   # 165/165
+node research/exp/e62.mjs   # 四个点名要我们自己账本的缺口 + 两个时代的拆分
+node scripts/test-all.mjs   # 166/166
 ```
 
 ---

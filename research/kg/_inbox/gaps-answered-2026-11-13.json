@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-005",
+      "kind": "number",
+      "title": "Four gaps that named our own ledger, answered from the ledger: the reversal is real at 21.6%, verification executes 79.2% of the time, and the human answers 0.83 checkpoints per campaign",
+      "body": "The three classifiers in e61 could not tell which gaps this disk can close (5/25, 2/25, 6/25 against hand labels), so the response is to answer the ones that name us rather than to write a better regex. Four were answerable with no model call, from ~/.dsh/loom/campaigns/*/events.jsonl (72 campaigns, 3,470 events, 239 rounds, 476 attempts, 220 gate evaluations), script research/exp/e62.mjs.\n\n(1) gap-w6-039, pass@1 vs pass@k reversal: PRESENT. 127 (campaign, task) pairs; 51 have two or more rounds; 11 of those 51 scored both 1 and 0 (flip rate 21.6%). Counting only round 1 calls 24 pairs solved; counting any round calls 31 -- 7 pairs (29% more) are solved only if the loop is allowed more than one look. Examples: panel-degrade and exhausted-round in loom-chaos both went 1,0,1; dispose-recovery in loom-life went 1,0,0,0,0,0,0.\n\n(2) gap-w6-011, executed vs asserted: the question cannot be answered over all 476 attempts because verifier.finished did not exist before 2026-11-07T16:02. The 140 attempts before that line have no verifier event because nothing wrote one. In the era that can answer (336 attempts), the verifier ran 266 times (79.2%), did not run 70 times (20.8%), and only 5 of those 70 reached a gate without one -- all five scoring 0 (loom-acc6/r9a1, loom-bal4/r3a1, loom-plan2/r2a1, loom-ui6/r1a1, loom-ui7/r3a1). The other 65 never reached a gate: 61 aborted, 9 error, all score 0. So the honest statement is the opposite of the first reading: unverified attempts are not doing better than verified ones, they are doing nothing -- 20.8% of the measured era's attempts died before the instrument could run.\n\n(3) gap-w6-001, human decision rate: 60 checkpoints raised across 72 campaigns (0.83 per campaign), all 60 answered, 0 open. By kind: gate 25, anomaly 12, plateau 10, setup 8, holdout 3, stuck 1, infrastructure 1. Answers: reject 52, approve 7, continue 1. The 52 rejects are mostly bookkeeping (stale patches after a promotion landed, campaigns stopped by hand) rather than judgements about the work, so 0.83 decisions per campaign is the unattended-load number and 7/72 = 0.097 is the number of times a human actually had to approve something land.\n\n(4) gap-w6-018, single-run SEM: the premise is a units error. A SEM in points belongs to a benchmark scored as a share of many tasks; our score is one binary verdict on one task. 34 tasks have three or more attempts; the SD across attempts of the same task has mean 0.369, median 0.442, max 0.577. The pooled pass rate is 0.485, so one candidate's Bernoulli SD is 0.500 and the SD of a difference between two candidates is 0.707. Any minGain below that is a coin flip dressed as a decision, which is the same conclusion exp-gate-001 reached from the other direction (0 of 208 gate decisions had a real incumbent score to compare against).\n\nPopulation for all four: 72 campaigns, 3,470 events, 239 round.started, 476 attempt.finished, 220 gate.evaluated, 60 checkpoint.raised. Every figure above names its denominator in the output JSON because the four defects this digest records (exp-stop-002, exp-diff-002, exp-dedup-001, exp-gap-004) are one defect.",
+      "source": "research/exp/e62.mjs, research/exp/e62.json; ledger at ~/.dsh/loom/campaigns/*/events.jsonl",
+      "confidence": 0.95,
+      "topic": "gap"
+    },
+    {
+      "id": "exp-gap-006",
+      "kind": "failure",
+      "title": "My own gap answer pooled two log eras and produced 210 unverified attempts passing at 56.7% -- the real number is 0 and the population was the event's introduction date",
+      "body": "First run of e62 computed gap-w6-011 over all 476 attempts: 266 with a verifier event, 75 with a gate verdict and no verifier event, 135 with neither. Split by outcome it looked like a discovery -- unverified attempts passed at 56.7% (n=210) against 42.1% (n=266) for measured ones, i.e. work nobody checked succeeds more often. That would have been a serious finding.\n\nIt is an artifact. verifier.finished has an introduction date: the earliest one is an attempt from 2026-11-07T16:02, and all 140 attempts before that line have zero verifier events by construction. After the line, 79.2% of attempts have one, and of the 70 that do not, 65 never reached a gate (61 aborted, 9 error) and 5 reached a gate and all scored 0. There is no population in which unverified work passes.\n\nThe error is exactly exp-gap-004 from ten minutes earlier (a measurement that wrote itself into the corpus it measured): a quantity computed over two populations, reported as one. What made it catchable was printing the population next to the rate -- the header said 476 attempts while the era-aware recount said 336, and the mismatch is what sent me looking. Fix is to split on `min(t of verifier.finished)` rather than to filter by hand, so the boundary is derived from the log instead of remembered.",
+      "source": "research/exp/e62.mjs (first run, discarded); era cut 2026-11-07T16:02:12.322Z",
+      "confidence": 0.97,
+      "topic": "gap"
+    },
+    {
+      "id": "ana-024",
+      "kind": "analysis",
+      "title": "A missing event in an append-only log is evidence about the writer, not about the world -- and the only defence is deriving the era boundary from the log itself",
+      "body": "The ledger is append-only and looks like a complete record of what happened. It is not. It is a record of what the code that existed at the time chose to write down, and code is added. verifier.finished arrives on day three; before that, verification happened (266 verifiers cannot have run in an era that has no verifiers) but left no row. Any query that says 'count attempts where X' silently mixes 'X did not happen' with 'X was not yet reported', and the mix is not random -- it correlates with time, and time correlates with everything else (which tasks were being run, which models, which guard).\n\nThe symptom is a rate that is too clean to be true. 56.7% versus 42.1% is a big effect for a variable that should not matter, and it pointed the wrong way (unchecked work succeeding more), which is the direction that flatters no one and therefore gets believed.\n\nThe mechanical defence, in the same family as ana-012 (a difference needs both runs) and ana-016 (a counterfactual must print what it still spends): every measurement over the log must derive its own population boundary from the log -- here `min(t) of the event type being counted` -- and print the attempt count for each side of it. If the two sides disagree with a hand-remembered total, that disagreement is the bug report. Remembered boundaries cannot do this job because the thing being remembered is exactly what changed.\n\nWhat is still missing: nothing in the schema records when an event type was introduced, so the boundary has to be inferred from the first instance. That inference is wrong if the feature is added and unused for a while -- the first instance is then later than the introduction, and attempts between the two get misclassified as 'did not happen'. Deriving from first instance errs toward over-attributing absence to non-occurrence, which is the safe direction for this particular question but not for all.",
+      "source": "research/exp/e62.mjs; exp-gap-006; contrast with exp-gap-004, exp-stop-002, exp-diff-002",
+      "confidence": 0.95,
+      "topic": "gap"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-005", "rel": "refines", "to": "exp-gap-001", "note": "the hand labels said 218/320 gaps are answerable from this disk; these four are the first ones actually answered, and they needed no model call -- only the ledger" },
+    { "from": "exp-gap-005", "rel": "supports", "to": "exp-gate-001", "note": "gap-w6-018's arithmetic (SD of a candidate difference = 0.707 at the pooled 0.485 pass rate) is the units-correct form of what exp-gate-001 measured as 0/208 decisions having a real incumbent to compare" },
+    { "from": "exp-gap-005", "rel": "refines", "to": "exp-slot-006", "note": "the pass@1 vs pass@k reversal at 21.6% is the task-level counterpart of the campaign-level variance exp-slot-006 measured" },
+    { "from": "exp-gap-006", "rel": "refines", "to": "exp-gap-004", "note": "same defect one hour later: a quantity computed over two populations reported as one; the fix differs (derive the boundary from the log rather than exclude a node id)" },
+    { "from": "exp-gap-006", "rel": "contradicts", "to": "exp-gap-005", "note": "the first run of e62 reported 210 unverified attempts passing at 56.7%; exp-gap-005 records the corrected split, where unverified attempts score 0 and never pass" },
+    { "from": "ana-024", "rel": "derived-from", "to": "exp-gap-006", "note": "generalises one bad number into a rule about append-only logs" },
+    { "from": "ana-024", "rel": "requires", "to": "exp-gap-005", "note": "the four answers are only correct because each prints its era and population" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-w6-019",
+      "title": "What share of the 20.8% pre-verification attempt deaths (61 aborted, 9 error) is recoverable, and what did it cost?",
+      "body": "In the era where verifier.finished exists, 70 of 336 attempts (20.8%) died before any verifier ran: 61 with stopReason 'aborted' and 9 with an error. All scored 0. The ledger records durationMs for each, so the attempt-hours are known, and campaign.budget.spent records cost per round, so the cash is known. What is not known is whether 'aborted' means the parent gave up, a deadline expired, or a sibling won and this attempt was cancelled -- three causes with three different fixes (raise the deadline, fix the dispatcher, stop paying for a second candidate that cannot win). Answering it needs attempt.deadline correlated with attempt.abandoned by attempt id, which the log has but nothing joins today.",
+      "source": "research/exp/e62.mjs (gap-w6-011 era split)",
+      "confidence": 0.7,
+      "topic": "gap"
+    },
+    {
+      "id": "gap-w6-020",
+      "title": "Does the loop's 7-of-72 human approval rate survive a version that fails closed rather than open?",
+      "body": "60 checkpoints were raised across 72 campaigns and 60 were answered: 52 reject, 7 approve, 1 continue. 7/72 = 0.097 is the rate at which a human actually had to approve something landing. But most rejects were bookkeeping (stale patch after a promotion, campaign stopped by hand), so the human was present mainly as a janitor. If the gate instead failed closed -- no promotion without an explicit approval -- the checkout rate would be 114 approvals for 114 promotions, and the question 'does this loop run unattended' would be answered no. Whether a human can keep up at 114 approvals per 25 hours of wall clock is a queueing question, and the rejection-predictor gap (gap-w6-007) is the same question asked of a model.",
+      "source": "research/exp/e62.mjs (gap-w6-001)",
+      "confidence": 0.6,
+      "topic": "gap"
+    }
+  ]
+}

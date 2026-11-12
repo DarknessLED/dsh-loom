@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-007",
+      "kind": "number",
+      "title": "Attempts that died before verification took 18.8% of measurable attempt-hours -- 4.30 of 22.91 hours, all scored zero, and none of them were waiting on the verifier",
+      "body": "Follows gap-w6-048 out of the exp-gap-005 measurement. In the era where verifier.finished exists (336 attempts from 2026-11-07T16:02 onward), 70 attempts never ran a verifier: 61 stopReason 'aborted', 9 with an error, all score 0. Their durationMs sums to 4.30 hours against 22.91 hours for the whole era -- 18.8% of attempt time, not 20.8% (the 20.8% was the attempt count; the two denominators differ because dead attempts are shorter on average: 221 s vs 245 s, though the difference is small enough that either number could be quoted and both are correct for their own denominator -- which is why both are printed).\n\nWhat this is not: it is not verifier cost. A verifier run is 3.07 s mean (exp-ver-005), so the 266 that ran cost 13.6 minutes total, 1.0% of era attempt time. The 4.30 hours is agent time spent on attempts whose product was never scored.\n\nWhat it could be, and the log can separate three of the four causes: 61 'aborted' without error means the parent stopped the child (a sibling won, or the round was cancelled) rather than the child failing; 9 'error' attempts have literal harness messages (the dispatcher disposed, described in w7-attribution). A fourth cause -- the attempt simply ran long and was replaced -- is not distinguishable today because attempt.deadline exists as a separate event and nothing joins it to attempt.finished by id.\n\nWhy it matters for the loop's economics: at the pooled 0.485 pass rate, 70 attempts are worth ~34 expected successes, and 34 successes at 25.2% promotion efficiency is ~8 promotions that were paid for and never saw a gate. The cash is not the issue ($0.0179 per attempt, so ~$1.25) -- the 4.3 hours are, because that is wall clock in which the loop could have been evaluating something that could have been promoted.",
+      "source": "research/exp/e62.mjs era split; ~/.dsh/loom/campaigns/*/events.jsonl (72 campaigns, 3,470 events)",
+      "confidence": 0.93,
+      "topic": "gap"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-007", "rel": "measures", "to": "gap-w6-048", "note": "gives the hours and the causal split the question asked for, leaving only the deadline join open" },
+    { "from": "exp-gap-007", "rel": "refines", "to": "exp-gap-005", "note": "the 20.8% attempt share becomes 18.8% of attempt-hours; both denominators printed because they differ" },
+    { "from": "exp-gap-007", "rel": "supports", "to": "n-loom-infra-label-narrow", "note": "9 of the 70 carry literal harness error strings and none were tagged infra at the time -- the label records silence, not harness failure" }
+  ],
+  "gaps": []
+}

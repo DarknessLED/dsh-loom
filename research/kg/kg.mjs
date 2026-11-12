@@ -242,12 +242,42 @@ function cmdAdd(args) {
     r.created ? created += 1 : updated += 1
     seen.push(r.id)
   }
+  // Validate every gap before writing any of them. Failing halfway through a batch
+  // leaves the graph in a state that is neither the old one nor the new one, and the
+  // caller cannot tell which nodes made it.
+  const gapSpecs = []
   for (const g of payload.gaps || []) {
-    const text = String(g).trim()
-    if (!text) continue
-    const id = args.values['gap-prefix'] ? `${args.values['gap-prefix']}-gap-${seen.length + 1}` : `gap-${hash(text)}`
-    const r = upsertNode(db, coerceNode({ id, kind: 'question', title: text.slice(0, 200), body: text, tags: ['gap'], topic, confidence: 0.4 }))
-    r.created ? created += 1 : updated += 1
+    // A gap is either a prose string (the shape every wave builder emits) or an
+    // object with its own id/title/body/confidence. Stringifying an object yields
+    // "[object Object]" and stores it as a real question -- silently, with a valid
+    // id, indistinguishable from a short one. So an object must look like a node.
+    let spec
+    if (typeof g === 'string') {
+      const text = g.trim()
+      if (!text) continue
+      spec = { kind: 'question', title: text.slice(0, 200), body: text, tags: ['gap'], confidence: 0.4 }
+    } else if (g && typeof g === 'object') {
+      const text = String(g.title || g.body || '').trim()
+      if (!g.id && !text) fail(`a gaps[] entry is an object with neither id nor title: ${JSON.stringify(g).slice(0, 120)}`)
+      spec = { ...g, kind: g.kind || 'question', title: String(g.title || text).slice(0, 200), body: String(g.body || text), confidence: g.confidence ?? 0.4 }
+    } else {
+      fail(`a gaps[] entry is ${typeof g}; want a prose string or an object`)
+    }
+    spec.id = spec.id || (args.values['gap-prefix'] ? `${args.values['gap-prefix']}-gap-${seen.length + gapSpecs.length + 1}` : `gap-${hash(spec.body)}`)
+    const prev = db.prepare('SELECT kind, title, body FROM node WHERE id = ?').get(spec.id)
+    if (prev && String(prev.body || '').trim() !== String(spec.body || '').trim()) {
+      // Idempotent re-import writes the same id with the same body: that is fine and
+      // is how every wave builder is re-run. A different body under an existing id is
+      // a collision, and reporting it as "updated" loses whatever the old node
+      // carried -- which is how two of this graph's own gaps were nearly replaced by
+      // a fresh batch reusing the same wave prefix. Names are cheap; reuse is not.
+      fail(`gap id "${spec.id}" already exists as [${prev.kind}] "${String(prev.title).slice(0, 60)}" with a different body -- pick another id, or use kg link to attach the new evidence to it`)
+    }
+    gapSpecs.push({ spec, existed: Boolean(prev) })
+  }
+  for (const { spec, existed } of gapSpecs) {
+    const r = upsertNode(db, coerceNode(spec, { topic }))
+    existed ? updated += 1 : created += 1
     seen.push(r.id)
   }
   let edges = 0
