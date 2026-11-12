@@ -1,0 +1,90 @@
+{
+ "nodes": [
+  {
+   "id": "exp-diff-001",
+   "kind": "number",
+   "topic": "differential",
+   "confidence": 0.93,
+   "title": "Replaying the differential oracle over every landed promotion blocks 7 of 71, not the 14 the digest predicted",
+   "body": "I recommended the differential oracle in the digest before replaying it, so I replayed it. For every promotion that landed a commit (71 of 114 promotions; the other 43 predate autopilot commit/apply and have no reconstructable tree), I rebuilt the parent tree in a worktree, symlinked node_modules (src/exec/worktree.js:132 - a worktree is tracked files only, and without the link every spec fails for a reason unrelated to the patch), ran the task's own spec there, then did the same on the candidate commit. Result: 64 promotions were red at the parent and green at the candidate - genuinely earned - and 7 were already green at the parent, so the differential oracle would have blocked them: loom-hedge hedge-stats, loom-self5 checkpoint-ids and no-test-edits, loom-tri6 holdout-split, loom-tri7 checkpoint-help, loom-ui3 queue-total, loom-ui5 status-compact. 0 of the 71 were red at the candidate (every historical verifierOk reproduced), so the replay is consistent with the ledger. Cost of the base run: mean 1000 ms, median 240 ms, p90 2,093 ms, max 9,757 ms, total 71 s for all 71 promotions - under 1% of the 4.9 h those rounds took, because most specs are a handful of assertions. The correction matters: the digest said the oracle would eliminate 14 empty-patch promotions, but those 14 carry hasPatch=false and noop=true in gate.evaluated, meaning there was no patch file at all - the differential oracle never runs on them. It runs only where a patch exists, and there it blocks 7 of 71. The 14 and the 7 are disjoint sets, and I had conflated 'no patch' with 'patch that did not change the verdict'.",
+   "source": "research/exp/e47.mjs replay over 71 landed promotions; gate.evaluated cross-check of the 14 empty promotions",
+   "tags": [
+    "differential",
+    "oracle",
+    "replay",
+    "gate"
+   ]
+  },
+  {
+   "id": "exp-diff-002",
+   "kind": "failure",
+   "topic": "differential",
+   "confidence": 0.97,
+   "title": "The 14 promotions with no patch are a different defect from the 7 the differential oracle catches, and the digest merged them",
+   "body": "gate.evaluated marks 114 promotions; 14 of them have checks.hasPatch=false and checks.noop=true, and those 14 have no patch file on disk at all (0 bytes or absent, 19 artifact.promoted events reference a missing file). Naming the two sets: the no-patch promotions are loom-acc2#7, loom-bal1#2, loom-hedge#2, loom-holdout-live#1 and #2, loom-life2#2, loom-self10#2, loom-self13#2, loom-self3#9, loom-tri13#3, loom-triangle#3, loom-ui4#2, switch-demo#1 and #2. The differential-oracle blockers are loom-hedge hedge-stats, loom-self5 checkpoint-ids, loom-self5 no-test-edits, loom-tri6 holdout-split, loom-tri7 checkpoint-help, loom-ui3 queue-total, loom-ui5 status-compact. They intersect nowhere: no-patch means the gate had nothing to evaluate, whereas a base-green promotion means it evaluated something that was already true. The first is fixed by refusing to open a gate without a patch (checks.hasPatch must test bytes, not the presence of a path); the second is fixed by the differential oracle. Both were needed, and neither is a substitute for the other. I wrote the digest sentence 'the oracle eliminates the 14 empty-patch promotions' because both numbers are 14-ish and both are about promotions that should not have happened, which is exactly how two distinct defects get merged into one story.",
+   "source": "e47 replay; gate.evaluated checks.hasPatch/noop; artifact.promoted patch files",
+   "tags": [
+    "gate",
+    "no-patch",
+    "differential",
+    "defect-separation"
+   ]
+  },
+  {
+   "id": "ana-017",
+   "kind": "analysis",
+   "topic": "ledger-method",
+   "confidence": 0.95,
+   "title": "A recommendation is a claim too: the differential oracle was 2x wrong about how many promotions it would block, and only a replay could say so",
+   "body": "The digest's first recommendation asserted a benefit - the differential oracle would eliminate the empty-patch promotions - that was false on two counts: the count (7, not 14) and the mechanism (the oracle never runs where there is no patch, so it could not touch any of the 14). I only found this because I tried to pre-register the expected effect before adopting the change, and the replay was cheap: 71 seconds of verifier runs against 71 reconstructed parent trees. That is the general rule worth keeping from this night, and it is the same rule as ana-015 (round-trip any representation) and ana-012 (diff any patch) applied to a different object: any claim about what a change will do is itself falsifiable, and the falsification is usually cheap enough to run before the change. The three failures tonight - the tailMs that was structurally zero, baseFailed that was absent and read as false, the stopping rule whose denominator omitted twelve campaigns - were all claims that felt obvious and were never replayed. A recommendation that has not been replayed is an opinion wearing a number.",
+   "source": "exp-diff-001; exp-diff-002; contrasts ana-012, ana-015, ana-016",
+   "tags": [
+    "method",
+    "replay",
+    "pre-registration",
+    "recommendation"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-diff-001",
+   "rel": "refines",
+   "to": "exp-ver-003",
+   "note": "the 89/94 base-green figure is about task verifiers on today's tree; the 7/71 is about promotions, and most specs were red at their own parent"
+  },
+  {
+   "from": "exp-diff-001",
+   "rel": "supports",
+   "to": "exp-ver-005",
+   "note": "base-run cost mean 1000ms / total 71s is consistent with the 3.07s per-suite flake measurement"
+  },
+  {
+   "from": "exp-diff-001",
+   "rel": "contradicts",
+   "to": "exp-gate-002",
+   "note": "exp-gate-002 counted 14 empty-patch promotions and the digest attributed them to the differential oracle; they are unaffected by it"
+  },
+  {
+   "from": "exp-diff-002",
+   "rel": "requires",
+   "to": "exp-diff-001"
+  },
+  {
+   "from": "exp-diff-002",
+   "rel": "contradicts",
+   "to": "w8-differential-swebenchplus",
+   "note": "weak-test false passes are not fixed by the differential oracle; this is the ledger instance of the same split"
+  },
+  {
+   "from": "ana-017",
+   "rel": "refines",
+   "to": "ana-016"
+  },
+  {
+   "from": "ana-017",
+   "rel": "supports",
+   "to": "ana-012"
+  }
+ ]
+}

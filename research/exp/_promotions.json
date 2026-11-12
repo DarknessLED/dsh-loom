@@ -1,0 +1,513 @@
+[
+ {
+  "c": "loom-ab",
+  "round": 1,
+  "taskId": "second-candidate-gate",
+  "commit": "6499c4f45b779da86d002838d2d504426c1b7f18",
+  "hasTask": true
+ },
+ {
+  "c": "loom-acc2",
+  "round": 1,
+  "taskId": "planning-accounting",
+  "commit": "bcbe51a1973d88b0077114bc72eefd9476579c63",
+  "hasTask": false
+ },
+ {
+  "c": "loom-bal1",
+  "round": 1,
+  "taskId": "second-candidate",
+  "commit": "94cdc47c28b91da80bbaba12bc0ebdb530c6d8f3",
+  "hasTask": true
+ },
+ {
+  "c": "loom-bal2",
+  "round": 1,
+  "taskId": "plan-mode",
+  "commit": "02d3efccdbaf013d28dafa971bac7800fe959e66",
+  "hasTask": true
+ },
+ {
+  "c": "loom-bal2",
+  "round": 2,
+  "taskId": "metrics-priority",
+  "commit": "d8829ccb1ceadeb8a67b889879ef03ee31d26d94",
+  "hasTask": true
+ },
+ {
+  "c": "loom-bal3",
+  "round": 1,
+  "taskId": "policy-override",
+  "commit": "592f23f9b45d6b9c1b15994418475ad0e4589a9f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-bal3",
+  "round": 2,
+  "taskId": "tree-fail-first",
+  "commit": "988f08e1bb405a936cdaa12812c8edbb1e92df09",
+  "hasTask": true
+ },
+ {
+  "c": "loom-band",
+  "round": 1,
+  "taskId": "node-band-render",
+  "commit": "69a926f6152dac94fe281963832e39afb41a5eba",
+  "hasTask": true
+ },
+ {
+  "c": "loom-chain",
+  "round": 1,
+  "taskId": "cascade",
+  "commit": "a42dd1a17f4fbdcd732bb5de34aba250b795576e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-chain",
+  "round": 2,
+  "taskId": "plan-share",
+  "commit": "92314cc411444a8242194ba70fd80b5ab4956517",
+  "hasTask": true
+ },
+ {
+  "c": "loom-chaos",
+  "round": 5,
+  "taskId": "panel-degrade",
+  "commit": "0a6d57f1f7580743a10e47b4931d6f81e6e24ff6",
+  "hasTask": true
+ },
+ {
+  "c": "loom-chaos",
+  "round": 6,
+  "taskId": "exhausted-round",
+  "commit": "bd8daf97d4f1eac105b33cacf99cf3d31ade6cf9",
+  "hasTask": true
+ },
+ {
+  "c": "loom-chaos3",
+  "round": 1,
+  "taskId": "stuck-gate",
+  "commit": "b51aeb1c277d9fdf7207cba311df4a77e69822e2",
+  "hasTask": true
+ },
+ {
+  "c": "loom-dag1",
+  "round": 1,
+  "taskId": "node-identity",
+  "commit": "77d3f13602cc6e749798cd21704c498412f3b18e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-dag4",
+  "round": 1,
+  "taskId": "holdout-partition",
+  "commit": "bed258c0af2e196078f56efe57441eca4c372854",
+  "hasTask": true
+ },
+ {
+  "c": "loom-def",
+  "round": 1,
+  "taskId": "defaults",
+  "commit": "094ab022a7de361a1da9926c29689c5bcfc8dd4f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-dl",
+  "round": 1,
+  "taskId": "deadline",
+  "commit": "b52681a93b0b814af0905580f9bd255a41f13ca8",
+  "hasTask": true
+ },
+ {
+  "c": "loom-dl",
+  "round": 2,
+  "taskId": "late-success",
+  "commit": "e704e43f7e635e0a21cdf04880b2208052e478d9",
+  "hasTask": true
+ },
+ {
+  "c": "loom-doc",
+  "round": 1,
+  "taskId": "doctor",
+  "commit": "552a8ddfacee3d44ca70d3289bee499791e7019f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-hedge",
+  "round": 1,
+  "taskId": "hedge-stats",
+  "commit": "5f750a2e0912577fbfe0c0efd439eeeddb412a57",
+  "hasTask": true
+ },
+ {
+  "c": "loom-life2",
+  "round": 1,
+  "taskId": "dispose-recovery",
+  "commit": "c508860218f6791447ce4dd487fe5efce964184e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-noop",
+  "round": 1,
+  "taskId": "holdout-noop",
+  "commit": "051dd9674a0be397276e360871717100aa2548c6",
+  "hasTask": true
+ },
+ {
+  "c": "loom-one",
+  "round": 1,
+  "taskId": "one-call",
+  "commit": "eda192a63ad68abaf5c6f1ad11a7b6781a47634f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-probe",
+  "round": 2,
+  "taskId": "queue-wait",
+  "commit": "67498034ccaed50f430eb66a3365fa349debea4d",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self10",
+  "round": 1,
+  "taskId": "quality-report",
+  "commit": "b46cf8c4cd1bd21222e8e79bbd4810505cde04b4",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self11",
+  "round": 1,
+  "taskId": "spend-estimate",
+  "commit": "8a2fd545c88cd4abbdb3a53267dec78f3293e50b",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self11",
+  "round": 2,
+  "taskId": "docs-coverage",
+  "commit": "4be993695d19195b5102882791432cb2d37c0a94",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self12",
+  "round": 1,
+  "taskId": "export-bundle",
+  "commit": "d572fe6ad8643c259dedd79334673e6434d13308",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self12",
+  "round": 2,
+  "taskId": "review-queue",
+  "commit": "fbfdaf08d84bd0b80e23d80910ff8df9297f5293",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self13",
+  "round": 1,
+  "taskId": "digest",
+  "commit": "6eda5acfa6315af1d497fc52a1cd9e4be388c28a",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self14",
+  "round": 3,
+  "taskId": "parallel-candidates",
+  "commit": "f1c70387550031accda830f007ea39dc0fd5060b",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self3",
+  "round": 4,
+  "taskId": "?",
+  "commit": "bed246a67f3767c427bb92ecbd93229fe4ebeb89",
+  "hasTask": false
+ },
+ {
+  "c": "loom-self3",
+  "round": 5,
+  "taskId": "policydiff",
+  "commit": "ac168f9441ae1999f955e1e04b3ff9628775b3cd",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self4",
+  "round": 1,
+  "taskId": "plateau-checkpoint",
+  "commit": "4fb380a67ba73522c12dea5e4afb3edc9a0cbc4a",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self4",
+  "round": 2,
+  "taskId": "auto-finish",
+  "commit": "612e0d4ffd87a72856e696af1ebd60d8447457a1",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self4",
+  "round": 3,
+  "taskId": "deferred-delivery",
+  "commit": "506fa430e05b4755fa47dde572ba187226b9eb23",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self5",
+  "round": 1,
+  "taskId": "holdout-gate",
+  "commit": "80e38c2ef203108336202783cfb7496d05822a72",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self5",
+  "round": 2,
+  "taskId": "checkpoint-ids",
+  "commit": "9bf63f8d86d054e832ee4befa307d63a5bd376a6",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self5",
+  "round": 3,
+  "taskId": "no-test-edits",
+  "commit": "5c48b89f0b14b1f595c9e639f682d5f8a372cc78",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self6",
+  "round": 1,
+  "taskId": "meter-usage",
+  "commit": "5dd6e532cf82e8525ecf1daf917813b06e422f05",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self6",
+  "round": 2,
+  "taskId": "attention-batch",
+  "commit": "9f2c939b5c1589824a261beec84e2037b209fbcf",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self6",
+  "round": 3,
+  "taskId": "usd-budget",
+  "commit": "1d42a994a8dc09c0d69f91ea0e25f993e362f32f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self7",
+  "round": 1,
+  "taskId": "chain-nodes",
+  "commit": "66d372fb9c557f9c30cba1dd2fa4ecd596d95d7e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self8",
+  "round": 1,
+  "taskId": "verifier-node",
+  "commit": "eee22487518cc5aadc765b94a490c07c753fdf39",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self8",
+  "round": 2,
+  "taskId": "human-node",
+  "commit": "6e378c954de66b4c312da5ded09c0d7ab9d266ff",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self9",
+  "round": 1,
+  "taskId": "plateau-mutation",
+  "commit": "8883085d7e21b0172dff331aaa9a1e5fffed2b92",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self9",
+  "round": 2,
+  "taskId": "committer-guard",
+  "commit": "b9dcc94866250d4c80fd7eaec6ed2dbf80092ce3",
+  "hasTask": true
+ },
+ {
+  "c": "loom-self9",
+  "round": 3,
+  "taskId": "holdout-report",
+  "commit": "d6eb17b3ce72eebdf745aa523099c8dd9e361404",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri11",
+  "round": 2,
+  "taskId": "plan-timeout",
+  "commit": "6558ee68470a914b86118e6a003ffdc59f76419e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri12",
+  "round": 1,
+  "taskId": "holdout-rotation",
+  "commit": "6f3ad1c476703e09ce262091b45e3f4be26b8de5",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri13",
+  "round": 0,
+  "taskId": "?",
+  "commit": "49942ea5d811ef6be6dab3f30de8c29c85f942d7",
+  "hasTask": false
+ },
+ {
+  "c": "loom-tri13",
+  "round": 2,
+  "taskId": "knowledge",
+  "commit": "2743ac9c603a1fda17e3cbf25caf28dcaf21f56f",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri2",
+  "round": 1,
+  "taskId": "recon-reuse",
+  "commit": "f13589127e03ef01736dd88115a2dc8e9a46cfe0",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri2",
+  "round": 3,
+  "taskId": "guard-reuse",
+  "commit": "c4598a0cc00afa2c2c125d4e8b7f3167c1892705",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri4",
+  "round": 1,
+  "taskId": "verifier-key",
+  "commit": "a6c9e1facde8056c502c228619407e4208637fa3",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri4",
+  "round": 2,
+  "taskId": "plan-delta",
+  "commit": "95dc0b5827f0a870d8113311341ee44cd43e343c",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri4",
+  "round": 3,
+  "taskId": "cost-truth",
+  "commit": "1d7a3cd754775ad71905f37652b110aa434e0711",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri5",
+  "round": 1,
+  "taskId": "plan-aware",
+  "commit": "769e5074643903ab6e780eaff7169735c9a28b66",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri6",
+  "round": 1,
+  "taskId": "attempt-window",
+  "commit": "6d73e3166fcb1a0bbf9909b04240a5d180169e39",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri6",
+  "round": 2,
+  "taskId": "holdout-split",
+  "commit": "67f68a90ddd6fe2fcce6a3113518a2a1416ddf31",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri7",
+  "round": 1,
+  "taskId": "adaptive-cascade",
+  "commit": "d9dea7d745f2dd7ffacca386617143f1c52ea1ca",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri7",
+  "round": 2,
+  "taskId": "checkpoint-help",
+  "commit": "241bc3258c36aecd9204f3ec162ef8f4acabd12e",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri8",
+  "round": 1,
+  "taskId": "snooze",
+  "commit": "5ec8c03edb0879b8c29420e051d88652f4af9611",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri8",
+  "round": 2,
+  "taskId": "token-cap",
+  "commit": "0a8b1a248c7ee59e5ca259bc14d0b1b63b7d1e19",
+  "hasTask": true
+ },
+ {
+  "c": "loom-tri9",
+  "round": 1,
+  "taskId": "early-abort",
+  "commit": "b26dfd1a5c875ca577587ee326569225cc66618b",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui2",
+  "round": 1,
+  "taskId": "pending-queue",
+  "commit": "c8e6b51b27deac6417685b43a40a2609a7b4376b",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui2",
+  "round": 2,
+  "taskId": "keyboard-hit",
+  "commit": "ccf24b81b654efbd76e47d127aecb6f56ea80acd",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui3",
+  "round": 1,
+  "taskId": "spark-baseline",
+  "commit": "e75793142a937331ced7fd7c65441e313b85f1e4",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui3",
+  "round": 2,
+  "taskId": "queue-total",
+  "commit": "af4cbd846418eaeba668c199760a054e567c3011",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui4",
+  "round": 1,
+  "taskId": "a11y",
+  "commit": "5489fd42fdae68aabc80ad2e9c11c2741029466b",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui5",
+  "round": 1,
+  "taskId": "error-state",
+  "commit": "fb523f2bd1fb4cf99fadbc3a9ed562c8b8a50aa9",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui5",
+  "round": 2,
+  "taskId": "status-compact",
+  "commit": "fc82437d133efa253390365481e668b3e6e1c264",
+  "hasTask": true
+ },
+ {
+  "c": "loom-ui6",
+  "round": 2,
+  "taskId": "node-attribution",
+  "commit": "08cec68a82960749f984762c974e390d842840fe",
+  "hasTask": true
+ }
+]

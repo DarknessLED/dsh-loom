@@ -23,9 +23,13 @@
 | 证据 | `exp-ver-003`：94 个单 spec 验证器在今天这棵树上 **89 个已经通过**；`exp-gate-002`：208 个闸门里 **192 个根本没测过 `baseFailed`**（真 12、假 1） |
 | 机制 | `src/runtime/round.js:1977` `const earned = checks.baseFailed !== false` —— 缺测时按「不是 false」放行；而 `baseFailed` 只在 `hasPatch && verifierOk` 时才测（同文件 1862–1874）。所以 114 次晋升靠的是**缺席**，不是「基线失败」 |
 | 改法 | 每轮在**同一棵树**上跑两次验证器：`base` 与 `candidate`，把「绿→绿」「红→绿」「绿→红」「红→红」四态写进 `gate.evaluated`，`earned` 只认「红→绿」 |
-| 预期收益 | 直接消灭 14 次空补丁晋升（`exp-gate-002`）、把 22 个「shell 绿但闸门判不绿」变成可解释（`exp-ver-003` 附测）、并给分级评分提供第一个连续量 |
+| 预期收益（**已在 71 次落到提交上的晋升上回放，数字是实测不是估计**） | **拦下 7 次**（`exp-diff-001`：64 次基线红→候选绿、7 次基线本来就绿 ⇒ 不earned）；基线跑一次 mean 1,000 ms / 中位 240 ms / p90 2,093 ms / max 9,757 ms，71 次共 71 s = 那 4.9 小时轮时长的 <1%。**不包含** 14 次空补丁晋升 —— 那 14 次 `hasPatch=false`、根本没有补丁可跑，预言机不会碰到它们（`exp-diff-002`，我原文把两件事混成一件） |
 | 成本 | **3.07 s / 次**（`exp-ver-005`：105 个任务 ×3 次、零 flake、共 968 s）⇒ 相对 166–204 s 的轮时长 < 4% |
-| 怎么验证 | ① 新测试：`tests/selfN/differential-earned.test.mjs` —— 用 `tests/self4/` 那套「临时 git repo + 真 runRound + 恒失败验证器」骨架，断言基线已绿时 `earned=false`；② 回放 211 个历史 `gate.evaluated`，断言只有那 4 个（3 个 graded 轮 + loom-life r1）翻转（`exp-graded-005` 已给出期望值） |
+| 怎么验证（**回放已做，这一步只剩把规则写进代码**） | ① 新测试：`tests/selfN/differential-earned.test.mjs` —— 用 `tests/self4/` 那套「临时 git repo + 真 runRound + 恒失败验证器」骨架，断言基线已绿时 `earned=false`；② 回放 211 个历史 `gate.evaluated`，断言只有那 4 个（3 个 graded 轮 + loom-life r1）翻转（`exp-graded-005` 已给出期望值） |
+
+**回放复现命令**：`node research/exp/e47.mjs`（重建每次晋升的父提交 tree、link `node_modules`、跑任务自己的 spec；
+输出 `research/exp/e47.json`，含 71 行逐条判定）。**一个坑**：worktree 只有被跟踪的文件，不 link `node_modules`
+会让每个 spec 都因为缺依赖失败，把 71 次全读成「earned」（`src/exec/worktree.js:132`）。
 
 **前置条件（已满足，但要写成规则）**：差分预言机怕 flake。我们量了：**0/105 flake**
 （`exp-ver-005`）。所以现在不需要 flake 过滤器，但需要一条规则——

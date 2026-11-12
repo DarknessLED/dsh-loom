@@ -1,0 +1,21 @@
+{
+ "nodes": [
+  {
+   "id": "exp-diff-002",
+   "kind": "failure",
+   "topic": "differential",
+   "confidence": 0.97,
+   "title": "The empty-patch promotions are three disjoint bookkeeping subsets, not one defect, and my first write-up called zero-byte files 'missing'",
+   "body": "Correction to my own first version of this node, which said the 14 no-patch promotions had 'no patch file on disk (0 bytes or absent)'. Rechecked: 0 files are absent and all 19 zero-byte patch files exist. The 19 zero-byte artifact.promoted events split into three disjoint subsets that three different code paths produced. (1) 14 are flagged checks.hasPatch=false AND checks.noop=true by the gate - loom-acc2#7, loom-bal1#2, loom-hedge#2, loom-holdout-live#1 and #2, loom-life2#2, loom-self10#2, loom-self13#2, loom-self3#9, loom-tri13#3, loom-triangle#3, loom-ui4#2, switch-demo#1 and #2. (2) 3 have checks.hasPatch=TRUE despite a zero-byte file on disk: loom-self3#6, #7 and #8 - the gate's in-memory patchBytes said non-zero while the file it wrote was empty, and all three then raised an anomaly checkpoint ('No valid patches in input'); round 9 of the same campaign is the one that correctly reported hasPatch=false. (3) 2 have no gate.evaluated record at all: loom-self2#2 and #3. The current guard src/runtime/round.js:1838 reads hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0, so subset (2) cannot recur; subset (1) is the gate doing its job and the promotion happening anyway through checks.noop; subset (3) is missing bookkeeping. None of the 14 is touched by the differential oracle (exp-diff-001), and the 7 promotions the oracle would block are a different set: loom-hedge hedge-stats, loom-self5 checkpoint-ids, loom-self5 no-test-edits, loom-tri6 holdout-split, loom-tri7 checkpoint-help, loom-ui3 queue-total, loom-ui5 status-compact. Two defects, disjoint members, disjoint fixes: refuse a gate without patch bytes (done, round.js:1838, plus make the written file match the reported bytes), and make earned require red-at-base.",
+   "source": "recount of 114 artifact.promoted vs 114 gate.evaluated; src/runtime/round.js:1838; loom-self3 anomaly checkpoints",
+   "tags": [
+    "gate",
+    "no-patch",
+    "differential",
+    "bookkeeping",
+    "correction"
+   ]
+  }
+ ],
+ "edges": []
+}
