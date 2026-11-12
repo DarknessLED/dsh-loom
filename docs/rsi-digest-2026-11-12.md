@@ -116,6 +116,46 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 
 ---
 
+## 1d. 已实现：缺口层能收口了（此前只增不减）
+
+矛盾有 `kg resolve`，缺口没有对手动词 —— 320 个 question 节点里 **6 个在自己的正文里就带着回答它的那个数**
+（`exp-gap-002`，例：`gap-w7-030` 的正文写着「It would skip 108 of 211 rounds and 42.8% of round time」，
+而 `n-post-promotion-spend` 量的正是这个）。`kg gaps` 只认 `kind='question' AND status='live'`，
+没有出边、没有状态迁移 ⇒ **清单是单调的，长度是「跑了几波」的函数，不是无知的函数**。
+
+**改法**（与 `kg resolve` 刻意同形）：新表 `gap_answer(gap_id PK, node_id, note, answered_at)`；
+`kg answer <问题> <节点> --note "..."`（note 必填 —— 没有理由的收口和「问烦了」不可区分）、`kg unanswer <问题>`、
+`kg gaps` 默认只列未答、`--answered` 显示 `[answered by X]`。pack/unpack 用 `? <gap> <node> | note` 块承载
+（丢掉它会让一次往返把每个问题重新打开 —— 这正是 pack 在 resolution 上犯过的同一个错）；`merge` 迁移两端并删掉 `gap_id = node_id` 的自指行。
+
+**已收 6 个**（每条 note 都点名「这个节点闭合了问题的哪一部分」）：`gap-w7-030`→`n-post-promotion-spend`、
+`w2-human-gap-miss-rate-on-agent-diffs`→`w2-human-automation-bias-ecg`、`gap-w4-030`→`w4-review-judge-skill-is-pair-property`、
+`gap-w5-022`→`w5-tokenbudget-half-spend-buys-nothing`、`cheapest-policy`→`ledger-slots`、`gap-w7-007`→`n-loom-wasted-rounds`。
+清单 320 → **314 个未答 / 共 320 个问过**。全量往返验证：`nodes +1437 · edges +1477 · decisions +174 · answers +6`，`cmp` 字节相同。
+`tests/kg-answer.test.mjs` **17/17**（note 必填、端点缺失/类型错被拒、默认列表收缩、`--answered` 显示成对、
+两端节点与边都还在、SQL 可查、重复收口是替换不是追加、`unanswer` 可重开、pack 带 `|` 的 note、字节往返、缺失问题被跳过不是致命、merge 迁移）。
+
+**为什么这件事的优先级不低**：目标第五步是「用缺口驱动下一轮调研」。在做这个动词之前我试了两个分类器判断
+「哪些缺口今晚这台机器能关」，它们互相差一个数量级（关键词规则 13 ours / 84 literature / 220 unclassified；
+指称规则 8 / 49 / 262），而手工标注 25 条样本显示 **218/320 是「本机答得出」的**（`exp-gap-001`，
+两条规则分别只命中 5/25 与 2/25）。结论不是「换个更好的正则」，而是 `ana-023`：
+**一个缺口清单只有在每条缺口写明「谁能关掉它」之后才是待办队列，而这个字段必须由提出问题的那个 agent 在提问时写下**
+（它当时手里就有数）。派生不出来的东西就问，这是 `exp-oracle-002` 与 `exp-brief-001` 的同一条规矩。
+
+---
+
+## 1e. 顺带修掉的一个测量学问题：测量把自己写进了被测的语料
+
+`e59` 判定「缺口是否出生即被回答」的依据是：某个两位小数百分比在**全体 live 节点**里的文档频率 ≤ 2
+（是引用，不是词汇 —— `42.8%` df=2，而 `25.2%` df=7 是晋升率、证明不了任何事）。然后我把结果写成 `exp-gap-002`
+存进同一个图谱，它的正文引用全部六个百分比 ⇒ 每个字符串 df 从 2 变 3 ⇒ 下一次运行 `answeredAtBirth` 从 6 掉到 0。
+**两次测量都不错，是语料变了。** 已修：`EXCLUDE = /^(exp-gap-|ana-023$)/` 把「关于缺口的报告」排除出频次统计，
+且**把排除项写在代码里而不是自动推断**（自动推断「提到阈值的节点要排除」是循环论证；另一个选项是每次测量前快照图谱，
+那不是图谱该干的活）。记为 `exp-gap-004`。这是今晚第四个同形：**报告某个量时不写它算在哪个总体上**
+（前三个：`exp-stop-002` 少了 futility 臂、`exp-diff-002` 的 14 与 7 是不相交的两个集合、`exp-dedup-001` 的 gap 清单）。
+
+---
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
@@ -212,13 +252,14 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 ## 9. 复跑方式
 
 ```bash
-# 图谱（1,409 节点 / 1,430 边 / 254 个缺口）
+# 图谱（1,437 节点 / 1,477 边 / 320 个问题，其中 6 个已收口）
 node research/kg/kg.mjs stats
 node research/kg/kg.mjs search "differential oracle"
 node research/kg/kg.mjs around ana-012 --depth 2
-node research/kg/kg.mjs contradictions     # 每个矛盾是一个尚未做出的决定
-node research/kg/kg.mjs gaps
-node research/kg/kg.mjs pack > graph.pack  # 纯文本，可 diff
+node research/kg/kg.mjs contradictions     # 174 对，全部已裁定
+node research/kg/kg.mjs gaps               # 314 个未答 / 共 320 个问过
+node research/kg/kg.mjs gaps --answered    # 已收口的 6 个 + 是哪个节点收的
+node research/kg/kg.mjs pack > graph.pack  # 纯文本，可 diff；含 ! 裁定与 ? 收口
 
 # 本文引用的测量
 node research/exp/e42.mjs   # 94 个验证器、348 个断言
@@ -226,7 +267,11 @@ node research/exp/e43b.mjs  # shell 绿 vs 闸门绿
 node research/exp/e44.mjs   # flake 率（105×3）
 node research/exp/e45.mjs   # git 作为独立见证
 node research/exp/e46.mjs   # 测试数 vs 晋升率趋势
-node scripts/test-all.mjs   # 157/157
+node research/exp/e47.mjs   # 71 次晋升的差分预言机回放
+node research/exp/e57.mjs   # 重复节点合并会塌掉什么
+node research/exp/e59.mjs   # 出生即被回答的缺口
+node research/exp/e61.mjs   # 三种缺口分类器 vs 手工标注
+node scripts/test-all.mjs   # 165/165
 ```
 
 ---

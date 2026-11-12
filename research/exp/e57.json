@@ -1,0 +1,201 @@
+{
+  "pairs": 7,
+  "alreadyLinked": 6,
+  "differInKind": 3,
+  "differInTopic": 7,
+  "differInConfidence": 3,
+  "rows": [
+    {
+      "a": {
+        "id": "w3-attention-interruption-speed-not-quality",
+        "kind": "number",
+        "conf": 0.8,
+        "topic": "w3-attention",
+        "bodyLen": 1073,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w8-attention-interruption-buys-speed",
+        "kind": "claim",
+        "conf": null,
+        "topic": "w8-attention",
+        "bodyLen": 997,
+        "inEdges": 0
+      },
+      "sameKind": false,
+      "sameTopic": false,
+      "confDelta": null,
+      "alreadyLinked": [
+        {
+          "rel": "same-as",
+          "note": "Same CHI 2008 paper, third independent discovery (wave 8). Adds the falsifiable prediction for a queue-review task and the Czerwinski CHI 2000 contrast on evaluation-phase interruptions. Three waves citing one paper is the strongest evidence we have that it is load-bearing for our problems, so this must stay countable."
+        }
+      ]
+    },
+    {
+      "a": {
+        "id": "w2-human-interruption-cost",
+        "kind": "claim",
+        "conf": 0.75,
+        "topic": "w2-human",
+        "bodyLen": 1226,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w8-attention-interruption-buys-speed",
+        "kind": "claim",
+        "conf": null,
+        "topic": "w8-attention",
+        "bodyLen": 997,
+        "inEdges": 0
+      },
+      "sameKind": true,
+      "sameTopic": false,
+      "confDelta": null,
+      "alreadyLinked": []
+    },
+    {
+      "a": {
+        "id": "w2-human-interruption-cost",
+        "kind": "claim",
+        "conf": 0.75,
+        "topic": "w2-human",
+        "bodyLen": 1226,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w3-attention-interruption-speed-not-quality",
+        "kind": "number",
+        "conf": 0.8,
+        "topic": "w3-attention",
+        "bodyLen": 1073,
+        "inEdges": 2
+      },
+      "sameKind": false,
+      "sameTopic": false,
+      "confDelta": 0.050000000000000044,
+      "alreadyLinked": [
+        {
+          "rel": "same-as",
+          "note": "Same paper (Mark, Gudith, Klocke CHI 2008, doi 10.1145/1357054.1357072), independently discovered by wave 2 and wave 3: interrupted work finishes faster at equal quality, at higher stress. Kept as two nodes because one is the measured finding (number) and one is the design constraint (claim); the edge is what makes the corroboration visible."
+        }
+      ]
+    },
+    {
+      "a": {
+        "id": "w4-selfedit-dgm-node114-deleted-the-markers",
+        "kind": "number",
+        "conf": 0.9,
+        "topic": "w4-selfedit",
+        "bodyLen": 827,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w6-selfmod-marker-delete",
+        "kind": "failure",
+        "conf": 0.9,
+        "topic": "documented reward hacks",
+        "bodyLen": 821,
+        "inEdges": 0
+      },
+      "sameKind": false,
+      "sameTopic": false,
+      "confDelta": 0,
+      "alreadyLinked": [
+        {
+          "rel": "same-as",
+          "note": "Same transcript, same numbers (2.0 vs honest 1.67); w4 recorded the incident, this node records the mechanism."
+        }
+      ]
+    },
+    {
+      "a": {
+        "id": "w3-holdout-tests-clean-scope",
+        "kind": "failure",
+        "conf": 0.84,
+        "topic": "gate-mechanics",
+        "bodyLen": 1021,
+        "inEdges": 1
+      },
+      "b": {
+        "id": "w6-selfmod-tests-clean-scope",
+        "kind": "failure",
+        "conf": 0.9,
+        "topic": "dsh-loom exposure",
+        "bodyLen": 879,
+        "inEdges": 0
+      },
+      "sameKind": true,
+      "sameTopic": false,
+      "confDelta": 0.06000000000000005,
+      "alreadyLinked": [
+        {
+          "rel": "derived-from",
+          "note": "w3 found 13 patches touching scripts/ and 6 editing scripts/test-all.mjs; this node adds the regex and the verify.mjs assertion edit."
+        }
+      ]
+    },
+    {
+      "a": {
+        "id": "w3-holdout-evilgenie-impossiblebench",
+        "kind": "claim",
+        "conf": 0.8,
+        "topic": "contamination",
+        "bodyLen": 1038,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w6-selfmod-heldout-unsound",
+        "kind": "claim",
+        "conf": 0.8,
+        "topic": "held-out gates",
+        "bodyLen": 860,
+        "inEdges": 0
+      },
+      "sameKind": true,
+      "sameTopic": false,
+      "confDelta": 0,
+      "alreadyLinked": [
+        {
+          "rel": "same-as",
+          "note": "Same two papers at w3; this node adds the soundness/completeness framing and the 2611.10404 filesystem-sweep result."
+        }
+      ]
+    },
+    {
+      "a": {
+        "id": "w3-holdout-decay-bound",
+        "kind": "number",
+        "conf": 0.7,
+        "topic": "contamination",
+        "bodyLen": 1062,
+        "inEdges": 2
+      },
+      "b": {
+        "id": "w6-selfmod-holdout-optimism",
+        "kind": "number",
+        "conf": 0.75,
+        "topic": "held-out gates",
+        "bodyLen": 809,
+        "inEdges": 0
+      },
+      "sameKind": true,
+      "sameTopic": false,
+      "confDelta": 0.050000000000000044,
+      "alreadyLinked": [
+        {
+          "rel": "refines",
+          "note": "Same Kumar curve; adds the k=40 / 4.0-point point estimate and the per-stage 6.9-point comparison."
+        }
+      ]
+    }
+  ],
+  "verdict": {
+    "whatMergeWouldCollapse": [
+      "the wave count (2 independent waves -> 1 node)",
+      "3 kind distinctions (number vs claim vs failure)",
+      "3 confidence values",
+      "7 topic memberships"
+    ]
+  }
+}

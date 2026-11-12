@@ -1,0 +1,151 @@
+{
+  "gaps": 320,
+  "byReferent": {
+    "ours": 8,
+    "literature": 49,
+    "both": 1,
+    "neither": 262
+  },
+  "workableTonight": 6,
+  "neitherByTopic": {
+    "gap": 246,
+    "ctx": 3,
+    "orch": 2,
+    "ver": 2,
+    "prod": 1,
+    "kg": 1,
+    "policy": 1,
+    "ledger-audit": 1
+  },
+  "samples": {
+    "ours": [
+      {
+        "id": "w2-human-gap-review-time-cost-curve",
+        "deg": 0,
+        "mine": [
+          "loom-style"
+        ],
+        "title": "No primary cost curve of review minutes against defects found for agent diffs"
+      },
+      {
+        "id": "w3-holdout-gap-task-prompt-leak",
+        "deg": 0,
+        "mine": [
+          "loom-life"
+        ],
+        "title": "The task prompt itself states the acceptance content, a leak channel upstream of the holdout"
+      },
+      {
+        "id": "w3-restart-gap-no-fencing-experiment",
+        "deg": 0,
+        "mine": [
+          "loom-self4"
+        ],
+        "title": "Nobody has tested what a fencing token would actually change on this loop"
+      },
+      {
+        "id": "w3-restart-gap-no-duplicate-ever-observed",
+        "deg": 0,
+        "mine": [
+          "autopilot.applied"
+        ],
+        "title": "No duplicated side effect has ever been observed in 69 real campaign ledgers — the risk is untested, not dispr"
+      },
+      {
+        "id": "gap-w6-036",
+        "deg": 0,
+        "mine": [
+          "src/loop/policy.js",
+          "src/gate/gate.js",
+          "gate.evaluated"
+        ],
+        "title": "Does the duplicated threshold ever change a decision? src/loop/policy.js:11 defaults minGain to 0.05, src/gate"
+      },
+      {
+        "id": "gap-w6-041",
+        "deg": 0,
+        "mine": [
+          "attempt.finished"
+        ],
+        "title": "What is the actual round-to-round sigma of ONE frozen dsh-loom configuration? The ledger contains no repeated"
+      },
+      {
+        "id": "q-audit",
+        "deg": 2,
+        "mine": [
+          "artifacts"
+        ],
+        "title": "What is our verifier's measured false-accept rate on the 114 promotions?"
+      },
+      {
+        "id": "gap-w7-031",
+        "deg": 0,
+        "mine": [
+          "rsi_replay"
+        ],
+        "title": "Can rsi_replay calls be counted per campaign between policy changes? Optional stopping is the main threat to a"
+      }
+    ],
+    "both": [
+      {
+        "id": "w2-memory-gap-deletion-residue",
+        "deg": 0,
+        "mine": [
+          "artifacts"
+        ],
+        "title": "Deleting a memory record does not remove its downstream traces, and no one quantifies the residue"
+      }
+    ],
+    "neither": [
+      {
+        "id": "prod-020",
+        "deg": 1,
+        "mine": [],
+        "title": "The field's headline productivity number is retracted by its own authors"
+      },
+      {
+        "id": "orch-016",
+        "deg": 4,
+        "mine": [],
+        "title": "Does adaptive K survive a verifier that is only as good as the task's own test command?"
+      },
+      {
+        "id": "orch-017",
+        "deg": 1,
+        "mine": [],
+        "title": "Is a 55%-empty planner output a harness defect or model behavior? Only one 3.5% measurement exists"
+      },
+      {
+        "id": "ctx-032",
+        "deg": 1,
+        "mine": [],
+        "title": "Does any coding-agent setup measurably benefit from MORE context rather than better-selected context?"
+      },
+      {
+        "id": "ctx-033",
+        "deg": 2,
+        "mine": [],
+        "title": "Is loom's lesson-injection mechanism worth its extra call? The closest controlled test is underpowered and nul"
+      },
+      {
+        "id": "ctx-034",
+        "deg": 1,
+        "mine": [],
+        "title": "Unestablished: how to arbitrate two candidates whose verifier outcomes conflict but whose patches both passed"
+      },
+      {
+        "id": "kg-019",
+        "deg": 2,
+        "mine": [],
+        "title": "No measurement exists that an agent actually drives a graph CLI well, or that FTS5 beats embeddings on short t"
+      },
+      {
+        "id": "ver-q01",
+        "deg": 1,
+        "mine": [],
+        "title": "What is the flake rate inside coding-agent eval suites? Not established"
+      }
+    ]
+  },
+  "verdict": "A gap list is a work queue only if its items differ in who can close them. Sorting by confidence puts a question naming `src/runtime/round.js` next to a question naming a DOI and calls them the same thing."
+}

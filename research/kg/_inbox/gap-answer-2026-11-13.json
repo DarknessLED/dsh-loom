@@ -1,0 +1,28 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-004",
+      "kind": "failure",
+      "title": "The gap measurement changed its own answer: writing exp-gap-002 into the graph dropped answeredAtBirth from 6 to 0",
+      "confidence": 0.96,
+      "topic": "gap",
+      "body": "e59 decides whether a gap is 'answered at birth' by finding a decimal percentage whose document frequency over all live nodes is <= 2. Then exp-gap-002 was written to record the result, and its body quotes all six percentages (42.8%, 49.3%, 26.6%, 42.46%, 24.5%, 40.4%). Each of those strings went from df=2 to df=3, so on the next run:\n\n  gapsCarryingADistinctivePercentage: 7 -> 1\n  answeredAtBirth: 6 -> 0\n  rate: 0.273 -> 0\n\nThe measurement is not wrong at either time; the corpus changed. This is the third structural version of the same problem tonight: a quantity was reported without the population it was computed over (exp-stop-002's missing futility arm, exp-diff-002's 14 vs 7 disjoint sets, exp-dedup-001's gap list). Here the population was the graph at the moment of measurement, and the act of reporting moved it.\n\nFix applied: EXCLUDE = /^(exp-gap-|ana-023$)/ removes nodes that report on gaps from the frequency count, with the exclusions declared in code rather than inferred. Declaring them is honest about the shape of the problem: the alternative (snapshot the graph before every measurement) is not what a working graph is for, and any automatic 'exclude nodes that mention the threshold' rule would be circular.\n\nDeeper point: a graph that holds both evidence and commentary on evidence will always have this tension. The convention that resolves it is one this graph already uses elsewhere -- measurements name their own source field, and nodes whose source is a research script are commentary, not evidence.",
+      "source": "research/exp/e59.mjs"
+    },
+    {
+      "id": "exp-gap-005",
+      "kind": "number",
+      "title": "kg answer closes 6 of 320 questions, and a pack round trip carries them: 1437 nodes / 1477 edges / 174 decisions / 6 answers, byte-identical",
+      "confidence": 0.97,
+      "topic": "gap",
+      "body": "The gap list could not shrink: a question node has no transition out of status='live' and no edge to whatever answered it, so `kg gaps` was a monotone counter that printed 296 and then 320 regardless of what had been learned. Six of those 320 carried their own answer in the body (exp-gap-002).\n\nAdded two verbs and a table, deliberately parallel to `kg resolve`:\n  gap_answer(gap_id PK, node_id, note, answered_at)\n  kg answer <question> <node> --note \"...\"   (note required: an answer without a reason is indistinguishable from boredom)\n  kg unanswer <question>                     (a wrong close must be reopenable)\n  kg gaps                                    (default: unanswered only; --answered shows both with [answered by X])\n\nClosed 6, each with the note naming which part of the question the node closes: gap-w7-030 -> n-post-promotion-spend, w2-human-gap-miss-rate-on-agent-diffs -> w2-human-automation-bias-ecg, gap-w4-030 -> w4-review-judge-skill-is-pair-property, gap-w5-022 -> w5-tokenbudget-half-spend-buys-nothing, cheapest-policy -> ledger-slots, gap-w7-007 -> n-loom-wasted-rounds. List goes 320 -> 314 of 320 asked.\n\nPack/unpack carries answers as `? <gap> <node> | note` blocks (an answer dropped in a round trip would silently reopen every question -- the exact defect pack had with resolutions). merge migrates gap_answer on both endpoints and drops rows where gap_id = node_id (a node cannot answer itself).\n\nFull round trip verified: nodes +1437 · edges +1477 · decisions +174 · answers +6, cmp byte-identical both ways. tests/kg-answer.test.mjs 17/17 covers: note required, missing/invalid endpoints rejected, default list shrinks, --answered shows the pair, both nodes and the edge survive, SQL-readable, re-answer replaces, unanswer reopens, pack carries it with a pipe in the note, byte-identical round trip, missing-question record skipped not fatal, merge migration.",
+      "source": "research/kg/kg.mjs + tests/kg-answer.test.mjs"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-004", "rel": "refines", "to": "exp-gap-002" },
+    { "from": "exp-gap-005", "rel": "applies-to", "to": "ana-023" },
+    { "from": "exp-gap-005", "rel": "supports", "to": "exp-gap-001" },
+    { "from": "exp-gap-004", "rel": "applies-to", "to": "ana-016" }
+  ]
+}

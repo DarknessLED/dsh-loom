@@ -99,6 +99,18 @@ CREATE TABLE IF NOT EXISTS resolution (
   decided_at INTEGER NOT NULL,
   PRIMARY KEY (from_id, to_id)
 );
+
+-- A question has no way out of status='live', so a list of open questions could
+-- only grow: 320 of them after eight waves, and 6 of those already carried the
+-- measurement that answers them (exp-gap-002). This table is the exit. It names
+-- the node that answers the question and requires a reason, because "we answered
+-- this" is a claim about the graph and a claim needs its evidence.
+CREATE TABLE IF NOT EXISTS gap_answer (
+  gap_id      TEXT PRIMARY KEY,
+  node_id     TEXT NOT NULL,
+  note        TEXT,
+  answered_at INTEGER NOT NULL
+);
 `
 
 function open({ create = true } = {}) {
@@ -429,6 +441,37 @@ function cmdUnresolve(args) {
   out(del.changes ? `reopened ${row.from_id} vs ${row.to_id}` : `was not resolved: ${row.from_id} vs ${row.to_id}`)
 }
 
+// Close a question by naming what closed it. The question node stays live and the
+// answer node stays live; only the `gap_answer` row changes, so `kg show` on either
+// end still shows the pair. --note is required for the same reason resolve needs
+// one: a question marked answered without the reason is indistinguishable from a
+// question we got bored of.
+function cmdAnswer(args) {
+  const [gap, node] = args.positionals
+  const note = args.values.note
+  if (!gap || !node) fail('usage: kg answer <question-id> <answering-id> --note "..."')
+  if (!note) fail('answer needs --note: which part of the question does this node close?')
+  const db = open()
+  const g = db.prepare('SELECT id, kind FROM node WHERE id = ?').get(gap)
+  if (!g) fail(`no node "${gap}"`)
+  if (g.kind !== 'question') fail(`"${gap}" is a ${g.kind}, not a question`)
+  const a = db.prepare('SELECT id FROM node WHERE id = ?').get(node)
+  if (!a) fail(`no node "${node}"`)
+  db.prepare('INSERT OR REPLACE INTO gap_answer (gap_id, node_id, note, answered_at) VALUES (?,?,?,?)')
+    .run(gap, node, note, now())
+  db.close()
+  out(`${gap}  answered by  ${node}`)
+}
+
+function cmdUnanswer(args) {
+  const [gap] = args.positionals
+  if (!gap) fail('usage: kg unanswer <question-id>')
+  const db = open()
+  const del = db.prepare('DELETE FROM gap_answer WHERE gap_id = ?').run(gap)
+  db.close()
+  out(del.changes ? `reopened ${gap}` : `was not answered: ${gap}`)
+}
+
 function cmdContradictions(args) {
   const db = open()
   const showResolved = Boolean(args.values.resolved)
@@ -457,14 +500,27 @@ function cmdContradictions(args) {
     : `\n${undecided} contradiction(s) — each is a decision we have not made`)
 }
 
-function cmdGaps() {
+function cmdGaps(args) {
   const db = open()
+  const showAnswered = Boolean(args?.values?.answered)
   const rows = db.prepare(`
-    SELECT id, title, status, confidence FROM node
-     WHERE kind = 'question' AND status = 'live' ORDER BY confidence, id`).all()
-  if (!rows.length) { out('no open questions'); return }
-  for (const r of rows) out(`${r.id}  conf ${r.confidence ?? '-'}  ${r.title.slice(0, 110)}`)
-  out(`\n${rows.length} open question(s)`)
+    SELECT n.id, n.title, n.status, n.confidence, a.node_id AS answered_by, a.note AS anote
+      FROM node n
+      LEFT JOIN gap_answer a ON a.gap_id = n.id
+     WHERE n.kind = 'question' AND n.status = 'live' ${showAnswered ? '' : 'AND a.gap_id IS NULL'}
+     ORDER BY (a.node_id IS NOT NULL), n.confidence, n.id`).all()
+  if (!rows.length) { out(showAnswered ? 'no open questions' : 'every open question has an answer or has been retired'); return }
+  let answered = 0
+  for (const r of rows) {
+    const mark = r.answered_by ? `  [answered by ${r.answered_by}]` : ''
+    if (r.answered_by) answered += 1
+    out(`${r.id}  conf ${r.confidence ?? '-'}  ${r.title.slice(0, 110)}${mark}`)
+  }
+  const total = db.prepare("SELECT COUNT(*) AS n FROM node WHERE kind='question' AND status='live'").get().n
+  db.close()
+  out(showAnswered
+    ? `\n${rows.length} question(s), ${answered} answered`
+    : `\n${rows.length} open question(s) of ${total} asked`)
 }
 
 function cmdStats() {
@@ -508,6 +564,13 @@ function cmdMerge(args) {
     db.prepare('UPDATE OR IGNORE resolution SET from_id = ? WHERE from_id = ?').run(keep, drop)
     db.prepare('UPDATE OR IGNORE resolution SET to_id = ? WHERE to_id = ?').run(keep, drop)
     db.prepare('DELETE FROM resolution WHERE from_id = to_id').run()
+    // An answer names two nodes, so it needs the same treatment as a resolution:
+    // if the question moved, re-point gap_id; if the answering node moved, re-point
+    // node_id; if both collapsed into one node, the answer has become "a node
+    // answers itself" and must be dropped rather than kept as a self-reference.
+    db.prepare('UPDATE OR IGNORE gap_answer SET gap_id = ? WHERE gap_id = ?').run(keep, drop)
+    db.prepare('UPDATE OR IGNORE gap_answer SET node_id = ? WHERE node_id = ?').run(keep, drop)
+    db.prepare('DELETE FROM gap_answer WHERE gap_id = node_id').run()
     db.prepare("UPDATE node SET status='merged', merged_into=?, updated_at=? WHERE id=?")
       .run(keep, now(), drop)
     db.prepare('DELETE FROM node_fts WHERE id = ?').run(drop)
@@ -597,6 +660,13 @@ function cmdPack(args) {
       JOIN node b ON b.id = r.to_id ${topic ? 'WHERE a.topic = ?' : ''} ORDER BY r.from_id, r.to_id`)
     .all(...(topic ? [topic] : []))
   for (const r of resolutions) parts.push(`! ${r.from_id} ${r.to_id} | ${r.verdict} | ${escapeField(r.note)}`)
+  // An answer is the other thing a pack can silently lose: drop these and every
+  // closed question comes back open, so the graph's ignorance looks unchanged
+  // after a round trip. Same reasoning as `!` above, same shape.
+  const answers = db.prepare(`SELECT a.* FROM gap_answer a JOIN node g ON g.id = a.gap_id
+      JOIN node n ON n.id = a.node_id ${topic ? 'WHERE g.topic = ?' : ''} ORDER BY a.gap_id`)
+    .all(...(topic ? [topic] : []))
+  for (const a of answers) parts.push(`? ${a.gap_id} ${a.node_id} | ${escapeField(a.note)}`)
   out(parts.join('\n\n'))
 }
 
@@ -608,6 +678,7 @@ function cmdUnpack(args) {
   let nodes = 0
   let edges = 0
   let decisions = 0
+  let answers = 0
   const blocks = text.split(/\n\s*\n/)
   for (const block of blocks) {
     // Keep every line: a blank line inside a body is already encoded as the
@@ -634,6 +705,23 @@ function cmdUnpack(args) {
       db.prepare('INSERT OR REPLACE INTO resolution (from_id, to_id, verdict, note, decided_at) VALUES (?,?,?,?,?)')
         .run(pair.from_id, pair.to_id, verdict, note || null, now())
       decisions += 1
+      continue
+    }
+    if (head.startsWith('?')) {
+      // `? <gap-id> <answering-node-id> | note`
+      const body = head.replace(/^\?\s*/, '')
+      const bars = body.split(/(?<!\\)\|/)
+      const ids = bars[0].trim().split(/\s+/)
+      const note = unescapeField((bars[1] || '').trim())
+      if (ids.length !== 2) { process.stderr.write(`  bad answer line: ${head}\n`); continue }
+      const g = db.prepare('SELECT kind FROM node WHERE id = ?').get(ids[0])
+      const a = db.prepare('SELECT id FROM node WHERE id = ?').get(ids[1])
+      if (!g) { process.stderr.write(`  answer for missing question "${ids[0]}"\n`); continue }
+      if (g.kind !== 'question') { process.stderr.write(`  "${ids[0]}" is a ${g.kind}, not a question\n`); continue }
+      if (!a) { process.stderr.write(`  answer names missing node "${ids[1]}"\n`); continue }
+      db.prepare('INSERT OR REPLACE INTO gap_answer (gap_id, node_id, note, answered_at) VALUES (?,?,?,?)')
+        .run(ids[0], ids[1], note || null, now())
+      answers += 1
       continue
     }
     if (head.startsWith('>')) {
@@ -674,7 +762,7 @@ function cmdUnpack(args) {
     } catch (err) { process.stderr.write(`  ${err.message}\n`) }
   }
   db.close()
-  out(`nodes +${nodes} · edges +${edges} · decisions +${decisions}`)
+  out(`nodes +${nodes} · edges +${edges} · decisions +${decisions} · answers +${answers}`)
 }
 
 function cmdRecent(args) {
@@ -724,7 +812,9 @@ const USAGE = `kg — local knowledge graph for dsh-loom research
   kg contradictions             pairs we have not resolved   [--resolved]
   kg resolve <a> <b> --verdict both|a|b|neither|superseded --note "..."
   kg unresolve <a> <b>          reopen a decision
-  kg gaps                       open questions
+  kg gaps [--answered]          open questions (default: unanswered only)
+  kg answer <question> <node> --note "..."   record what closed a question
+  kg unanswer <question>        reopen a question
   kg recent [--limit 20]        newest nodes
   kg stats                      shape of the graph
   kg sql "<select ...>"         escape hatch
@@ -734,6 +824,7 @@ const USAGE = `kg — local knowledge graph for dsh-loom research
     body, as many lines as you like
     > orch-001 applies-to tri-004        (edges are their own blocks)
     ! ana-010 exp-meter-002 | a | the 198x figure is a price-table artefact
+    ? gap-w7-030 n-post-promotion-spend | the gap asked for the saving and quoted it
 
   relations: ${RELS.join(' ')}
   kinds:     ${KINDS.join(' ')}
@@ -751,6 +842,7 @@ const { values, positionals } = parseArgs({
     'gap-prefix': { type: 'string' },
     resolved: { type: 'boolean' },
     verdict: { type: 'string' },
+    answered: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 })
@@ -774,7 +866,9 @@ const COMMANDS = {
   contradictions: () => cmdContradictions(rest),
   resolve: () => cmdResolve(rest),
   unresolve: () => cmdUnresolve(rest),
-  gaps: () => cmdGaps(),
+  gaps: () => cmdGaps(rest),
+  answer: () => cmdAnswer(rest),
+  unanswer: () => cmdUnanswer(rest),
   pack: () => cmdPack(rest),
   unpack: () => cmdUnpack(rest),
   recent: () => cmdRecent(rest),

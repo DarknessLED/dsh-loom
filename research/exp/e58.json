@@ -1,0 +1,133 @@
+{
+  "gaps": 320,
+  "candidatePool": 1042,
+  "gapsWithNoLaterNode": 1,
+  "gapsWithCandidateAnswer": 29,
+  "candidateRate": 0.091,
+  "answerKinds": {
+    "number": 11,
+    "failure": 7,
+    "analysis": 5,
+    "claim": 5,
+    "concept": 1
+  },
+  "thresholdSensitivity": {
+    "0.25": 115,
+    "0.3": 63,
+    "0.35": 29,
+    "0.4": 21,
+    "0.5": 6,
+    "0.6": 3
+  },
+  "sampleStrongest": [
+    {
+      "gap": "gap-w1-014",
+      "conf": null,
+      "top": {
+        "id": "ana-009",
+        "kind": "analysis",
+        "score": 0.81,
+        "shared": [
+          "adaptive",
+          "branching",
+          "only",
+          "studied",
+          "offline",
+          "split"
+        ]
+      },
+      "candidate": true
+    },
+    {
+      "gap": "gap-w7-034",
+      "conf": null,
+      "top": {
+        "id": "a-policy-switch-design",
+        "kind": "analysis",
+        "score": 0.795,
+        "shared": [
+          "policy",
+          "design",
+          "cost",
+          "current",
+          "throughput",
+          "campaigns"
+        ]
+      },
+      "candidate": true
+    },
+    {
+      "gap": "gap-w7-030",
+      "conf": null,
+      "top": {
+        "id": "n-post-promotion-spend",
+        "kind": "number",
+        "score": 0.629,
+        "shared": [
+          "would",
+          "stop",
+          "first",
+          "promotion",
+          "rule",
+          "108"
+        ]
+      },
+      "candidate": true
+    },
+    {
+      "gap": "gap-w7-031",
+      "conf": null,
+      "top": {
+        "id": "f-peeking",
+        "kind": "failure",
+        "score": 0.584,
+        "shared": [
+          "rsi",
+          "replay",
+          "calls",
+          "per",
+          "campaign",
+          "between"
+        ]
+      },
+      "candidate": true
+    },
+    {
+      "gap": "gap-w7-028",
+      "conf": null,
+      "top": {
+        "id": "n-autocorr",
+        "kind": "number",
+        "score": 0.54,
+        "shared": [
+          "the",
+          "carryover",
+          "order",
+          "promotion",
+          "round",
+          "next"
+        ]
+      },
+      "candidate": true
+    },
+    {
+      "gap": "gap-w7-032",
+      "conf": null,
+      "top": {
+        "id": "n-cluster-icc",
+        "kind": "number",
+        "score": 0.512,
+        "shared": [
+          "the",
+          "candidate",
+          "count",
+          "flips",
+          "concentrate",
+          "and"
+        ]
+      },
+      "candidate": true
+    }
+  ],
+  "verdict": "If candidateRate is high, \"N open questions\" is a statement about the import format (gaps arrive with no edges and a constant confidence 0.4) and not about what we do not know: a question node can never be closed, so the list only grows. The fix is a status transition plus the same `--note` requirement as contradiction resolution, not a better search."
+}

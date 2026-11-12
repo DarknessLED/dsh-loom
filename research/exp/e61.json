@@ -1,0 +1,118 @@
+{
+  "sampleSize": 25,
+  "handCounts": {
+    "literature": 7,
+    "ours": 17,
+    "neither": 1
+  },
+  "extrapolated": {
+    "literature": 90,
+    "ours": 218,
+    "neither": 13
+  },
+  "agreement": {
+    "keyword": "5/25",
+    "referent": "2/25",
+    "possessive": "6/25"
+  },
+  "agreementRate": {
+    "keyword": 0.2,
+    "referent": 0.08,
+    "possessive": 0.24
+  },
+  "confusion": {
+    "keyword": {
+      "literature->neither": 4,
+      "literature->literature": 3,
+      "ours->neither": 16,
+      "neither->neither": 1,
+      "ours->ours": 1
+    },
+    "referent": {
+      "literature->neither": 6,
+      "literature->literature": 1,
+      "ours->neither": 16,
+      "neither->neither": 1,
+      "ours->literature": 1
+    },
+    "possessive": {
+      "literature->neither": 4,
+      "literature->literature": 3,
+      "ours->neither": 13,
+      "neither->neither": 1,
+      "ours->ours": 2,
+      "ours->literature": 2
+    }
+  },
+  "mistakes": {
+    "keyword": [
+      "gap-w1-009: hand=literature rule=neither",
+      "gap-w1-022: hand=literature rule=neither",
+      "w3-restart-gap-no-power-loss-test: hand=ours rule=neither",
+      "gap-w4-007: hand=ours rule=neither",
+      "gap-w4-020: hand=ours rule=neither",
+      "gap-w4-033: hand=ours rule=neither",
+      "gap-w5-005: hand=literature rule=neither",
+      "gap-w5-018: hand=ours rule=neither",
+      "gap-w6-005: hand=ours rule=neither",
+      "gap-w6-031: hand=ours rule=neither",
+      "gap-w6-044: hand=ours rule=neither",
+      "cheapest-policy: hand=ours rule=neither",
+      "n-gap-repo-variation: hand=ours rule=neither",
+      "gap-w7-010: hand=ours rule=neither",
+      "gap-w7-023: hand=ours rule=neither",
+      "gap-w7-036: hand=ours rule=neither",
+      "gap-w7-049: hand=literature rule=neither",
+      "gap-w8-012: hand=ours rule=neither",
+      "gap-w8-025: hand=ours rule=neither",
+      "gap-w8-038: hand=ours rule=neither"
+    ],
+    "referent": [
+      "gap-w1-009: hand=literature rule=neither",
+      "gap-w1-022: hand=literature rule=neither",
+      "w2-horizon-gap-integrity-composition: hand=literature rule=neither",
+      "w3-falsify-gap-batch-vs-sync: hand=literature rule=neither",
+      "w3-restart-gap-no-power-loss-test: hand=ours rule=neither",
+      "gap-w4-007: hand=ours rule=neither",
+      "gap-w4-020: hand=ours rule=neither",
+      "gap-w4-033: hand=ours rule=neither",
+      "gap-w5-005: hand=literature rule=neither",
+      "gap-w5-018: hand=ours rule=neither",
+      "gap-w6-005: hand=ours rule=neither",
+      "gap-w6-018: hand=ours rule=neither",
+      "gap-w6-031: hand=ours rule=neither",
+      "gap-w6-044: hand=ours rule=neither",
+      "cheapest-policy: hand=ours rule=neither",
+      "n-gap-repo-variation: hand=ours rule=neither",
+      "gap-w7-010: hand=ours rule=neither",
+      "gap-w7-023: hand=ours rule=neither",
+      "gap-w7-036: hand=ours rule=neither",
+      "gap-w7-049: hand=literature rule=neither",
+      "gap-w8-012: hand=ours rule=literature",
+      "gap-w8-025: hand=ours rule=neither",
+      "gap-w8-038: hand=ours rule=neither"
+    ],
+    "possessive": [
+      "gap-w1-009: hand=literature rule=neither",
+      "gap-w1-022: hand=literature rule=neither",
+      "w3-restart-gap-no-power-loss-test: hand=ours rule=neither",
+      "gap-w4-007: hand=ours rule=neither",
+      "gap-w4-020: hand=ours rule=neither",
+      "gap-w4-033: hand=ours rule=neither",
+      "gap-w5-005: hand=literature rule=neither",
+      "gap-w5-018: hand=ours rule=neither",
+      "gap-w6-005: hand=ours rule=neither",
+      "gap-w6-031: hand=ours rule=neither",
+      "gap-w6-044: hand=ours rule=neither",
+      "cheapest-policy: hand=ours rule=neither",
+      "n-gap-repo-variation: hand=ours rule=neither",
+      "gap-w7-010: hand=ours rule=neither",
+      "gap-w7-023: hand=ours rule=neither",
+      "gap-w7-049: hand=literature rule=neither",
+      "gap-w8-012: hand=ours rule=literature",
+      "gap-w8-025: hand=ours rule=literature",
+      "gap-w8-038: hand=ours rule=neither"
+    ]
+  },
+  "verdict": "Hand labelling says most gaps are answerable from what is already on this disk, and every rule I tried under-detects that by 3-10x because the gaps were written for a human. The fix is not a better regex: a gap needs a `kind` field saying who can close it, set by the wave that wrote it, or the list cannot be a work queue."
+}

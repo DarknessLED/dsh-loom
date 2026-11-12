@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-001",
+      "kind": "number",
+      "title": "Every rule for 'can tonight's machine close this gap' under-detects by 3-10x; hand labels say 218 of 320 gaps are answerable from this disk",
+      "confidence": 0.94,
+      "topic": "gap",
+      "body": "Measured on 2026-11-13 against 320 live question nodes (254 generated gap-wN-NNN + 66 agent-written).\n\nHand labels on a 25-gap sample (every 13th id, read title+body): ours 17, literature 7, neither 1 -> extrapolated 218 / 90 / 13.\n\nThree rules scored against those labels:\n  keyword rule (nobody|unpublished|could not verify...): 5/25 = 0.20\n  referent rule (src/..., rsi_*, DOI, arXiv):           2/25 = 0.08\n  possessive rule (our ledger|this loop|unmeasured here): 6/25 = 0.24\n\nThe dominant error in all three is `ours -> neither` (16, 16, 13 of 25): a question about our own loop phrased in prose names no artifact, so a referent rule cannot see it. The second error is the reverse for the keyword rule, which fires on the word 'nobody' in a question that is about us.\n\nWhy the rules cannot be fixed: the gaps were written by wave agents addressing a human reader, and the difference between 'nobody has published X' and 'we have not measured X' is carried by the referent, which prose omits. A regex over prose is therefore measuring phrasing, not answerability.\n\nConsequence for the goal's step 5 ('use gaps to drive the next round'): the 296-open number is a count of import events, not of ignorance, and no ranking over it can be a work queue.",
+      "source": "research/exp/e61.mjs"
+    },
+    {
+      "id": "exp-gap-002",
+      "kind": "number",
+      "title": "6 of 320 gaps contain, in their own body, the distinctive measured percentage that answers them",
+      "confidence": 0.92,
+      "topic": "gap",
+      "body": "Method: a decimal percentage (\\d+.\\d+%) whose document frequency over all live nodes is <= 2 is a quote, not vocabulary (42.8% df=2, 49.3% df=2; by contrast 25.2% df=7 is the promotion rate and proves nothing). 22 gaps carry some percentage; 7 carry a distinctive one; of those, 6 have a partner non-question node in the graph carrying the same string:\n  w2-human-gap-miss-rate-on-agent-diffs -> 26.6% in w2-human-automation-bias-ecg\n  gap-w4-030 -> 42.46% in w4-review-judge-skill-is-pair-property\n  gap-w5-022 -> 49.3% in w5-tokenbudget-half-spend-buys-nothing\n  cheapest-policy -> 24.5%/3.9% in ledger-slots\n  gap-w7-007 -> 40.4%\n  gap-w7-030 -> 42.8% in n-post-promotion-spend (gap body: 'It would skip 108 of 211 rounds and 42.8% of round time')\n\nA first version of this measurement bucketed by created_at and required same-batch siblings; it missed gap-w7-030 (written by a different kg add) and falsely matched gap-w7-019 on '25.2%'. Distinctiveness, not timing, is the signal.\n\nReading: a question that carries the number answering it is a summary written in the interrogative. The wave used the gaps array as a 'what remains' section and several agents wrote the finding they had just made into it.",
+      "source": "research/exp/e59.mjs"
+    },
+    {
+      "id": "ana-023",
+      "kind": "analysis",
+      "title": "A gap list is not a work queue until each gap says who can close it, and that field has to be written by the agent that asked",
+      "confidence": 0.95,
+      "topic": "gap",
+      "body": "Three measurements (exp-gap-001, exp-gap-002, exp-dedup-001) converge on the same structure: the graph can record that a question was asked, and cannot record that it was answered, abandoned, or answered-at-birth. `kg gaps` selects kind='question' AND status='live' and there is no transition out of that state, so the list is monotone and its length is a function of how many waves ran.\n\nThat is the same defect the contradiction list had before `kg resolve`: a list that only grows is a place where decisions hide. The contradiction list got a verdict column and a mandatory --note, and it immediately shrank from 174 undecided to 0. The gap list needs the equivalent, and it needs it in the same shape: an edge from the answering node to the question, with a note, and a query that stops showing answered questions.\n\nBut there is a cheaper half: the wave agent already knows. The 6 answered-at-birth gaps in exp-gap-002 were written by an agent that had the number in hand. Asking that agent to type `answers` at the moment of writing costs nothing; inferring it afterwards from prose costs three failed classifiers (exp-gap-001). This is the same lesson as exp-oracle-002 and exp-brief-001: derive what can be derived at write time, and ask for only what cannot be derived.\n\nWhat is still unsolved: the 90 literature gaps. No local action closes them, and the graph has no way to mark a question as 'waiting on a document that may not exist' versus 'unanswerable'. Treating them as open work is what makes the list look like 296 items of debt.",
+      "source": "research/exp/e60.mjs + e61.mjs"
+    },
+    {
+      "id": "exp-gap-003",
+      "kind": "failure",
+      "title": "Both gap classifiers I built were measuring the gaps' phrasing, and the two disagreed by an order of magnitude (13 vs 8 ours; 220 vs 262 neither)",
+      "confidence": 0.93,
+      "topic": "gap",
+      "body": "First rule used the vocabulary of absence (nobody|no study|unpublished|could not verify -> literature), second used strict referents (src/...|rsi_*|DOI|arXiv). On 320 gaps:\n  keyword: ours 13, literature 84, mixed 3, unclassified 220\n  referent: ours 8, literature 49, both 1, neither 262\n\nI wrote the first version's verdict as if the split were a property of the corpus. It is not: it is a property of which words the wave agents happened to use, and the two rules disagree by 6x on the 'ours' bucket while both miss 13-16 of the 17 hand-labelled 'ours' gaps.\n\nThe tell was in the samples: gap-w7-041 ('What mutation score does the current verifier achieve on our own repository?') scored `neither` under the referent rule because it names no path, and gap-w1-009 scored `neither` under the keyword rule because it says 'no RSI system publishes' rather than 'nobody'. Both are trivially answerable/literature respectively to a human.\n\nRule: when two classifiers you wrote disagree by 10x, neither is a measurement — the sample is. Hand-label first, then score the rules. This is the fourth instance tonight of a quantity being reported without its population (after exp-stop-002, exp-diff-002, exp-dedup-001).",
+      "source": "research/exp/e60.mjs"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-001", "rel": "measures", "to": "exp-gap-002" },
+    { "from": "ana-023", "rel": "derived-from", "to": "exp-gap-001" },
+    { "from": "ana-023", "rel": "derived-from", "to": "exp-gap-002" },
+    { "from": "exp-gap-003", "rel": "refines", "to": "exp-gap-001" },
+    { "from": "ana-023", "rel": "applies-to", "to": "ana-016" },
+    { "from": "ana-023", "rel": "refines", "to": "exp-resolve-001" },
+    { "from": "exp-gap-002", "rel": "contradicts", "to": "gap-w7-030" }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "gaps": 320,
+  "gapsCarryingAnyPercentage": 22,
+  "gapsCarryingADistinctivePercentage": 7,
+  "answeredAtBirth": 6,
+  "rate": 0.273,
+  "rateAmongAllGaps": 0.019,
+  "excludedSelfReportingNodes": 6,
+  "answered": [
+    {
+      "gap": "w2-human-gap-miss-rate-on-agent-diffs",
+      "distinctive": [
+        "26.6%"
+      ],
+      "colloquial": [
+        "13.6%"
+      ],
+      "answeredBy": [
+        {
+          "pct": "26.6%",
+          "node": "w2-human-automation-bias-ecg"
+        }
+      ]
+    },
+    {
+      "gap": "gap-w4-030",
+      "distinctive": [
+        "42.46%"
+      ],
+      "colloquial": [],
+      "answeredBy": [
+        {
+          "pct": "42.46%",
+          "node": "w4-review-judge-skill-is-pair-property"
+        }
+      ]
+    },
+    {
+      "gap": "gap-w5-022",
+      "distinctive": [
+        "49.3%"
+      ],
+      "colloquial": [],
+      "answeredBy": [
+        {
+          "pct": "49.3%",
+          "node": "w5-tokenbudget-half-spend-buys-nothing"
+        }
+      ]
+    },
+    {
+      "gap": "cheapest-policy",
+      "distinctive": [
+        "24.5%",
+        "3.9%"
+      ],
+      "colloquial": [
+        "5.8%"
+      ],
+      "answeredBy": [
+        {
+          "pct": "24.5%",
+          "node": "ledger-slots"
+        },
+        {
+          "pct": "3.9%",
+          "node": "w5-interface-autocommenter-changed-lines-only"
+        }
+      ]
+    },
+    {
+      "gap": "gap-w7-007",
+      "distinctive": [
+        "40.4%"
+      ],
+      "colloquial": [],
+      "answeredBy": [
+        {
+          "pct": "40.4%",
+          "node": "n-loom-wasted-rounds"
+        }
+      ]
+    },
+    {
+      "gap": "gap-w7-030",
+      "distinctive": [
+        "42.8%"
+      ],
+      "colloquial": [],
+      "answeredBy": [
+        {
+          "pct": "42.8%",
+          "node": "n-post-promotion-spend"
+        }
+      ]
+    }
+  ]
+}
