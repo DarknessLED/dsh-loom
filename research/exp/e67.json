@@ -1,0 +1,45 @@
+{
+  "gateCheckpoints": 25,
+  "cardsWithNoNodeField": 4,
+  "bytes": {
+    "min": 188,
+    "median": 343,
+    "max": 359
+  },
+  "evidence": {
+    "task": 0,
+    "diffText": 0,
+    "diffPathOnly": 25,
+    "verifierVerdict": 0,
+    "holdout": 2,
+    "threshold": 0,
+    "risk": 0
+  },
+  "cardsWithVerdictAndTask": 0,
+  "fieldSets": {
+    "attempt,message,node,patch,prompt,review,score": 21,
+    "attempt,message,patch,score": 4
+  },
+  "reviewCommands": {
+    "git -C C:/Projects/RSI apply": 6,
+    "git -C C:/tmp/claim-live2 apply": 1,
+    "git -C C:/tmp/claim-live3 apply": 1,
+    "git -C C:/tmp/brief-live apply": 2,
+    "git -C C:/tmp/graded-live apply": 6,
+    "git -C C:/tmp/oracle-live apply": 3,
+    "git -C C:/tmp/demote-live apply": 2,
+    "none": 4
+  },
+  "decisions": {
+    "reject": 22,
+    "approve": 3
+  },
+  "dwellMs": {
+    "n": 25,
+    "min": 46127,
+    "p25": 130165,
+    "median": 261077,
+    "p75": 1916559,
+    "max": 245439279
+  }
+}

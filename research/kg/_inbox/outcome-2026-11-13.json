@@ -1,0 +1,48 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-010",
+      "kind": "number",
+      "title": "The holdout is a real second opinion that fires on 3 of the 61 rounds where it could disagree, and 58 of those it agreed with a verdict that was about to promote",
+      "body": "q-outcome-variable is the heaviest open question in the graph (5 dependents, weight 13) and it names its own test: correlate holdout pass with final score over the rounds carrying a holdoutId. e66 runs it on 72 campaigns / 239 finished rounds / 202 gated rounds.\n\nThe holdout's population, stated because every rate below depends on it: 202 gated rounds, 173 of which recorded a holdout verdict, of which 93 actually ran the holdout (`checks.holdout` is a boolean only when it ran; 80 are 'skipped' and must not be counted as passes or as chances) -- true 84, false 9.\n\n**A holdout can only disagree on a round where every other check passed.** If the verifier already failed, the round was rejected whatever the holdout said, so counting those as chances would report '0 disagreements in 57 promotions' and make a check that fired look like a check that cannot fire. The denominator is rounds where every other check passed: **61**. Of those the holdout disagreed on **3 (4.9%)**: loom-life r1, loom-ui7 r1, loom-ui7 r2. On the other **58** it agreed with a verdict that was otherwise going to promote.\n\nSo the honest answer to 'what is the outcome' is two-sided. The holdout is not decorative -- it rejected three promotions the score had accepted, and `loom-life r1` is exactly the case where the work verifier passed and an independent task did not, which is the failure mode the score cannot see. But it agrees 95% of the time, and 58 agreements in a row is not 58 pieces of evidence that the promotions were real (ana-027).\n\nTwo more numbers from the same run. First, a next-round check: after a holdout pass the next round scored 1 on 0.604 of 48 cases; after a holdout fail, on 0.125 of 8. The fail side has n=8, which is not an estimate, but the direction says the holdout is reading a property of the campaign that persists -- the same state observed twice rather than independent noise. Second, the score does have range inside a campaign: share of rounds scoring 1 is 82% in round 1 (n=71), 74% (n=57), 52% (n=29), 46% (n=13), 46%, 46%, 50%, 33% (n=6) by round 8. That is why 'promotes in round 1' (56 of 67 campaigns) and 'the instrument saturates' are different claims: the campaign-level rate saturates because the first round is easy, the round-level rate keeps falling. The decline is at least partly selection -- a campaign that reaches round 8 has been failing rounds 1-7 -- so it is not clean evidence that later rounds are harder.",
+      "source": "research/exp/e66.mjs over ~/.dsh/loom/campaigns/*/events.jsonl (72 campaigns, 239 rounds); holdout block src/runtime/round.js:1900-2000",
+      "confidence": 0.95,
+      "topic": "gap"
+    },
+    {
+      "id": "ana-027",
+      "kind": "analysis",
+      "title": "An agreement that was never at risk is not evidence, and the way to tell is to count only the times the check could have disagreed",
+      "body": "The first version of e66 counted 'promotions where the holdout ran' (57) and reported zero disagreements, which reads as 'the second opinion never disagrees' and would have been published as a finding that the holdout is useless. Both numbers are true and only one is a finding. A holdout on a round whose verifier failed had no opportunity to disagree; a holdout on a round where every check passed did. Splitting by that condition turned 0-of-57 into 3-of-61 -- a check that fires, on 5% of the rounds where it can.\n\nThis is the fourth instance tonight of the same defect, and the first where the wrong denominator produced a conclusion rather than a wrong number: exp-stop-002 (a saving computed without the campaigns that never promote), exp-diff-002 (14 empty patches counted as a set that the oracle would catch, when the oracle cannot see them), exp-dedup-001 (gap overlap measured over the wrong bucket), exp-gap-004 (a measurement that edited its own corpus). The variant here is specific: **agreement is only evidence if disagreement was possible**, so every 'X always agrees with Y' statement needs the count of times X was in a position to disagree.\n\nA second, sharper lesson from the same hour. The 'reading' strings inside e66 were prose I wrote next to the numbers, and one said '30 times' while the code computed 102 -- a transcription error of exactly the kind tests/kg-resolve once caught with a hard-coded denominator. It was fixed by making the sentence a template literal over the same variables, so the prose cannot drift from the count. Prose next to a number is an assertion about the number and gets the same treatment as a test expectation: derive it, do not retype it.",
+      "source": "research/exp/e66.mjs (first version vs corrected); exp-gap-010; exp-gap-009",
+      "confidence": 0.95,
+      "topic": "gap"
+    },
+    {
+      "id": "exp-gap-011",
+      "kind": "failure",
+      "title": "Three successive versions of the holdout denominator: 0-of-57 (counted skips as passes), 3-of-102 (counted skips as chances), 3-of-61 (correct)",
+      "body": "The `checks.holdout` field is a tri-state wearing a boolean name: `true` (ran and passed), `false` (ran and failed), `'skipped'` / `'skipped-noop'` / `'skipped-same-command'` (did not run). Three readings of the same 173 rows:\n\n1. 'promotions where holdout ran' filtered on `holdout !== undefined` -- which includes 'skipped' -- gave 95 promotions, 0 failures, and the sentence 'every promotion it saw, it approved'. Wrong: 'skipped' is not approval.\n2. Filtering to a boolean fixed that but left 'skipped' in the chance denominator: 102 opportunities, 3 disagreements, printed as '10% of the opportunities it gets'.\n3. Correct: 61 opportunities (rounds where the holdout ran AND every other check passed), 3 disagreements, 4.9%.\n\nThe measured distribution is the thing that makes this checkable at all: true 84 / false 9 / skipped 80. A field with three states that is read as two will produce a rate that is wrong by a factor that depends on how often the third state occurs -- here 80 of 173, so nearly 2x.\n\nFixed in e66 by filtering `typeof r.holdout === 'boolean'` and by computing the base-pass condition inline from the other checks rather than inferring it from `promoted` (promoted is the output of the gate the holdout is part of, so using it as the input would be circular). Recorded as the concrete instance behind ana-027.",
+      "source": "research/exp/e66.mjs; three runs recorded in this session's transcript; src/runtime/round.js holdout block",
+      "confidence": 0.96,
+      "topic": "gap"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-010", "rel": "measures", "to": "q-outcome-variable", "note": "the question named this exact test -- correlate the holdout with the score over the rounds carrying a holdoutId -- and this runs it" },
+    { "from": "exp-gap-010", "rel": "refines", "to": "n-round1-monopoly", "note": "campaign-level saturation (56 of 67 promote in round 1) and round-level decline (82% to 33%) are different claims; this separates them" },
+    { "from": "ana-027", "rel": "derived-from", "to": "exp-gap-011", "note": "three denominators in a row generalise to: agreement is only evidence where disagreement was possible" },
+    { "from": "ana-027", "rel": "refines", "to": "exp-gap-009", "note": "that one was a statistic computed from the wrong collection; this one is a conclusion drawn from the wrong denominator, which is worse because it produced a finding" },
+    { "from": "exp-gap-011", "rel": "supports", "to": "ana-027", "note": "the concrete tri-state-read-as-boolean instance" },
+    { "from": "exp-gap-010", "rel": "refines", "to": "exp-diff-004", "note": "that measured the gate reading an exit code that never moves; this measures the one check in the gate that does independently disagree, and how rarely" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-gap-002",
+      "title": "Are the 58 holdout agreements evidence of correctness or just of correlated difficulty, and can the ledger tell them apart?",
+      "body": "exp-gap-010 found the holdout disagreed on 3 of 61 chances. Two explanations fit. (a) The holdout is a weak check: it usually tests something easier than the task, so passing the task implies passing it (that would make it nearly a duplicate, and the gate code already names the extreme case -- `skipped-same-command` -- when it is literally the same command). (b) The holdout is a strong check that the loop mostly satisfies, so agreement is genuine corroboration. These predict different things: under (a) a round whose holdout passed should not predict the next round, under (b) it should. The one number we have points at (b) -- next round scored 1 after 0.604 of 48 passes vs 0.125 of 8 failures -- but n=8 on the failing side and the pass side is confounded with campaign difficulty. Telling them apart needs the holdout to be sampled independently of round number within a campaign, which it is not: holdoutPick is a function of the pool and the round, so at most it cycles. A cheap version: for the 23 campaigns with a holdoutId, compare each holdout's pass rate against the pass rate of the task the round actually ran, and see whether the holdout is systematically easier (that is the duplicate hypothesis) or equally hard (that is corroboration).",
+      "confidence": 0.65,
+      "topic": "gap"
+    }
+  ]
+}

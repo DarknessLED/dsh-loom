@@ -1,0 +1,33 @@
+{
+  "promotions": 90,
+  "guardKinds": {
+    "reused-verifier (same command as the task verifier)": 41,
+    "none": 12,
+    "scripts/test-all.mjs (independent of the task)": 37
+  },
+  "synchronousAnomalies": {
+    "total": 12,
+    "kinds": {
+      "patch-did-not-apply": 12
+    }
+  },
+  "asynchronous": {
+    "medianRoundMs": 389753,
+    "plateauWindow": 3,
+    "plateauLatencyMs": 1169259,
+    "plateauLatencyMin": 19.5,
+    "plateauCount": 10,
+    "stuckCount": 1,
+    "holdoutCount": 3
+  },
+  "promotionsLandedWhileACheckpointWasOpen": {
+    "promotions": 12,
+    "campaigns": 5
+  },
+  "humanGateDwellMs": {
+    "n": 25,
+    "median": 261077,
+    "over1h": 6,
+    "over24h": 2
+  }
+}

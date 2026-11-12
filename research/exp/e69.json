@@ -1,0 +1,37 @@
+{
+  "rows": 60,
+  "distinctLessons": 25,
+  "independentObservations": {
+    "rounds": 36,
+    "lessonsPerRound": 1.67
+  },
+  "armAssignment": {
+    "treatedIsA2": 48,
+    "treatedIsA1": 12,
+    "roundsWhereTheSuffixIsAmbiguous": 0
+  },
+  "signConvention": {
+    "roundsWhereDeltaEqualsTreatedMinusControl": 36,
+    "violations": 0,
+    "firstViolations": []
+  },
+  "informative": {
+    "roundsWithTwoArms": 36,
+    "bothPass": 33,
+    "bothFail": 0,
+    "disagreements": 3,
+    "treatedWins": 2,
+    "controlWins": 1,
+    "twoSidedP": 0.25
+  },
+  "power": {
+    "disagreementRate": 0.083,
+    "seAt36": 0.048,
+    "seAt200": 0.02,
+    "roundsNeededForEffect": {
+      "0.25": 11,
+      "0.10": 66,
+      "0.05": 262
+    }
+  }
+}

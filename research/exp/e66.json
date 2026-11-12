@@ -1,0 +1,85 @@
+{
+  "population": {
+    "campaigns": 72,
+    "finishedRounds": 239,
+    "roundsWithHoldoutId": 58,
+    "campaignsWithAHoldoutRound": 23,
+    "gatedRounds": 202,
+    "gatedRoundsWithAHoldoutVerdict": 93
+  },
+  "holdoutVerdictDistribution": {
+    "true": 84,
+    "false": 9
+  },
+  "theQuestionsTest": {
+    "roundsWhereHoldoutRan": 93,
+    "promotionsWhereHoldoutRan": 57,
+    "promotionsWhereHoldoutFailed": 0,
+    "chanceToFlip": 61,
+    "flipped": 3,
+    "flipRate": 0.049,
+    "flippedRounds": [
+      "loom-life/r1",
+      "loom-ui7/r1",
+      "loom-ui7/r2"
+    ],
+    "passedOnBasePass": 58,
+    "reading": "A holdout can only disagree on a round where every other check passed: 61 such rounds, 3 disagreements (0.049). 58 times it agreed with a verdict that was otherwise going to promote. So it is not decorative, and it agrees most of the time with the score it is checking."
+  },
+  "dynamicRange": {
+    "scoreOneRateByRound": [
+      {
+        "round": 1,
+        "n": 71,
+        "scoreOneRate": 0.817
+      },
+      {
+        "round": 2,
+        "n": 57,
+        "scoreOneRate": 0.737
+      },
+      {
+        "round": 3,
+        "n": 29,
+        "scoreOneRate": 0.517
+      },
+      {
+        "round": 4,
+        "n": 13,
+        "scoreOneRate": 0.462
+      },
+      {
+        "round": 5,
+        "n": 11,
+        "scoreOneRate": 0.455
+      },
+      {
+        "round": 6,
+        "n": 11,
+        "scoreOneRate": 0.455
+      },
+      {
+        "round": 7,
+        "n": 8,
+        "scoreOneRate": 0.5
+      },
+      {
+        "round": 8,
+        "n": 6,
+        "scoreOneRate": 0.333
+      }
+    ],
+    "reading": "If this starts at ~0.6 and falls, the instrument is getting harder and the loop may be getting worse -- both readings fit, which is the question. If it is flat at 1.0 for the rounds that matter, the score has no range left and every policy question measured on it is measuring a constant."
+  },
+  "secondOpinionPredictsNext": {
+    "afterHoldoutPass": {
+      "n": 48,
+      "nextScoredOne": 0.604
+    },
+    "afterHoldoutFail": {
+      "n": 8,
+      "nextScoredOne": 0.125
+    },
+    "reading": "A second opinion that predicts the next round is not independent evidence about this one -- it is the same underlying state observed twice. With n in the single digits on the fail side this is reported for completeness, not as an estimate."
+  }
+}
