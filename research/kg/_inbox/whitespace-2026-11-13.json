@@ -1,0 +1,42 @@
+{
+  "nodes": [
+    {
+      "id": "exp-whitespace-001",
+      "kind": "number",
+      "title": "0 of 296 non-empty patch artifacts are whitespace-only, and the differential oracle already refuses the class",
+      "body": "Asked because loom-oracle's workspace briefly showed ` M lib.mjs` with 23/23 lines changed while `git diff -w` was empty and `git ls-files --eol` said `i/lf w/crlf` -- a whole-file line-ending flip that reads as work. Two measurements:\n\n(1) Blast radius in history: 461 patch artifacts under ~/.dsh/loom/campaigns/*/artifacts, 296 non-empty, and **0 are whitespace-only** (every +/- body line identical once whitespace is stripped). So the class has never landed.\n\n(2) Is the class already refused? Built it for real: cloned C:/tmp/oracle-live at base 12bdf4c, flipped ONLY line endings (0/34 -> 34/34 CRLF), confirmed with git that `diff --numstat` = `34 34 lib.mjs` while `diff -w --numstat` is empty, then ran the live decision path (real runVerifier -> real baseVerdict -> real earnedByDifferential). Result: `{earned:false, reason:'metric-did-not-improve'}`. A change that moves no measured number cannot earn a promotion, and line endings move no number.\n\nConclusion: do NOT write a whitespace-specific rule. The general invariant ('a promotion must move something the instrument measured') already covers every specific way of changing bytes without changing behaviour -- CRLF flips, trailing spaces, reindentation, comment rewording. Writing the specific rule would add a code path that can only ever agree with the general one, and the specific rule would need its own tests, its own docs line, and its own maintenance against every future no-op shape.\n\nCost of the two measurements: 461 patches parsed offline (instant) + 2 verifier runs (~0.2 s).",
+      "topic": "gate",
+      "source": "research/exp/e53.mjs (landing path line-ending probe, could not reproduce), research/exp/e54.mjs (whitespace-only commit audit: 0/329 commits across three repos), research/exp/e55.mjs (patch artifact classifier: 0/296), research/exp/e56.mjs (live gate replay of a hand-built whitespace-only candidate)"
+    },
+    {
+      "id": "exp-whitespace-002",
+      "kind": "failure",
+      "title": "Could not reproduce the CRLF corruption: applyPatch, commitWorkspace and a direct apply all preserve LF",
+      "body": "The observation: after approving loom-oracle round 1 the workspace at C:/tmp/oracle-live had ` M lib.mjs`, 23 changed lines, `git diff -w` empty, `git ls-files --eol lib.mjs` = `i/lf w/crlf`. Not reproduced in four controlled attempts:\n\n1. `research/exp/e53.mjs` -- real applyPatch then real commitWorkspace on a fresh temp repo whose blob and worktree are both LF: crlf stays 0 at every step (`verdict.corruptionStep = 'neither'`).\n2. Direct `git apply` of the same r1a2.patch into a clean clone of oracle-live: `i/lf w/lf` before and after.\n3. The same apply + `commitWorkspace` inside the live fixture itself: clean.\n4. Seeding the working file with CRLF and then applying: git refuses with `patch does not apply` (LF patch vs CRLF file), so the corruption cannot come from applying an LF patch onto a CRLF tree either.\n\nEnvironment facts ruled out: no `core.autocrlf` anywhere (repo, global, system all unset, no .gitattributes in either repo), no `EOL` conversion in src/, and the patch artifacts themselves are pure LF (r1a2 = 0 CRLF / 43 bare LF).\n\nSo the cause stays unattributed. What matters for the gate is that the *class* is already refused (exp-whitespace-001), so the unattributed cause cannot promote anything. Recording the non-reproduction rather than the hypothesis: the four attempts above are the evidence that the obvious mechanisms are not the mechanism, and an unattributed cause that cannot land a promotion is a note, not a work item.\n\nAlso worth keeping: the one real symptom it left behind was a dirty tree, which is the input to `applyPatch`'s `workspace-dirty` refusal and to the night committer's commit-or-stash decision -- i.e. the failure mode of this bug is a blocked round, not a bad landing.",
+      "topic": "gate",
+      "source": "research/exp/e53.mjs; direct git apply probes against C:/tmp/oracle-live; artifact EOL census (r1a1/r1a2/r2a1/r2a2/r3a1/r3a2 all pure LF)"
+    },
+    {
+      "id": "ana-022",
+      "kind": "analysis",
+      "title": "Before writing a rule for a class, ask whether the general invariant already covers it -- the specific rule can only ever agree",
+      "body": "Third time this night the same shape appeared, so it is worth naming as a rule of practice rather than three anecdotes:\n\n- `exp-diff-003`: the differential oracle already existed; I nearly wrote a second one (docs/rsi-digest §1 says so in its own words).\n- `exp-oracle-001`: the `tests/` path rule already existed; it protected the directory and not the file, so it needed *widening*, not replacing.\n- `exp-whitespace-001`: the whitespace class already falls out of `earned`, so no rule was needed at all.\n\nThe asymmetry that decides which case you are in: a general invariant (\"a promotion must move a measured number\") is closed under all the specific ways of not moving a number. A specific rule (\"reject patches that touch tests/\") is not closed under anything -- it is a list of shapes somebody thought of. So the question to ask before writing a check is not \"does this shape get through?\" but \"is there a statement whose truth is *implied* by the shape being a no-op?\" If yes, write that and delete the shape list. If no, name the population the rule is quantified over and write down what lives outside it.\n\nCost of asking: two cheap measurements (parse 461 patches offline; replay one hand-built candidate through the real gate). Cost of not asking: a second oracle, a narrow path rule, and a whitespace rule -- three code paths, each with tests and docs, all agreeing with the invariant that was already there.\n\nThe residual risk is the opposite failure: assuming a general invariant covers something it does not. `exp-oracle-001` is the counter-example -- the invariant there was 'a promotion must move a measured number', and a candidate that rewrites the instrument *does* move the number. The invariant was silent about who is allowed to move the instrument, which is why widening the path rule was the right fix and writing no rule at all would have been wrong.",
+      "topic": "gate",
+      "source": "exp-whitespace-001, exp-oracle-001, exp-diff-003"
+    }
+  ],
+  "edges": [
+    { "from": "exp-whitespace-001", "rel": "measures", "to": "exp-whitespace-002" },
+    { "from": "ana-022", "rel": "derived-from", "to": "exp-whitespace-001" },
+    { "from": "exp-whitespace-001", "rel": "refines", "to": "exp-diff-001" },
+    { "from": "ana-022", "rel": "refines", "to": "ana-021" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-ws-001",
+      "question": "Which no-op shapes are NOT covered by 'a promotion must move a measured number'? The oracle case shows the invariant is silent about who may move the instrument; are there others (e.g. a candidate that edits the metric regex, or that makes the verifier read a file it also writes)?",
+      "why": "ana-022 says write the invariant when it covers the class. It also says the failure mode is assuming coverage that does not exist. The only known counter-example was found by accident (a forged check.mjs promoting), not by asking the question.",
+      "topic": "gate"
+    }
+  ]
+}

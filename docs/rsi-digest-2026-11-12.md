@@ -65,6 +65,57 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 
 ---
 
+## 1c. 已实现：判据作用域 —— 候选不能改写自己的判据
+
+差分预言机问的是「这次改动有没有让判决变化」。它答不了另一个问题：**谁有权改变判决**。
+规则原来写的是目录（`src/runtime/round.js:1801` 的 `TEST_PATH_RE = /^tests(?:[/\\]|$)/`），
+而判据是文件。分级 fixture 的判据是仓库根目录的 `check.mjs`（打印 `QUALITY=<n>`、恒 exit 0），
+它不在 `tests/` 下，任务文本只是「请求」agent 不要改它 —— 请求不是检查。
+
+**实测（`e51.mjs`，真 `baseVerdict` + 真 `runVerifier` + 真 `earnedByDifferential`，同一 base `cd338ca`）**：
+
+| 候选 | 改了什么 | QUALITY | `testsClean` | 结果 |
+|---|---|---|---|---|
+| honest | `lib.mjs` | 0.500 → 1.000 | true | promoted |
+| forged | 不改 `lib.mjs`，把 `check.mjs` 改成直接打印 `QUALITY=1.000` | 0.500 → 1.000 | **true** | **promoted** |
+
+也就是说：一个什么都没修好的候选，靠改写仪器拿到了和真修好一样的分数、通过了所有既有检查。
+**启用分级通道的同时，也启用了伪造通道**（这与 `w4-graded-metric-regex-shadowing` 是同一件事的两面）。
+
+**已修（`c9eebe7`）**：新增 `src/gate/oracle.js`，把判据从命令本身推出来，而不是让作者声明
+（声明会被忘，推导不会被忘）：
+
+- `oracleScripts(spec, {cwd})` —— 跳过解释器 token（按 basename 认 `node`/`python`/`bash`… 含 `.exe`）、
+  让 `-e`/`-c`/`-m` 这类 flag 吞掉下一个 token、**只把真实存在且是文件的 token 当判据**。
+  所以 inline `node -e` 返回空集 —— 那是诚实答案，不是漏洞。`e50.mjs` 量到 105 个任务里
+  **93 个能推出判据文件、12 个是 inline**（`exp-oracle-002`）。
+- `patchPaths()` 只解析 `diff --git` 头；读不出返回 `null`，调用方必须**失败关闭**。
+- `oracleClean({patchFile, oraclePaths, filesChanged})` —— 无判据文件 ⇒ 不适用（`true`）；
+  补丁读不出 ⇒ `false`；否则补丁路径与 `filesChanged` 都必须与判据集**不相交**。
+
+**代价（要说清楚）**：这是对 shell 字符串的启发式，看不见「脚本再 spawn 脚本」「`sh -c` 包装」
+「运行期拼出的路径」。同一个洞在 holdout 命令和验证器**读取**的文件（比如 `lib.mjs` —— 那是候选
+本来就该改的）上仍然存在，那条边界是**任务的属性**，不是命令的属性（`ana-021`）。
+
+**爆炸半径（`e52.mjs`，这是它能今天就上的理由）**：116 个落到文件上的晋升里，
+新规则**会拒绝 0 个**（12 个 inline 不适用）⇒ 规则今天免费。测试
+`tests/oracle-scope.test.mjs` 16/16、`tests/oracle-gate.test.mjs` 2/2（真 `runRound`：伪造判据被拒、
+诚实修 `lib.mjs` 仍然晋升）。
+
+**端到端**：新建 `loom-oracle`（workspace `C:/tmp/oracle-live`，3 轮）3 轮全部 `promoted`，
+`checks.oracleFiles == ["check.mjs"]`、`oracleClean: true`；批准第 1 轮后提交 `774c990`，
+`node check.mjs` 从 `QUALITY=0.500` 到 **`1.000`** ⇒ 规则没有挡住诚实工作（`exp-whitespace-001` 的同类问题见下）。
+
+**顺手排掉的一个假线索**：批准之后工作区一度显示 ` M lib.mjs`（23 行改动），但 `git diff -w` 为空、
+`git ls-files --eol` 是 `i/lf w/crlf` —— 即整文件行尾翻转。我本想为此加一条「空白改动不得晋升」的规则，
+先量了两件事：①461 个补丁产物里 296 个非空、**0 个是空白改动**；②把这种候选真造出来过一遍活闸门
+（`e56.mjs`）⇒ `{earned:false, reason:'metric-did-not-improve'}`。**通用不变量已经覆盖了这个类别**，
+所以没有加规则（`exp-whitespace-001`、`ana-022`）。而那个 CRLF 的成因在四次受控实验里都没复现
+（`applyPatch` 与 `commitWorkspace` 都保持 LF），记为 `exp-whitespace-002`：
+成因未定，但它**挡住的是轮次、不是落盘**，所以不是工作项。
+
+---
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
