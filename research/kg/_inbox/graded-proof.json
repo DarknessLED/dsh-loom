@@ -1,0 +1,64 @@
+{
+ "nodes": [
+  {
+   "id": "exp-diff-006",
+   "kind": "number",
+   "title": "a graded score climbs end to end once earned is measured on the metric",
+   "topic": "gate",
+   "confidence": 0.97,
+   "body": "loom-graded2 (workspace C:/tmp/graded-live, single task `graded`, verify = node check.mjs with metrics.quality = /QUALITY=([\\d.]+)/) ran 6 rounds and promoted on every one of them.\n\nBefore the fix (loom-graded, same workspace, same verifier, 3 rounds): every round scored 1, every round recorded status 'no-gain', checks showed baseFailed=false with no metrics at all. QUALITY had in fact gone 0.500 -> 1.000 in the attempt stdout, three times.\n\nAfter the fix (commit 38dcd9d, reloaded into the host as tools=84 instance 8e34fc25): round 1 gate came back {\"verifierOk\":true,\"hasPatch\":true,\"testsClean\":true,\"beatsIncumbent\":true,\"noop\":false,\"baseFailed\":false,\"baseMetrics\":{\"quality\":0.5},\"holdout\":\"skipped\",\"earnedReason\":\"metric-improved\",\"earnedMetric\":{\"name\":\"quality\",\"from\":0.5,\"to\":1},\"earnedByMetric\":true} and round 1 status=promoted. Rounds 2 and 5 promoted the same way.\n\nApproving checkpoint cp-mwdqn0bx000001 landed round 1 as commit 122283a, and `node check.mjs` in the workspace then printed QUALITY=1.000 (was 0.500 at cd338ca). Cost of the whole campaign: $0.01.\n\nThis is the only end-to-end evidence in the ledger that a non-binary task can be promoted at all: all 114 promotions before it were on exit-code tasks, where the same code path is blind.",
+   "tags": [
+    "graded",
+    "earned",
+    "end-to-end",
+    "loom-graded2"
+   ]
+  },
+  {
+   "id": "ana-018",
+   "kind": "analysis",
+   "title": "the gate was reading the exit code of an instrument that never fails",
+   "topic": "gate",
+   "confidence": 0.96,
+   "body": "Why it survived: the same verifier answers two different questions and only one of them was asked.\n\nExit code answers 'is the tree broken?'. QUALITY answers 'how much of the job is done?'. A graded task's whole design is that the tree is never broken -- check.mjs exits 0 in all four fixture states -- so the exit-code oracle returns a constant, baseFailed is constant false, and `earned = baseFailed !== false` is constant false. The gate then rejects every round with a reason ('no gain') that is true of the constant it measured and false of the thing it was asked about.\n\nWhat made it findable was not reading the gate but replaying the ledger against an independent witness: e47 ran the base commit's verifier in a linked worktree and got 64 real red-to-green transitions and 7 already-green bases. The 7 are the population the exit-code oracle can see. The graded campaigns are the population it cannot see, and there were exactly two of them -- small enough to miss by eyeballing, large enough to mean the loop's only non-binary capability was unproven.\n\nWhy the fix is a metric rule and not a special case: earnedByDifferential takes baseFailed=true as sufficient (red-to-green), treats an unmeasured base as no evidence (base-unmeasured, preserving the old permissive behaviour), and only when the base was measurably green does it demand a metric that moved by at least minGain. That ordering is what makes it safe to add: it never removes the old pass, it only adds a way to earn on top of it.\n\nCost of the omission: about $0.003 in compute and one evening of believing the loop could not do something it could already do. That is the cheap version -- the expensive version is a team that switches to graded metrics for real work and finds every round recorded as no-gain.",
+   "tags": [
+    "graded",
+    "gate",
+    "root-cause"
+   ]
+  },
+  {
+   "id": "exp-diff-007",
+   "kind": "failure",
+   "title": "the metric cache fix was itself a regression on warm machines",
+   "topic": "gate",
+   "confidence": 0.93,
+   "body": "First attempt at the cache (38dcd9d) kept key = (task, base, command) and stored metrics on new entries only. Every machine that had already run the campaign had a version-1 entry with {ok, exitCode} and no metrics, so baseVerdict returned a metric-less result, earnedByDifferential fell through to base-already-green, and the blind spot came straight back -- on precisely the hosts where the campaign had been run before, which is all of them.\n\nIt would not have shown up in a fresh-clone test and it would not have shown up in the loom-graded2 run either, because that workspace had no cache. It surfaced only from reading my own diff and noticing that the entry shape and the key changed together.\n\nFix (f1b377c): CACHE_VERSION = 2 folded into the key. The cost is one re-measurement per live task; the alternative is a fix that silently does not apply where it is needed most.\n\nGeneral rule: when a cache value's shape gains a field that a correctness decision now depends on, the key must change in the same commit. A reader for a field that older entries lack is not a migration.",
+   "tags": [
+    "cache",
+    "regression",
+    "gate"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-diff-006",
+   "rel": "supports",
+   "to": "exp-diff-003",
+   "note": "the same blind spot, now measured end to end after the fix"
+  },
+  {
+   "from": "ana-018",
+   "rel": "derived-from",
+   "to": "exp-diff-003",
+   "note": "why an exit-code oracle is constant on a graded task"
+  },
+  {
+   "from": "exp-diff-007",
+   "rel": "contradicts",
+   "to": "exp-diff-006",
+   "note": "the first cache shape would have restored the blind spot on any warm host"
+  }
+ ]
+}
