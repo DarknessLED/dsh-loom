@@ -339,6 +339,20 @@ function cmdShow(args) {
   out(`${n.title}`)
   if (n.body) out(`\n${wrap(n.body, 96)}`)
   if (n.source) out(`\nsource: ${n.source}`)
+  // A question that has been answered is not the same as an open one, and the
+  // difference has to be visible on the node itself: a reader who arrives here from
+  // a search or a link must be told where the answer is, or the answer exists and
+  // cannot be reached. Same for the reverse direction on the answering node.
+  if (n.kind === 'question') {
+    const a = db.prepare('SELECT node_id, note FROM gap_answer WHERE gap_id = ?').get(id)
+    if (a) out(`\n✓ answered by ${a.node_id}${a.note ? ` -- ${wrap(a.note, 88)}` : ''}`)
+  }
+  const answered = db
+    .prepare('SELECT gap_id, note FROM gap_answer WHERE node_id = ? AND gap_id != ?')
+    .all(id, id)
+  if (answered.length) {
+    out(`\n✓ this node answers ${answered.map((r) => r.gap_id).join(', ')}`)
+  }
   const tags = tagsOf(db, id)
   if (tags.length) out(`tags: ${tags.join(' ')}`)
   const outs = neighbors(db, id, 'out')
@@ -376,8 +390,17 @@ function cmdSearch(args) {
   const rows = db.prepare(sql).all(...params)
   if (args.values.json) { out(JSON.stringify(rows, null, 2)); return }
   if (!rows.length) { out('nothing matches'); return }
+  // A search hit that hides whether the question is already answered sends the
+  // reader to re-derive a decision the graph has already made. Marking it costs one
+  // join and saves that trip.
+  const answeredOf = new Map()
   for (const r of rows) {
-    out(`\n${r.id}  [${r.kind}]  conf ${r.confidence ?? '-'}`)
+    if (r.kind !== 'question') continue
+    const a = db.prepare('SELECT node_id FROM gap_answer WHERE gap_id = ?').get(r.id)
+    if (a) answeredOf.set(r.id, a.node_id)
+  }
+  for (const r of rows) {
+    out(`\n${r.id}  [${r.kind}]  conf ${r.confidence ?? '-'}${answeredOf.has(r.id) ? `  ✓ answered by ${answeredOf.get(r.id)}` : ''}`)
     out(`  ${r.title}`)
     if (r.snip) out(`  ${r.snip.replace(/\s+/g, ' ').trim()}`)
   }
@@ -533,24 +556,76 @@ function cmdContradictions(args) {
 function cmdGaps(args) {
   const db = open()
   const showAnswered = Boolean(args?.values?.answered)
-  const rows = db.prepare(`
-    SELECT n.id, n.title, n.status, n.confidence, a.node_id AS answered_by, a.note AS anote
-      FROM node n
-      LEFT JOIN gap_answer a ON a.gap_id = n.id
-     WHERE n.kind = 'question' AND n.status = 'live' ${showAnswered ? '' : 'AND a.gap_id IS NULL'}
-     ORDER BY (a.node_id IS NOT NULL), n.confidence, n.id`).all()
+  const loadOnly = Boolean(args?.values?.['load-bearing'])
+  // Sorting by confidence was wrong twice over. First, confidence on a question is
+  // written by the agent that asked it -- and the wave builders write a flat 0.9 for
+  // every gap they generate, so 170 of 322 questions share one value and the band is
+  // ordered by id. Second, confidence answers "how sure am I this is unmeasured",
+  // which is not the question a queue has to answer. What a queue has to answer is
+  // "what is waiting on this": a claim, number or analysis that points at the
+  // question has made an assertion that the answer would confirm or break, and those
+  // are the ones whose absence is costing something. So sort by dependents, weight
+  // nodes that were supposed to be computed (number, analysis) above those that were
+  // merely asserted, and keep confidence as a later tiebreak only.
+  const rows = db
+    .prepare(
+      `WITH dep AS (
+         SELECT e.to_id AS q,
+                COUNT(*) AS deps,
+                SUM(CASE d.kind WHEN 'number' THEN 3 WHEN 'analysis' THEN 3
+                                WHEN 'failure' THEN 2 WHEN 'claim' THEN 2 ELSE 1 END) AS weight
+           FROM edge e JOIN node d ON d.id = e.from_id
+          WHERE d.status = 'live' AND d.kind != 'question'
+          GROUP BY e.to_id
+       )
+       SELECT n.id, n.title, n.status, n.confidence,
+              a.node_id AS answered_by, a.note AS anote,
+              COALESCE(dep.deps, 0) AS deps, COALESCE(dep.weight, 0) AS weight
+         FROM node n
+         LEFT JOIN gap_answer a ON a.gap_id = n.id
+         LEFT JOIN dep ON dep.q = n.id
+        WHERE n.kind = 'question' AND n.status = 'live'
+          ${showAnswered ? '' : 'AND a.gap_id IS NULL'}
+          ${loadOnly ? 'AND COALESCE(dep.deps, 0) > 0' : ''}
+        ORDER BY (a.node_id IS NOT NULL), weight DESC, deps DESC, n.confidence DESC, n.id`
+    )
+    .all()
   if (!rows.length) { out(showAnswered ? 'no open questions' : 'every open question has an answer or has been retired'); return }
   let answered = 0
+  let loadBearing = 0
   for (const r of rows) {
     const mark = r.answered_by ? `  [answered by ${r.answered_by}]` : ''
     if (r.answered_by) answered += 1
-    out(`${r.id}  conf ${r.confidence ?? '-'}  ${r.title.slice(0, 110)}${mark}`)
+    if (r.deps > 0) loadBearing += 1
+    const deps = r.deps > 0 ? `  ←${r.deps} dep${r.deps === 1 ? '' : 's'}` : '       '
+    out(`${r.id}  conf ${r.confidence ?? '-'}${deps}  ${r.title.slice(0, 110)}${mark}`)
   }
   const total = db.prepare("SELECT COUNT(*) AS n FROM node WHERE kind='question' AND status='live'").get().n
   db.close()
-  out(showAnswered
-    ? `\n${rows.length} question(s), ${answered} answered`
-    : `\n${rows.length} open question(s) of ${total} asked`)
+  // The note about confidence has to be about the rows actually printed, not about
+  // the whole pile: saying "170 of these share 0.9" under a filtered list of 28 is a
+  // false statement about the list, and a report that lies about its own rows is the
+  // failure ana-016 named (a quantity reported without its population).
+  const shown = rows.map((r) => r.confidence).filter((c) => c != null)
+  let modal = null
+  if (shown.length) {
+    const counts = new Map()
+    for (const c of shown) counts.set(c, (counts.get(c) ?? 0) + 1)
+    const [c, n] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (n > 3 && n / shown.length > 0.4) modal = { c, n }
+  }
+  if (showAnswered) {
+    out(`\n${rows.length} question(s), ${answered} answered, ${loadBearing} with something depending on them`)
+  } else if (loadOnly) {
+    out(`\n${rows.length} open question(s) that something depends on, of ${total} asked`)
+  } else {
+    out(`\n${rows.length} open question(s) of ${total} asked — ${loadBearing} have a node depending on the answer, ${rows.length - loadBearing} have none`)
+  }
+  if (modal) {
+    out(
+      `confidence is not the order: ${modal.n} of the ${shown.length} above share the value ${modal.c} because the wave builders write it flat, so ordering by it was ordering by id. Order is dependents, then weight of dependents.`
+    )
+  }
 }
 
 function cmdStats() {
@@ -842,7 +917,9 @@ const USAGE = `kg — local knowledge graph for dsh-loom research
   kg contradictions             pairs we have not resolved   [--resolved]
   kg resolve <a> <b> --verdict both|a|b|neither|superseded --note "..."
   kg unresolve <a> <b>          reopen a decision
-  kg gaps [--answered]          open questions (default: unanswered only)
+  kg gaps [--answered] [--load-bearing]
+                                open questions, ordered by how many nodes depend on
+                                the answer (default: unanswered only)
   kg answer <question> <node> --note "..."   record what closed a question
   kg unanswer <question>        reopen a question
   kg recent [--limit 20]        newest nodes
@@ -873,6 +950,7 @@ const { values, positionals } = parseArgs({
     resolved: { type: 'boolean' },
     verdict: { type: 'string' },
     answered: { type: 'boolean' },
+    'load-bearing': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 })

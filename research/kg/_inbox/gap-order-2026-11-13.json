@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "id": "exp-gap-008",
+      "kind": "number",
+      "title": "Of 311 open questions only 28 have anything depending on them, and the confidence order the queue used correlates -0.344 with that dependence",
+      "body": "Step five of the objective says to drive the next round of research from the gaps. `kg gaps` printed 311 open questions sorted by confidence. Two measurements say that ordering was not a queue.\n\nFirst, confidence on a question is not an assessment, it is a constant: 170 of 322 live questions carry exactly 0.9, and 169 of those carry the tag `unmeasured` written by the wave builders' gapNodes map (research/wave2/_build.mjs:40 and the same line in wave3..wave6), which sets `confidence: 0.9` unconditionally. Within that band the emitted order is identical to id order -- checked directly: sorting the 0.9 band by id reproduces the printed order exactly. So half the list, the top half, was alphabetical.\n\nSecond, confidence answers the wrong question for a queue. What a queue has to know is what is waiting on the answer. Counted over the live graph: 28 of 311 open questions have at least one non-question node pointing at them, 283 have none. Weighting dependents by how much their absence costs -- a number or an analysis that points at a question was supposed to be computed and cannot be, which is stronger than a claim merely mentioning it -- the heaviest are q-outcome-variable (5 dependents, weight 13: 'what is the outcome when a promotion means the verifier passed, not that the campaign made progress'), w3-attention-gap-card-vs-diff-decision-time (4 dependents), and gap-w4-035, gap-w1-004, w8-review-q-unmeasured (2 each).\n\nSpearman between dependence rank and confidence rank over the 18 questions that have both a dependent and a confidence: **-0.344**. Negative: the items confidence pushed to the top are, mildly, the ones with fewer things waiting on them. With n=18 this is not a strong estimate, but the sign is in the wrong direction for the ordering to be defensible, and the flat-0.9 finding above does not depend on n at all.\n\nWhat changed: `kg gaps` now orders by dependents then attribute-weighted dependents, prints ←N deps per row, and says in its own footer how many of the printed rows share a modal confidence value, naming that row count as the denominator. New flag `--load-bearing` prints only the 28. tests/kg-gap-order.test.mjs 11/11 pins the order (a 0.4 question with one number on it outranks every 0.9 question nothing points at), the footer denominator, the singular/plural, and that answered questions leave the list.",
+      "source": "research/exp/e65.mjs; research/wave2/_build.mjs:40 (confidence: 0.9 in gapNodes); fix in research/kg/kg.mjs cmdGaps; tests/kg-gap-order.test.mjs",
+      "confidence": 0.95,
+      "topic": "gap"
+    },
+    {
+      "id": "ana-026",
+      "kind": "analysis",
+      "title": "A confidence field filled in by whoever asked is a mood, and sorting a queue by a mood produces an alphabetical list wearing a ranking",
+      "body": "The number that made this visible was not the -0.344: it was that 170 questions share one value. A constant cannot order anything, so the ORDER BY fell through to `n.id` and the output looked ranked while being sorted by the string a builder happened to generate. Nobody would accept 'sorted alphabetically' as a queue, and everyone would accept 'sorted by confidence' — the difference between those two statements is entirely in the field's provenance, which the report did not show.\n\nThe general rule: a sort key derived from the subject of the sort is a mood, a sort key derived from the sort's purpose is a ranking. Confidence that 'this is unmeasured' is about the question; dependence is about the work the question blocks. Only the second can order a backlog, because a backlog is defined by what waits on it. This is the same distinction as exp-gap-001 (three classifiers thought they could separate 'nobody published' from 'we have not measured' and agreed with hand labels 5/25, 2/25, 6/25 of the time): in both cases the field recorded an impression, and the impression was being used as a fact.\n\nThere is a second, quieter lesson in the footer. The first version of the fix printed '170 of these share 0.9' under a --load-bearing list of 28 rows. The statement was true of the corpus and false of the page, which is exactly ana-016's failure (a quantity reported without the population it was computed over) reappearing in the fix for another instance of the same family. It was caught by reading the output of the filtered mode rather than the default mode, which is the only way it could have been caught.\n\nWhat this does not solve: 283 open questions have nothing depending on them, so the new order does not make them actionable — it only stops pretending they were ranked. Their number is a fact about how the graph was built (each wave's gaps are attached to nothing), not about the questions.",
+      "source": "research/exp/e65.mjs; research/wave2/_build.mjs:40; exp-gap-008; ana-016",
+      "confidence": 0.94,
+      "topic": "gap"
+    },
+    {
+      "id": "exp-gap-009",
+      "kind": "failure",
+      "title": "The first version of the fix printed a true statement about the corpus under a filtered list of 28 rows",
+      "body": "`kg gaps --load-bearing` printed 28 rows and then the footer 'confidence is not the order: 170 of these share the value 0.9'. 170 is the count over all live questions; the sentence said 'of these', pointing at 28 printed rows, of which 13 actually carry 0.9. The claim was true, the referent was wrong, and it was wrong in the specific way that makes a report look like it verified something.\n\nFixed by computing the modal confidence over the rows in hand (`rows.map(r => r.confidence).filter(c => c != null)`), requiring it to be both more than 3 rows and more than 40% of the printed rows before saying anything, and naming the denominator in the sentence ('N of the M above'). tests/kg-gap-order.test.mjs asserts the sentence always carries a denominator.\n\nThis is ana-016 again, in a fix written after reading ana-016. The defence that worked was not remembering the rule; it was running the filtered mode and reading its output. A rule that only fires when you happen to test the branch it governs is not yet a defence -- the mechanical version (compute the statistic from the same collection you print) had to be in the code.",
+      "source": "research/kg/kg.mjs cmdGaps; tests/kg-gap-order.test.mjs; ana-016",
+      "confidence": 0.93,
+      "topic": "gap"
+    }
+  ],
+  "edges": [
+    { "from": "exp-gap-008", "rel": "measures", "to": "gap-kg-001", "note": "that gap asked whether recorded relations should re-rank search; this measures the same defect on the queue that drives the next research round" },
+    { "from": "exp-gap-008", "rel": "supersedes", "to": "exp-gap-001", "note": "the classifier-agreement number was about which gaps this disk can close; this is about which gaps anything is waiting on, which is the question a queue needs" },
+    { "from": "ana-026", "rel": "derived-from", "to": "exp-gap-008", "note": "from a 0.344 correlation and one constant column to a rule about sort keys and provenance" },
+    { "from": "ana-026", "rel": "refines", "to": "ana-016", "note": "ana-016 said a counterfactual must print what it still spends; this says a statistic must be computed from the collection it is printed under, which its own fix violated" },
+    { "from": "exp-gap-009", "rel": "supports", "to": "ana-026", "note": "the concrete instance of the footer lying about its own rows" },
+    { "from": "exp-gap-009", "rel": "refines", "to": "ana-016", "note": "second instance of the same family, committed while fixing a third" },
+    { "from": "exp-gap-008", "rel": "refines", "to": "n-loom-wasted-rounds", "note": "that number said 42.8% of round time is spent after the last promotion; this says which unmeasured questions the loop's own nodes are waiting on" }
+  ],
+  "gaps": [
+    {
+      "id": "gap-gap-001",
+      "title": "Why do 283 of 311 open questions have no node depending on them, and should a question exist without a dependent?",
+      "body": "Each wave's builder appends a gapNodes block attached to nothing: the questions are generated from what the research did not answer, and no claim is rewritten to point at them. So the orphan rate measures the builder, not the research. Two designs are possible. (a) A question must be created with at least one dependent -- the finding that made it worth asking -- which forces the link and makes the queue meaningful; the cost is that a genuinely open question discovered in passing has nowhere to live. (b) Questions stay free-floating and a separate pass attaches them, which is what kg link does today and which nothing performs. Measuring which design is right needs a third number nobody has: how often an attached question changed what the loop did next. gap-w6-001 is the only case where a question, once answered, changed a rule (the human-decision rate killed the escalation-band assumption), and it had one dependent.",
+      "confidence": 0.7,
+      "topic": "gap"
+    }
+  ]
+}

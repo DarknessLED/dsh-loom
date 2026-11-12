@@ -189,6 +189,37 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 
 ---
 
+## 1g. 已实现：缺口队列换了排序键 —— 之前它按 id 排，只是看起来像排序
+
+目标第五步说「用缺口驱动下一轮调研」，而 `kg gaps` 把 311 个未答问题按 confidence 排。两个测量说这个顺序不是队列。
+
+**第一，confidence 在 question 这一类上不是评估，是常量。** 322 个 live question 里 **170 个恰好是 0.9**，
+其中 169 个带 `unmeasured` 标签 —— 来自每个 wave 的 builder（`research/wave2/_build.mjs:40` 的 `gapNodes`，wave3–wave6 同一行）
+无条件写 `confidence: 0.9`。把 0.9 这一带按 id 排序能**逐字复现**打印顺序 ⇒ 半份清单、而且是上半份，是字母序。
+
+**第二，confidence 回答的不是队列该问的问题。** 队列要知道的是「谁在等这个答案」。在全图上数：
+311 个未答问题里 **28 个**至少有一个非 question 节点指向它，**283 个一个都没有**。按依赖的代价加权
+（一个 number 或 analysis 指着某个问题，意味着有个本该被算出来的东西算不出来，比一个 claim 顺口提到它更重），
+最重的是 `q-outcome-variable`（5 个依赖、权重 13：晋升只代表验证器在这个任务上通过、不代表战役有进展，那么 outcome 是什么）、
+`w3-attention-gap-card-vs-diff-decision-time`（4 个），以及 `gap-w4-035`、`gap-w1-004`、`w8-review-q-unmeasured`（各 2 个）。
+
+依赖排名与 confidence 排名在这 18 个两者皆有的问题上的 Spearman 是 **−0.344**。负的：confidence 推到前面的，恰好是等它的人比较少的。
+n=18 不足以把它当强估计，但方向对「按 confidence 排」是不利的；而上面那个「170 个共享 0.9」的发现**完全不依赖 n**。
+
+**改法**：`kg gaps` 改为按「依赖数 → 依赖加权 → confidence」排，每行打印 `←N deps`，并在页脚**点名自己这一页的分母**
+说明有多少行共享同一个 modal confidence；新标志 `--load-bearing` 只打印那 28 个（现在是 29 个，多出的是我自己为这个缺陷写的那条缺口）。
+`tests/kg-gap-order.test.mjs` **11/11** 钉住：一个 conf 0.4、被一个 number 依赖的问题排在所有无人依赖的 0.9 之前；
+页脚分母必填；单数/复数；已收口的问题离开列表。
+
+**这里又犯了一次同族的错**（`exp-gap-009`）：第一版修复在 `--load-bearing` 打印的 28 行下面写了
+「170 of these share the value 0.9」—— 170 是全体问题的计数，句子指的却是这 28 行（实际 13 行是 0.9）。
+数字是真的，指称是假的，而且假得让报告看起来像验证过什么。修法是**用正在打印的那个集合本身算统计**
+（`rows.map(r => r.confidence)`，并要求 >3 行且 >40% 才开口，句子里带分母）。
+抓住它的不是「记得 ana-016」，而是**跑了过滤模式并读了它的输出** —— 只在你想起来测那条分支时才生效的规则还不是防线，
+机械版本（统计量必须从你打印的那个集合里算）必须写进代码。
+
+---
+
 ## 2. 必修：绿色验证器被丢掉的 22 个案例
 
 | 项 | 内容 |
@@ -285,13 +316,14 @@ attempt 记录里工作是真的：`r1a2`/`r2a1`/`r3a2` 的 `stdoutTail` 都是 
 ## 9. 复跑方式
 
 ```bash
-# 图谱（1,443 节点 / 1,491 边 / 321 个问题，其中 11 个已收口）
+# 图谱（1,451 节点 / 1,504 边 / 323 个问题，其中 12 个已收口）
 node research/kg/kg.mjs stats
 node research/kg/kg.mjs search "differential oracle"
 node research/kg/kg.mjs around ana-012 --depth 2
 node research/kg/kg.mjs contradictions     # 174 对，全部已裁定
-node research/kg/kg.mjs gaps               # 310 个未答 / 共 321 个问过
-node research/kg/kg.mjs gaps --answered    # 已收口的 11 个 + 是哪个节点收的
+node research/kg/kg.mjs gaps               # 311 个未答 / 共 323 个问过，按依赖数排
+node research/kg/kg.mjs gaps --load-bearing # 只有 29 个有节点在等它的答案
+node research/kg/kg.mjs gaps --answered    # 已收口的 12 个 + 是哪个节点收的
 node research/kg/kg.mjs pack > graph.pack  # 纯文本，可 diff；含 ! 裁定与 ? 收口
 
 # 本文引用的测量
@@ -305,7 +337,10 @@ node research/exp/e57.mjs   # 重复节点合并会塌掉什么
 node research/exp/e59.mjs   # 出生即被回答的缺口
 node research/exp/e61.mjs   # 三种缺口分类器 vs 手工标注
 node research/exp/e62.mjs   # 四个点名要我们自己账本的缺口 + 两个时代的拆分
-node scripts/test-all.mjs   # 166/166
+node research/exp/e63.mjs   # 概念层能不能被自己的子节点检索到
+node research/exp/e64.mjs   # 记录在案的答案能不能被搜到（11 对 + 174 对）
+node research/exp/e65.mjs   # 哪些未答问题真的挡住了别的东西
+node scripts/test-all.mjs   # 168/168
 ```
 
 ---

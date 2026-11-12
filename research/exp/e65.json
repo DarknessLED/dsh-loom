@@ -1,0 +1,170 @@
+{
+  "population": {
+    "liveQuestions": 322,
+    "answered": 11,
+    "open": 311
+  },
+  "load": {
+    "withNonQuestionDependent": 28,
+    "withNoDependent": 283,
+    "topWeight": 13
+  },
+  "agreement": {
+    "spearmanLoadVsConfidence": -0.344,
+    "n": 18,
+    "reading": "Spearman between dependence rank and confidence rank over load-bearing questions. Negative means confidence sorts them backwards. Near zero means confidence carries no information about whether anything is waiting on the answer."
+  },
+  "top10": [
+    {
+      "id": "q-outcome-variable",
+      "dependents": 5,
+      "weight": 13,
+      "kinds": {
+        "number": 2,
+        "analysis": 1,
+        "failure": 2
+      },
+      "conf": 0.9,
+      "title": "What is the outcome? Today a promotion means the verifier passed on this task, not that the campaign"
+    },
+    {
+      "id": "w3-attention-gap-card-vs-diff-decision-time",
+      "dependents": 4,
+      "weight": 10,
+      "kinds": {
+        "failure": 1,
+        "number": 2,
+        "claim": 1
+      },
+      "conf": 0.9,
+      "title": "No measurement of time-to-decision or error rate for an evidence-dense card against a raw diff"
+    },
+    {
+      "id": "gap-w1-004",
+      "dependents": 2,
+      "weight": 6,
+      "kinds": {
+        "number": 2
+      },
+      "conf": null,
+      "title": "No controlled measurement found for lesson injection in a self-improvement loop — i.e. nobody A/Bs '"
+    },
+    {
+      "id": "gap-w4-035",
+      "dependents": 2,
+      "weight": 6,
+      "kinds": {
+        "number": 2
+      },
+      "conf": 0.9,
+      "title": "No one has published a canary or SLO protocol for a self-modifying loop whose only metric is its own"
+    },
+    {
+      "id": "w8-review-q-unmeasured",
+      "dependents": 2,
+      "weight": 6,
+      "kinds": {
+        "analysis": 2
+      },
+      "conf": null,
+      "title": "What has nobody measured about reviewing machine-authored diffs"
+    },
+    {
+      "id": "ctx-033",
+      "dependents": 2,
+      "weight": 5,
+      "kinds": {
+        "claim": 1,
+        "number": 1
+      },
+      "conf": 0.6,
+      "title": "Is loom's lesson-injection mechanism worth its extra call? The closest controlled test is underpower"
+    },
+    {
+      "id": "w3-attention-gap-no-cadence-ab",
+      "dependents": 2,
+      "weight": 5,
+      "kinds": {
+        "claim": 1,
+        "number": 1
+      },
+      "conf": 0.9,
+      "title": "Nobody has randomised checkpoint cadence in an agent supervision loop"
+    },
+    {
+      "id": "q-verifier-order",
+      "dependents": 2,
+      "weight": 5,
+      "kinds": {
+        "claim": 1,
+        "analysis": 1
+      },
+      "conf": null,
+      "title": "Does our verifier run tests that were frozen before the patch existed?"
+    },
+    {
+      "id": "w8-attention-uncertainty-defers-question",
+      "dependents": 2,
+      "weight": 5,
+      "kinds": {
+        "claim": 1,
+        "number": 1
+      },
+      "conf": null,
+      "title": "Open: does showing uncertainty make a supervisor defer more, or does any claim of competence do that"
+    },
+    {
+      "id": "ver-q02",
+      "dependents": 2,
+      "weight": 4,
+      "kinds": {
+        "claim": 1,
+        "failure": 1
+      },
+      "conf": 0.45,
+      "title": "Can model-based grading be calibrated cheaply? Published agreement numbers disagree"
+    }
+  ],
+  "confidentButUnreferenced": [
+    {
+      "id": "w2-decide-gap-no-effect-size-prior",
+      "conf": 0.9,
+      "title": "No measured distribution of real harness deltas, so the MDE formula has no Delta and nobody reports "
+    },
+    {
+      "id": "w2-horizon-gap-no-telemetry-decay",
+      "conf": 0.9,
+      "title": "No fitted reliability-decay curve from production telemetry: every published endurance curve is a si"
+    },
+    {
+      "id": "w2-horizon-gap-predict-breaking-point",
+      "conf": 0.9,
+      "title": "No a-priori predictor of the breaking point: compositional depth s is measurable only on hand-built "
+    },
+    {
+      "id": "w2-horizon-gap-integrity-composition",
+      "conf": 0.9,
+      "title": "Verification integrity is measured only as a single scalar gap inside one harness; how it composes a"
+    },
+    {
+      "id": "w2-human-gap-review-time-cost-curve",
+      "conf": 0.9,
+      "title": "No primary cost curve of review minutes against defects found for agent diffs"
+    },
+    {
+      "id": "w2-human-gap-fatigue-curve-unmeasured",
+      "conf": 0.9,
+      "title": "The reviewer-fatigue curve is assumed in every deferral model and measured in none"
+    },
+    {
+      "id": "w2-memory-gap-compaction-cadence",
+      "conf": 0.9,
+      "title": "No one measures repeated compaction under one fixed budget axis, so consolidation cadence is an unme"
+    },
+    {
+      "id": "w2-memory-gap-counter-goodhart",
+      "conf": 0.9,
+      "title": "No work measures whether helpful/harmful counters can be gamed by the same model that assigns them"
+    }
+  ]
+}

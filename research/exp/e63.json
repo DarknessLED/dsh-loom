@@ -1,0 +1,135 @@
+{
+  "population": {
+    "concepts": 78,
+    "withChildren": 71,
+    "withoutChildren": 7,
+    "topN": 10
+  },
+  "retrieval": {
+    "scoreable": 71,
+    "foundEveryChildInTopN": 11,
+    "foundNoChild": 54,
+    "medianRecall": 0,
+    "meanRecall": 0.195
+  },
+  "worst": [
+    {
+      "id": "c-nonstationary-window",
+      "children": 2,
+      "title": "Non-stationary bandits price the regime change explicitly: a discount window or a changepo"
+    },
+    {
+      "id": "c-ope-propensity",
+      "children": 2,
+      "title": "Off-policy evaluation is defined by a ratio whose denominator is the logging propensity — "
+    },
+    {
+      "id": "kg-013",
+      "children": 2,
+      "title": "Carneades proof standards: exceptions are first-class, and one confidence number is not a "
+    },
+    {
+      "id": "w2-decide-nonstationarity-window",
+      "children": 2,
+      "title": "A stationary-optimal accept rule stops tracking after change; windowed statistics keep up"
+    },
+    {
+      "id": "w2-meta-warm-start-library",
+      "children": 2,
+      "title": "Warm-starting from a library of known-good moves buys early gains and imports a bias that "
+    },
+    {
+      "id": "w2-verify-holdout-reuse-overfitting",
+      "children": 2,
+      "title": "Reusing one verifier across adaptive rounds overfits it: proxy curves rise then fall, hold"
+    },
+    {
+      "id": "w3-holdout-contamination-taxonomy",
+      "children": 2,
+      "title": "Every contamination-detection family assumes bounded access, which is exactly what loom la"
+    },
+    {
+      "id": "w5-interface-sre-actionable-1to1",
+      "children": 2,
+      "title": "SRE's actionable-only rule is a ratio plus a cap: ~1 alert per incident, 2 per 12h shift"
+    },
+    {
+      "id": "w6-attn-independent-evidence",
+      "children": 2,
+      "title": "An approval guards only what the reviewer independently verifies; restating the agent's cl"
+    },
+    {
+      "id": "w6-attn-saturation-three-levers",
+      "children": 2,
+      "title": "A saturated verification station has exactly three levers, and declining to choose pulls t"
+    }
+  ],
+  "noChildren": [
+    {
+      "id": "k-derived-oracles",
+      "title": "Derived oracles: generate the check from the patch itself so there is nothing fixed to spe"
+    },
+    {
+      "id": "k-heldout-oracle",
+      "title": "Holding the oracle out of the agent's write scope is the cheapest single intervention, and"
+    },
+    {
+      "id": "ver-c01",
+      "title": "fail2pass/pass2pass grading, re-run in a clean container with network and git history remo"
+    },
+    {
+      "id": "ver-c02",
+      "title": "pass^k measures reliability; one trial per task is not a measurement"
+    },
+    {
+      "id": "w2-verify-test-command-partial-oracle",
+      "title": "A test command is a 1-bit-per-assertion oracle: it passes wrong code and fails right code"
+    },
+    {
+      "id": "w8-attention-breakpoints",
+      "title": "Deliver at round boundaries: interruption cost depends on when it lands and is worst durin"
+    },
+    {
+      "id": "w8-attention-bulk-approve",
+      "title": "Approve-similar collapses N decisions into one and reproduces the multitasking condition a"
+    }
+  ],
+  "best": [
+    {
+      "id": "w8-attention-devils-advocate",
+      "children": 2,
+      "recall": 1,
+      "title": "Explain the doubt, not the decision: a rationale that argues for approval is an approval-r"
+    },
+    {
+      "id": "c-switchback-dial",
+      "children": 1,
+      "recall": 1,
+      "title": "A switchback converts carryover into a bias term linear in the switch rate: |tau_SB(lambda"
+    },
+    {
+      "id": "k-instrument-precision",
+      "children": 1,
+      "recall": 1,
+      "title": "A reportable precision for a quality instrument is audited true-positive rate among its ow"
+    },
+    {
+      "id": "rsi-024",
+      "children": 1,
+      "recall": 1,
+      "title": "Three cost registers that must never be blended: billed, estimated, unknown"
+    },
+    {
+      "id": "src-daikon",
+      "children": 1,
+      "recall": 1,
+      "title": "Spec mining from traces: 30% of inferred invariants survive human review"
+    },
+    {
+      "id": "w2-decide-bayes-factor-ville",
+      "children": 1,
+      "recall": 1,
+      "title": "A Bayes-factor threshold is the only tier-2 rule bounding FPR under unlimited peeking"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "population": {
+    "topN": 10,
+    "answerPairs": 11,
+    "contradictionPairs": 174,
+    "selfCheckNodes": 40
+  },
+  "selfCheck": {
+    "foundItselfInTop5": 1,
+    "medianRank": 1,
+    "reading": "If this is not near 1.0 the index is broken and nothing below is about the graph. It is the cheapest possible control and it costs 40 searches."
+  },
+  "answeredQuestions": {
+    "foundAnswerInTopN": 0.273,
+    "medianRankOfAnswer": 14,
+    "detail": [
+      {
+        "question": "w2-human-gap-miss-rate-on-agent-diffs",
+        "answer": "w2-human-automation-bias-ecg",
+        "rank": 22
+      },
+      {
+        "question": "gap-w4-030",
+        "answer": "w4-review-judge-skill-is-pair-property",
+        "rank": 2
+      },
+      {
+        "question": "gap-w5-022",
+        "answer": "w5-tokenbudget-half-spend-buys-nothing",
+        "rank": null
+      },
+      {
+        "question": "gap-w6-001",
+        "answer": "exp-gap-005",
+        "rank": 14
+      },
+      {
+        "question": "gap-w6-011",
+        "answer": "exp-gap-005",
+        "rank": 31
+      },
+      {
+        "question": "gap-w6-018",
+        "answer": "exp-gap-005",
+        "rank": 23
+      },
+      {
+        "question": "gap-w6-039",
+        "answer": "exp-gap-005",
+        "rank": null
+      },
+      {
+        "question": "cheapest-policy",
+        "answer": "ledger-slots",
+        "rank": null
+      },
+      {
+        "question": "gap-w7-007",
+        "answer": "n-loom-wasted-rounds",
+        "rank": null
+      },
+      {
+        "question": "gap-w7-030",
+        "answer": "n-post-promotion-spend",
+        "rank": 3
+      },
+      {
+        "question": "gap-w6-048",
+        "answer": "exp-gap-007",
+        "rank": 5
+      }
+    ],
+    "reading": "The strongest available test: these 11 pairs are decisions already made, so the answer is known correct. A reader with only the question text and kg search gets the answer in the top N some of the time."
+  },
+  "resolvedContradictions": {
+    "foundPartnerInTopN": 0.184,
+    "medianRankOfPartner": 11,
+    "foundAnywhereInTop40": 0.414,
+    "reading": "A contradiction pair is two nodes about one thing, so searching either title should surface the other. This is a lower bar than the answered-question test (the partner need only be about the same subject) and a much larger sample."
+  }
+}

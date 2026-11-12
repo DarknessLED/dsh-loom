@@ -1,0 +1,78 @@
+{
+  "nodes": [
+    {
+      "id": "exp-kg-001",
+      "kind": "number",
+      "title": "The graph's search finds its own node first 40/40 times, but a reader holding a question finds its recorded answer in the top 10 only 27% of the time",
+      "body": "The concept layer's 21 orphan nodes looked like the curation backlog the digest's step five names ('distil concepts'). It is not: a concept is an abstraction whose children are instances, so their titles share no vocabulary by construction -- 0 of 89 concept->child pairs share even three title words (e63). Testing a concept by searching for its children is testing a chapter heading by its subsections' first sentences.\n\nThe question with a ground truth in the graph is narrower and answerable. The graph records 11 decisions of the form 'node A answers question Q' (gap_answer) and 174 of the form 'A and B are about one thing' (resolution). Those pairs were produced for another purpose, which is what makes them a witness rather than a benchmark.\n\ne64 measures the reader's actual experience, calling the same FTS the `kg search` command uses:\n- self-check, does a node's own title find that node: 40/40 in top 5, median rank 1. The index is not broken, so everything below is about the content.\n- answered questions: the answer appears in the top 10 for 3 of 11 questions (27.3%), median rank of the answer 14. Ranks: 2, 3, 5, 14, 22, 23, 31, and 3 that do not appear in the top 40 at all.\n- resolved contradictions: the partner appears in the top 10 for 18.4% of 174 pairs, in the top 40 for 41.4%, median rank 11.\n\nTwo different failures are mixed in the 27%. The 3 that are absent from the top 40 entirely (gap-w5-022->w5-tokenbudget-half-spend-buys-nothing, gap-w6-039->exp-gap-005, cheapest-policy->ledger-slots) are title-vocabulary mismatches: the question is phrased in words the answer never uses, which is a real cost for a reader who only has the question. The ones at rank 14-31 are not mismatches but competition: a question of the form 'what is X' shares X with every other node that mentions X, and among them the answer is not special.\n\nWhat the number changes: the gap_answer and resolution tables are invisible to search. A reader who searches the question's words is routed by word overlap alone, and the graph's own record of which node answers it is not consulted at all -- even though that record is exact, and ordered above any word-overlap guess. That is the same shape as exp-oracle-001: the mechanism exists (the decision was recorded) and the path to it was not built. The cheap fix is to rank recorded answers first for their own question, which requires no model and no tuning.",
+      "source": "research/exp/e63.mjs, research/exp/e64.mjs; graph 1443 nodes, 11 gap_answer, 174 resolution",
+      "confidence": 0.94,
+      "topic": "kg"
+    },
+    {
+      "id": "ana-025",
+      "kind": "analysis",
+      "title": "An abstraction cannot be retested by its instances, and a knowledge graph's value is not in its nodes but in whether a reader can traverse from question to answer",
+      "body": "The orphan concept count (21 of 78) was the number that looked like the problem, and it was the one number that could not be fixed by working on it. Adding inbound edges to an orphan makes the orphan count go to zero and changes nothing about whether the graph can be read: a link nobody traverses is the same as an absent link, except it makes the report look done. That is exp-resolve-001's lesson from the other side (a contradiction list that only grows is a museum, not a queue) applied to shape rather than size.\n\nThe concept layer has a different job. Its children are instances and its title is a generalisation, so by design there is no lexical bridge between them -- measured: 0/89 pairs share three title words. So 'does searching a concept's title find its children' is not a test of the concept, it is a test of whether the concept was mis-filed as a claim. The test that does mean something is whether the graph's *recorded* relations are used by the reader's path: 11 exact answers exist, and 8 of 11 are not in the top 10 when you search the question.\n\nThe general rule: for any index, the honest measurement is a witness pair the index did not create for the purpose of being measured. Recorded decisions (who answers what, which contradict which) are such pairs because they were made to settle something, not to score retrieval. A hand-built benchmark of 'good search results' is the opposite -- it is authored by the same person who would then be graded.\n\nWhat is not solved: precision. Ranking recorded answers above word overlap will make the 27% into something near 100% *for questions that have recorded answers*, and it does nothing for the 310 questions that do not, nor for finding an answer that was never linked. That is a coverage problem and it is the real one; the ranking fix is only the part that costs nothing.",
+      "source": "research/exp/e63.mjs, research/exp/e64.mjs; exp-kg-001",
+      "confidence": 0.93,
+      "topic": "kg"
+    },
+    {
+      "id": "exp-kg-002",
+      "kind": "failure",
+      "title": "A question with a recorded answer looked identical to an open one in both kg show and kg search -- the answer existed and could not be reached",
+      "body": "kg answer has written gap_answer since commit 021cf28 and kg gaps reports '310 open of 321 asked', but the two commands a reader actually uses were not updated. `kg show gap-w6-001` printed the question and its body with no mention that exp-gap-005 had answered it; `kg search` ranked it like any other hit. The information was in the database and in neither door.\n\nThis is the third time in this session that a capability was added at one layer and left unreachable at the layer people touch: exp-oracle-001 (the tests/ directory rule protected a directory while the oracle was a file), exp-whitespace-001 (a no-op rule was unnecessary because the earned check already covered it), and now a decision that is recorded but not shown. The common shape is a state change that is stored as a row rather than as a change in the surface.\n\nFixed in research/kg/kg.mjs: show prints '✓ answered by <id> -- <reason>' on the question and '✓ this node answers <ids>' on the answer; search marks answered questions in its header line; both read from gap_answer directly, so they cannot drift from the truth. tests/kg-show-answer.test.mjs 13/13 covers both directions, the search marker, the negative case (an unanswered question must not claim an answer), one node answering two questions, unanswer removing both ends, and show --json returning the raw node.",
+      "source": "research/exp/e64.mjs (the 3-of-11 finding); fix in research/kg/kg.mjs; tests/kg-show-answer.test.mjs",
+      "confidence": 0.95,
+      "topic": "kg"
+    }
+  ],
+  "edges": [
+    {
+      "from": "exp-kg-001",
+      "rel": "refines",
+      "to": "exp-oracle-001",
+      "note": "same shape: a mechanism that exists but has no path from the reader to it -- there a directory rule vs a file oracle, here a recorded answer vs a word-overlap search"
+    },
+    {
+      "from": "exp-kg-001",
+      "rel": "measures",
+      "to": "ana-023",
+      "note": "ana-023 said a gap list is only a queue once each entry names who can close it; this measures whether closing it is reachable afterwards -- 27% of the time"
+    },
+    {
+      "from": "exp-kg-002",
+      "rel": "supports",
+      "to": "exp-kg-001",
+      "note": "the 3-of-11 and the missing marker are the same defect observed at two layers"
+    },
+    {
+      "from": "ana-025",
+      "rel": "derived-from",
+      "to": "exp-kg-001",
+      "note": "generalises from one retrieval number to a rule about witnesses and about what an index is for"
+    },
+    {
+      "from": "ana-025",
+      "rel": "refines",
+      "to": "exp-resolve-001",
+      "note": "that lesson was that a list which only grows is a museum; this one is that a link nobody can traverse is the same, and so is an orphan count driven to zero by adding edges"
+    },
+    {
+      "from": "exp-kg-002",
+      "rel": "refines",
+      "to": "exp-whitespace-001",
+      "note": "third instance of capability-added-but-unreachable in one session"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gap-kg-001",
+      "title": "Should recorded answers and contradictions re-rank search results, and what does that cost when the record is wrong?",
+      "body": "e64 shows the exact record (gap_answer, resolution) is invisible to search: 8 of 11 recorded answers are not in the top 10 for their own question. Ranking them first is a one-join change. The risk is the opposite direction: a recorded answer that is wrong would then be unfindable-wrong -- it would occupy rank 1 and push the node that contradicts it off the page. The 174 resolutions include 5 'neither' verdicts, i.e. cases where the graph decided both sides were wrong, and those must not be promoted. Measuring this needs a second witness: replay the 11 answers with the ranking change and check that no node which contradicts the answer moves up.",
+      "confidence": 0.65,
+      "topic": "kg"
+    }
+  ]
+}
