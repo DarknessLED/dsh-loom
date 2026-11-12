@@ -1,0 +1,53 @@
+{
+ "nodes": [
+  {
+   "id": "exp-oracle-001",
+   "kind": "failure",
+   "topic": "gate",
+   "confidence": 0.97,
+   "title": "The gate refuses edits to tests/ but not to the file the verifier runs: a candidate that rewrote check.mjs promoted",
+   "source": "research/exp/e51.mjs (real round, real baseVerdict, real earnedByDifferential) and research/exp/e50.mjs over 105 registered tasks",
+   "body": "The rule that stops an agent from editing its own judge is written as a directory: `src/runtime/round.js`'s `TEST_PATH_RE = /^tests(?:[/\\\\]|$)/`. The oracle is a file, and it need not live there.\n\nThe graded fixture (`C:/tmp/graded-live`) puts its instrument at the repo root: `check.mjs` prints `QUALITY=<share of four behaviours that pass>` and exits 0 in every state, and its task text merely ASKS the agent not to touch it. Two candidates over the same base commit:\n  honest  -- fix `lib.mjs`, leave `check.mjs` alone   -> changed=['lib.mjs'], quality 0.500 -> 1.000, promoted\n  forged  -- leave `lib.mjs` broken, rewrite `check.mjs` -> changed=['check.mjs'], quality 0.500 -> 1.000, promoted\nThe gate said `testsClean: true` for both, because neither path starts with `tests/`. So the forgery is not a theory: it is a byte-for-byte promotion, and the metric it forged is the same one the loop uses to report the campaign's success.\n\nBlast radius, on the ledger rather than in principle: of 116 landed promotions whose verify command runs a file, applying the rule \"a patch may not edit a file the verify command runs\" would have refused 0. Twelve more promotions ran no file at all (`node -e ...`), where the rule does not apply by construction. So the rule is free today -- it costs nothing and closes the hole that the one campaign explicitly designed to be graded fell into.\n\nWhy it survived: the graded campaign was built to prove that a metric can climb, so its fixture was written by the same person who wrote the rule, and both of us thought `tests/` was where verifiers live. The fixture's own README says `check.mjs` is the instrument; the rule never read it."
+  },
+  {
+   "id": "exp-oracle-002",
+   "kind": "number",
+   "topic": "gate",
+   "confidence": 0.95,
+   "title": "Deriving the oracle from the command finds a file for 93 of 105 registered tasks and none for the 12 inline ones",
+   "source": "research/exp/e50.mjs against 105 task verify commands in ~/.dsh/loom/campaigns/*/views/state.json",
+   "body": "For every registered task, take the first command in the `&&` chain, skip the interpreter token, and resolve the next token against the workspace; it counts as an oracle file only if it exists and is a file.\n\nResult: 93 tasks name a file that exists (94 including the four fixtures whose oracle is at the root: check.mjs, scripts/test-all.mjs, and the workspace file checks), 12 name no file at all because the command is inline `node -e \"...\"`. The remaining exposure is exactly those 12, and it is not exposure: an inline command runs no file a patch could rewrite, so the question \"did the patch edit its own judge\" has the answer \"there is no judge file\".\n\nThe derivation is what makes this implementable without asking task authors to declare anything: no task in the ledger carries an oracle field, and adding one would have to be filled in by the same hand that forgot the file existed. Deriving it from the command means a new task gets the protection the day it is registered."
+  },
+  {
+   "id": "ana-021",
+   "kind": "analysis",
+   "topic": "gate",
+   "confidence": 0.96,
+   "title": "A rule about a category cannot protect a member of that category that lives outside it",
+   "source": "derived from exp-oracle-001 and exp-oracle-002",
+   "body": "The problem this names: the loop had a rule -- do not let the candidate edit its judge -- and a check -- does the patch touch `tests/` -- and the check was accepted as the rule because in every campaign until the graded fixture the two coincided. The graded fixture is the case where they do not, and it was written specifically to exercise the metric path, which is exactly the path where the judge is a script the task names rather than a suite the repo keeps in a folder.\n\nWhy the check looked sufficient: a check that agrees with the rule on 100% of the observed population is indistinguishable from the rule, and the population was self-selected. `tests/` was where verifiers lived because verifiers had always been written there by the same author. The rule was never about a directory; it was about the file that decides the verdict, and the only reason the two were the same is that nobody had yet written a task whose instrument had to sit next to the code to be measured.\n\nThe mechanism of the fix, and why this shape rather than a list: derive the set from the command (skip the interpreter, resolve the tokens, keep what exists), and intersect it with the patch's `diff --git` paths. Declaring the oracle per task was the alternative and it is worse for the same reason a config whitelist is worse than a derived invariant -- the declaration is written by whoever wrote the task, and the failure mode is that it is forgotten, not that it is wrong. A derived set cannot be forgotten: a task registered tomorrow is protected tomorrow.\n\nThe cost, stated honestly: the derivation is a heuristic over a shell string. It cannot see a script that spawns another script, a `sh -c` wrapper, or a path built at runtime. So the rule catches the case that actually happened (the command names the file) and misses the case that requires following an execution graph. Closing that would need either a declared field with a default derived from the command, or a sandbox that refuses writes to the oracle at the filesystem level -- the second is the only one that is airtight, and it is out of scope for a plugin that runs inside the host process.\n\nWhat is still unresolved: the same hole exists for the holdout's command, and for any file the verifier reads rather than runs (a fixture, a JSON of cases). The rule guards the entry point; a candidate can still edit the data the entry point reads. That is a strictly harder problem -- `check.mjs` reads `lib.mjs`, which the candidate is SUPPOSED to edit -- and the boundary is a property of the task, not of the command."
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-oracle-001",
+   "rel": "measures",
+   "to": "exp-oracle-002"
+  },
+  {
+   "from": "ana-021",
+   "rel": "derived-from",
+   "to": "exp-oracle-001"
+  },
+  {
+   "from": "exp-oracle-001",
+   "rel": "refines",
+   "to": "w4-graded-metric-regex-shadowing"
+  },
+  {
+   "from": "exp-oracle-001",
+   "rel": "refines",
+   "to": "exp-diff-003"
+  }
+ ]
+}

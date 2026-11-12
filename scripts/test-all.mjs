@@ -65,6 +65,19 @@ const standing = [
   // and a cache entry that predates the metric must be re-measured, or the same
   // blind spot returns on exactly the machines that already ran the campaign.
   'tests/self6/baseline-cache-version.test.mjs',
+  // and the oracle that metric comes from must not be inside the candidate's write
+  // scope: loom-graded2's instrument is check.mjs at the repo root, outside tests/,
+  // so a candidate that rewrote it to print QUALITY=1.000 promoted (exp e51).
+  'tests/oracle-scope.test.mjs',
+  // and the rule holds where it matters -- driven through a real round, one
+  // candidate rewriting the instrument and one fixing the code it measures.
+  'tests/oracle-gate.test.mjs',
+
+  // a contradiction that can only be listed is a museum: it is decided, the
+  // decision is kept as evidence, and it survives a pack/unpack and a merge.
+  'tests/kg-resolve.test.mjs',
+  'tests/kg-merge-resolution.test.mjs',
+
   // the loop control is a switch, and the money is labelled truthfully
   'tests/ui/a11y.test.mjs',
   'tests/ui/cost-honest.test.mjs',

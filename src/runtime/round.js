@@ -34,6 +34,7 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
+import { oracleClean, oracleScripts } from '../gate/oracle.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -1834,12 +1835,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     runtime.append(view, 'candidate.proposed', { id: best?.id ?? `r${n}a0`, kind: 'attempt', version: n }, 'system')
 
     const taskBest = bestPriorScore(state.rounds, task.id, n)
+    // The oracle set is derived from the command the task actually accepts on,
+    // because the tests/ rule only protects a convention: the graded fixture's
+    // instrument is `check.mjs` at the repo root, and a candidate that rewrote it
+    // promoted. Resolving against the workspace (not the worktree) is what makes
+    // the paths the same vocabulary as the patch's.
+    const oraclePaths = oracleScripts(acceptanceSpec, { cwd: state.workspace })
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
       testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
+      oracleClean: oracleClean({ patchFile: best?.patch, oraclePaths, filesChanged: best?.diff?.filesChanged ?? null }),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
+    // Name the files the command runs whenever they exist, so a refusal can say
+    // which one was edited instead of only that the round lost.
+    if (oraclePaths.length > 0) checks.oracleFiles = oraclePaths
     // A win salvaged from a stopped attempt is still a win, but it is not the
     // same claim as one the child reported: the gate says which it was, so a
     // reader (and the efficiency leg) can tell "the loop solved this" from "the
@@ -1998,7 +2009,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     } else {
       checks.earnedReason = checks.baseFailed === true ? 'red-to-green' : 'base-unmeasured'
     }
-    const basePass = checks.verifierOk && checks.testsClean && earned && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
+    const basePass =
+      checks.verifierOk &&
+      checks.testsClean &&
+      checks.oracleClean &&
+      earned &&
+      checks.beatsIncumbent &&
+      (checks.hasPatch || checks.noop)
     const promote = basePass && checks.holdout !== false
     const rejectedByHoldout = basePass && checks.holdout === false
 
