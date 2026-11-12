@@ -54,20 +54,26 @@ export async function baseVerdict({ dir, cwd, taskId, base, command, run }) {
   const cache = readCache(dir)
   const hit = cache[key]
   if (hit && typeof hit === 'object' && typeof hit.ok === 'boolean') {
-    return { ok: hit.ok, exitCode: hit.exitCode ?? null, cached: true }
+    return { ok: hit.ok, exitCode: hit.exitCode ?? null, metrics: hit.metrics ?? null, cached: true }
   }
   const verdict = await run()
   const okNow = verdict?.ok === true
   // Write back what we just learned. A failed write only costs a re-measurement
   // next time, so it is not an error worth surfacing to the round.
+  //
+  // The metrics ride along because the exit code is not the only reading of a
+  // verdict: a graded task prints QUALITY=<n> and exits 0 in every state, so the
+  // base "passes" while the actual progress is in this number. Without it the
+  // earned check has nothing to compare and refuses real work.
   try {
     const fresh = readCache(dir)
-    fresh[key] = { ok: okNow, exitCode: verdict?.exitCode ?? null, taskId: String(taskId ?? ''), base: base ?? null, command: String(command ?? ''), at: Date.now() }
+    const metrics = verdict?.metrics && typeof verdict.metrics === 'object' ? verdict.metrics : null
+    fresh[key] = { ok: okNow, exitCode: verdict?.exitCode ?? null, metrics, taskId: String(taskId ?? ''), base: base ?? null, command: String(command ?? ''), at: Date.now() }
     const { writeFileSync } = await import('node:fs')
     writeFileSync(keyFile(dir), JSON.stringify(fresh))
   } catch {
     /* a cache that cannot be persisted is only a slower loop */
   }
   void cwd
-  return { ok: okNow, exitCode: verdict?.exitCode ?? null, cached: false }
+  return { ok: okNow, exitCode: verdict?.exitCode ?? null, metrics: verdict?.metrics ?? null, cached: false }
 }

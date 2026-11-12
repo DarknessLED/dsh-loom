@@ -33,6 +33,7 @@ import { proposeMutations } from '../chain/mutate.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
+import { earnedByDifferential } from '../gate/earned.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -1860,6 +1861,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Only asked when there is a patch to justify: a no-op landing is the one case
     // where the empty diff *is* the finding.
     checks.baseFailed = 'skipped'
+    checks.baseMetrics = null
     if (checks.hasPatch && checks.verifierOk) {
       try {
         const spec = task.verify?.cmd ?? null
@@ -1872,6 +1874,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           run: () => runVerifier(task.verify, { cwd: state.workspace, timeoutMs: config.verify?.timeoutMs, env: verifierEnv }),
         })
         checks.baseFailed = baseRes.ok === false
+        checks.baseMetrics = baseRes.metrics ?? null
       } catch (err) {
         // A base we could not measure is not a base that failed: leave the check
         // as 'skipped' so a broken verifier cannot quietly block every promotion.
@@ -1974,7 +1977,27 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // A patch that did not have to fix anything did not earn the verdict. The
     // no-op branch is the opposite claim (the tree already satisfied the task, and
     // the empty diff is the evidence), so it is left alone.
-    const earned = checks.baseFailed !== false
+    //
+    // For a graded task the exit code never moves -- it prints QUALITY=<n> and
+    // exits 0 in every state by design -- so "did the base pass?" answers no and
+    // the metric is the only evidence left. earnedByDifferential is the one place
+    // that decides between the two readings; keeping the choice in a pure
+    // function is what lets the four historical decisions be replayed.
+    let earned = checks.baseFailed !== false
+    if (!earned) {
+      const verdict = earnedByDifferential({
+        baseFailed: checks.baseFailed,
+        baseMetrics: checks.baseMetrics,
+        candidateMetrics: best?.metrics ?? null,
+        minGain: policy.minGain,
+      })
+      checks.earnedReason = verdict.reason
+      if (verdict.metric) checks.earnedMetric = { name: verdict.metric, from: verdict.from, to: verdict.to }
+      checks.earnedByMetric = verdict.reason === 'metric-improved'
+      earned = verdict.earned
+    } else {
+      checks.earnedReason = checks.baseFailed === true ? 'red-to-green' : 'base-unmeasured'
+    }
     const basePass = checks.verifierOk && checks.testsClean && earned && checks.beatsIncumbent && (checks.hasPatch || checks.noop)
     const promote = basePass && checks.holdout !== false
     const rejectedByHoldout = basePass && checks.holdout === false

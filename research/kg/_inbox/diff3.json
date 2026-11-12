@@ -1,0 +1,62 @@
+{
+ "nodes": [
+  {
+   "id": "exp-diff-003",
+   "kind": "failure",
+   "topic": "differential",
+   "confidence": 0.96,
+   "title": "The differential oracle already existed and was blind to graded tasks: it compared exit codes, so it discarded three rounds where QUALITY went 0.500 to 1.000",
+   "body": "Before recommending the differential oracle I checked whether it existed. It did: commit 6bc00e1 (2026-11-11 02:35) 'gate: a spec that was already green cannot justify a promotion' added src/runtime/baseline.js and src/runtime/round.js:1862-1874, caching a base verdict by (task, base, command) and putting baseFailed into checks. So the digest's first recommendation was already built, and I nearly wrote a second one. The real defect is narrower and was invisible until a graded campaign ran: the oracle reads exit codes. loom-graded's verifier prints QUALITY=<n> and exits 0 in every state, deliberately, because that is how a graded task signals progress. On that campaign the base therefore passes from round 1, checks.baseFailed is false for all three rounds, and `const earned = checks.baseFailed !== false` (round.js:1977) is false forever -- so all three rounds scored 1.0 and were rejected. The attempt record shows the work was real: r1a2, r2a1 and r3a2 each reported stdoutTail 'QUALITY=1.000' and score 1, while r1a1/r2a2/r3a1 were killed as solved-by-sibling. Cost: a 3-round, $0.00309 campaign whose entire purpose is to prove the loop can climb a graded score concluded 'no gain' three times while the score had climbed from 0.500 to 1.000. Replayed against the new rule: all three flip to earned by metric-improved. A fourth rejection, loom-ui8 round 3, correctly stays rejected (base-already-green with no metric), which is the case the exit-code oracle was right about.",
+   "source": "6bc00e1; loom-graded events.jsonl and baseline-cache.json; loom-ui8 round 3; src/runtime/round.js:1977",
+   "tags": [
+    "differential",
+    "graded",
+    "oracle",
+    "regression"
+   ]
+  },
+  {
+   "id": "exp-diff-004",
+   "kind": "number",
+   "topic": "differential",
+   "confidence": 0.94,
+   "title": "Of the 4 historically blocked promotions, the new rule recovers 3 and keeps 1 rejected; the exit-code oracle was 3-for-4 wrong once a metric existed",
+   "body": "Across 211 gate.evaluated records only 4 were rejected solely because checks.baseFailed === false while every other check passed: loom-graded rounds 1, 2 and 3, and loom-ui8 round 3. Replaying those 4 against earnedByDifferential: the three loom-graded rounds become earned (reason metric-improved, quality 0.5 -> 1.0, minGain 0.05) and loom-ui8 stays rejected (reason base-already-green, no metric declared). The split is exactly the distinction that was missing: a graded task's base 'passes' while its score is 0.500, so exit-code equality carries no information, whereas a patch-shaped task whose spec is already green has nothing left to measure. Both readings are needed; neither subsumes the other. The 7 promotions the oracle blocks on patch-shaped tasks (exp-diff-001) are unaffected, because for them the base genuinely fails.",
+   "source": "replay of 4 baseFailed=false rejections against src/gate/earned.js; e47 replay for the 7",
+   "tags": [
+    "differential",
+    "graded",
+    "replay",
+    "number"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-diff-003",
+   "rel": "contradicts",
+   "to": "exp-graded-003",
+   "note": "exp-graded-003 said earned was blocked by a boolean baseFailed; the mechanism is now fixed by reading the metric"
+  },
+  {
+   "from": "exp-diff-003",
+   "rel": "requires",
+   "to": "exp-diff-001"
+  },
+  {
+   "from": "exp-diff-004",
+   "rel": "supports",
+   "to": "exp-diff-003"
+  },
+  {
+   "from": "exp-diff-004",
+   "rel": "refines",
+   "to": "exp-graded-002"
+  },
+  {
+   "from": "exp-diff-003",
+   "rel": "refines",
+   "to": "exp-graded-001"
+  }
+ ]
+}
