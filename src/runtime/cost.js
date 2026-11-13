@@ -198,7 +198,7 @@ function measureViaMeter(ctx, sessionId) {
 
 /** Coerce a meter result (`usage`-wrapped or flat) into a token record. */
 function normalizeMeterUsage(raw) {
-  const u = raw && typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw
+  const u = raw || typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw
   if (!u || typeof u !== 'object') return null
   return {
     inputTokens: num(u.inputTokens),
