@@ -5,7 +5,7 @@
 // (src/gate/earned.js explains why the gate needs both readings).
 //
 //   KILLRATE=0.3750
-//   MUTANTS tried=16 killed=6 skipped=0
+//   MUTANTS tried=16 killed=6 skipped=0 specs=2 ms=6104
 //
 // Two properties make the number usable:
 //
@@ -82,18 +82,29 @@ const budgetMs = Number(args.budgetMs ?? 600000)
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { release(); process.exit(130) })
 }
 
-// Refuse to measure a file that is already dirty: the snapshot below is what
-// every mutant is restored to, so a dirty file would bless someone else's edit as
-// "the original" and a later restore would silently ship it.
+// A dirty module is reported, not refused.
+//
+// This check used to exit 6, on the reasoning that the snapshot below is what
+// every mutant is restored to, so a dirty file would bless someone else's edit
+// as "the original". The reasoning was wrong about the risk: the snapshot is
+// byte-exact and the restore is sha-verified, so the dirty content is what comes
+// back -- nothing is shipped either way. The real cost of refusing was worse
+// than the risk it avoided: while a person edits the repo, every base
+// measurement of a touched module read as `exit 6` -> `ok: false` -> "the base
+// failed", and the gate then accepted the patch on `red-to-green` with no
+// metrics at all (loom-mut r3a1 promoted that way while notify.js was being
+// edited). "Cannot measure" must not be spelled the same way as "measured red".
+//
+// Applying a patch to a dirty workspace is a different rule, enforced elsewhere:
+// the round refuses with `workspace-dirty` before it writes anything.
+let dirtyNote = ''
 {
   const { execFileSync } = await import('node:child_process')
-  let dirt = ''
   try {
-    dirt = execFileSync('git', ['status', '--porcelain', '--', moduleFile], { encoding: 'utf8', windowsHide: true }).trim()
+    dirtyNote = execFileSync('git', ['status', '--porcelain', '--', moduleFile], { encoding: 'utf8', windowsHide: true }).trim()
   } catch {
-    dirt = ''
+    dirtyNote = ''
   }
-  if (dirt) { console.error(`module has uncommitted changes, refusing to snapshot it: ${dirt}`); process.exit(6) }
 }
 
 const original = fs.readFileSync(moduleFile)
@@ -204,3 +215,7 @@ if (args.report === 'patterns') {
 const rate = tried ? killed / tried : 0
 console.log(`KILLRATE=${rate.toFixed(4)}`)
 console.log(`MUTANTS tried=${tried} killed=${killed} skipped=${skipped} sample=${sample} specs=${guard.length} ms=${Date.now() - started}`)
+// The reading stands either way; this line only says the tree was not pristine,
+// so a reader comparing two runs knows which ones differ for a reason outside
+// the instrument.
+if (dirtyNote) console.log(`DIRTY=${dirtyNote.split('\n').length}`)
