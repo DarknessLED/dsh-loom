@@ -1,0 +1,105 @@
+{
+ "nodes": [
+  {
+   "id": "exp-ab-001",
+   "kind": "number",
+   "title": "Removing the planner moved no endpoint on four mutation tasks and saved 25.3% of the round clock",
+   "body": "Chain A/B on the fixed instrument: four mutation tasks x four rounds, same HEAD (68d2a41), same 20-mutant sample, no patches applied.\n\nBase (code-fix v1, planner present): triangle 0.95 / cost 0.85 / candidates 0.75 / brief 0.85. Candidate (v2, recon node removed): identical on all four.\n\n- planner: base 4 runs / 580 s = 25.3% of 2,289 s round clock, 145 s per round; candidate 0 runs / 0 s.\n- round ms 572,217 -> 494,632 (0.86x). tokens 14,486 -> 15,428 (1.07x). cost $0.0051 -> $0.0056.\n- compareMeans: 'the endpoint did not move at all ... This is a statement about the endpoint, not evidence that the two arms are equally good'.\n\nDecision (pre-registered rules): adopt:saving. Rules 1,3,4,5 pass; rule 2 fails because there is no effect to rank. The adoption claim is narrow: on these four tasks the planner costs a quarter of the clock and no score. It is not 'the planner is useless' -- planUsable was true in 24 of the 42 rounds that recorded it (57%).",
+   "confidence": 0.95,
+   "topic": "dsh-loom chain A/B",
+   "source": "research/ab/decision-ab-cand1b-vs-ab-cand2b.json"
+  },
+  {
+   "id": "exp-ab-002",
+   "kind": "number",
+   "title": "One candidate instead of two is half the tokens and a third less clock, and loses 0.10 on one task",
+   "body": "Same design as exp-ab-001, base = candidate with no planner (ab-cand2b), candidate = also one attempt per round (ab-cand3b).\n\nquality: triangle 0.95 -> 0.95, cost 0.85 -> **0.75**, candidates 0.75 -> 0.75, brief 0.85 -> 0.85. Paired mean -0.025, interval [-0.074, 0.024], MDE 0.070. Worst dip 0.100 vs half-interval 0.049.\n\ntokens 15,428 -> 7,933 (0.51x), round ms 494,632 -> 330,320 (0.67x).\n\nDecision: reject:regression (rule 1 fired, rule 4 had no non-statistical saving to weigh: planner 0 -> 0). The ledger agrees with the refusal: the second candidate never beat a first candidate that already passed (0/120 rounds) and rescued 28/239 rounds where the first failed, so the 0.10 dip is exactly the rescue the change removes.",
+   "confidence": 0.95,
+   "topic": "dsh-loom chain A/B",
+   "source": "research/ab/decision-ab-cand2b-vs-ab-cand3b.json"
+  },
+  {
+   "id": "ana-044",
+   "kind": "analysis",
+   "title": "A saving measured against a dip you cannot rule out is a bet, not a saving",
+   "body": "The two decisions of 2026-11-14 are one rule applied twice. In the first pair the cheaper arm showed no dip and the saving was taken. In the second the cheaper arm was 2x cheaper (tokens 0.51x, round clock 0.67x) and showed a 0.10 dip on one task, and the saving was refused.\n\nIf price could buy a verdict, the second change is the better buy by every budget number. Rule 1 is the pre-registered sentence that forbids it, and it is only credible because it was written before the arms ran and because it also fired on nothing in the first pair.\n\nSecond finding: the rule can fire on a design that cannot support it. With one round per task the paired interval is a mean interval across four tasks; a single task's dip has no uncertainty of its own, so the interval width is set by n, not by the effect. At n=4 the half-interval is 0.049 and a 0.05 dip flips the verdict; at n=6 in the pilot the same 0.050 dip was inside the interval and the verdict was the opposite. A screen whose verdict moves with sample size is not measuring the change.",
+   "confidence": 0.94,
+   "topic": "dsh-loom chain A/B",
+   "source": "research/ab/decisions.md"
+  },
+  {
+   "id": "exp-mut-005",
+   "kind": "failure",
+   "title": "An interrupted mutation run left a live mutant in src/runtime/cost.js, and one autopilot commit would have landed it",
+   "body": "`git status` showed ` M src/runtime/cost.js` with no work of mine behind it:\n\n```diff\n-  const u = raw || typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw\n+  const u = raw && typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw\n```\n\nThat is pattern ` || ` -> ` && `, one of the twelve. A killed mutation run (the job runner died mid-sweep, or `dose.mjs` was interrupted) never reached its `finally`, so the mutated bytes stayed in the tree. The instrument restores and sha-checks on every normal exit; interruption is the hole it cannot close from inside.\n\nWhy it mattered: `commitWorkspace` staged the whole tree with `git add -A`, so the next autopilot promotion would have committed the mutant as part of a 'promotion', with a passing guard (the guard runs the suite, and `cost.js` has tests that this mutant happens to survive).\n\nFix: `commitWorkspace(repo, message, {paths})` now stages and commits only the paths the patch touched (pathspec add + pathspec commit), fails loudly when a pathspec matches nothing, and still commits an already-staged deletion. tests/commit-paths.test.mjs 15/15.",
+   "confidence": 0.95,
+   "topic": "dsh-loom instrument",
+   "source": "src/exec/worktree.js"
+  },
+  {
+   "id": "ana-045",
+   "kind": "analysis",
+   "title": "An instrument that mutates source in place has to assume its own interruption, and the guard belongs where the bytes are used",
+   "body": "The mutation harness is careful: it restores in `finally`, it sha-checks the restore, and it refuses to report a reading when the tree did not come back. None of that survives a killed process, and a killed process is the normal case here (the Windows job runner exits mid-sweep with 1073807364).\n\nSo the harness cannot be the guard. The bytes it leaves behind are indistinguishable from a human's edit, and the only place that can tell the difference is the place that decides to *use* the tree: the commit. Scoping the commit to the patch's own paths is what makes a leftover mutant unable to ride along, and it costs nothing.\n\nGeneral form: for any tool that edits the tree in place, the invariant to enforce is at the consumer ('nothing outside the patch is committed'), not at the producer ('I always restore'). Producer-side guarantees do not survive SIGKILL.",
+   "confidence": 0.93,
+   "topic": "dsh-loom instrument",
+   "source": "tests/commit-paths.test.mjs"
+  },
+  {
+   "id": "gap-ab-001",
+   "kind": "question",
+   "title": "Does a cascade (second attempt only when the first fails) beat both always-two and always-one at matched budget?",
+   "body": "The rejected pair says one attempt loses 0.10 on cost, and the ledger says two attempts win 24 of 119 promotions while never beating a first candidate that already passed (0/120) and rescuing 28/239.\n\n`exp-slot-004` replayed the strategies without a model: always-one 1.99 arms per success, always-two 3.36, sequential (second only after a failure) 2.52 -- the second attempt's whole benefit at 25% fewer arms. That is a candidate chain, not a policy knob: `candidateMode: 'cascade'` exists in the runtime but no campaign has ever run it.\n\nNeeds its own pre-registered pair against ab-cand2b, same four tasks, same budget check.",
+   "confidence": 0.7,
+   "topic": "dsh-loom chain A/B",
+   "source": "research/ab/decisions.md"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-ab-001",
+   "rel": "measures",
+   "to": "exp-slot-004"
+  },
+  {
+   "from": "exp-ab-001",
+   "rel": "refines",
+   "to": "exp-where-001"
+  },
+  {
+   "from": "exp-ab-002",
+   "rel": "measures",
+   "to": "exp-slot-004"
+  },
+  {
+   "from": "ana-044",
+   "rel": "derived-from",
+   "to": "exp-ab-002"
+  },
+  {
+   "from": "ana-044",
+   "rel": "contradicts",
+   "to": "exp-slot-001"
+  },
+  {
+   "from": "exp-mut-005",
+   "rel": "derived-from",
+   "to": "exp-mut-003"
+  },
+  {
+   "from": "ana-045",
+   "rel": "derived-from",
+   "to": "exp-mut-005"
+  },
+  {
+   "from": "gap-ab-001",
+   "rel": "requires",
+   "to": "exp-ab-002"
+  },
+  {
+   "from": "gap-ab-001",
+   "rel": "derived-from",
+   "to": "exp-slot-004"
+  }
+ ]
+}
