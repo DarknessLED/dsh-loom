@@ -377,8 +377,12 @@ export async function commitWorkspace(repo, message, { paths } = {}) {
       // Nothing recorded for these paths. A failed `git add` means the pathspec
       // matched nothing at all — a promotion whose file list is wrong is a bug
       // upstream, so it fails loudly instead of committing something else.
-      if (staged.code === 0) return { ok: true, committed: false, sha: null }
-      return { ok: false, committed: false, sha: null, detail: staged.stderr }
+      if (staged.code !== 0) return { ok: false, committed: false, sha: null, detail: staged.stderr }
+      // `clean` separates the two ways to have nothing to commit: nothing changed,
+      // or a concurrent commit (a person running `git add -A` while the guard was
+      // still running) already absorbed the applied patch. The second one loses the
+      // promotion's provenance, so it has to be visible in the record.
+      return { ok: true, committed: false, sha: null, clean: true }
     }
     // A pathspec commit leaves anything staged outside the promotion alone: the
     // reviewer's own work in progress must not ride along with a loop commit.

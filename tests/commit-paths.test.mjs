@@ -54,6 +54,9 @@ ok('the reviewer edit is not staged', !/^M  reviewer\.txt/m.test(status(root)), 
 const again = await commitWorkspace(root, 'loom: promote r1a1', { paths: ['promoted.txt'] })
 ok('nothing to commit for an unchanged path', again.committed === false, JSON.stringify(again))
 ok('nothing-to-commit is not a failure', again.ok === true, JSON.stringify(again))
+// `clean` is what lets the round tell "nothing changed" apart from "a concurrent
+// commit already absorbed the applied patch" — the second loses provenance.
+ok('nothing-to-commit reports a clean tree', again.clean === true, JSON.stringify(again))
 
 // Without paths the old whole-tree behaviour is still available, and it is the
 // behaviour that makes an unrelated edit part of the loop's commit.
