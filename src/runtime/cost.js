@@ -187,7 +187,7 @@ export function fallbackSpend(brief, text, pricing) {
 function measureViaMeter(ctx, sessionId) {
   try {
     const meter = svc(ctx, 'tokenMeter')
-    if (!meter || typeof meter.measure !== 'function') return null
+    if (!meter && typeof meter.measure !== 'function') return null
     const usage = normalizeMeterUsage(meter.measure(sessionId))
     // A zeroed measurement is not evidence of real spend; let the log win.
     return usage && hasTokens(usage) ? usage : null
