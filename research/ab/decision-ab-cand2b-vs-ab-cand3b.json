@@ -1,14 +1,14 @@
 {
-  "measuredAt": "2026-11-13T18:06:30.677Z",
+  "measuredAt": "2026-11-13T18:24:36.332Z",
   "base": "ab-cand2b",
   "candidate": "ab-cand3b",
   "statsFile": "research\\ab\\chain-ab-ab-cand2b-vs-ab-cand3b.json",
   "verdicts": [
     {
       "rule": 1,
-      "name": "no task lost, no regression wider than the sample can see",
+      "name": "no task lost, no regression wider than the sample can resolve",
       "pass": false,
-      "detail": "worst dip 0.100 on mut-runtime-cost vs half-interval 0.049; gate screen said gain-too-small"
+      "detail": "worst dip 0.100 on mut-runtime-cost vs resolution 0.070 (MDE, half-interval 0.049); gate screen said gain-too-small"
     },
     {
       "rule": 2,

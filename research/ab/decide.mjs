@@ -78,12 +78,14 @@ const cCand = roundClock(cand)
 const verdicts = []
 const push = (n, rule, pass, detail) => verdicts.push({ rule: n, name: rule, pass, detail })
 
-// 1. no task lost, and no regression bigger than this sample can see.
-//    The gate's own noRegression compares one run per arm, so a 0.05 dip lands
-//    inside an interval that is 0.099 wide and cannot be read as a loss. Rule 1
-//    therefore asks the same question twice: did a task disappear (missing data,
-//    a hard fail), and is the biggest dip wider than the pair interval? A dip
-//    inside the interval is recorded as a screen that failed, not a regression.
+// 1. no task lost, and no regression bigger than this sample can resolve.
+//    The first version compared the worst dip against the *half-interval* of the
+//    paired mean. That width is set by n, not by the effect: at n=4 it is 0.049
+//    and a 0.050 dip on one task flips the verdict, while at n=6 the same 0.050
+//    dip sits inside the interval and the verdict is the opposite. A screen whose
+//    answer moves with sample size is measuring the sample. The resolution the
+//    sample can actually claim is its MDE, so a dip counts as a regression only
+//    when it is wider than that.
 const rows0 = Array.isArray(stats.rows) ? stats.rows : []
 const lostTasks = rows0.filter((r) => Number.isFinite(r.base?.quality) && !Number.isFinite(r.candidate?.quality)).map((r) => r.taskId)
 const dipRows = rows0
@@ -98,13 +100,18 @@ const worst = dipRows[0] ?? { drop: 0, taskId: null }
   // NaN and silently turns every dip into a survivor.
   const iv = endpointNow?.interval
   const halfWidth = iv && Number.isFinite(iv.low) && Number.isFinite(iv.high) ? (iv.high - iv.low) / 2 : null
-  const indistinguishableDip = halfWidth !== null && worst.drop <= halfWidth
-  const pass = lost.length === 0 && (indistinguishableDip || worst.drop <= 0)
-  push(1, 'no task lost, no regression wider than the sample can see', pass,
+  // An MDE of 0 is not infinite precision: compareMeans returns it when every
+  // pair agreed, i.e. when there is no spread to estimate. Treating it as a
+  // resolution would print 0.000 and make every dip look resolvable.
+  const mde = Number.isFinite(endpointNow?.mde) && endpointNow.mde > 0 ? endpointNow.mde : null
+  const resolution = mde ?? (halfWidth !== null && halfWidth > 0 ? halfWidth : null)
+  const dipWithin = resolution !== null && worst.drop <= resolution
+  const pass = lost.length === 0 && (worst.drop <= 0 || dipWithin)
+  push(1, 'no task lost, no regression wider than the sample can resolve', pass,
     lost.length
       ? `lost task(s): ${lost.join(', ')}`
-      : `worst dip ${worst.drop.toFixed(3)} on ${worst.taskId} vs half-interval ${halfWidth === null ? '?' : halfWidth.toFixed(3)}` +
-        `${indistinguishableDip && worst.drop > 0 ? ' (screen failed, not distinguishable)' : ''}` +
+      : `worst dip ${worst.drop.toFixed(3)} on ${worst.taskId} vs resolution ${resolution === null ? 'unknown (the endpoint did not move)' : resolution.toFixed(3)} (MDE${halfWidth === null ? '' : `, half-interval ${halfWidth.toFixed(3)}`})` +
+        `${dipWithin && worst.drop > 0 ? ' (screen failed, not distinguishable)' : ''}` +
         `${stats.gate?.ok === true ? '; gate also clean' : `; gate screen said ${stats.gate?.reason}`}`)
 }
 
@@ -143,7 +150,10 @@ const budgetPass = verdicts[2].pass
 const savingPass = verdicts[3].pass
 const iv0 = (stats.quality ?? stats.score)?.interval
 const halfWidth0 = iv0 && Number.isFinite(iv0.low) && Number.isFinite(iv0.high) ? (iv0.high - iv0.low) / 2 : null
-const dipOutside = halfWidth0 !== null && worst.drop > halfWidth0
+const mde0raw = (stats.quality ?? stats.score)?.mde
+const mde0 = Number.isFinite(mde0raw) && mde0raw > 0 ? mde0raw : null
+const resolution0 = mde0 ?? (halfWidth0 !== null && halfWidth0 > 0 ? halfWidth0 : null)
+const dipOutside = resolution0 !== null && worst.drop > resolution0
 // The reason names the measurement that failed, not the rule number: "lost-task"
 // and "regression" are different facts about the data and a reader has to be able
 // to tell which one happened.
