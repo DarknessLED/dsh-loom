@@ -183,3 +183,46 @@ What the pilot does establish, and is worth keeping:
 The arms are therefore re-run on the fixed instrument (`ab-cand1b/2b/3b`, same six
 tasks, same rotation, same HEAD) and the adoption decision is taken from those. The
 pilot's decision file stays as written; it is not edited after the fact.
+
+## Amendment 3 — rule 1 compares the dip against the endpoint's own repeat spread
+
+Written 2026-11-14 03:05, after the second round of arms and one repeat campaign.
+
+Rule 1 as first written compared the worst dip against the resolution of the *sample* —
+the MDE, or half the paired interval. That number is a property of how many tasks were
+paired and how they disagreed, not of how much the endpoint moves when nothing changes.
+The two are different, and the difference decided a verdict:
+
+- The pair `ab-cand2b → ab-cand3b` recorded a **0.100** dip on `mut-runtime-cost`
+  against a resolution of 0.070 and was rejected as a regression.
+- `loom-v2check` — the v2 chain, no candidate change, the same task — then measured
+  **0.75** where the A/B base arm had measured **0.85**. The dip reproduced with nothing
+  changed, so it is a property of the worker draw.
+- `research/ab/noise.mjs` over the four recorded runs of that task: `0.85 / 0.85 /
+  0.75 / 0.75`, spread **0.100**; the other three tasks read identical numbers in every
+  run (spread 0.000). Pooled sd 0.029.
+
+So rule 1 is now three-state:
+
+- dip ≤ 0 → **pass**.
+- dip > 0 and no repeat spread measured → **HOLD** (`hold:noise-unmeasured`). Not a pass,
+  because nothing says the dip is noise; not a fail, because nothing says it is not.
+- dip > measured spread → **fail**, and only then is it compared against the sample's
+  resolution. A dip at or below the spread is not attributable to the change.
+
+A dedicated repeat campaign cannot supply that spread, which is why `loom-noise` was
+stopped after four rounds: an earlier campaign's promotions move HEAD, so each new
+round finds the base already at the candidate's number and reports `no-gain`. The
+honest source is runs that already exist on a shared tree. Recorded rather than
+remembered: `research/ab/noise.json`.
+
+Two consequences worth stating plainly:
+
+1. **A paired design's real resolution is set by its least stable task**, not by the MDE
+   formula. One task in four moved by 0.10; the formula said 0.07. Any future pair
+   should measure the spread first — it costs nothing but a query over recorded rounds.
+2. **A hold is a verdict, not a failure to decide.** `ab-cand2b → ab-cand3b` is now
+   `hold:not-distinguishable`: the candidate is half the tokens and a third less round
+   clock, and the sample cannot exclude a 0.10 loss on one of four tasks. Adoption would
+   be a bet; rejection would claim harm the data never showed. `decisions.md` carries
+   the corrected entry and says what would change it.

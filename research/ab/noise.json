@@ -1,0 +1,83 @@
+{
+  "measuredAt": "2026-11-13T19:26:22.296Z",
+  "campaigns": [
+    "ab-cand1b",
+    "ab-cand2b",
+    "ab-cand3b",
+    "loom-v2check"
+  ],
+  "tasks": [
+    {
+      "taskId": "mut-runtime-cost",
+      "n": 4,
+      "values": [
+        0.85,
+        0.85,
+        0.75,
+        0.75
+      ],
+      "runs": [
+        "ab-cand1b/r2",
+        "ab-cand2b/r2",
+        "ab-cand3b/r2(1c)",
+        "loom-v2check/r2"
+      ],
+      "spread": 0.09999999999999998
+    },
+    {
+      "taskId": "mut-runtime-triangle",
+      "n": 4,
+      "values": [
+        0.95,
+        0.95,
+        0.95,
+        0.95
+      ],
+      "runs": [
+        "ab-cand1b/r1",
+        "ab-cand2b/r1",
+        "ab-cand3b/r1(1c)",
+        "loom-v2check/r1"
+      ],
+      "spread": 0
+    },
+    {
+      "taskId": "mut-runtime-candidates",
+      "n": 4,
+      "values": [
+        0.75,
+        0.75,
+        0.75,
+        0.75
+      ],
+      "runs": [
+        "ab-cand1b/r3(1c)",
+        "ab-cand2b/r3",
+        "ab-cand3b/r3(1c)",
+        "loom-v2check/r3"
+      ],
+      "spread": 0
+    },
+    {
+      "taskId": "mut-dispatch-brief",
+      "n": 3,
+      "values": [
+        0.85,
+        0.85,
+        0.85
+      ],
+      "runs": [
+        "ab-cand1b/r4(1c)",
+        "ab-cand2b/r4",
+        "ab-cand3b/r4(1c)"
+      ],
+      "spread": 0
+    }
+  ],
+  "pairedTasks": 4,
+  "spreadMax": 0.09999999999999998,
+  "spreadMean": 0.024999999999999994,
+  "sd": 0.02886751345948128,
+  "attributableDip": 0.09999999999999998,
+  "caveat": "same configuration, same tree, 4 task(s) measured more than once; the largest move is 0.100. A pair whose worst dip is at or below that cannot attribute the dip to the change. This is an upper bound from few draws, not a variance estimate."
+}

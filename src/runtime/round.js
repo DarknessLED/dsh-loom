@@ -2056,24 +2056,51 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // true for a candidate that merely wrote the file the command runs. This is a
     // refusal, not a downgrade -- routing it through `earnedByDifferential` as
     // 'skipped' would read as "unmeasured" and *pass*, which is the opposite.
+    const metricReading = () => earnedByDifferential({
+      baseFailed: false,
+      baseMetrics: checks.baseMetrics,
+      candidateMetrics: best?.metrics ?? null,
+      minGain: policy.minGain,
+    })
+    const takeMetric = (verdict, unmeasuredReason) => {
+      checks.earnedReason = verdict.reason === 'base-already-green' ? unmeasuredReason : verdict.reason
+      if (verdict.metric) checks.earnedMetric = { name: verdict.metric, from: verdict.from, to: verdict.to }
+      checks.earnedByMetric = verdict.reason === 'metric-improved'
+      earned = verdict.earned
+    }
+    // A task that declares a metric is graded by that number, so the number has
+    // to move -- a red base is not evidence that it did. On 2026-11-13 a graded
+    // round promoted through red-to-green with `baseMetrics: {}`: the base had
+    // failed because the instrument refused to measure a dirty module, and the
+    // metric was never shown to move at all. The exit-code reading is right for
+    // patch-shaped tasks and blind to graded ones, in both directions.
+    const graded = Boolean(acceptanceSpec?.metrics && Object.keys(acceptanceSpec.metrics).length > 0)
     let earned
     if (checks.oracleInBase === false) {
       checks.earnedReason = 'oracle-absent-at-base'
       earned = false
+    } else if (graded) {
+      // The base has to have produced a number for the same metric the candidate
+      // reports. Without one there is nothing to compare, and "the command went
+      // green" is a fact about the command, not about the graded quantity.
+      const baseReadable = (() => {
+        const b = checks.baseMetrics
+        const c = best?.metrics
+        if (!b || !c || typeof b !== 'object' || typeof c !== 'object') return false
+        return Object.keys(c).some((k) => b[k] !== null && b[k] !== undefined && Number.isFinite(Number(b[k])))
+      })()
+      if (!baseReadable) {
+        checks.earnedReason = 'graded-metric-unmeasured'
+        checks.earnedByMetric = false
+        earned = false
+      } else {
+        takeMetric(metricReading(), 'graded-metric-unmeasured')
+      }
     } else if (checks.baseFailed !== false) {
       checks.earnedReason = checks.baseFailed === true ? 'red-to-green' : 'base-unmeasured'
       earned = true
     } else {
-      const verdict = earnedByDifferential({
-        baseFailed: checks.baseFailed,
-        baseMetrics: checks.baseMetrics,
-        candidateMetrics: best?.metrics ?? null,
-        minGain: policy.minGain,
-      })
-      checks.earnedReason = verdict.reason
-      if (verdict.metric) checks.earnedMetric = { name: verdict.metric, from: verdict.from, to: verdict.to }
-      checks.earnedByMetric = verdict.reason === 'metric-improved'
-      earned = verdict.earned
+      takeMetric(metricReading(), 'base-already-green')
     }
     const basePass =
       checks.verifierOk &&

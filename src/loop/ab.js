@@ -251,3 +251,49 @@ function round6(x) {
   const n = Number(x)
   return Number.isFinite(n) ? Math.round(n * 1e6) / 1e6 : 0
 }
+
+/**
+ * The pre-registered screen for "one task got worse": is the dip attributable to
+ * the change, or is it the size of the endpoint's own movement?
+ *
+ * Three states, and the middle one is the point. A dip that is smaller than the
+ * arm's measured repeat spread is not attributable, so it passes. A dip with no
+ * spread measured is `null` — unresolved: not a pass, because nothing says the
+ * change is innocent; not a fail, because nothing says it is guilty. Without this
+ * state the strictest rule in the protocol would be decided by the noisiest
+ * measurement in it, and "it got worse" would mean "one run landed low".
+ *
+ * @param {object} opts
+ * @param {string[]} [opts.lostTasks] tasks the candidate lost entirely (missing data)
+ * @param {number} opts.worstDrop largest per-task drop (base - candidate), >= 0
+ * @param {number|null} [opts.noiseSpread] measured spread of the same config on an
+ *   unchanged tree, or null when it was never measured
+ * @param {number|null} [opts.resolution] the sample's own resolution (MDE), or null
+ *   when the endpoint did not move at all
+ * @returns {{pass: boolean|null, attributable: boolean, unresolved: boolean,
+ *   dipWithin: boolean, reason: string}}
+ */
+export function screenDip({ lostTasks = [], worstDrop = 0, noiseSpread = null, resolution = null } = {}) {
+  const lost = Array.isArray(lostTasks) ? lostTasks.filter(Boolean) : []
+  const drop = Number.isFinite(worstDrop) && worstDrop > 0 ? worstDrop : 0
+  const spread = Number.isFinite(noiseSpread) && noiseSpread >= 0 ? noiseSpread : null
+  const res = Number.isFinite(resolution) && resolution > 0 ? resolution : null
+  const attributable = drop > 0 && spread !== null && drop > spread
+  const unresolved = drop > 0 && spread === null
+  const dipWithin = res !== null && drop <= res
+  let pass
+  if (lost.length > 0) pass = false
+  else if (drop === 0) pass = true
+  else if (unresolved) pass = null
+  else pass = !attributable
+  const reason = lost.length > 0
+    ? `lost task(s): ${lost.join(', ')}`
+    : drop === 0
+      ? 'no task got worse'
+      : unresolved
+        ? `a ${drop.toFixed(3)} dip cannot be attributed: the arm's own repeat spread was never measured`
+        : attributable
+          ? `a ${drop.toFixed(3)} dip is wider than the arm's own spread of ${spread.toFixed(3)}`
+          : `a ${drop.toFixed(3)} dip is within the arm's own spread of ${spread.toFixed(3)}`
+  return { pass, attributable, unresolved, dipWithin, reason }
+}

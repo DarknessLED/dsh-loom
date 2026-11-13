@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-11-13T19:04:05.310Z",
+  "measuredAt": "2026-11-13T19:30:59.518Z",
   "base": "ab-cand1b",
   "candidate": "ab-cand2b",
   "statsFile": "research\\ab\\chain-ab-ab-cand1b-vs-ab-cand2b.json",
@@ -8,7 +8,7 @@
       "rule": 1,
       "name": "no task lost, no regression wider than the sample can resolve",
       "pass": true,
-      "detail": "worst dip 0.000 on mut-dispatch-brief vs resolution unknown (the endpoint did not move) (MDE, half-interval 0.000), repeat spread not measured; gate screen said gain-too-small"
+      "detail": "worst dip 0.000 on mut-dispatch-brief vs resolution unknown (the endpoint did not move) (MDE, half-interval 0.000), repeat spread 0.100; gate screen said gain-too-small"
     },
     {
       "rule": 2,

@@ -1,0 +1,115 @@
+{
+  "nodes": [
+    {
+      "id": "exp-ab-003",
+      "kind": "number",
+      "topic": "ab-protocol",
+      "confidence": 0.95,
+      "claim": "The graded endpoint moves by 0.100 on one of four tasks when nothing changes: mut-runtime-cost read 0.85 / 0.85 / 0.75 / 0.75 across four recorded runs of the same chain on the same tree, while mut-runtime-triangle (0.95 x4), mut-runtime-candidates (0.75 x4) and mut-dispatch-brief (0.85 x3) never moved. Pooled sd 0.029.",
+      "source": "research/ab/noise.json (research/ab/noise.mjs --campaigns=ab-cand1b,ab-cand2b,ab-cand3b,loom-v2check)",
+      "title": "One task in four moves by 0.100 with nothing changed"
+    },
+    {
+      "id": "ana-046",
+      "kind": "analysis",
+      "topic": "ab-protocol",
+      "confidence": 0.94,
+      "claim": "A paired design's real resolution is set by its least stable task, not by the MDE formula: the formula said 0.070 while one task in four moved 0.100 on its own, so the dip that decided the verdict was the worker draw. The consequence is not 'measure more' but 'measure the spread first' -- it costs one query over rounds already recorded, and it turns the screen into three states (pass / unresolved / fail) instead of a false binary.",
+      "source": "research/ab/noise.json + research/ab/README.md Amendment 3 + src/loop/ab.js screenDip",
+      "title": "A paired design's resolution is its least stable task"
+    },
+    {
+      "id": "exp-ab-004",
+      "kind": "failure",
+      "topic": "ab-protocol",
+      "confidence": 0.93,
+      "claim": "The first verdict on ab-cand2b -> ab-cand3b was reject:regression (worst dip 0.100 vs MDE 0.070), and it was wrong: loom-v2check, the same chain with no candidate change on the same task, then measured 0.75 where the A/B base arm measured 0.85. Rule 1 compared the dip against the sample's resolution and never asked how far the endpoint moves by itself. The verdict is now hold:not-distinguishable.",
+      "source": "research/ab/decisions.md (corrected entry) + research/ab/decide.mjs",
+      "title": "The regression was the worker draw, not the change"
+    },
+    {
+      "id": "exp-commit-001",
+      "kind": "number",
+      "topic": "commit-scope",
+      "confidence": 0.95,
+      "claim": "commitWorkspace used `git add -A`, so a promotion would commit whatever else was in the tree. Live instance: one mutant byte from a killed sweep sat in src/runtime/cost.js (`raw || typeof raw === 'object' &&` had become `raw &&`) and would have ridden a promotion into HEAD; the fix is pathspec-scoped add+commit (`git add -A -- <paths>` / `git commit -m msg -- <paths>`), with a hard error when the pathspec matches nothing. tests/commit-paths.test.mjs 16/16.",
+      "source": "commit f278d98 + tests/commit-paths.test.mjs",
+      "title": "A promotion committed whatever else was in the tree"
+    },
+    {
+      "id": "ana-047",
+      "kind": "analysis",
+      "topic": "commit-scope",
+      "confidence": 0.93,
+      "claim": "An instrument that rewrites source in place must assume it will be killed: a finally-block restore only runs if the process is allowed to finish, and a job runner that exits leaves the mutation in the tree. The guard therefore belongs where the bytes are used (the commit's pathspec), not only in the instrument's cleanup -- and the same guard protects against a human's `git add -A` racing the loop, which happened the other way round on the same night.",
+      "source": "commit f278d98 + 37a05f3 + commit 23d871d (the absorbed promotion)",
+      "title": "An in-place instrument must assume it will be killed"
+    },
+    {
+      "id": "gap-ab-002",
+      "kind": "question",
+      "topic": "ab-protocol",
+      "confidence": 0.72,
+      "claim": "Open: does a cascade chain (second attempt only after the first fails) beat both always-two and always-one under the corrected screen? exp-slot-004 priced it at 2.52 arms per success against 3.36 for always-two and 1.99 for always-one, but no campaign has run cascade as a chain with the repeat spread known.",
+      "source": "research/ab/decisions.md 'what would change the verdict' + exp-slot-004",
+      "title": "Does cascade beat both always-two and always-one?"
+    }
+  ],
+  "edges": [
+    {
+      "from": "exp-ab-003",
+      "rel": "measures",
+      "to": "exp-ab-002"
+    },
+    {
+      "from": "exp-ab-003",
+      "rel": "supports",
+      "to": "ana-046"
+    },
+    {
+      "from": "ana-046",
+      "rel": "derived-from",
+      "to": "exp-ab-003"
+    },
+    {
+      "from": "exp-ab-004",
+      "rel": "contradicts",
+      "to": "exp-ab-002"
+    },
+    {
+      "from": "exp-ab-004",
+      "rel": "refines",
+      "to": "exp-ab-003"
+    },
+    {
+      "from": "exp-commit-001",
+      "rel": "supports",
+      "to": "ana-047"
+    },
+    {
+      "from": "ana-047",
+      "rel": "derived-from",
+      "to": "exp-commit-001"
+    },
+    {
+      "from": "exp-commit-001",
+      "rel": "measures",
+      "to": "exp-mut-005"
+    },
+    {
+      "from": "gap-ab-002",
+      "rel": "requires",
+      "to": "exp-ab-003"
+    },
+    {
+      "from": "gap-ab-002",
+      "rel": "refines",
+      "to": "gap-ab-001"
+    },
+    {
+      "from": "ana-046",
+      "rel": "requires",
+      "to": "exp-ab-004"
+    }
+  ]
+}

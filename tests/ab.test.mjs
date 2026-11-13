@@ -9,6 +9,7 @@ import {
   mdeIndependent,
   comparePolicies,
   compareMeans,
+  screenDip,
 } from '../src/loop/ab.js'
 
 let pass = 0
@@ -131,6 +132,43 @@ ok('an undetectable delta still reports its size', tiny.delta > 0)
 {
   const r = compareMeans({ pairs: [{ base: 0.1, candidate: 0.4 }, { base: 0.2, candidate: 0.5 }, { base: 0.3, candidate: 0.6 }] })
   ok('a consistent shift with no spread says so instead of claiming a zero floor', r.verdict === 'candidate-better' && r.sd === 0 && /no spread/.test(r.sentence), r.sentence)
+}
+
+// The screen for "one task got worse" has three states, and the middle one is
+// the whole point: a dip nobody can attribute must not read as either a pass or
+// a failure. Without these, the strictest rule in the protocol is decided by the
+// noisiest measurement in it.
+{
+  const r = screenDip({ worstDrop: 0, noiseSpread: 0.1 })
+  ok('no dip passes and is not called attributable', r.pass === true && r.attributable === false, r.reason)
+}
+{
+  const r = screenDip({ worstDrop: 0.1, noiseSpread: 0.1 })
+  ok('a dip exactly at the measured spread is not attributable', r.pass === true && r.attributable === false, r.reason)
+}
+{
+  const r = screenDip({ worstDrop: 0.11, noiseSpread: 0.1 })
+  ok('a dip wider than the measured spread fails and says by how much', r.pass === false && r.attributable === true && /0\.110/.test(r.reason) && /0\.100/.test(r.reason), r.reason)
+}
+{
+  const r = screenDip({ worstDrop: 0.05 })
+  ok('a dip with no spread measured is unresolved, neither pass nor fail', r.pass === null && r.unresolved === true, String(r.pass))
+}
+{
+  const r = screenDip({ worstDrop: 0.3, noiseSpread: 0.1, resolution: 0.5 })
+  ok('attribution is decided by the spread, not by the sample resolution', r.pass === false && r.dipWithin === true, r.reason)
+}
+{
+  const r = screenDip({ lostTasks: ['mut-x'], worstDrop: 0, noiseSpread: 0.1 })
+  ok('losing a task fails the screen even with no dip', r.pass === false && /mut-x/.test(r.reason), r.reason)
+}
+{
+  const r = screenDip({ worstDrop: -0.2, noiseSpread: 0.1 })
+  ok('an improvement is not a dip', r.pass === true && r.attributable === false, r.reason)
+}
+{
+  const r = screenDip({ worstDrop: 0.05, noiseSpread: 0 })
+  ok('a measured spread of zero still makes a positive dip attributable', r.pass === false && r.attributable === true, r.reason)
 }
 
 console.log(`${fail === 0 ? 'ok' : 'FAIL'} - ab ${pass}/${pass + fail}`)

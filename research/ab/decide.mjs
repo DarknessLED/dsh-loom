@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { screenDip } from '../../src/loop/ab.js'
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => {
@@ -113,12 +114,11 @@ const worst = dipRows[0] ?? { drop: 0, taskId: null }
   // A dip is only attributable to the arm when it is wider than the arm's own
   // repeat spread. Without that spread measured, a positive dip is unresolved:
   // not a pass (the change might be the cause) and not a fail (the noise might).
-  const attributable = worst.drop > 0
-    ? noiseSpread !== null && worst.drop > noiseSpread
-    : false
-  const unresolved = worst.drop > 0 && noiseSpread === null
-  const dipWithin = resolution !== null && worst.drop <= resolution
-  const pass = lost.length > 0 ? false : worst.drop <= 0 ? true : unresolved ? null : attributable ? false : true
+  // The three-state screen lives in src/loop/ab.js so the test suite pins it;
+  // this script only decides what a hold means for the record.
+  const screen = screenDip({ lostTasks: lost, worstDrop: worst.drop, noiseSpread, resolution })
+  const { attributable, unresolved, dipWithin } = screen
+  const pass = screen.pass
   push(1, 'no task lost, no regression wider than the sample can resolve', pass,
     lost.length
       ? `lost task(s): ${lost.join(', ')}`
@@ -168,7 +168,8 @@ const mde0raw = (stats.quality ?? stats.score)?.mde
 const mde0 = Number.isFinite(mde0raw) && mde0raw > 0 ? mde0raw : null
 const resolution0 = mde0 ?? (halfWidth0 !== null && halfWidth0 > 0 ? halfWidth0 : null)
 // The dip that matters is the one that survives the arm's own repeat spread.
-const attributableDip = worst.drop > 0 && noiseSpread !== null && worst.drop > noiseSpread
+// Same screen as rule 1; recomputed here because rule 1's copy is block-scoped.
+const attributableDip = screenDip({ worstDrop: worst.drop, noiseSpread }).attributable
 const dipOutside = attributableDip && (resolution0 === null || worst.drop > resolution0)
 // The reason names the measurement that failed, not the rule number: "lost-task"
 // and "regression" are different facts about the data and a reader has to be able
@@ -185,7 +186,11 @@ const decision = lostTasks.length > 0
           ? 'adopt:endpoint'
         : savingPass
           ? 'adopt:saving'
-          : 'reject:endpoint-not-distinguishable'
+          // Neither distinguishable-worse nor non-statistically cheaper. That is
+          // not a rejection: a rejection claims the change hurt, and this sample
+          // never established that. It is a hold, and the record says which
+          // measurement was missing.
+          : 'hold:not-distinguishable'
 
 // What adoption would actually replace, named so the record says which strategy
 // changed rather than only which campaign won.
@@ -212,7 +217,8 @@ const out = join('research', 'ab', `decision-${base}-vs-${cand}.json`)
 writeFileSync(out, JSON.stringify(report, null, 2))
 
 console.log(`decide: ${base} vs ${cand}`)
-for (const v of verdicts) console.log(`  ${v.pass ? 'pass' : 'FAIL'}  rule ${v.rule}: ${v.name}\n        ${v.detail}`)
+// null is HOLD, not FAIL: a rule that could not be decided must not read as a failure.
+for (const v of verdicts) console.log(`  ${v.pass === null ? 'HOLD' : v.pass ? 'pass' : 'FAIL'}  rule ${v.rule}: ${v.name}\n        ${v.detail}`)
 console.log('')
 console.log(`DECISION=${decision}`)
 for (const r of replaces) console.log(`  replaces: ${r}`)

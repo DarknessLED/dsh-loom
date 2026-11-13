@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "id": "exp-ab-005",
+      "kind": "number",
+      "topic": "ab-protocol",
+      "confidence": 0.96,
+      "title": "A third candidate doubles the tokens for no endpoint",
+      "claim": "2 candidates -> 3 candidates on the same chain, planner and tree: tokens 14,486 -> 30,254 (2.09x), round clock 572,217 -> 827,189 ms (1.45x), graded endpoint mean -0.025 with interval [-0.074, 0.024] (cannot distinguish below 0.070). Decision reject:budget-mismatch, read off the ledger rather than off a test.",
+      "source": "research/ab/decision-ab-cand1b-vs-ab-cand4.json + research/ab/decisions.md"
+    },
+    {
+      "id": "ana-048",
+      "kind": "analysis",
+      "topic": "ab-protocol",
+      "confidence": 0.93,
+      "title": "An arm that changes two things at once still has a decision, just not a cause",
+      "claim": "ab-cand2b -> ab-cand4 read reject:budget-mismatch too, but it also restored the planner, so it cannot say which change cost the tokens; the clean pair is ab-cand1b -> ab-cand4 (same chain, same planner, only the candidate count differs). Both files are kept: the confounded pair still answers 'is this configuration worth running', the clean pair answers 'is the third candidate worth buying'. Naming which question a comparison answers is cheaper than avoiding confounded comparisons, which the schedule does not always allow.",
+      "source": "research/ab/decisions.md entry 3 + decision-ab-cand2b-vs-ab-cand4.json"
+    }
+  ],
+  "edges": [
+    {
+      "from": "exp-ab-005",
+      "rel": "measures",
+      "to": "exp-ab-002"
+    },
+    {
+      "from": "exp-ab-005",
+      "rel": "supports",
+      "to": "ana-044"
+    },
+    {
+      "from": "ana-048",
+      "rel": "derived-from",
+      "to": "exp-ab-005"
+    },
+    {
+      "from": "ana-048",
+      "rel": "refines",
+      "to": "ana-046"
+    },
+    {
+      "from": "exp-ab-005",
+      "rel": "requires",
+      "to": "exp-ab-003"
+    }
+  ]
+}

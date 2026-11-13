@@ -91,6 +91,17 @@ const standing = [
   // reference was the slowest attempt, so 53 of 53 priceable campaigns read
   // tailMs = 0 and the gate could only say yes (e73).
   'tests/balance/second-candidate-tail.test.mjs',
+  // a promotion commits the paths its patch touched and nothing else: the old
+  // `git add -A` swept a mutant left behind by a killed sweep into a commit, and
+  // would have swept a human's in-progress edit the same way.
+  'tests/commit-paths.test.mjs',
+  // and a graded task's evidence is the number, not the exit code: a red base that
+  // never produced a number is unmeasured, and 2026-11-13 promoted a round on it.
+  'tests/graded-requires-metric.test.mjs',
+  // and the policy a campaign is told to use must be the policy it runs: a bare
+  // {candidates:1} override was written to the event log and never read, so arm C
+  // bought two attempts while its own state said one.
+  'tests/policy-bare-override.test.mjs',
 
   // a contradiction that can only be listed is a museum: it is decided, the
   // decision is kept as evidence, and it survives a pack/unpack and a merge.

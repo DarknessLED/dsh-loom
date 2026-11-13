@@ -144,7 +144,15 @@ const report = (changed, why) => JSON.stringify({ changed, why, evidence: ['ran 
   await runRound({ runtime: rt, view, config, dispatcher, log: () => {}, notify: () => {} })
   const gate = rt.events.find((e) => e.type === 'gate.evaluated')
   assert.equal(gate?.data?.checks?.oracleInBase, null, 'an unreadable base answers nothing')
-  assert.equal(gate?.data?.checks?.earnedReason, 'red-to-green', 'the other evidence path is unchanged')
+  // The oracle check itself stays silent, which is the point of this case: an
+  // unanswerable question must not be turned into a refusal by the check that
+  // could not answer. The round is still refused, but by a rule that can see what
+  // happened -- the task is graded and the base produced no number, so a candidate
+  // that made the command green has not shown that the graded quantity moved. Two
+  // different facts, and the record names the second one.
+  assert.notEqual(gate?.data?.checks?.earnedReason, 'oracle-absent-at-base', 'the unreadable base did not become a refusal')
+  assert.equal(gate?.data?.checks?.earnedReason, 'graded-metric-unmeasured', 'a graded task with no base number is unmeasured')
+  assert.equal(gate?.data?.promoted, false, 'and writing the instrument does not promote')
   ok('an unreadable base is unmeasured, not a refusal')
   rmSync(dir, { recursive: true, force: true })
 }
