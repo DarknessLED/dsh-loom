@@ -1,0 +1,188 @@
+{
+  "measuredAt": "2026-11-13T15:16:23.372Z",
+  "base": {
+    "campaign": "loom-mut",
+    "version": 1,
+    "rounds": 5
+  },
+  "candidate": {
+    "campaign": "loom-mut",
+    "version": 1,
+    "rounds": 5
+  },
+  "pairedTasks": 4,
+  "gate": {
+    "ok": false,
+    "reason": "not-enough-tasks",
+    "checks": {
+      "enoughTasks": false,
+      "gain": false,
+      "noRegression": true
+    },
+    "paired": [
+      {
+        "taskId": "mut-runtime-round",
+        "base": 0.335,
+        "candidate": 0.335,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-runtime-triangle",
+        "base": 0,
+        "candidate": 0,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-runtime-notify",
+        "base": 0.755,
+        "candidate": 0.755,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-runtime-cost",
+        "base": 0.86,
+        "candidate": 0.86,
+        "delta": 0
+      }
+    ],
+    "pairedTasks": 4,
+    "baseScore": 0.4875,
+    "candidateScore": 0.4875,
+    "delta": 0,
+    "worst": {
+      "taskId": "mut-runtime-round",
+      "base": 0.335,
+      "candidate": 0.335,
+      "delta": 0
+    },
+    "baseVersion": 1,
+    "candidateVersion": 1
+  },
+  "quality": {
+    "n": 3,
+    "delta": 0,
+    "sd": 0,
+    "se": 0,
+    "interval": {
+      "low": 0,
+      "high": 0
+    },
+    "mde": 0,
+    "verdict": "cannot-distinguish",
+    "sentence": "all 3 paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good."
+  },
+  "score": {
+    "n": 4,
+    "delta": 0,
+    "sd": 0,
+    "se": 0,
+    "interval": {
+      "low": 0,
+      "high": 0
+    },
+    "mde": 0,
+    "verdict": "cannot-distinguish",
+    "sentence": "all 4 paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good."
+  },
+  "duration": {
+    "n": 3,
+    "delta": 0,
+    "sd": 0,
+    "se": 0,
+    "interval": {
+      "low": 0,
+      "high": 0
+    },
+    "mde": 0,
+    "verdict": "cannot-distinguish",
+    "sentence": "all 3 paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good."
+  },
+  "budget": {
+    "baseTokens": 10417,
+    "candTokens": 10417,
+    "baseCost": 0.003622,
+    "candCost": 0.003622,
+    "baseAttemptMs": 1687005,
+    "candAttemptMs": 1687005
+  },
+  "budgetOk": true,
+  "decision": "reject:not-enough-tasks",
+  "rows": [
+    {
+      "taskId": "mut-runtime-cost",
+      "base": {
+        "quality": 0.8,
+        "score": 0.86,
+        "durationMs": 478237,
+        "tokens": 2644,
+        "costUsd": 0.000938,
+        "gateScore": 0.86
+      },
+      "candidate": {
+        "quality": 0.8,
+        "score": 0.86,
+        "durationMs": 478237,
+        "tokens": 2644,
+        "costUsd": 0.000938,
+        "gateScore": 0.86
+      }
+    },
+    {
+      "taskId": "mut-runtime-notify",
+      "base": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 563276,
+        "tokens": 2502,
+        "costUsd": 0.000874,
+        "gateScore": 0.755
+      },
+      "candidate": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 563276,
+        "tokens": 2502,
+        "costUsd": 0.000874,
+        "gateScore": 0.755
+      }
+    },
+    {
+      "taskId": "mut-runtime-round",
+      "base": {
+        "quality": 0.05,
+        "score": 0.335,
+        "durationMs": 351394,
+        "tokens": 4057,
+        "costUsd": 0.00147,
+        "gateScore": 0.335
+      },
+      "candidate": {
+        "quality": 0.05,
+        "score": 0.335,
+        "durationMs": 351394,
+        "tokens": 4057,
+        "costUsd": 0.00147,
+        "gateScore": 0.335
+      }
+    },
+    {
+      "taskId": "mut-runtime-triangle",
+      "base": {
+        "quality": null,
+        "score": 0,
+        "durationMs": null,
+        "tokens": 1214,
+        "costUsd": 0.00034,
+        "gateScore": 0
+      },
+      "candidate": {
+        "quality": null,
+        "score": 0,
+        "durationMs": null,
+        "tokens": 1214,
+        "costUsd": 0.00034,
+        "gateScore": 0
+      }
+    }
+  ]
+}

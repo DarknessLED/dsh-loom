@@ -167,3 +167,87 @@ export function comparePolicies({ rounds, decideA, decideB, alpha = 0.05 } = {})
 
   return { n, both, onlyA, onlyB, neither, rateA, rateB, delta, mde, interval, p, verdict, sentence, agreed }
 }
+
+/**
+ * Paired comparison of a *continuous* endpoint (a metric, a kill rate, a round
+ * duration).
+ *
+ * The promotion-rate comparison above throws away almost everything: on this
+ * corpus each task yields one 0/1 outcome, so a sample of six tasks can only
+ * resolve differences of tens of points. A graded task yields a number per
+ * task, and the paired differences of those numbers are far more informative --
+ * which is the whole reason the graded corpus exists.
+ *
+ * Same discipline as the binary case: report the effect, its interval, and the
+ * smallest effect this sample could have detected; refuse to call anything
+ * "no effect".
+ *
+ * @param {object} opts
+ * @param {Array<{base: number, candidate: number}>} opts.pairs one entry per task
+ * @param {number} [opts.alpha=0.05] two-sided
+ * @param {number} [opts.power=0.8]
+ */
+export function compareMeans({ pairs, alpha = 0.05, power = 0.8 } = {}) {
+  const list = (pairs || []).filter((p) => Number.isFinite(p?.base) && Number.isFinite(p?.candidate))
+  const n = list.length
+  const deltas = list.map((p) => p.candidate - p.base)
+  const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0)
+  const delta = mean(deltas)
+  // One pair gives no variance estimate, so it cannot support an interval at all.
+  // Saying so is the point: the alternative is a zero-width interval around one
+  // observation, which reads as certainty.
+  if (n < 2) {
+    return {
+      n,
+      delta: n ? round6(delta) : 0,
+      sd: null,
+      se: null,
+      interval: null,
+      mde: null,
+      verdict: 'cannot-distinguish',
+      sentence: n === 0
+        ? 'no paired tasks: nothing to compare.'
+        : 'one paired task cannot estimate variance, so no interval and no detectable floor exist: this is not evidence of an effect.',
+    }
+  }
+  const sd = Math.sqrt(deltas.reduce((s, d) => s + (d - delta) ** 2, 0) / (n - 1))
+  // Every pair moved by the same amount, or by nothing at all. A zero standard
+  // deviation puts a zero width on the interval and a zero floor under the MDE,
+  // which reads as infinite sensitivity -- the same lie the binary comparison
+  // refuses to tell when the arms never disagree. Say what happened instead.
+  // Floating-point summation leaves ~1e-17 of noise on identical deltas, so the
+  // test is a tolerance rather than `=== 0`; 1e-12 is far below any endpoint the
+  // loop scores in.
+  if (!(sd > 1e-12)) {
+    const moved = delta !== 0
+    return {
+      n,
+      delta: round6(delta),
+      sd: 0,
+      se: 0,
+      interval: { low: round6(delta), high: round6(delta) },
+      mde: round6(Math.abs(delta)),
+      verdict: moved ? (delta > 0 ? 'candidate-better' : 'base-better') : 'cannot-distinguish',
+      sentence: moved
+        ? `all ${n} paired tasks moved by exactly ${round6(delta)}: the sign is consistent across every task, but with no spread there is no interval to report and the detectable floor is the effect itself.`
+        : `all ${n} paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good.`,
+    }
+  }
+  const se = sd / Math.sqrt(n)
+  const z = zFor(alpha)
+  const mde = (z + powerZ(power)) * se
+  const interval = { low: delta - z * se, high: delta + z * se }
+  let verdict = 'cannot-distinguish'
+  if (interval.low > 0) verdict = 'candidate-better'
+  else if (interval.high < 0) verdict = 'base-better'
+  const sentence =
+    verdict === 'cannot-distinguish'
+      ? `${n} paired tasks: mean difference ${round6(delta)}, 95% interval [${round6(interval.low)}, ${round6(interval.high)}] includes zero; this sample cannot distinguish a difference below ${round6(mde)} at 80% power. Not "no effect".`
+      : `${n} paired tasks: mean difference ${round6(delta)} (95% interval [${round6(interval.low)}, ${round6(interval.high)}]), detectable floor ${round6(mde)} at 80% power.`
+  return { n, delta: round6(delta), sd: round6(sd), se: round6(se), interval: { low: round6(interval.low), high: round6(interval.high) }, mde: round6(mde), verdict, sentence }
+}
+
+function round6(x) {
+  const n = Number(x)
+  return Number.isFinite(n) ? Math.round(n * 1e6) / 1e6 : 0
+}

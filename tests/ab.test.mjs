@@ -8,6 +8,7 @@ import {
   mdePaired,
   mdeIndependent,
   comparePolicies,
+  compareMeans,
 } from '../src/loop/ab.js'
 
 let pass = 0
@@ -94,6 +95,43 @@ const tiny = comparePolicies({
 })
 ok('one discordant pair in twenty is undetectable', tiny.verdict === 'cannot-distinguish', tiny.sentence)
 ok('an undetectable delta still reports its size', tiny.delta > 0)
+
+
+// --- the continuous endpoint -------------------------------------------------
+{
+  const pairs = [
+    { base: 0.1, candidate: 0.55 }, { base: 0.2, candidate: 0.6 },
+    { base: 0.55, candidate: 0.7 }, { base: 0.05, candidate: 0.45 },
+    { base: 0.5, candidate: 0.5 }, { base: 0.6, candidate: 0.75 },
+  ]
+  const r = compareMeans({ pairs })
+  ok('a graded corpus of six tasks can resolve a quarter-point difference', r.n === 6 && Math.abs(r.delta - 0.258333) < 1e-6 && r.verdict === 'candidate-better' && r.interval.low > 0 && r.mde > 0.2 && r.mde < 0.22 && /detectable floor/.test(r.sentence), JSON.stringify(r))
+}
+
+{
+  const r = compareMeans({ pairs: [{ base: 0.4, candidate: 0.42 }, { base: 0.55, candidate: 0.5 }, { base: 0.5, candidate: 0.53 }] })
+  ok('a small difference on a small corpus is reported as unresolved', r.verdict === 'cannot-distinguish' && /cannot distinguish a difference below/.test(r.sentence) && /Not "no effect"/.test(r.sentence), r.sentence)
+}
+
+{
+  const r = compareMeans({ pairs: [{ base: 1, candidate: 2 }] })
+  ok('one pair is not evidence, and says so', r.verdict === 'cannot-distinguish' && r.interval === null && r.mde === null && /cannot estimate variance/.test(r.sentence), r.sentence)
+}
+
+{
+  const r = compareMeans({ pairs: [] })
+  ok('no pairs is not a tie', r.n === 0 && r.verdict === 'cannot-distinguish' && /nothing to compare/.test(r.sentence), r.sentence)
+}
+
+{
+  const r = compareMeans({ pairs: [{ base: 0.5, candidate: 0.5 }, { base: 0.9, candidate: 0.9 }] })
+  ok('identical numbers on every task are reported as an unmoved endpoint', r.verdict === 'cannot-distinguish' && r.mde === 0 && /did not move at all/.test(r.sentence), r.sentence)
+}
+
+{
+  const r = compareMeans({ pairs: [{ base: 0.1, candidate: 0.4 }, { base: 0.2, candidate: 0.5 }, { base: 0.3, candidate: 0.6 }] })
+  ok('a consistent shift with no spread says so instead of claiming a zero floor', r.verdict === 'candidate-better' && r.sd === 0 && /no spread/.test(r.sentence), r.sentence)
+}
 
 console.log(`${fail === 0 ? 'ok' : 'FAIL'} - ab ${pass}/${pass + fail}`)
 if (fail > 0) process.exit(1)
