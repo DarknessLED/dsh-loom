@@ -27,8 +27,13 @@ const args = Object.fromEntries(
 )
 const base = args.base
 const cand = args.cand
+// The endpoint's own repeat spread, measured by running the same arm twice on an
+// unchanged tree (campaign `loom-noise`, script `research/ab/noise.mjs`). A dip
+// smaller than this is not attributable to the arm: the same configuration
+// produced 0.85 and 0.75 on `mut-runtime-cost` in two consecutive runs.
+const noiseSpread = Number.isFinite(Number(args['noise-spread'])) ? Number(args['noise-spread']) : null
 if (!base || !cand) {
-  console.error('usage: decide.mjs --base=<campaign> --cand=<campaign> [--stats=<file>]')
+  console.error('usage: decide.mjs --base=<campaign> --cand=<campaign> [--stats=<file>] [--noise-spread=<0..1>]')
   process.exit(2)
 }
 const ROOT = join(homedir(), '.dsh', 'loom', 'campaigns')
@@ -105,13 +110,22 @@ const worst = dipRows[0] ?? { drop: 0, taskId: null }
   // resolution would print 0.000 and make every dip look resolvable.
   const mde = Number.isFinite(endpointNow?.mde) && endpointNow.mde > 0 ? endpointNow.mde : null
   const resolution = mde ?? (halfWidth !== null && halfWidth > 0 ? halfWidth : null)
+  // A dip is only attributable to the arm when it is wider than the arm's own
+  // repeat spread. Without that spread measured, a positive dip is unresolved:
+  // not a pass (the change might be the cause) and not a fail (the noise might).
+  const attributable = worst.drop > 0
+    ? noiseSpread !== null && worst.drop > noiseSpread
+    : false
+  const unresolved = worst.drop > 0 && noiseSpread === null
   const dipWithin = resolution !== null && worst.drop <= resolution
-  const pass = lost.length === 0 && (worst.drop <= 0 || dipWithin)
+  const pass = lost.length > 0 ? false : worst.drop <= 0 ? true : unresolved ? null : attributable ? false : true
   push(1, 'no task lost, no regression wider than the sample can resolve', pass,
     lost.length
       ? `lost task(s): ${lost.join(', ')}`
       : `worst dip ${worst.drop.toFixed(3)} on ${worst.taskId} vs resolution ${resolution === null ? 'unknown (the endpoint did not move)' : resolution.toFixed(3)} (MDE${halfWidth === null ? '' : `, half-interval ${halfWidth.toFixed(3)}`})` +
-        `${dipWithin && worst.drop > 0 ? ' (screen failed, not distinguishable)' : ''}` +
+        `, repeat spread ${noiseSpread === null ? 'not measured' : noiseSpread.toFixed(3)}` +
+        `${unresolved ? ' (unresolved: a dip that small cannot be attributed without the arm\'s own spread)' : ''}` +
+        `${dipWithin && worst.drop > 0 && !unresolved ? ' (screen failed, not distinguishable)' : ''}` +
         `${stats.gate?.ok === true ? '; gate also clean' : `; gate screen said ${stats.gate?.reason}`}`)
 }
 
@@ -153,7 +167,9 @@ const halfWidth0 = iv0 && Number.isFinite(iv0.low) && Number.isFinite(iv0.high) 
 const mde0raw = (stats.quality ?? stats.score)?.mde
 const mde0 = Number.isFinite(mde0raw) && mde0raw > 0 ? mde0raw : null
 const resolution0 = mde0 ?? (halfWidth0 !== null && halfWidth0 > 0 ? halfWidth0 : null)
-const dipOutside = resolution0 !== null && worst.drop > resolution0
+// The dip that matters is the one that survives the arm's own repeat spread.
+const attributableDip = worst.drop > 0 && noiseSpread !== null && worst.drop > noiseSpread
+const dipOutside = attributableDip && (resolution0 === null || worst.drop > resolution0)
 // The reason names the measurement that failed, not the rule number: "lost-task"
 // and "regression" are different facts about the data and a reader has to be able
 // to tell which one happened.
@@ -161,10 +177,12 @@ const decision = lostTasks.length > 0
   ? 'reject:lost-task'
   : dipOutside
     ? 'reject:regression'
-    : !budgetPass
-      ? 'reject:budget-mismatch'
-      : better
-        ? 'adopt:endpoint'
+    : gateOk === null
+      ? 'hold:noise-unmeasured'
+      : !budgetPass
+        ? 'reject:budget-mismatch'
+        : better
+          ? 'adopt:endpoint'
         : savingPass
           ? 'adopt:saving'
           : 'reject:endpoint-not-distinguishable'

@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-11-13T18:24:36.332Z",
+  "measuredAt": "2026-11-13T19:04:18.629Z",
   "base": "ab-cand2b",
   "candidate": "ab-cand3b",
   "statsFile": "research\\ab\\chain-ab-ab-cand2b-vs-ab-cand3b.json",
@@ -7,8 +7,8 @@
     {
       "rule": 1,
       "name": "no task lost, no regression wider than the sample can resolve",
-      "pass": false,
-      "detail": "worst dip 0.100 on mut-runtime-cost vs resolution 0.070 (MDE, half-interval 0.049); gate screen said gain-too-small"
+      "pass": null,
+      "detail": "worst dip 0.100 on mut-runtime-cost vs resolution 0.070 (MDE, half-interval 0.049), repeat spread not measured (unresolved: a dip that small cannot be attributed without the arm's own spread); gate screen said gain-too-small"
     },
     {
       "rule": 2,
@@ -35,7 +35,7 @@
       "detail": "not worse"
     }
   ],
-  "decision": "reject:regression",
+  "decision": "hold:noise-unmeasured",
   "replaces": [
     "the second parallel candidate — the candidate chain buys one attempt per round"
   ],
