@@ -33,6 +33,25 @@ Both are recorded in `research/ab/decisions.md` with the five rule readings, the
 number that decided each one, and what would change the verdict. The protocol and its
 three amendments are in `research/ab/README.md`.
 
+## Who decides, now
+
+Three things changed so that a person stands at the L2 decision and nowhere else:
+
+- **The per-round gate no longer asks.** `loopPolicy.autoApply` defaults to true, so a
+  round that clears the gate lands without a checkpoint. `chain` nodes that say
+  `when: "always"` still stop, and `when: "never"` keeps an unattended campaign
+  unattended (`tests/l1-unattended.test.mjs`).
+- **A card that does reach a person carries the four facts**: which task, what the diff
+  does, what the verifier said, what could break — plus a `missing:` line naming
+  whatever could not be produced (`src/runtime/review-card.js`,
+  `tests/balance/card-evidence.test.mjs`).
+- **A chain change waits for a person.** `rsi_chain(action:"activate")` on a different
+  version above 1 raises a `chain` checkpoint and leaves the active version alone;
+  approving it activates, `confirm:true` is the explicit shortcut, and the first
+  version needs no permission (`tests/l2-requires-human.test.mjs`). Verified in the
+  live host on 2026-11-14: activating v2 returned `pending: cp-mwfg81uq000013` with
+  `active: 1`, and rejecting it left `activeVersion` at 1 with the checkpoint answered.
+
 ## What is waiting for a person
 
 **The adoption is not global.** `loom-v2check` ran chain v2 and converged 3/3 with no
