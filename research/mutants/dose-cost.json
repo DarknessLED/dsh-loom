@@ -1,0 +1,36 @@
+{
+ "measuredAt": "2026-11-13T15:55:50.612Z",
+ "module": "src/runtime/cost.js",
+ "specs": [
+  "tests/tri4/cost-truth.test.mjs",
+  "tests/self3/spend.test.mjs"
+ ],
+ "sample": 20,
+ "distinct": 2,
+ "graded": false,
+ "rows": [
+  {
+   "level": "bare",
+   "killRate": 0.2,
+   "killed": 4,
+   "tried": 20,
+   "ok": true
+  },
+  {
+   "level": "r4a1.patch",
+   "killRate": 0.85,
+   "killed": 17,
+   "tried": 20,
+   "ok": true,
+   "applied": true
+  },
+  {
+   "level": "r2a1.patch",
+   "killRate": 0.85,
+   "killed": 17,
+   "tried": 20,
+   "ok": true,
+   "applied": true
+  }
+ ]
+}

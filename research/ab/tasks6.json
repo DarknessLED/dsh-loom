@@ -1,0 +1,121 @@
+[
+ {
+  "id": "mut-runtime-triangle",
+  "prompt": "Raise the kill rate of src/runtime/triangle.js.\nIts specs (tests/balance/hedge-stats.test.mjs,tests/balance/models-are-visible.test.mjs) currently notice 5% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\triangle.js --specs=tests/balance/hedge-stats.test.mjs,tests/balance/models-are-visible.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/balance/hedge-stats.test.mjs",
+     "tests/balance/models-are-visible.test.mjs"
+    ]
+   }
+  }
+ },
+ {
+  "id": "mut-runtime-cost",
+  "prompt": "Raise the kill rate of src/runtime/cost.js.\nIts specs (tests/tri4/cost-truth.test.mjs,tests/self3/spend.test.mjs) currently notice 20% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\cost.js --specs=tests/tri4/cost-truth.test.mjs,tests/self3/spend.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/tri4/cost-truth.test.mjs",
+     "tests/self3/spend.test.mjs"
+    ]
+   }
+  }
+ },
+ {
+  "id": "mut-runtime-candidates",
+  "prompt": "Raise the kill rate of src/runtime/candidates.js.\nIts specs (tests/balance/second-candidate-tail.test.mjs,tests/balance/second-candidate.test.mjs) currently notice 50% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\candidates.js --specs=tests/balance/second-candidate-tail.test.mjs,tests/balance/second-candidate.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/balance/second-candidate-tail.test.mjs",
+     "tests/balance/second-candidate.test.mjs"
+    ]
+   }
+  }
+ },
+ {
+  "id": "mut-dispatch-brief",
+  "prompt": "Raise the kill rate of src/dispatch/brief.js.\nIts specs (tests/brief.test.mjs,tests/dispatch/brief-states-budget.test.mjs) currently notice 55% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\dispatch\\brief.js --specs=tests/brief.test.mjs,tests/dispatch/brief-states-budget.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/brief.test.mjs",
+     "tests/dispatch/brief-states-budget.test.mjs"
+    ]
+   }
+  }
+ },
+ {
+  "id": "mut-gate-gate",
+  "prompt": "Raise the kill rate of src/gate/gate.js.\nIts specs (tests/gate.test.mjs,tests/lean.test.mjs) currently notice 60% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\gate\\gate.js --specs=tests/gate.test.mjs,tests/lean.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/gate.test.mjs",
+     "tests/lean.test.mjs"
+    ]
+   }
+  }
+ },
+ {
+  "id": "mut-gate-oracle",
+  "prompt": "Raise the kill rate of src/gate/oracle.js.\nIts specs (tests/oracle-scope.test.mjs) currently notice 55% of the one-token bugs the instrument plants in it.\nRun the verify command first: it prints KILLRATE= and SURVIVORS={pattern:count}, and those patterns tell you what the specs fail to pin.\nAdd assertions to the specs listed in verify.scope so that more of those bugs make a spec fail.\nYou may edit only those specs. The module under test and research/mutants/task.mjs are out of reach; a patch touching them is refused by name.\nDo not assert on the module source text: a spec that reads what it measures is excluded and will not count.\nReport the KILLRATE you ended at and which survivor classes you closed.",
+  "verify": {
+   "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\gate\\oracle.js --specs=tests/oracle-scope.test.mjs --sample=20",
+   "cwd": "C:/Projects/RSI",
+   "timeoutMs": 240000,
+   "metrics": {
+    "quality": {
+     "pattern": "KILLRATE=([0-9.]+)"
+    }
+   },
+   "scope": {
+    "editable": [
+     "tests/oracle-scope.test.mjs"
+    ]
+   }
+  }
+ }
+]

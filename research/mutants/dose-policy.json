@@ -1,0 +1,28 @@
+{
+ "measuredAt": "2026-11-13T15:56:31.671Z",
+ "module": "src/loop/policy.js",
+ "specs": [
+  "tests/balance/policy-models-set.test.mjs",
+  "tests/loop.test.mjs"
+ ],
+ "sample": 20,
+ "distinct": 2,
+ "graded": true,
+ "rows": [
+  {
+   "level": "bare",
+   "killRate": 0.7,
+   "killed": 14,
+   "tried": 20,
+   "ok": true
+  },
+  {
+   "level": "r5a1.patch",
+   "killRate": 1,
+   "killed": 20,
+   "tried": 20,
+   "ok": true,
+   "applied": true
+  }
+ ]
+}

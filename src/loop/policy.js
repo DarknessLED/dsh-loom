@@ -131,8 +131,20 @@ export function effectivePolicy({ state, config } = {}) {
     },
     POLICY_DEFAULTS,
   )
+  // Two shapes live in one field, and reading only one of them silently turns a
+  // knob into decoration. `policy.proposed`/`policy.promoted` write the nested
+  // record (`{status, version, policy:{...}}`); `campaign.policy` — what
+  // `rsi_control policy` appends — writes bare keys beside it. Measured on
+  // 2026-11-14: a campaign set `candidates: 1` and still launched two attempts in
+  // its first round, because this function only looked at `state.policy.policy`.
+  // Precedence, strongest first: the campaign's bare override (the operator's
+  // latest word), then the promoted L2 record, then the install config, then the
+  // defaults. `normalizePolicy` is a whitelist, so metadata keys (`status`,
+  // `version`, `promotedAt`, `by`) fall through untouched.
   const promoted = state?.policy?.policy
-  return promoted ? normalizePolicy(promoted, fromConfig) : fromConfig
+  const base = promoted && typeof promoted === 'object' ? normalizePolicy(promoted, fromConfig) : fromConfig
+  const bare = state?.policy && typeof state.policy === 'object' ? state.policy : null
+  return bare ? normalizePolicy(bare, base) : base
 }
 
 /** Differences between two policies, for the audit trail. */

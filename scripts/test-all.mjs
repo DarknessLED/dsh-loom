@@ -76,6 +76,9 @@ const standing = [
   // oracleScripts makes the pre-patch set empty, so the base run failed because the
   // script was missing -- a red base that looks like a bug fixed (e70 found this on
   // 75 landings, all by habit rather than check).
+  // a verified attempt that changed nothing is not a patch: 14 rounds promoted an
+  // empty diff and the apply step then failed with 'No valid patches in input'.
+  'tests/noop-landing.test.mjs',
   // a task that delivers test coverage needs the gate to allow exactly the
   // declared file and nothing else: the rule was about self-measurement, not
   // about the tests directory.

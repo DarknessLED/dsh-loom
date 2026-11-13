@@ -48,8 +48,18 @@ export const MODULES = [
   { file: 'src/runtime/baseline.js', focal: 'tests/balance/spec-must-fail-on-base.test.mjs' },
 ]
 
+// Separators are normalised before anything is hashed: `--module=src\runtime\x.js`
+// and `--module=src/runtime/x.js` name the same file, and the sample is chosen by
+// hashing the slug, so an un-normalised slug makes the reading depend on argv
+// spelling rather than on the tree. Measured on 2026-11-13, same tree, same patch,
+// same two guard specs: the two spellings reported KILLRATE 0.65 and 0.95.
 export function slug(file) {
-  return file.replace(/^src\//, '').replace(/\.js$/, '').replace(/\//g, '-')
+  return String(file)
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^src\//, '')
+    .replace(/\.js$/, '')
+    .replace(/\//g, '-')
 }
 
 // Byte offsets on purpose: a text-level rewrite can normalise CRLF and produce a
@@ -77,6 +87,18 @@ export function mutantsFor(file) {
 export function splitOf(moduleSlug, index, holdoutEvery = 5) {
   const h = crypto.createHash('sha256').update(`${moduleSlug}:${index}`).digest()
   return h[0] % holdoutEvery === 0 ? 'holdout' : 'train'
+}
+
+// The sample is a property of (module, index), ordered by a hash of the
+// normalised slug -- never by file offset, so adding a pattern later does not
+// reshuffle a task's sample, and the two spellings of one path pick the same
+// mutants. task.mjs slices the head of this list.
+export function rankedSample(file) {
+  const s = slug(file)
+  return mutantsFor(file)
+    .map((m, i) => ({ ...m, index: i, id: `${s}#${String(i).padStart(3, '0')}` }))
+    .map((m) => ({ ...m, rank: crypto.createHash('sha256').update(`${s}:${m.index}`).digest('hex') }))
+    .sort((a, b) => a.rank.localeCompare(b.rank))
 }
 
 export function plan() {

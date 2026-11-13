@@ -1,0 +1,48 @@
+{
+ "nodes": [
+  {
+   "id": "exp-mut-003",
+   "kind": "number",
+   "title": "The kill rate depended on how argv spelled the module path: 0.65 vs 0.95 for one tree and one patch",
+   "body": "While checking whether arm 1 of the A/B actually moved its metric, I applied `~/.dsh/loom/campaigns/ab-cand1/artifacts/r1a1.patch` to a fresh worktree at HEAD and ran the task verifier by hand. It printed KILLRATE=0.9500. The ledger for that same attempt recorded quality 0.65. Same worktree lineage, same patch, same two guard specs, same --sample=20.\n\nCause: `research/mutants/gen.mjs` slugged the module path by stripping `^src/` and turning `/` into `-`, but left backslashes alone. The task command registered into every campaign spells the path with backslashes (`--module=src\\runtime\\triangle.js`, visible in `verifier.finished.command`), so the slug was `src\\runtime\\triangle` instead of `runtime-triangle`. The sample is ordered by sha256 of the slug, so the two spellings chose two different sets of 20 mutants out of 65 candidates. Re-running by hand with the backslashes reproduced 0.6500 exactly and the forward slashes reproduced 0.9500.\n\nConsequence: the recorded quality of every `mut-*` round was computed on a sample that the baseline in `research/mutants/tasks-base.json` (generated from forward-slash module names) did not share. Inside one arm the readings stay comparable, because every round used the same spelling; across a task's baseline and a round they did not.\n\nFix: `slug()` normalises `\\` to `/`, drops a leading `./`, before hashing; `rankedSample()` now lives in gen.mjs so the ordering is one function instead of a copy inside task.mjs; `tests/mutants-determinism.test.mjs` pins that four spellings of one path pick the same ordered sample.",
+   "confidence": 0.97
+  },
+  {
+   "id": "ana-043",
+   "kind": "analysis",
+   "title": "A reading that changes with argv is a reading of the command line, and the cheap guard is a second spelling",
+   "body": "The instrument this round was built to escape exactly this class: a score that is not a function of the patch. It arrived one layer lower -- not in the metric, in the *sample selection*. Nothing in the code was wrong on any single input: hashing a slug is fine, slicing the head is fine, `--sample=20` is fine. The defect only exists across two spellings of one path, which no single run exercises.\n\nThat is why the run-level tests all passed with the bug present: every test computed a reading and compared it to a hand-computed expectation for that same reading. What was missing was a test that computes the *same* reading twice, from two descriptions of the same input.\n\nGeneral rule for this repository's instruments: any function whose output is hashed, seeded, sorted, or sampled must take its key from a normalised form of the artefact, and the guarding test must show that two spellings agree. The cost is one assertion; the failure it prevents is a metric that silently changes when a task is re-registered with different path separators -- which is exactly what happened when the same 6 tasks were copied from `tasks-base.json` into three campaign registrations.\n\nSame family as `exp-cand-003` (tail priced from the slowest attempt, so it was always zero): the arithmetic was right, the input was degenerate, and the only way to see it was to print the intermediate quantity for more than one input.",
+   "confidence": 0.95
+  },
+  {
+   "id": "exp-mut-004",
+   "kind": "failure",
+   "title": "The first attempt to verify a promoted patch compared two samples and read the difference as a patch effect",
+   "body": "The check was correct in intent -- apply the recorded patch to a clean tree, run the verifier, compare with the recorded quality -- and wrong in execution: it ran the verifier with the forward-slash module name, while the campaign had recorded its quality with the backslash name. The 0.95 vs 0.65 gap was read as 'the agent under-reported its own result', which would have been a claim about the agent. Re-running both spellings on the same tree showed the gap was the sample, not the patch.\n\nLesson recorded because the wrong explanation was plausible and flattering to the instrument: 'the agent measured before its last edit' is a story that fits and is false here. The discriminator is to run the *same* verifier command string that the campaign logged, not an equivalent-looking one.",
+   "confidence": 0.93
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-mut-003",
+   "rel": "supersedes",
+   "to": "exp-mut-004"
+  },
+  {
+   "from": "ana-043",
+   "rel": "refines",
+   "to": "exp-mut-003"
+  },
+  {
+   "from": "ana-043",
+   "rel": "same-as",
+   "to": "ana-034"
+  },
+  {
+   "from": "exp-mut-003",
+   "rel": "refines",
+   "to": "exp-level-001"
+  }
+ ],
+ "gaps": []
+}

@@ -1,0 +1,238 @@
+{
+  "measuredAt": "2026-11-13T16:34:28.608Z",
+  "base": {
+    "campaign": "ab-cand1",
+    "version": 1,
+    "rounds": 6
+  },
+  "candidate": {
+    "campaign": "ab-cand2",
+    "version": 2,
+    "rounds": 6
+  },
+  "pairedTasks": 6,
+  "gate": {
+    "ok": false,
+    "reason": "gain-too-small",
+    "checks": {
+      "enoughTasks": true,
+      "gain": false,
+      "noRegression": false
+    },
+    "paired": [
+      {
+        "taskId": "mut-runtime-triangle",
+        "base": 0.755,
+        "candidate": 0.755,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-runtime-cost",
+        "base": 0.895,
+        "candidate": 0.86,
+        "delta": -0.035
+      },
+      {
+        "taskId": "mut-runtime-candidates",
+        "base": 0.79,
+        "candidate": 0.86,
+        "delta": 0.07
+      },
+      {
+        "taskId": "mut-dispatch-brief",
+        "base": 0.755,
+        "candidate": 0.755,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-gate-gate",
+        "base": 0.79,
+        "candidate": 0.79,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-gate-oracle",
+        "base": 0.755,
+        "candidate": 0.755,
+        "delta": 0
+      }
+    ],
+    "pairedTasks": 6,
+    "baseScore": 0.79,
+    "candidateScore": 0.795833,
+    "delta": 0.005833,
+    "worst": {
+      "taskId": "mut-runtime-cost",
+      "base": 0.895,
+      "candidate": 0.86,
+      "delta": -0.035
+    },
+    "baseVersion": 1,
+    "candidateVersion": 2
+  },
+  "quality": {
+    "n": 6,
+    "delta": 0,
+    "sd": 0.054772,
+    "se": 0.022361,
+    "interval": {
+      "low": -0.043827,
+      "high": 0.043827
+    },
+    "mde": 0.062646,
+    "verdict": "cannot-distinguish",
+    "sentence": "6 paired tasks: mean difference 0, 95% interval [-0.043827, 0.043827] includes zero; this sample cannot distinguish a difference below 0.062646 at 80% power. Not \"no effect\"."
+  },
+  "score": {
+    "n": 6,
+    "delta": 0.005833,
+    "sd": 0.034412,
+    "se": 0.014049,
+    "interval": {
+      "low": -0.021702,
+      "high": 0.033368
+    },
+    "mde": 0.039358,
+    "verdict": "cannot-distinguish",
+    "sentence": "6 paired tasks: mean difference 0.005833, 95% interval [-0.021702, 0.033368] includes zero; this sample cannot distinguish a difference below 0.039358 at 80% power. Not \"no effect\"."
+  },
+  "duration": {
+    "n": 6,
+    "delta": 34093.166667,
+    "sd": 141695.394452,
+    "se": 57846.902552,
+    "interval": {
+      "low": -79286.762335,
+      "high": 147473.095668
+    },
+    "mde": 162063.882189,
+    "verdict": "cannot-distinguish",
+    "sentence": "6 paired tasks: mean difference 34093.166667, 95% interval [-79286.762335, 147473.095668] includes zero; this sample cannot distinguish a difference below 162063.882189 at 80% power. Not \"no effect\"."
+  },
+  "budget": {
+    "baseTokens": 18300,
+    "candTokens": 14792,
+    "baseCost": 0.006509,
+    "candCost": 0.0052970000000000005,
+    "baseAttemptMs": 3836520,
+    "candAttemptMs": 3069505
+  },
+  "budgetOk": true,
+  "decision": "reject:gain-too-small",
+  "rows": [
+    {
+      "taskId": "mut-dispatch-brief",
+      "base": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 397993,
+        "tokens": 2196,
+        "costUsd": 0.000791,
+        "gateScore": 0.755
+      },
+      "candidate": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 322034,
+        "tokens": 2151,
+        "costUsd": 0.000772,
+        "gateScore": 0.755
+      }
+    },
+    {
+      "taskId": "mut-gate-gate",
+      "base": {
+        "quality": 0.7,
+        "score": 0.79,
+        "durationMs": 231773,
+        "tokens": 1975,
+        "costUsd": 0.000702,
+        "gateScore": 0.79
+      },
+      "candidate": {
+        "quality": 0.7,
+        "score": 0.79,
+        "durationMs": 199391,
+        "tokens": 2055,
+        "costUsd": 0.000735,
+        "gateScore": 0.79
+      }
+    },
+    {
+      "taskId": "mut-gate-oracle",
+      "base": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 251668,
+        "tokens": 1982,
+        "costUsd": 0.000706,
+        "gateScore": 0.755
+      },
+      "candidate": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 212626,
+        "tokens": 2189,
+        "costUsd": 0.000793,
+        "gateScore": 0.755
+      }
+    },
+    {
+      "taskId": "mut-runtime-candidates",
+      "base": {
+        "quality": 0.7,
+        "score": 0.79,
+        "durationMs": 298890,
+        "tokens": 3732,
+        "costUsd": 0.001301,
+        "gateScore": 0.79
+      },
+      "candidate": {
+        "quality": 0.8,
+        "score": 0.86,
+        "durationMs": 518216,
+        "tokens": 2211,
+        "costUsd": 0.000795,
+        "gateScore": 0.86
+      }
+    },
+    {
+      "taskId": "mut-runtime-cost",
+      "base": {
+        "quality": 0.85,
+        "score": 0.895,
+        "durationMs": 570536,
+        "tokens": 4029,
+        "costUsd": 0.001432,
+        "gateScore": 0.895
+      },
+      "candidate": {
+        "quality": 0.8,
+        "score": 0.86,
+        "durationMs": 781968,
+        "tokens": 2025,
+        "costUsd": 0.00072,
+        "gateScore": 0.86
+      }
+    },
+    {
+      "taskId": "mut-runtime-triangle",
+      "base": {
+        "quality": 0.65,
+        "score": 0.755,
+        "durationMs": 459936,
+        "tokens": 4386,
+        "costUsd": 0.001577,
+        "gateScore": 0.755
+      },
+      "candidate": {
+        "quality": 0.6,
+        "score": 0.755,
+        "durationMs": 381120,
+        "tokens": 4161,
+        "costUsd": 0.001482,
+        "gateScore": 0.755
+      }
+    }
+  ]
+}

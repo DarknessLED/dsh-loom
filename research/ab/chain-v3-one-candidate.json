@@ -1,0 +1,41 @@
+{
+ "name": "code-fix",
+ "version": 3,
+ "description": "Same as v1 with one candidate per round: cascade instead of parallel. Adopted only if the A/B shows the second candidate is not buying a graded endpoint.",
+ "params": {
+  "candidates": 1,
+  "maxSteps": 40
+ },
+ "nodes": [
+  {
+   "id": "recon",
+   "type": "agent",
+   "role": "planner",
+   "prompt": "Inspect the repository and the task. Produce: (1) the exact failure or gap, (2) the files likely involved, (3) the verification command that proves success, (4) one alternative approach. Be terse; the next agent only needs the plan."
+  },
+  {
+   "id": "attempts",
+   "type": "map",
+   "over": "candidates",
+   "of": {
+    "id": "work",
+    "type": "agent",
+    "role": "worker",
+    "prompt": "Implement the change in your own worktree. Run the project tests yourself. Report: what you changed, the commands you ran, and the final test output. Do not claim success without a green run."
+   }
+  },
+  {
+   "id": "verify",
+   "type": "verifier",
+   "cmd": "npm test",
+   "cwd": ".",
+   "description": "Mechanical gate: exit code 0 required; extra metrics parsed from stdout when configured."
+  },
+  {
+   "id": "gate",
+   "type": "human",
+   "when": "on_gain",
+   "prompt": "Promote the winning attempt?"
+  }
+ ]
+}

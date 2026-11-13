@@ -49,7 +49,11 @@ function loadCampaign(id) {
 
 const A = loadCampaign(base)
 const C = loadCampaign(cand)
-const candVersion = Number(args.version ?? C.state.chain?.activeVersion ?? 2)
+// The candidate needs a version the base does not have: the two arms here run the
+// *same* chain version and differ by policy, so defaulting to the campaign's own
+// active version would merge both arms into one bucket and report every score as
+// identical. The version is a label for the arm in this comparison, nothing else.
+const candVersion = Number(args.version ?? (Number(A.state.chain?.activeVersion ?? 1) + 1))
 const minTasks = Number(args.minTasks ?? 6)
 const minGain = Number(args.minGain ?? 0.05)
 

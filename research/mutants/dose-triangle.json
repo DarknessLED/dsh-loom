@@ -1,0 +1,34 @@
+{
+ "measuredAt": "2026-11-13T15:52:47.591Z",
+ "module": "src/runtime/triangle.js",
+ "specs": [
+  "tests/balance/hedge-stats.test.mjs",
+  "tests/balance/models-are-visible.test.mjs"
+ ],
+ "sample": 20,
+ "distinct": 3,
+ "graded": true,
+ "rows": [
+  {
+   "level": "bare",
+   "killRate": 0,
+   "killed": 0,
+   "tried": 20,
+   "ok": true
+  },
+  {
+   "level": "r1a2.patch",
+   "killRate": 0.85,
+   "killed": 17,
+   "tried": 20,
+   "ok": true
+  },
+  {
+   "level": "r1a1.patch",
+   "killRate": 0.95,
+   "killed": 19,
+   "tried": 20,
+   "ok": true
+  }
+ ]
+}

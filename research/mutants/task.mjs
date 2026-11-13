@@ -20,7 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { mutantsFor, slug } from './gen.mjs'
+import { mutantsFor, rankedSample, slug } from './gen.mjs'
 import { guardSet } from './plan-all.mjs'
 
 const args = Object.fromEntries(
@@ -114,12 +114,8 @@ const restore = () => fs.writeFileSync(moduleFile, original)
 process.on('exit', restore)
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { restore(); process.exit(130) })
 
-const fileSlug = slug(moduleFile)
-const all = mutantsFor(moduleFile)
-  .map((m, i) => ({ ...m, index: i, id: `${fileSlug}#${String(i).padStart(3, '0')}` }))
-  .map((m) => ({ ...m, rank: crypto.createHash('sha256').update(`${fileSlug}:${m.index}`).digest('hex') }))
-  .sort((a, b) => a.rank.localeCompare(b.rank))
-const picked = all.slice(0, sample)
+const all = rankedSample(moduleFile)
+const picked = sample > 0 ? all.slice(0, sample) : all
 
 // Guard specs: either pinned by the task (`--specs=a,b`) or derived. Pinning
 // matters because the task's scope names exactly the files the candidate may

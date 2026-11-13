@@ -1,0 +1,35 @@
+{
+ "name": "code-fix",
+ "version": 2,
+ "description": "Same as v1 without the recon planner leg: the map goes straight to work. Adopted only if the A/B shows the planner minutes are not buying a graded endpoint.",
+ "params": {
+  "candidates": 2,
+  "maxSteps": 40
+ },
+ "nodes": [
+  {
+   "id": "attempts",
+   "type": "map",
+   "over": "candidates",
+   "of": {
+    "id": "work",
+    "type": "agent",
+    "role": "worker",
+    "prompt": "Implement the change in your own worktree. Run the project tests yourself. Report: what you changed, the commands you ran, and the final test output. Do not claim success without a green run."
+   }
+  },
+  {
+   "id": "verify",
+   "type": "verifier",
+   "cmd": "npm test",
+   "cwd": ".",
+   "description": "Mechanical gate: exit code 0 required; extra metrics parsed from stdout when configured."
+  },
+  {
+   "id": "gate",
+   "type": "human",
+   "when": "on_gain",
+   "prompt": "Promote the winning attempt?"
+  }
+ ]
+}

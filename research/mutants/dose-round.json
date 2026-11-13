@@ -1,0 +1,36 @@
+{
+ "measuredAt": "2026-11-13T15:54:32.150Z",
+ "module": "src/runtime/round.js",
+ "specs": [
+  "tests/balance/a-skipped-plan-is-a-decision.test.mjs",
+  "tests/balance/abandoned-work-still-counts.test.mjs"
+ ],
+ "sample": 20,
+ "distinct": 3,
+ "graded": true,
+ "rows": [
+  {
+   "level": "bare",
+   "killRate": 0,
+   "killed": 0,
+   "tried": 20,
+   "ok": true
+  },
+  {
+   "level": "r1a2.patch",
+   "killRate": 0.1,
+   "killed": 2,
+   "tried": 20,
+   "ok": true,
+   "applied": true
+  },
+  {
+   "level": "r6a1.patch",
+   "killRate": 0.05,
+   "killed": 1,
+   "tried": 20,
+   "ok": true,
+   "applied": true
+  }
+ ]
+}
