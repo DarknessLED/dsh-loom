@@ -1,6 +1,8 @@
 import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
 import { output } from './output.js'
 import { svc } from '../core/services.js'
+import { loomHome } from '../core/paths.js'
 import { writeJsonAtomic } from '../core/atomic.js'
 import { exportBundle } from '../report/export.js'
 import { campaignDigest } from '../report/digest.js'
@@ -39,6 +41,25 @@ function resolve(runtime, id) {
   if (all.length === 1) return viewOf(runtime, all[0])
   if (all.length === 0) throw new Error('no campaigns yet — call rsi_start first')
   throw new Error(`multiple campaigns (${all.join(', ')}); pass id`)
+}
+
+/**
+ * The decisions the loop has already made about its own chain.
+ *
+ * Kept beside the campaigns (`<home>/decisions.json`, written by whoever answers an
+ * L2 question) rather than inside one campaign, because the whole point is that a
+ * refuted hypothesis stays refuted in the next campaign. A missing or malformed file
+ * is an empty list: it must never stop a proposal, only annotate one.
+ */
+function readDecisions(config) {
+  try {
+    const file = join(loomHome(config), 'decisions.json')
+    if (!existsSync(file)) return []
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -545,13 +566,23 @@ export function registerTools(ctx, { runtime, config }) {
         if (!active) throw new Error('no active chain to mutate')
         const maxMutations = Number(config.chain?.maxMutations) || 3
         let nextVersion = view.state.chain.versions.reduce((m, v) => Math.max(m, Number(v.version) || 0), 0) + 1
-        const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations })
-        for (const m of produced) {
+        // What the loop already knows: a mutation that was measured is not a
+        // hypothesis, and a task whose deliverable is a test edit cannot be given
+        // an instruction that forbids test edits.
+        const decided = readDecisions(config)
+        const tasks = view.state.evalset?.tasks || []
+        const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
+        const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable })
+        const fresh = produced.filter((m) => m.status === 'fresh')
+        for (const m of fresh) {
           runtime.append(view, 'chain.proposed', { version: m.spec.version, spec: m.spec }, 'system')
         }
         return {
           parent: active.version,
-          proposed: produced.map((m) => ({ version: m.spec.version, kind: m.kind, rationale: m.rationale })),
+          proposed: fresh.map((m) => ({ version: m.spec.version, kind: m.kind, rationale: m.rationale })),
+          blocked: produced
+            .filter((m) => m.status !== 'fresh')
+            .map((m) => ({ kind: m.kind, status: m.status, note: m.note })),
           note: 'each candidate needs paired rounds on the same tasks before promote will accept it',
         }
       }

@@ -103,6 +103,10 @@ const standing = [
   // {candidates:1} override was written to the event log and never read, so arm C
   // bought two attempts while its own state said one.
   'tests/policy-bare-override.test.mjs',
+  // and the proposer reads what the loop already knows: on 2026-11-14 it offered
+  // `candidates+1` two days after the A/B had rejected it, and `no-test-edits` to
+  // tasks whose deliverable is a test edit.
+  'tests/chain-propose-guard.test.mjs',
 
   // a contradiction that can only be listed is a museum: it is decided, the
   // decision is kept as evidence, and it survives a pack/unpack and a merge.

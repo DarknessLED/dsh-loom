@@ -15,7 +15,7 @@
 //   4. if 2 cannot be met, adopt only when a saving exists that needs no
 //      statistics to see -- here, planner minutes that disappear
 //   5. a distinguishable regression is refused regardless of cost
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { screenDip } from '../../src/loop/ab.js'
@@ -215,6 +215,32 @@ const report = {
 }
 const out = join('research', 'ab', `decision-${base}-vs-${cand}.json`)
 writeFileSync(out, JSON.stringify(report, null, 2))
+
+// Record the verdict where the loop itself can read it. Without this the proposer
+// re-offers a hypothesis the ledger already refuted: on 2026-11-14 `rsi_chain auto`
+// proposed `candidates+1` two days after this script rejected exactly that change.
+// `--kind` names the chain mutation the two arms differ by; without it there is
+// nothing for the proposer to match on and the decision stays research-only.
+const kindArg = args.kind ?? args['kind']
+if (kindArg) {
+  const home = process.env.LOOM_HOME || join(homedir(), '.dsh', 'loom')
+  const file = join(home, 'decisions.json')
+  let list = []
+  try { list = JSON.parse(readFileSync(file, 'utf8')) } catch { list = [] }
+  if (!Array.isArray(list)) list = []
+  list = list.filter((d) => !(d && d.kind === kindArg))
+  list.push({
+    kind: kindArg,
+    decision,
+    base,
+    candidate: cand,
+    at: new Date().toISOString(),
+    report: out.replace(/\\/g, '/'),
+  })
+  mkdirSync(home, { recursive: true })
+  writeFileSync(file, JSON.stringify(list, null, 2))
+  console.log(`recorded ${kindArg} -> ${decision} in ${file}`)
+}
 
 console.log(`decide: ${base} vs ${cand}`)
 // null is HOLD, not FAIL: a rule that could not be decided must not read as a failure.

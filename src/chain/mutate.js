@@ -62,16 +62,47 @@ export function mutateChain(base, { kind, version, rationale } = {}) {
 
 export const MUTATION_KINDS = ['candidates+1', 'minimal-change', 'no-test-edits', 'state-your-uncertainty']
 
-/** All applicable mutations, each with a distinct version number. */
-export function proposeMutations(base, { fromVersion, max = 3 } = {}) {
+/**
+ * Why a proposal is not worth a version.
+ *
+ * 2026-11-14: `rsi_chain(action:"auto")` proposed `candidates+1` two days after the
+ * paired A/B had rejected exactly that change (tokens 2.09x, round clock 1.45x), and
+ * it proposed `no-test-edits` on a campaign whose tasks deliver test coverage — an
+ * instruction that makes those tasks impossible. The menu was fixed and read nothing
+ * about what had already been decided or what the tasks asked for.
+ *
+ * A blocked proposal is *reported*, not dropped: the caller still sees the hypothesis
+ * and the reason it is not being offered again.
+ */
+function statusOf(kind, { decided = [], scopeEditable = false } = {}) {
+  if (kind === 'no-test-edits' && scopeEditable) {
+    return { status: 'conflicts-with-scope', note: 'the task list contains tasks whose deliverable is a test edit: this instruction would make them impossible' }
+  }
+  const prior = (decided || []).find((d) => (typeof d === 'string' ? d : d?.kind) === kind)
+  if (prior) {
+    const decision = typeof prior === 'string' ? 'decided' : prior.decision || 'decided'
+    return { status: 'already-decided', note: `already measured: ${decision}` }
+  }
+  return { status: 'fresh', note: null }
+}
+
+/**
+ * All applicable mutations, each with a distinct version number and a status.
+ *
+ * Versions are assigned to every applicable mutation so the numbering does not
+ * shift when a kind becomes blocked; `status` says whether the caller should offer
+ * it again.
+ */
+export function proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false } = {}) {
   const out = []
   let version = Number(fromVersion) || (Number(base?.version) || 1) + 1
   for (const kind of MUTATION_KINDS) {
-    if (out.length >= max) break
     const m = mutateChain(base, { kind, version })
     if (!m) continue
-    out.push(m)
+    const s = statusOf(kind, { decided, scopeEditable })
+    out.push({ ...m, ...s })
     version += 1
+    if (out.filter((x) => x.status === 'fresh').length >= max) break
   }
   return out
 }
