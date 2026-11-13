@@ -1,0 +1,188 @@
+{
+  "measuredAt": "2026-11-13T18:06:30.552Z",
+  "base": {
+    "campaign": "ab-cand2b",
+    "version": 1,
+    "rounds": 4
+  },
+  "candidate": {
+    "campaign": "ab-cand3b",
+    "version": 2,
+    "rounds": 4
+  },
+  "pairedTasks": 4,
+  "gate": {
+    "ok": false,
+    "reason": "gain-too-small",
+    "checks": {
+      "enoughTasks": true,
+      "gain": false,
+      "noRegression": false
+    },
+    "paired": [
+      {
+        "taskId": "mut-runtime-triangle",
+        "base": 0.965,
+        "candidate": 0.965,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-runtime-cost",
+        "base": 0.895,
+        "candidate": 0.825,
+        "delta": -0.07
+      },
+      {
+        "taskId": "mut-runtime-candidates",
+        "base": 0.825,
+        "candidate": 0.825,
+        "delta": 0
+      },
+      {
+        "taskId": "mut-dispatch-brief",
+        "base": 0.895,
+        "candidate": 0.895,
+        "delta": 0
+      }
+    ],
+    "pairedTasks": 4,
+    "baseScore": 0.895,
+    "candidateScore": 0.8775,
+    "delta": -0.0175,
+    "worst": {
+      "taskId": "mut-runtime-cost",
+      "base": 0.895,
+      "candidate": 0.825,
+      "delta": -0.07
+    },
+    "baseVersion": 1,
+    "candidateVersion": 2
+  },
+  "quality": {
+    "n": 4,
+    "delta": -0.025,
+    "sd": 0.05,
+    "se": 0.025,
+    "interval": {
+      "low": -0.074,
+      "high": 0.024
+    },
+    "mde": 0.07004,
+    "verdict": "cannot-distinguish",
+    "sentence": "4 paired tasks: mean difference -0.025, 95% interval [-0.074, 0.024] includes zero; this sample cannot distinguish a difference below 0.07004 at 80% power. Not \"no effect\"."
+  },
+  "score": {
+    "n": 4,
+    "delta": -0.0175,
+    "sd": 0.035,
+    "se": 0.0175,
+    "interval": {
+      "low": -0.0518,
+      "high": 0.0168
+    },
+    "mde": 0.049028,
+    "verdict": "cannot-distinguish",
+    "sentence": "4 paired tasks: mean difference -0.0175, 95% interval [-0.0518, 0.0168] includes zero; this sample cannot distinguish a difference below 0.049028 at 80% power. Not \"no effect\"."
+  },
+  "duration": {
+    "n": 4,
+    "delta": -127023,
+    "sd": 161553.224239,
+    "se": 80776.612119,
+    "interval": {
+      "low": -285345.159754,
+      "high": 31299.159754
+    },
+    "mde": 226303.756514,
+    "verdict": "cannot-distinguish",
+    "sentence": "4 paired tasks: mean difference -127023, 95% interval [-285345.159754, 31299.159754] includes zero; this sample cannot distinguish a difference below 226303.756514 at 80% power. Not \"no effect\"."
+  },
+  "budget": {
+    "baseTokens": 15428,
+    "candTokens": 7933,
+    "baseCost": 0.005577,
+    "candCost": 0.0028789999999999996,
+    "baseAttemptMs": 3634838,
+    "candAttemptMs": 1288398
+  },
+  "budgetOk": true,
+  "decision": "reject:gain-too-small",
+  "rows": [
+    {
+      "taskId": "mut-dispatch-brief",
+      "base": {
+        "quality": 0.85,
+        "score": 0.895,
+        "durationMs": 385513,
+        "tokens": 3919,
+        "costUsd": 0.001421,
+        "gateScore": 0.895
+      },
+      "candidate": {
+        "quality": 0.85,
+        "score": 0.895,
+        "durationMs": 344718,
+        "tokens": 1978,
+        "costUsd": 0.000718,
+        "gateScore": 0.895
+      }
+    },
+    {
+      "taskId": "mut-runtime-candidates",
+      "base": {
+        "quality": 0.75,
+        "score": 0.825,
+        "durationMs": 338613,
+        "tokens": 3624,
+        "costUsd": 0.001294,
+        "gateScore": 0.825
+      },
+      "candidate": {
+        "quality": 0.75,
+        "score": 0.825,
+        "durationMs": 304097,
+        "tokens": 1849,
+        "costUsd": 0.000662,
+        "gateScore": 0.825
+      }
+    },
+    {
+      "taskId": "mut-runtime-cost",
+      "base": {
+        "quality": 0.85,
+        "score": 0.895,
+        "durationMs": 440943,
+        "tokens": 3994,
+        "costUsd": 0.001454,
+        "gateScore": 0.895
+      },
+      "candidate": {
+        "quality": 0.75,
+        "score": 0.825,
+        "durationMs": 376757,
+        "tokens": 2021,
+        "costUsd": 0.000737,
+        "gateScore": 0.825
+      }
+    },
+    {
+      "taskId": "mut-runtime-triangle",
+      "base": {
+        "quality": 0.95,
+        "score": 0.965,
+        "durationMs": 631421,
+        "tokens": 3891,
+        "costUsd": 0.001408,
+        "gateScore": 0.965
+      },
+      "candidate": {
+        "quality": 0.95,
+        "score": 0.965,
+        "durationMs": 262826,
+        "tokens": 2085,
+        "costUsd": 0.000762,
+        "gateScore": 0.965
+      }
+    }
+  ]
+}

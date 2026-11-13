@@ -1,0 +1,80 @@
+{
+  "measuredAt": "2026-11-13T17:51:47.775Z",
+  "base": "ab-cand1b",
+  "candidate": "ab-cand2b",
+  "statsFile": "research\\ab\\chain-ab-ab-cand1b-vs-ab-cand2b.json",
+  "verdicts": [
+    {
+      "rule": 1,
+      "name": "no task lost, no regression wider than the sample can see",
+      "pass": true,
+      "detail": "worst dip 0.000 on mut-dispatch-brief vs half-interval 0.000; gate screen said gain-too-small"
+    },
+    {
+      "rule": 2,
+      "name": "graded endpoint distinguishable and better",
+      "pass": false,
+      "detail": "all 4 paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good."
+    },
+    {
+      "rule": 3,
+      "name": "budget comparable (tokens <= 1.25x, round ms <= 1.05x)",
+      "pass": true,
+      "detail": "tokens 14486 -> 15428 (1.07x), round ms 572217 -> 494632 (0.86x)"
+    },
+    {
+      "rule": 4,
+      "name": "non-statistical saving (planner minutes)",
+      "pass": true,
+      "detail": "planner 9.66 min in 4 runs -> 0.00 min in 0 runs (saved 9.66 min)"
+    },
+    {
+      "rule": 5,
+      "name": "not a distinguishable regression",
+      "pass": true,
+      "detail": "not worse"
+    }
+  ],
+  "decision": "adopt:saving",
+  "replaces": [
+    "the planner leg before the map (recon node) — present in the base chain, absent in the candidate"
+  ],
+  "planners": {
+    "base": {
+      "ms": 579896,
+      "runs": 4,
+      "minutes": 9.664933333333334
+    },
+    "candidate": {
+      "ms": 0,
+      "runs": 0,
+      "minutes": 0
+    }
+  },
+  "clocks": {
+    "base": {
+      "rounds": 4,
+      "totalMs": 2288866,
+      "meanMs": 572216.5
+    },
+    "candidate": {
+      "rounds": 4,
+      "totalMs": 1978529,
+      "meanMs": 494632.25
+    }
+  },
+  "endpoint": {
+    "kind": "quality",
+    "n": 4,
+    "delta": 0,
+    "sd": 0,
+    "se": 0,
+    "interval": {
+      "low": 0,
+      "high": 0
+    },
+    "mde": 0,
+    "verdict": "cannot-distinguish",
+    "sentence": "all 4 paired tasks produced the same number on both arms: the endpoint did not move at all, so there is no effect size to estimate. This is a statement about the endpoint, not evidence that the two arms are equally good."
+  }
+}

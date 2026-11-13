@@ -355,18 +355,36 @@ export async function headCommit(repo) {
  * conflict on apply ("patch does not apply") and the promotion is lost.
  *
  * Never throws. `committed:false` means there was nothing to commit.
+ *
+ * `paths` narrows the commit to the files a promotion actually touched. Without
+ * it this stages the whole tree with `git add -A`, which sweeps in anything else
+ * that happens to be modified — an interrupted mutation run left one of the
+ * twelve one-token mutants in `src/runtime/cost.js` for a night, and a single
+ * autopilot commit would have landed it as if it were the promotion.
  * @param {string} repo
  * @param {string} message
+ * @param {{paths?: string[]}} [options]
  * @returns {Promise<{ok: boolean, committed: boolean, sha: string|null, detail?: string}>}
  */
-export async function commitWorkspace(repo, message) {
+export async function commitWorkspace(repo, message, { paths } = {}) {
   try {
-    const staged = await runGit(repo, ['add', '-A'])
-    if (staged.code !== 0) return { ok: false, committed: false, sha: null, detail: staged.stderr }
-    const status = await runGit(repo, ['status', '--porcelain'])
+    const only = Array.isArray(paths) ? paths.filter((p) => typeof p === 'string' && p !== '') : []
+    const scoped = only.length > 0
+    const staged = await runGit(repo, scoped ? ['add', '-A', '--', ...only] : ['add', '-A'])
+    const status = await runGit(repo, scoped ? ['status', '--porcelain', '--', ...only] : ['status', '--porcelain'])
     if (status.code !== 0) return { ok: false, committed: false, sha: null, detail: status.stderr }
-    if (String(status.stdout || '').trim() === '') return { ok: true, committed: false, sha: null }
-    const committed = await runGit(repo, ['commit', '-m', String(message || 'loom: promotion')])
+    if (String(status.stdout || '').trim() === '') {
+      // Nothing recorded for these paths. A failed `git add` means the pathspec
+      // matched nothing at all — a promotion whose file list is wrong is a bug
+      // upstream, so it fails loudly instead of committing something else.
+      if (staged.code === 0) return { ok: true, committed: false, sha: null }
+      return { ok: false, committed: false, sha: null, detail: staged.stderr }
+    }
+    // A pathspec commit leaves anything staged outside the promotion alone: the
+    // reviewer's own work in progress must not ride along with a loop commit.
+    const commitArgs = ['commit', '-m', String(message || 'loom: promotion')]
+    if (scoped) commitArgs.push('--', ...only)
+    const committed = await runGit(repo, commitArgs)
     if (committed.code !== 0) {
       return { ok: false, committed: false, sha: null, detail: committed.stderr || committed.stdout }
     }

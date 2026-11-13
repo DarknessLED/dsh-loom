@@ -2152,7 +2152,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           } else {
             // Commit the promotion immediately: the next round branches off HEAD,
             // and leaving it dirty is what makes the following apply conflict.
-            const landed = await commitWorkspace(workspace, `loom ${state.id} round ${n}: promote ${best.id} (score ${score})`)
+            const landed = await commitWorkspace(workspace, `loom ${state.id} round ${n}: promote ${best.id} (score ${score})`, { paths: best.diff?.filesChanged })
             runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard: reusedGuard ? 'reused-verifier' : guard, commit: landed.sha, committed: landed.committed === true, at: Date.now() }, 'system')
           }
         }

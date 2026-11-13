@@ -1,0 +1,80 @@
+{
+  "measuredAt": "2026-11-13T18:06:30.677Z",
+  "base": "ab-cand2b",
+  "candidate": "ab-cand3b",
+  "statsFile": "research\\ab\\chain-ab-ab-cand2b-vs-ab-cand3b.json",
+  "verdicts": [
+    {
+      "rule": 1,
+      "name": "no task lost, no regression wider than the sample can see",
+      "pass": false,
+      "detail": "worst dip 0.100 on mut-runtime-cost vs half-interval 0.049; gate screen said gain-too-small"
+    },
+    {
+      "rule": 2,
+      "name": "graded endpoint distinguishable and better",
+      "pass": false,
+      "detail": "4 paired tasks: mean difference -0.025, 95% interval [-0.074, 0.024] includes zero; this sample cannot distinguish a difference below 0.07004 at 80% power. Not \"no effect\"."
+    },
+    {
+      "rule": 3,
+      "name": "budget comparable (tokens <= 1.25x, round ms <= 1.05x)",
+      "pass": true,
+      "detail": "tokens 15428 -> 7933 (0.51x), round ms 494632 -> 330320 (0.67x)"
+    },
+    {
+      "rule": 4,
+      "name": "non-statistical saving (planner minutes)",
+      "pass": false,
+      "detail": "planner 0.00 min in 0 runs -> 0.00 min in 0 runs (saved 0.00 min)"
+    },
+    {
+      "rule": 5,
+      "name": "not a distinguishable regression",
+      "pass": true,
+      "detail": "not worse"
+    }
+  ],
+  "decision": "reject:regression",
+  "replaces": [
+    "the second parallel candidate — the candidate chain buys one attempt per round"
+  ],
+  "planners": {
+    "base": {
+      "ms": 0,
+      "runs": 0,
+      "minutes": 0
+    },
+    "candidate": {
+      "ms": 0,
+      "runs": 0,
+      "minutes": 0
+    }
+  },
+  "clocks": {
+    "base": {
+      "rounds": 4,
+      "totalMs": 1978529,
+      "meanMs": 494632.25
+    },
+    "candidate": {
+      "rounds": 4,
+      "totalMs": 1321281,
+      "meanMs": 330320.25
+    }
+  },
+  "endpoint": {
+    "kind": "quality",
+    "n": 4,
+    "delta": -0.025,
+    "sd": 0.05,
+    "se": 0.025,
+    "interval": {
+      "low": -0.074,
+      "high": 0.024
+    },
+    "mde": 0.07004,
+    "verdict": "cannot-distinguish",
+    "sentence": "4 paired tasks: mean difference -0.025, 95% interval [-0.074, 0.024] includes zero; this sample cannot distinguish a difference below 0.07004 at 80% power. Not \"no effect\"."
+  }
+}
