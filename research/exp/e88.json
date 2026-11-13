@@ -1,0 +1,28 @@
+{
+  "measuredAt": "2026-11-12T19:56:59.161Z",
+  "roundsCompared": 169,
+  "attemptMsEqualsSumOfAttemptDurations": 169,
+  "attemptMsEqualsSumShare": 1,
+  "ratioByAttemptCount": {
+    "1": {
+      "n": 2,
+      "medianRatio": 0.064,
+      "atOrAbove1": 0
+    },
+    "2": {
+      "n": 167,
+      "medianRatio": 1.101,
+      "atOrAbove1": 106
+    }
+  },
+  "negativeMachineryRounds": 106,
+  "negativeByAttemptCount": {
+    "2": 106
+  },
+  "singleCandidate": {
+    "rounds": 2,
+    "wallClockMs": 513357,
+    "agentMs": 31194,
+    "machineryMedianMs": 241127
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "measuredAt": "2026-11-12T19:57:12.444Z",
+  "rounds": 169,
+  "totalRoundHours": 20.559,
+  "agentSerialHours": 12.742,
+  "agentParallelHours": 22.91,
+  "verifierHours": 0.213,
+  "holdoutHours": 1.992,
+  "machineryLowerHours": 0.836,
+  "machineryUpperHours": 5.622,
+  "machineryLowerShare": 0.0407,
+  "machineryUpperShare": 0.2735,
+  "byStatus": {
+    "promoted": {
+      "n": 78,
+      "hours": 13.305,
+      "agentShare": 0.6059,
+      "machineryUpperShare": 0.312
+    },
+    "no-gain": {
+      "n": 69,
+      "hours": 6.291,
+      "agentShare": 0.6704,
+      "machineryUpperShare": 0.1787
+    },
+    "interrupted": {
+      "n": 19,
+      "hours": 0.188,
+      "agentShare": 0.0356,
+      "machineryUpperShare": 0.9572
+    },
+    "holdout-failed": {
+      "n": 3,
+      "hours": 0.776,
+      "agentShare": 0.589,
+      "machineryUpperShare": 0.2145
+    }
+  }
+}

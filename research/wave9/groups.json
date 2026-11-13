@@ -1,0 +1,70 @@
+{
+ "w9-verifier-judge": [
+  {
+   "id": "ver-q02",
+   "title": "Can model-based grading be calibrated cheaply? Published agreement numbers disagree"
+  },
+  {
+   "id": "gap-w4-033",
+   "title": "Can a judge be calibrated against test outcomes alone, with no human labels, and still predict the axes tests"
+  },
+  {
+   "id": "gap-w4-036",
+   "title": "Is there any published case of a self-improving coding loop reverting a promoted harness change after the fact"
+  },
+  {
+   "id": "orch-016",
+   "title": "Does adaptive K survive a verifier that is only as good as the task's own test command?"
+  }
+ ],
+ "w9-cost-per-promotion": [
+  {
+   "id": "gap-w1-001",
+   "title": "No one reports cost or wall clock per PROMOTION in a self-improvement loop. The closest numbers are Cline's whole-campaign $680 / 17h and SIFT's judge-call-to-eval ratio; nobody pu"
+  },
+  {
+   "id": "w2-meta-gap-no-matched-budget-headtohead",
+   "title": "Nobody has run meta-optimizing the improver head-to-head against spending the same tokens on N more attempts,"
+  },
+  {
+   "id": "gap-w1-014",
+   "title": "Adaptive branching is only studied offline: SPLIT, Cohere and AggAgent all fix the allocation before the run, and no published system re-plans K mid-run from a live verifier's obse"
+  }
+ ],
+ "w9-human-cadence": [
+  {
+   "id": "gap-w1-006",
+   "title": "How often a human is actually asked outside Anthropic is unpublished — their stated target is at most one human per PR, and the only approval-rate figure found (95%) is a single co"
+  },
+  {
+   "id": "w2-human-gap-batching-vs-streaming",
+   "title": "No controlled comparison of streamed per-action approvals against batched outcome review"
+  }
+ ],
+ "w9-memory-in-code-loop": [
+  {
+   "id": "w2-memory-gap-code-loop-poison",
+   "title": "Memory poisoning has never been studied in a code loop where the stored memory is a patch rather than prose"
+  },
+  {
+   "id": "w3-holdout-gap-no-decay-curve-in-repo",
+   "title": "No measured decay curve for a holdout the worker can read"
+  }
+ ],
+ "w9-horizon-proxies": [
+  {
+   "id": "w2-horizon-horizon-proxy-incommensurable",
+   "title": "Horizon is measured by four incompatible proxies, so published decay curves cannot compose"
+  },
+  {
+   "id": "n-gap-repo-variation",
+   "title": "Open gap: the ledger has no repository variation, so 'cross-repo' cannot be measured — only cross-task"
+  }
+ ],
+ "w9-graph-tooling": [
+  {
+   "id": "kg-019",
+   "title": "No measurement exists that an agent actually drives a graph CLI well, or that FTS5 beats embeddings on short technical claims"
+  }
+ ]
+}

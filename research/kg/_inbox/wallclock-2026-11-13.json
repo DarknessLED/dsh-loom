@@ -1,0 +1,75 @@
+{
+ "nodes": [
+  {
+   "id": "exp-where-001",
+   "kind": "number",
+   "confidence": 0.94,
+   "topic": "stopping",
+   "title": "Wall clock inside the loop, attributed: candidates 62%, holdouts 9.7%, verifiers 1.0%, machinery 4.1-27.3% — so plumbing cannot be the lever",
+   "body": "gap-w1-003 said no study attributes wall clock inside an RSI loop's own machinery (planner, candidate, verifier, promotion, commit). Published numbers are per attempt or per run, never split by which part spent the time. Our rounds carry the split, so the question is answerable here.\n\n169 rounds with a usable duration, 20.56 h of round wall clock (research/exp/e89.mjs, research/exp/e88.mjs):\n\n| component | hours | share |\n|---|---|---|\n| candidate agents (serial reading: slowest attempt) | 12.74 | 62.0% |\n| candidate agents (parallel reading: sum of attempts) | 22.91 | 111.4% |\n| verifiers (259 runs) | 0.21 | 1.0% |\n| holdouts | 1.99 | 9.7% |\n| machinery (scheduler, gate, patch, commit, persistence) | 0.84 .. 5.62 | 4.1% .. 27.3% |\n\nThe agent figure is a bracket, not a point, because candidates within a round run in parallel — attemptMs in the event log is the SUM of per-attempt durations (169/169 exact match against the sum of attempt.finished durations), while round durationMs is wall clock. Serial = slowest attempt, parallel = sum of attempts; the truth is between them and machinery is bracketed by the same interval.\n\nUnit costs: 245.5 s per attempt run (n=336), 3.0 s per verifier run (n=259), 438 s per round (median 390 s).\n\nRead the way the gap asks: even the most generous machinery bound leaves 72.7% of round time inside the candidate agents or verifiers. Plumbing optimisations cannot move the total, and the only lever that can is fewer or shorter attempts. By outcome, the upper machinery bound is 31.2% in promoting rounds, 17.9% in no-gain rounds, and 95.7% in the 19 interrupted rounds (0.19 h) — machinery time is concentrated exactly where nothing was produced.",
+   "source": "research/exp/e89.mjs, research/exp/e88.mjs, research/exp/e87.mjs; ~/.dsh/loom/campaigns/*/events.jsonl round.finished + attempt.finished"
+  },
+  {
+   "id": "exp-where-002",
+   "kind": "failure",
+   "confidence": 0.95,
+   "topic": "stopping",
+   "title": "My first wall-clock attribution subtracted a sum from a clock and reported the residue as 4.1% machinery",
+   "body": "The first version (research/exp/e87.mjs) computed machinery = round.durationMs - attemptMs - verifierMs - holdoutMs and reported 4.1% of round time in machinery. It also printed 'candidate agents 22.91 h, 111.4% of round wall clock' in the same output — a figure that is impossible for a wall clock.\n\nInstead of querying it, the plausible story was available and was believed: two candidates run in parallel, so of course agent time can exceed wall clock. The impossible number and the conclusion it undermined were printed together, and only the conclusion was read.\n\nThe check that settles it costs one comparison (research/exp/e88.mjs): attemptMs equals the sum of its attempts' durations in 169 of 169 rounds. So attemptMs is a sum, durationMs is a clock, and the subtraction mixes units. Machinery was never 4.1%; it is bracketed at 4.1%–27.3% and the point estimate should not have been printed at all.\n\nThe tell was in the output, not in the model: a share above 100% of a total is arithmetically impossible and therefore always a unit error, never a surprising result. Rule: when a component exceeds the whole it is part of, stop and check the units before writing the sentence that explains why exceeding it is expected.",
+   "source": "research/exp/e87.mjs (first version) vs research/exp/e88.mjs 169/169"
+  },
+  {
+   "id": "ana-041",
+   "kind": "analysis",
+   "confidence": 0.95,
+   "topic": "stopping",
+   "title": "Where improving the loop is worth nothing: the parts of the loop that are measured in seconds against a part measured in minutes",
+   "body": "The wall-clock attribution (exp-where-001) answers a question the framework had been treating as open by assumption: is the loop's own machinery a cost worth optimising?\n\nNumbers: candidate agents 62.0% of round time (serial reading) to 111.4% (parallel reading), holdouts 9.7%, verifiers 1.0%, machinery 4.1%–27.3%. Unit costs make the ratio concrete: a verifier run costs 3.0 s; an attempt run costs 245.5 s. The machinery could be made infinitely fast and 7 rounds in 10 would take the same time.\n\nThe design consequence is a rule for where to spend effort, and it inverts the natural instinct of someone working on the orchestration layer: everything I can optimise by editing this repository — the gate, the patch application, the commit, the scheduler — lives in the 4%–27% band, and the band's width comes from concurrency, not from work. The 62% lives inside a model call, and the only ways to move it are to run fewer attempts, make each attempt shorter, or make attempts overlap more.\n\nSame shape as three earlier results tonight, which is why it is worth a node rather than a footnote: exp-cand-003 (the decision layer was correct while its measurement was degenerate), exp-gap-007 (4.3 h of attempt time lost to unverified deaths, at $1.25 of cash), exp-farc-001 (a 1624:1 cost ratio on the wrong axis). In each case the thing that looks like the expensive part of the system is not the part the clock is spent in, and the measurement that reveals it is cheap — a share, a ratio, a unit cost — while the measurement that hides it is the one everybody publishes (dollars per token, seconds per test).\n\nLimit: holdout time (9.7%) is attributed only where round.finished carries holdoutMs; rounds whose holdout ran without recording it would move the machinery bound upward by that amount, and the bound is already the honest expression of this uncertainty.",
+   "source": "research/exp/e89.json, exp-where-001, exp-where-002"
+  }
+ ],
+ "edges": [
+  {
+   "from": "exp-where-001",
+   "rel": "measures",
+   "to": "gap-w1-003",
+   "note": "answers it: wall clock split by component, with a bracket for concurrency"
+  },
+  {
+   "from": "exp-where-001",
+   "rel": "refines",
+   "to": "exp-gap-007",
+   "note": "that measured attempt time lost to deaths; this measures where all attempt time goes"
+  },
+  {
+   "from": "exp-where-001",
+   "rel": "supports",
+   "to": "n-post-promotion-spend",
+   "note": "both: the round clock is spent outside the part being optimised"
+  },
+  {
+   "from": "exp-where-002",
+   "rel": "contradicts",
+   "to": "exp-where-001",
+   "note": "its first version reported 4.1% machinery by subtracting a sum from a clock"
+  },
+  {
+   "from": "ana-041",
+   "rel": "derived-from",
+   "to": "exp-where-001"
+  },
+  {
+   "from": "ana-041",
+   "rel": "same-as",
+   "to": "ana-038",
+   "note": "both: the cheap-looking thing is not where the cost is"
+  },
+  {
+   "from": "exp-where-002",
+   "rel": "same-as",
+   "to": "exp-gap-006",
+   "note": "both: a number that could not be true was believed until an independent check"
+  }
+ ],
+ "gaps": []
+}

@@ -9,3 +9,4 @@ research/kg/store.sqlite
 research/kg/store.sqlite-*
 .kgbench/
 scripts/_mutprobe*.mjs
+research/wave9/src/

@@ -1,0 +1,47 @@
+{
+  "measuredAt": "2026-11-12T19:56:45.063Z",
+  "rounds": 169,
+  "malformed": 74,
+  "totalRoundMs": 74014199,
+  "totalRoundHours": 20.559,
+  "candidateMs": 82477640,
+  "verifierMs": 767658,
+  "holdoutMs": 7171760,
+  "machineryMs": 3010035,
+  "shares": {
+    "candidate": 1.1143,
+    "verifier": 0.0104,
+    "holdout": 0.0969,
+    "machinery": 0.0407
+  },
+  "unitCosts": {
+    "perAttemptSec": 245.5,
+    "perVerifierRunSec": 3,
+    "perRoundSec": 438,
+    "machineryPerRoundSec": 86
+  },
+  "negativeMachineryRounds": 134,
+  "byStatus": {
+    "promoted": {
+      "n": 78,
+      "durHours": 13.305,
+      "machHours": 0.376
+    },
+    "no-gain": {
+      "n": 69,
+      "durHours": 6.291,
+      "machHours": 0.284
+    },
+    "interrupted": {
+      "n": 19,
+      "durHours": 0.188,
+      "machHours": 0.176
+    },
+    "holdout-failed": {
+      "n": 3,
+      "durHours": 0.776,
+      "machHours": 0
+    }
+  },
+  "machineryInNonPromotingHours": 0.46
+}
