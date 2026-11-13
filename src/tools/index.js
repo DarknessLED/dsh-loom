@@ -511,7 +511,33 @@ export function registerTools(ctx, { runtime, config }) {
         const version = Number(args.version)
         const found = view.state.chain.versions.find((v) => v.version === version)
         if (!found) throw new Error(`no chain version ${version}`)
-        runtime.append(view, 'chain.activated', { version }, 'agent')
+        const current = view.state.chain.activeVersion
+        if (version === current) return { active: version, name: found.spec?.name, note: 'already active' }
+        // Changing the running chain is the one decision a person makes: it alters
+        // what every later round does, and the loop cannot un-run those rounds.
+        // `promote` already raises a checkpoint for it; `activate` is the same act
+        // without the evidence, so it asks too. Two exemptions: the first version
+        // (there is nothing to replace) and an explicit `confirm` from whoever is
+        // answering the checkpoint.
+        if (config.loopPolicy?.humanGate !== false && args.confirm !== true && version > 1) {
+          const cpId = nextCheckpointId()
+          runtime.append(
+            view,
+            'checkpoint.raised',
+            {
+              id: cpId,
+              kind: 'chain',
+              payload: { checkpoint: cpId, chainVersion: version, reason: 'activate-requires-confirmation', from: current },
+            },
+            'system',
+          )
+          return {
+            active: current,
+            pending: cpId,
+            note: 'a chain change needs a person: rsi_decide(decision:"approve") activates it, or pass confirm:true',
+          }
+        }
+        runtime.append(view, 'chain.activated', { version }, args.confirm === true ? 'human' : 'agent')
         return { active: version, name: found.spec?.name }
       }
       if (action === 'auto') {

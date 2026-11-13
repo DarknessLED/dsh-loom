@@ -95,6 +95,7 @@ const standing = [
   // `git add -A` swept a mutant left behind by a killed sweep into a commit, and
   // would have swept a human's in-progress edit the same way.
   'tests/commit-paths.test.mjs',
+  'tests/l2-requires-human.test.mjs',
   // and a graded task's evidence is the number, not the exit code: a red base that
   // never produced a number is unmeasured, and 2026-11-13 promoted a round on it.
   'tests/graded-requires-metric.test.mjs',
