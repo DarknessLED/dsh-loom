@@ -48,4 +48,33 @@ const ok = (name) => {
   ok('degenerate and unknown inputs are refusals, not exceptions')
 }
 
+// 4. Numeric strings are measurements: a ledger that stores durations as text is
+//    still a ledger. Refusing them would read every recorded round as unknown.
+{
+  const d = admitSecondCandidate({ p: '0.5', roundMs: '700', tailMs: '100' })
+  assert.equal(d.admit, true)
+  assert.equal(d.reason, 'worth-hedging')
+  assert.equal(Math.round(d.ev), 75, 'the same answer as the numbers they spell')
+  ok('numeric strings are measured, not refused')
+}
+
+// 5. A named number that is not finite is unknown, never zero: an infinite round
+//    is not a round that costs nothing.
+{
+  const d = admitSecondCandidate({ p: 0.5, roundMs: Infinity, tailMs: 100 })
+  assert.equal(d.reason, 'no-signal', 'an infinite duration is not a zero duration')
+  assert.equal(d.ev, null)
+  assert.equal(d.admit, false)
+  ok('non-finite numbers are unknown, not free')
+}
+
+// 6. A tail that was named but cannot be measured is not a free hedge.
+{
+  const d = admitSecondCandidate({ p: 0.5, roundMs: 700, tailMs: null })
+  assert.equal(d.admit, false, 'a null tail is unknown, not zero cost')
+  assert.equal(d.ev, null)
+  assert.equal(d.reason, 'no-signal')
+  ok('an unmeasurable tail is not a free tail')
+}
+
 console.log(`\n${pass}/${pass} passed`)

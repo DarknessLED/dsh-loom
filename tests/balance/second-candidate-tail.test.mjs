@@ -77,6 +77,26 @@ const round = (n, durations, extra = {}) => ({
   ok('a round without per-attempt timing still prices the window')
 }
 
-const EXPECTED = 5
+// 6. A window that is not a positive number falls back to the default ten
+//    rounds; it must not silently shrink the history to the newest round.
+{
+  const rounds = [round(1, [60_000, 78_000]), round(2, [70_000, 88_000]), round(3, [69_000, 85_000])]
+  const gate = secondCandidateGate(rounds, { window: 0 })
+  assert.equal(gate.rounds, 3, 'window 0 keeps the default ten rounds, not one')
+  ok('a non-positive window keeps the default history')
+}
+
+// 7. A promoted round is counted in p: the flag is evidence, not decoration.
+{
+  const gate = secondCandidateGate([
+    round(1, [60_000, 78_000], { promoted: true }),
+    round(2, [70_000, 88_000]),
+  ])
+  // p = (1 promoted + 1) / (2 priced + 2) = 0.5
+  assert.equal(gate.p, 0.5, 'the promoted round lifts the promotion rate')
+  ok('a promoted round is counted')
+}
+
+const EXPECTED = 7
 assert.equal(pass, EXPECTED, `ran ${pass} claims, declared ${EXPECTED}`)
 console.log(`\n${pass}/${EXPECTED} passed`)
