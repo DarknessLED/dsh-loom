@@ -35,6 +35,53 @@ const sample = Number(args.sample ?? 16)
 const maxSpecs = Number(args.maxSpecs ?? 3)
 const budgetMs = Number(args.budgetMs ?? 600000)
 
+// One measurement at a time per repository.
+//
+// A guard spec imports half the tree, so while this process has src/x.js mutated
+// every *other* spec that touches x.js reads a corrupted module. Parallel
+// readings are therefore not independent -- they contaminate each other, and the
+// first baseline showed exactly that (one mutant "killed" only when six other
+// modules were being mutated at the same time). A candidate's worktree is its own
+// repository, so rounds in parallel still get their own lock and their own copy.
+{
+  const { createHash } = await import('node:crypto')
+  const { mkdirSync, rmSync, statSync } = await import('node:fs')
+  const { execFileSync } = await import('node:child_process')
+  const os = await import('node:os')
+  const p = await import('node:path')
+  let root = p.dirname(p.resolve(moduleFile))
+  try {
+    root = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim() || root
+  } catch {}
+  const key = createHash('sha256').update(root.toLowerCase()).digest('hex').slice(0, 12)
+  const lockPath = p.join(os.tmpdir(), `dsh-mut-${key}.lock`)
+  const alive = (pid) => {
+    try { process.kill(pid, 0); return true } catch { return false }
+  }
+  const acquire = () => {
+    for (let i = 0; i < 2400; i += 1) {
+      try {
+        mkdirSync(lockPath)
+        fs.writeFileSync(p.join(lockPath, 'owner'), String(process.pid))
+        return true
+      } catch {
+        let holder = null
+        try { holder = Number(fs.readFileSync(p.join(lockPath, 'owner'), 'utf8')) } catch {}
+        let stale = false
+        try { stale = Date.now() - statSync(lockPath).mtimeMs > 20 * 60_000 } catch {}
+        if (holder && !alive(holder)) stale = true
+        if (stale) { try { rmSync(lockPath, { recursive: true, force: true }) } catch {}; continue }
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
+      }
+    }
+    return false
+  }
+  if (!acquire()) { console.error('another measurement holds the lock, refusing to interleave'); process.exit(7) }
+  const release = () => { try { rmSync(lockPath, { recursive: true, force: true }) } catch {} }
+  process.on('exit', release)
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { release(); process.exit(130) })
+}
+
 // Refuse to measure a file that is already dirty: the snapshot below is what
 // every mutant is restored to, so a dirty file would bless someone else's edit as
 // "the original" and a later restore would silently ship it.

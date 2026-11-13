@@ -225,11 +225,12 @@
    "mutants": 197,
    "guard": 12,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 213,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\approve-lands.test.mjs, tests\\tri10\\status-compact.test.mjs"
+   "killRate": 0.15,
+   "tried": 20,
+   "killed": 3,
+   "ms": 42487,
+   "error": null,
+   "excluded": 1
   },
   {
    "file": "src\\runtime\\round.js",
@@ -237,11 +238,12 @@
    "mutants": 698,
    "guard": 63,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 286,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\balance\\holdout-noop.test.mjs, tests\\balance\\policy-models-set.test.mjs, tests\\chaos\\child-death.test.mjs, tests\\oracle-creation.test.mjs, tests\\oracle-gate.test.mjs, tests\\self8\\human-node.test.mjs, tests\\self9\\holdout-report.test.mjs, tests\\tri11\\holdout-rotation.test.mjs, tests\\tri2\\guard-reuse.test.mjs, tests\\tri\\verifier-reuse.test.mjs, tests\\triangle.test.mjs"
+   "killRate": 0,
+   "tried": 20,
+   "killed": 0,
+   "ms": 6430,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\core\\reduce.js",
@@ -249,11 +251,12 @@
    "mutants": 132,
    "guard": 16,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 208,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\approve-lands.test.mjs, tests\\chaos\\restart-recovery.test.mjs, tests\\triangle.test.mjs"
+   "killRate": 0.05,
+   "tried": 20,
+   "killed": 1,
+   "ms": 43619,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\exec\\worktree.js",
@@ -261,11 +264,12 @@
    "mutants": 187,
    "guard": 6,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 344,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\exec.test.mjs, tests\\exec\\patch-skips-deps.test.mjs, tests\\exec\\worktree-deps.test.mjs, tests\\oracle-creation.test.mjs"
+   "killRate": 0.1,
+   "tried": 20,
+   "killed": 2,
+   "ms": 60011,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\runtime\\runtime.js",
@@ -273,11 +277,12 @@
    "mutants": 108,
    "guard": 9,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 232,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\balance\\policy-models-set.test.mjs, tests\\balance\\policy-set.test.mjs, tests\\chaos\\view-drift.test.mjs, tests\\switch\\switch.test.mjs"
+   "killRate": 0.1,
+   "tried": 20,
+   "killed": 2,
+   "ms": 48693,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\loop\\policy.js",
@@ -285,11 +290,12 @@
    "mutants": 64,
    "guard": 2,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 264,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\balance\\policy-models-set.test.mjs"
+   "killRate": 0.4,
+   "tried": 20,
+   "killed": 8,
+   "ms": 13927,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\exec\\verifier.js",
@@ -297,11 +303,12 @@
    "mutants": 59,
    "guard": 2,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 307,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\exec.test.mjs"
+   "killRate": 0.4,
+   "tried": 20,
+   "killed": 8,
+   "ms": 122506,
+   "error": null,
+   "excluded": 0
   },
   {
    "file": "src\\collab\\board.js",
@@ -309,11 +316,13 @@
    "mutants": 53,
    "guard": 1,
    "exit": 3,
-   "killRate": null,
-   "tried": null,
-   "killed": null,
-   "ms": 283,
-   "error": "TAMPERED=1 guard spec reads the module under test: tests\\board.test.mjs"
+   "killRate": 0.7,
+   "tried": 20,
+   "killed": 14,
+   "ms": 2952,
+   "error": null,
+   "excluded": 0
   }
- ]
+ ],
+ "updatedAt": "2026-11-13T14:23:33.026Z"
 }

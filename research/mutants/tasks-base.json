@@ -1,0 +1,159 @@
+{
+ "measuredAt": "2026-11-13T14:32:42.891Z",
+ "rows": [
+  {
+   "id": "mut-runtime-round",
+   "file": "src\\runtime\\round.js",
+   "killRate": 0,
+   "error": null,
+   "ms": 4781
+  },
+  {
+   "id": "mut-runtime-triangle",
+   "file": "src\\runtime\\triangle.js",
+   "killRate": 0.05,
+   "error": null,
+   "ms": 3884
+  },
+  {
+   "id": "mut-core-reduce",
+   "file": "src\\core\\reduce.js",
+   "killRate": 0,
+   "error": null,
+   "ms": 35507
+  },
+  {
+   "id": "mut-runtime-notify",
+   "file": "src\\runtime\\notify.js",
+   "killRate": 0.1,
+   "error": null,
+   "ms": 3615
+  },
+  {
+   "id": "mut-runtime-runtime",
+   "file": "src\\runtime\\runtime.js",
+   "killRate": 0,
+   "error": null,
+   "ms": 38728
+  },
+  {
+   "id": "mut-exec-worktree",
+   "file": "src\\exec\\worktree.js",
+   "killRate": 0.1,
+   "error": null,
+   "ms": 54141
+  },
+  {
+   "id": "mut-runtime-verifier-reuse",
+   "file": "src\\runtime\\verifier-reuse.js",
+   "killRate": 0.15,
+   "error": null,
+   "ms": 2159
+  },
+  {
+   "id": "mut-dispatch-session",
+   "file": "src\\dispatch\\session.js",
+   "killRate": 0.15,
+   "error": null,
+   "ms": 3536
+  },
+  {
+   "id": "mut-panel-api",
+   "file": "src\\panel\\api.js",
+   "killRate": 0.1,
+   "error": null,
+   "ms": 4328
+  },
+  {
+   "id": "mut-tools-index",
+   "file": "src\\tools\\index.js",
+   "killRate": 0.15,
+   "error": null,
+   "ms": 33480
+  },
+  {
+   "id": "mut-runtime-review",
+   "file": "src\\runtime\\review.js",
+   "killRate": 0.2,
+   "error": null,
+   "ms": 2693
+  },
+  {
+   "id": "mut-runtime-cost",
+   "file": "src\\runtime\\cost.js",
+   "killRate": 0.2,
+   "error": null,
+   "ms": 15394
+  },
+  {
+   "id": "mut-lean-task",
+   "file": "src\\lean\\task.js",
+   "killRate": 0.4,
+   "error": null,
+   "ms": 2459
+  },
+  {
+   "id": "mut-loop-policy",
+   "file": "src\\loop\\policy.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 10154
+  },
+  {
+   "id": "mut-runtime-candidates",
+   "file": "src\\runtime\\candidates.js",
+   "killRate": 0.5,
+   "error": null,
+   "ms": 2798
+  },
+  {
+   "id": "mut-gate-oracle",
+   "file": "src\\gate\\oracle.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 1989
+  },
+  {
+   "id": "mut-dispatch-brief",
+   "file": "src\\dispatch\\brief.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 2623
+  },
+  {
+   "id": "mut-runtime-model-health",
+   "file": "src\\runtime\\model-health.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 3318
+  },
+  {
+   "id": "mut-runtime-doctor",
+   "file": "src\\runtime\\doctor.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 19856
+  },
+  {
+   "id": "mut-gate-gate",
+   "file": "src\\gate\\gate.js",
+   "killRate": 0.6,
+   "error": null,
+   "ms": 2854
+  },
+  {
+   "id": "mut-knowledge-impact",
+   "file": "src\\knowledge\\impact.js",
+   "killRate": 0.55,
+   "error": null,
+   "ms": 3090
+  },
+  {
+   "id": "mut-config-schema",
+   "file": "src\\config-schema.js",
+   "killRate": 0.65,
+   "error": null,
+   "ms": 4560
+  }
+ ]
+}

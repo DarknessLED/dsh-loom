@@ -105,3 +105,67 @@ const ok = (name) => {
 
 console.log(`\n${pass}/${pass} passed`)
 rmSync(root, { recursive: true, force: true })
+
+
+// --- value-level assertions (added while proving the graded instrument moves) ---
+//
+// The two specs above test this file's original subject: that a model chain can
+// be named and that a malformed one is refused. They leave the policy's numeric
+// edges untested, which is what the kill-rate reading reports. These assertions
+// pin the boundaries: a clamp that is off by one, a `<=` that became `<`, a
+// `null` that became `0`, and a one-sided `||` that became `&&`.
+{
+  const { validatePolicyOverride, normalizePolicy, effectivePolicy, diffPolicy, POLICY_DEFAULTS } = await import('../../src/loop/policy.js')
+
+  // Boundaries are asserted on both sides: inside passes, just outside throws.
+  assert.deepEqual(validatePolicyOverride({ minGain: 0 }), { minGain: 0 })
+  assert.deepEqual(validatePolicyOverride({ minGain: 1 }), { minGain: 1 })
+  assert.throws(() => validatePolicyOverride({ minGain: -0.0001 }), /invalid policy\.minGain/)
+  assert.throws(() => validatePolicyOverride({ minGain: 1.0001 }), /invalid policy\.minGain/)
+  assert.deepEqual(validatePolicyOverride({ candidates: 1 }), { candidates: 1 })
+  assert.deepEqual(validatePolicyOverride({ candidates: 4 }), { candidates: 4 })
+  assert.throws(() => validatePolicyOverride({ candidates: 0 }), /invalid policy\.candidates/)
+  assert.throws(() => validatePolicyOverride({ candidates: 5 }), /invalid policy\.candidates/)
+  assert.deepEqual(validatePolicyOverride({ holdoutSlack: 0 }), { holdoutSlack: 0 })
+  assert.deepEqual(validatePolicyOverride({ minGain: '0.2' }), { minGain: 0.2 })
+
+  // normalizePolicy clamps rather than throwing, on both ends.
+  assert.equal(normalizePolicy({ minGain: -5 }).minGain, 0)
+  assert.equal(normalizePolicy({ minGain: 5 }).minGain, 1)
+  assert.equal(normalizePolicy({ holdoutSlack: 9 }).holdoutSlack, 1)
+  assert.equal(normalizePolicy({ holdoutSlack: -9 }).holdoutSlack, 0)
+  assert.equal(normalizePolicy({ candidates: 0 }).candidates, 1)
+  assert.equal(normalizePolicy({ candidates: 9 }).candidates, 4)
+
+  // `null` and `undefined` mean "not set" and must fall back to the base; `0` is
+  // a value and must be clamped instead. Collapsing the two is invisible unless
+  // the base is not the clamp floor.
+  assert.equal(normalizePolicy({ candidates: null }, { ...POLICY_DEFAULTS, candidates: 3 }).candidates, 3)
+  assert.equal(normalizePolicy({ candidates: undefined }, { ...POLICY_DEFAULTS, candidates: 3 }).candidates, 3)
+  assert.equal(normalizePolicy({ candidates: 0 }, { ...POLICY_DEFAULTS, candidates: 3 }).candidates, 1)
+
+  // A non-boolean is not a boolean: the fallback is the base, not the truthy value.
+  assert.equal(normalizePolicy({ knowledge: 1 }).knowledge, POLICY_DEFAULTS.knowledge)
+  assert.equal(normalizePolicy({ halving: 'yes' }).halving, POLICY_DEFAULTS.halving)
+  assert.equal(normalizePolicy({ knowledge: false }).knowledge, false)
+
+  // An unknown plan mode falls back; a known one survives.
+  assert.equal(normalizePolicy({ planMode: 'off' }).planMode, 'off')
+  assert.equal(normalizePolicy({ planMode: 'bogus' }).planMode, POLICY_DEFAULTS.planMode)
+
+  // effectivePolicy: the promoted policy wins per-field, everything unset comes
+  // from config -- mixing the two the wrong way round is invisible in a default
+  // where both agree.
+  const eff = effectivePolicy({
+    state: { policy: { policy: { minGain: 0.5 } } },
+    config: { gate: { minGain: 0.1 }, knowledge: { enabled: false }, halving: { enabled: false }, loopPolicy: { planMode: 'auto' } },
+  })
+  assert.equal(eff.minGain, 0.5)
+  assert.equal(eff.knowledge, false)
+  assert.equal(eff.planMode, 'auto')
+  assert.equal(effectivePolicy({}).minGain, POLICY_DEFAULTS.minGain)
+
+  // diffPolicy names the fields that changed and stays silent about the rest.
+  assert.deepEqual(diffPolicy({ minGain: 0.1 }, { minGain: 0.2 }), { minGain: { from: 0.1, to: 0.2 } })
+  assert.deepEqual(diffPolicy({ minGain: 0.1 }, { minGain: 0.1 }), {})
+}

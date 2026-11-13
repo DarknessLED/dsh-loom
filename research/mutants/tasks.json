@@ -1,0 +1,484 @@
+{
+ "sample": 20,
+ "tasks": [
+  {
+   "id": "mut-runtime-round",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\round.js harder to break silently.\n\nIts current kill rate is 0.000: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/a-skipped-plan-is-a-decision.test.mjs,tests/balance/abandoned-work-still-counts.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\round.js --specs=tests/balance/a-skipped-plan-is-a-decision.test.mjs,tests/balance/abandoned-work-still-counts.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/a-skipped-plan-is-a-decision.test.mjs",
+      "tests/balance/abandoned-work-still-counts.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0
+  },
+  {
+   "id": "mut-core-reduce",
+   "family": "loom-mut",
+   "prompt": "Make src\\core\\reduce.js harder to break silently.\n\nIts current kill rate is 0.000: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/approve-lands.test.mjs,tests/autopilot.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\core\\reduce.js --specs=tests/approve-lands.test.mjs,tests/autopilot.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/approve-lands.test.mjs",
+      "tests/autopilot.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0
+  },
+  {
+   "id": "mut-runtime-runtime",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\runtime.js harder to break silently.\n\nIts current kill rate is 0.000: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/heartbeat-in-record.test.mjs,tests/balance/policy-models-set.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\runtime.js --specs=tests/balance/heartbeat-in-record.test.mjs,tests/balance/policy-models-set.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/heartbeat-in-record.test.mjs",
+      "tests/balance/policy-models-set.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0
+  },
+  {
+   "id": "mut-runtime-triangle",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\triangle.js harder to break silently.\n\nIts current kill rate is 0.050: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/hedge-stats.test.mjs,tests/balance/models-are-visible.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\triangle.js --specs=tests/balance/hedge-stats.test.mjs,tests/balance/models-are-visible.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/hedge-stats.test.mjs",
+      "tests/balance/models-are-visible.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.05
+  },
+  {
+   "id": "mut-runtime-notify",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\notify.js harder to break silently.\n\nIts current kill rate is 0.100: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/self/quiet-hours.test.mjs,tests/self6/attention-batch.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\notify.js --specs=tests/self/quiet-hours.test.mjs,tests/self6/attention-batch.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/self/quiet-hours.test.mjs",
+      "tests/self6/attention-batch.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.1
+  },
+  {
+   "id": "mut-panel-api",
+   "family": "loom-mut",
+   "prompt": "Make src\\panel\\api.js harder to break silently.\n\nIts current kill rate is 0.100: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/a-node-remembers-its-model.test.mjs,tests/chaos2/panel-degrade.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\panel\\api.js --specs=tests/balance/a-node-remembers-its-model.test.mjs,tests/chaos2/panel-degrade.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/a-node-remembers-its-model.test.mjs",
+      "tests/chaos2/panel-degrade.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.1
+  },
+  {
+   "id": "mut-exec-worktree",
+   "family": "loom-mut",
+   "prompt": "Make src\\exec\\worktree.js harder to break silently.\n\nIts current kill rate is 0.100: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/exec/worktree-deps.test.mjs,tests/exec/worktree-prune-safe.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\exec\\worktree.js --specs=tests/exec/worktree-deps.test.mjs,tests/exec/worktree-prune-safe.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/exec/worktree-deps.test.mjs",
+      "tests/exec/worktree-prune-safe.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.1
+  },
+  {
+   "id": "mut-runtime-verifier-reuse",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\verifier-reuse.js harder to break silently.\n\nIts current kill rate is 0.150: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/tri4/verifier-key.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\verifier-reuse.js --specs=tests/tri4/verifier-key.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/tri4/verifier-key.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.15
+  },
+  {
+   "id": "mut-dispatch-session",
+   "family": "loom-mut",
+   "prompt": "Make src\\dispatch\\session.js harder to break silently.\n\nIts current kill rate is 0.150: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/fallback-is-a-second-provider.test.mjs,tests/balance/light-model-optional.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\dispatch\\session.js --specs=tests/balance/fallback-is-a-second-provider.test.mjs,tests/balance/light-model-optional.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/fallback-is-a-second-provider.test.mjs",
+      "tests/balance/light-model-optional.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.15
+  },
+  {
+   "id": "mut-tools-index",
+   "family": "loom-mut",
+   "prompt": "Make src\\tools\\index.js harder to break silently.\n\nIts current kill rate is 0.150: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/approve-lands.test.mjs,tests/config/loader-shape.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\tools\\index.js --specs=tests/approve-lands.test.mjs,tests/config/loader-shape.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/approve-lands.test.mjs",
+      "tests/config/loader-shape.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.15
+  },
+  {
+   "id": "mut-runtime-review",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\review.js harder to break silently.\n\nIts current kill rate is 0.200: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/self12/review-queue.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\review.js --specs=tests/self12/review-queue.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/self12/review-queue.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.2
+  },
+  {
+   "id": "mut-runtime-cost",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\cost.js harder to break silently.\n\nIts current kill rate is 0.200: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/tri4/cost-truth.test.mjs,tests/self3/spend.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\cost.js --specs=tests/tri4/cost-truth.test.mjs,tests/self3/spend.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/tri4/cost-truth.test.mjs",
+      "tests/self3/spend.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.2
+  },
+  {
+   "id": "mut-lean-task",
+   "family": "loom-mut",
+   "prompt": "Make src\\lean\\task.js harder to break silently.\n\nIts current kill rate is 0.400: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/lean.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\lean\\task.js --specs=tests/lean.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/lean.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.4
+  },
+  {
+   "id": "mut-runtime-candidates",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\candidates.js harder to break silently.\n\nIts current kill rate is 0.500: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/second-candidate-tail.test.mjs,tests/balance/second-candidate.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\candidates.js --specs=tests/balance/second-candidate-tail.test.mjs,tests/balance/second-candidate.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/second-candidate-tail.test.mjs",
+      "tests/balance/second-candidate.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.5
+  },
+  {
+   "id": "mut-gate-oracle",
+   "family": "loom-mut",
+   "prompt": "Make src\\gate\\oracle.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/oracle-scope.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\gate\\oracle.js --specs=tests/oracle-scope.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/oracle-scope.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-dispatch-brief",
+   "family": "loom-mut",
+   "prompt": "Make src\\dispatch\\brief.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/brief.test.mjs,tests/dispatch/brief-states-budget.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\dispatch\\brief.js --specs=tests/brief.test.mjs,tests/dispatch/brief-states-budget.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/brief.test.mjs",
+      "tests/dispatch/brief-states-budget.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-knowledge-impact",
+   "family": "loom-mut",
+   "prompt": "Make src\\knowledge\\impact.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/knowledge.test.mjs,tests/knowledge/no-work-is-not-knowledge.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\knowledge\\impact.js --specs=tests/knowledge.test.mjs,tests/knowledge/no-work-is-not-knowledge.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/knowledge.test.mjs",
+      "tests/knowledge/no-work-is-not-knowledge.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-runtime-model-health",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\model-health.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/demote-dead-ref.test.mjs,tests/balance/per-model-health.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\model-health.js --specs=tests/balance/demote-dead-ref.test.mjs,tests/balance/per-model-health.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/demote-dead-ref.test.mjs",
+      "tests/balance/per-model-health.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-loop-policy",
+   "family": "loom-mut",
+   "prompt": "Make src\\loop\\policy.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/policy-models-set.test.mjs,tests/loop.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\loop\\policy.js --specs=tests/balance/policy-models-set.test.mjs,tests/loop.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/policy-models-set.test.mjs",
+      "tests/loop.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-runtime-doctor",
+   "family": "loom-mut",
+   "prompt": "Make src\\runtime\\doctor.js harder to break silently.\n\nIts current kill rate is 0.550: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/preflight/doctor.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\runtime\\doctor.js --specs=tests/preflight/doctor.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/preflight/doctor.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.55
+  },
+  {
+   "id": "mut-gate-gate",
+   "family": "loom-mut",
+   "prompt": "Make src\\gate\\gate.js harder to break silently.\n\nIts current kill rate is 0.600: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/gate.test.mjs,tests/lean.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\gate\\gate.js --specs=tests/gate.test.mjs,tests/lean.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/gate.test.mjs",
+      "tests/lean.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.6
+  },
+  {
+   "id": "mut-config-schema",
+   "family": "loom-mut",
+   "prompt": "Make src\\config-schema.js harder to break silently.\n\nIts current kill rate is 0.650: of the plausible one-token bugs the instrument tries in it, only that share makes one of these specs fail.\nThe specs that must notice: tests/balance/light-model-optional.test.mjs,tests/config/schema.test.mjs.\n\nAdd assertions to those specs so that more of those bugs are caught. You may edit only the specs listed above -- the module under test and research/mutants/task.mjs are out of reach, and a patch that touches them is refused by name.\nStart by running the measurement to see which bugs survive; it prints SURVIVORS=[...] with the pattern of each. Target the survivors you can pin down without reading the implementation and copying it into the test.\nA test that asserts on the module source text is excluded from the guard set and will not count.\n\nReport the measured kill rate you ended at (the verifier prints KILLRATE=<n>), and which survivor classes you closed.",
+   "verify": {
+    "cmd": "\"C:\\Users\\Darkness\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe\" research/mutants/task.mjs --module=src\\config-schema.js --specs=tests/balance/light-model-optional.test.mjs,tests/config/schema.test.mjs --sample=20",
+    "cwd": "C:/Projects/RSI",
+    "timeoutMs": 240000,
+    "metrics": {
+     "quality": {
+      "pattern": "KILLRATE=([0-9.]+)"
+     }
+    },
+    "scope": {
+     "editable": [
+      "tests/balance/light-model-optional.test.mjs",
+      "tests/config/schema.test.mjs"
+     ]
+    }
+   },
+   "baseline": 0.65
+  }
+ ]
+}
