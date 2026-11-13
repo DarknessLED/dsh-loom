@@ -203,7 +203,17 @@ export const DEFAULT_CONFIG = {
    * planner timed out on the previous two rounds *and* both of those rounds
    * were promoted — a timed-out plan in a loss proves nothing about planning.
    */
-  loopPolicy: { replayOnly: true, humanGate: true, autoCandidateMode: false, planMode: 'auto' },
+  /**
+   * `autoApply` is what L1 does with a promotion that passed every gate: apply
+   * it, or stop and ask a person. It defaults to true because the gate is where
+   * the judgement lives (no patch, out-of-scope paths, test tampering, oracle
+   * edits, no gain), and a card that arrives every round is a card nobody reads
+   * -- 60 out of 60 checkpoints were answered, with a median of 22 minutes and a
+   * tail of 76 hours. A chain that really needs a person per round sets its
+   * human node to `when: 'always'`, which outranks this default; `when: 'never'`
+   * keeps a campaign unattended even with autopilot off.
+   */
+  loopPolicy: { replayOnly: true, humanGate: true, autoApply: true, autoCandidateMode: false, planMode: 'auto' },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }

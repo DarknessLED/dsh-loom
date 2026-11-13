@@ -1,3 +1,4 @@
+import { renderEvidence } from './review-card.js'
 import { svc } from '../core/services.js'
 import { deferUntil } from './deferred.js'
 
@@ -63,6 +64,10 @@ function render(view, kind, payload) {
   if (payload?.message) lines.push('', payload.message)
   if (payload?.patch) lines.push('', `patch: ${payload.patch}`)
   if (payload?.attempt) lines.push(`attempt: ${payload.attempt} · score ${payload.score ?? '?'}`)
+  // A checkpoint with no evidence reads as "nothing to weigh". Print the four
+  // blocks the round measured, or say they are missing -- never leave the
+  // reviewer to assume the empty space means fine.
+  if (payload?.evidence) lines.push('', ...renderEvidence(payload.evidence).map((line) => `  ${line}`))
   if (payload?.detail) lines.push('', '```', String(payload.detail).slice(0, 1200), '```')
   lines.push('', kind === 'gate' ? 'Reply rsi_decide with apply | reject | hold.' : 'Use rsi_status / rsi_report / rsi_control to act.')
   return lines.join('\n')

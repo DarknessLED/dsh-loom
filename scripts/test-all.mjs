@@ -80,6 +80,9 @@ const standing = [
   // declared file and nothing else: the rule was about self-measurement, not
   // about the tests directory.
   'tests/balance/scope-round.test.mjs',
+  // and when a decision does reach a person, it arrives with the four facts:
+  // which task, what the diff does, what the verifier said, what could break.
+  'tests/balance/card-evidence.test.mjs',
   'tests/oracle-creation.test.mjs',
   // and the hedge is priced by its actual tail: with two candidates the old
   // reference was the slowest attempt, so 53 of 53 priceable campaigns read

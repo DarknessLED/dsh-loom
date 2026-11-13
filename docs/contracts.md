@@ -74,6 +74,10 @@
 - `src/loop/replay.js` — 只重放数值决策的策略回放：同一批回合在不同阈值下会晋升几次；明确不模拟换任务或换提示。
 - `src/loop/ab.js` — 配对比较两套策略：Wilson 区间（n 只有几十、率 0.25 时正态区间会掉到 0 以下）、精确 McNemar、以及**明确报出 MDE**（`mdePaired` 的灵敏度来自不一致对而不是样本量）。两条判据是硬约束：不一致对为零时 MDE 不能报 0（0 读起来像"无限灵敏"，正好相反），判决只在 `|delta| ≥ mde && p < alpha` 时成立，否则一律 `cannot-distinguish` 并写明"这个样本分不出 X 个点"。
 
+### runtime/ — 运行期支撑
+
+- `src/runtime/review-card.js` — 人审卡片必需的四块证据（任务 / diff / 验证器判决 / 风险），只从本轮已测出的东西生成：没有补丁、改到验证器、改到声明范围外的路径都是 high；大 diff 与「判决靠 base 红而不是指标动」是 medium；缺哪块就写 `missing:`，绝不留白——留白会被读成「没问题」。
+
 ### panel/
 
 - `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。经验行带 `files`（归组的唯一依据）与 `uses`/`harm`（真的被用上过几次），`lessonsAll` 送整库而不是每战役前三条；旧 lesson 没有 `files` 时，用它 `evidence` 点名的那次 attempt 的 `report.changed` 补上位置。

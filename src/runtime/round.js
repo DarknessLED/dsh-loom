@@ -37,6 +37,7 @@ import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
 import { oracleClean, oracleScripts, oracleCandidates, patchPaths } from '../gate/oracle.js'
 import { parseScope, scopeVerdict } from '../gate/scope.js'
+import { cardEvidence } from './review-card.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -2169,6 +2170,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           attempt: best.id,
           score,
           review: `git -C ${workspace} apply --stat ${best.patch}`,
+          // The four things a reviewer needs, built from what this round already
+          // measured. A card without them is a rubber stamp with a button.
+          evidence: cardEvidence({ task, attempt: best, score, checks, policyMinGain: policy.minGain }),
         })
       }
     }
