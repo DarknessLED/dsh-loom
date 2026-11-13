@@ -1,0 +1,46 @@
+{
+  "nodes": [
+    {
+      "id": "exp-propose-001",
+      "kind": "failure",
+      "title": "the proposer offered a refuted change and an impossible instruction",
+      "confidence": 0.95,
+      "body": "2026-11-14, rsi_chain(action:auto) on ab-cand1b (chain v1) proposed three mutations: candidates+1 (2 -> 3 candidates), minimal-change (a prompt addition), no-test-edits (a prompt addition). candidates+1 was exactly the change rejected by the paired A/B the day before (decision-ab-cand1b-vs-ab-cand4.json: tokens 14,486 -> 30,254 = 2.09x, round clock 1.45x, endpoint -0.025 with an interval including zero). no-test-edits forbids modifying tests, which is the deliverable of every task in the graded corpus (verify.scope.editable names the specs the candidate is allowed to edit). The menu in src/chain/mutate.js was fixed (MUTATION_KINDS) and read neither the decision record nor the task contract.",
+      "tags": [
+        "proposer",
+        "l2",
+        "chain-mutation",
+        "decision-record"
+      ]
+    },
+    {
+      "id": "ana-049",
+      "kind": "analysis",
+      "title": "a fixed mutation menu is not self-improvement; it needs the decision record and the task contract",
+      "confidence": 0.94,
+      "body": "The chain proposer is the only place where the loop invents a change to itself, and it was a constant function of the base spec: the same four kinds in the same order for every campaign, regardless of what had been measured. Two inputs make it a loop rather than a menu: (1) the verdicts already recorded (a rejected hypothesis is not a new hypothesis, and re-offering it spends a whole paired A/B to learn the same number twice); (2) the task contract (an instruction that forbids the deliverable makes the task impossible, and the campaign would read that as a task failure, not as a bad proposal). Both are cheap mechanical checks: read <home>/decisions.json and look for a non-empty verify.scope.editable. Blocked proposals must be reported with their reason rather than dropped, or the next reader cannot tell a refuted idea from one never considered. Pinned by tests/chain-propose-guard.test.mjs."
+    }
+  ],
+  "edges": [
+    {
+      "from": "exp-propose-001",
+      "rel": "derived-from",
+      "to": "exp-ab-005"
+    },
+    {
+      "from": "exp-propose-001",
+      "rel": "refines",
+      "to": "exp-ab-002"
+    },
+    {
+      "from": "ana-049",
+      "rel": "derived-from",
+      "to": "exp-propose-001"
+    },
+    {
+      "from": "ana-049",
+      "rel": "requires",
+      "to": "exp-ab-005"
+    }
+  ]
+}

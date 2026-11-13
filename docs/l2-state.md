@@ -52,6 +52,28 @@ Three things changed so that a person stands at the L2 decision and nowhere else
   live host on 2026-11-14: activating v2 returned `pending: cp-mwfg81uq000013` with
   `active: 1`, and rejecting it left `activeVersion` at 1 with the checkpoint answered.
 
+## What the loop can propose, and what it may not re-propose
+
+`rsi_chain(action:"auto")` is the only place the loop invents a change to itself. Until
+2026-11-14 it was a fixed menu of four kinds and read nothing: it offered
+`candidates+1` two days after the paired A/B had rejected exactly that change, and it
+offered `no-test-edits` to a campaign whose tasks deliver test edits — an instruction
+that makes those tasks impossible.
+
+It now reads two things it already had: the verdicts recorded in
+`<home>/decisions.json` (written by `research/ab/decide.mjs --kind=<mutation>`) and each
+task's `verify.scope.editable`. A measured kind comes back `already-decided` with the
+verdict in the note; a kind the tasks cannot obey comes back `conflicts-with-scope`.
+Blocked kinds are reported in the tool result and are not written as new versions, so a
+refuted hypothesis costs nothing to re-ask and nothing is silently hidden
+(`tests/chain-propose-guard.test.mjs`). Live check: the same call now returns
+`proposed: [minimal-change, state-your-uncertainty]` and
+`blocked: [candidates+1 already-decided, no-test-edits conflicts-with-scope]`.
+
+The other two kinds remain untested hypotheses. Measuring either needs a paired A/B on
+the same tasks (about 25 minutes per arm at four tasks), and at n=4 the floor is a
+0.070 quality difference — a prompt-level change is unlikely to clear it.
+
 ## What is waiting for a person
 
 **The adoption is not global.** `loom-v2check` ran chain v2 and converged 3/3 with no
