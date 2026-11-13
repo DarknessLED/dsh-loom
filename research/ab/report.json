@@ -1,0 +1,1448 @@
+{
+  "generatedAt": "2026-11-13T14:42:18.626Z",
+  "source": "replay of recorded rounds; both arms see identical candidates",
+  "rounds": 239,
+  "campaigns": 71,
+  "policies": {
+    "baseline": 0.05,
+    "candidates": [
+      {
+        "label": "minGain-0.03",
+        "minGain": 0.03
+      },
+      {
+        "label": "minGain-0",
+        "minGain": 0
+      },
+      {
+        "label": "no-incumbent-check",
+        "minGain": -1
+      }
+    ]
+  },
+  "compared": {
+    "minGain-0.03": {
+      "n": 239,
+      "both": 212,
+      "onlyA": 0,
+      "onlyB": 0,
+      "neither": 27,
+      "rateA": 0.8870292887029289,
+      "rateB": 0.8870292887029289,
+      "delta": 0,
+      "mde": 0.12814220134557694,
+      "interval": {
+        "low": 0,
+        "high": 0
+      },
+      "p": 1,
+      "verdict": "cannot-distinguish",
+      "sentence": "the two policies agreed on all 239 rounds: on this corpus they decide identically, so no effect size can be estimated (a comparison that never disagrees cannot rank). This is a statement about the two policies being the same function here, not evidence they are equally good.",
+      "agreed": true
+    },
+    "minGain-0": {
+      "n": 239,
+      "both": 212,
+      "onlyA": 0,
+      "onlyB": 27,
+      "neither": 0,
+      "rateA": 0.8870292887029289,
+      "rateB": 1,
+      "delta": -0.11297071129707115,
+      "mde": 0.060910211830355235,
+      "interval": {
+        "low": -0.15310439581702312,
+        "high": -0.07283702677711917
+      },
+      "p": 1.4901161193847656e-8,
+      "verdict": "b-better",
+      "sentence": "B promotes 11.3 points more often over 239 paired rounds (0 vs 27 discordant, p=0.000, detactable floor 6.1 points).",
+      "agreed": false
+    },
+    "no-incumbent-check": {
+      "n": 239,
+      "both": 212,
+      "onlyA": 0,
+      "onlyB": 27,
+      "neither": 0,
+      "rateA": 0.8870292887029289,
+      "rateB": 1,
+      "delta": -0.11297071129707115,
+      "mde": 0.060910211830355235,
+      "interval": {
+        "low": -0.15310439581702312,
+        "high": -0.07283702677711917
+      },
+      "p": 1.4901161193847656e-8,
+      "verdict": "b-better",
+      "sentence": "B promotes 11.3 points more often over 239 paired rounds (0 vs 27 discordant, p=0.000, detactable floor 6.1 points).",
+      "agreed": false
+    }
+  },
+  "replayAgreement": {
+    "agree": 179,
+    "recordedTrue": 118,
+    "of": 202,
+    "disagreeDirection": {
+      "replayYesGateNo": 1,
+      "replayNoGateYes": 22
+    }
+  },
+  "perCampaign": [
+    {
+      "id": "loom-self3",
+      "n": 11,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 7,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 7,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-graded2",
+      "n": 6,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 5,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 5,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-oracle",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 2,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 2,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self2",
+      "n": 16,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 2,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 2,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc2",
+      "n": 18,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-brief-live",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-fallover-live",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-holdout-live",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-life2",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-plan-chain-live",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self4",
+      "n": 4,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri13",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-triangle",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui8",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "switch-demo",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 1,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ab",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc1",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc3",
+      "n": 13,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc4",
+      "n": 6,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc5",
+      "n": 7,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-acc6",
+      "n": 9,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-bal1",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-bal2",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-bal3",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-bal4",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-band",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-chain",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-chaos",
+      "n": 6,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-chaos3",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-claim-live",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-claim-live2",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-claim-live3",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-dag1",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-dag4",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-def",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-demo-plan",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-dl",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-doc",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-graded",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-hedge",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-life",
+      "n": 14,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-noop",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-one",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-plan2",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-probe",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self",
+      "n": 7,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self10",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self11",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self12",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self13",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self14",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self5",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self6",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self7",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self8",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-self9",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri11",
+      "n": 4,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri12",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri2",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri4",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri5",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri6",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri7",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri8",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-tri9",
+      "n": 1,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui2",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui3",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui4",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui5",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui6",
+      "n": 2,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    },
+    {
+      "id": "loom-ui7",
+      "n": 3,
+      "minGain-0.03": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "minGain-0": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      },
+      "no-incumbent-check": {
+        "onlyA": 0,
+        "onlyB": 0,
+        "verdict": "cannot-distinguish"
+      }
+    }
+  ],
+  "livePlan": {
+    "note": "a live pair is two rounds on the same task, one per policy; the pair is the unit",
+    "n5": 0.6862490463381352,
+    "n10": 0.4852513542484967,
+    "n30": 0.28016
+  }
+}

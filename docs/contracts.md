@@ -72,6 +72,7 @@
 
 - `src/loop/policy.js` — 把循环策略（增益阈值、候选数、知识注入、halving、holdout slack）变成可归一化、可比较的纯数据。
 - `src/loop/replay.js` — 只重放数值决策的策略回放：同一批回合在不同阈值下会晋升几次；明确不模拟换任务或换提示。
+- `src/loop/ab.js` — 配对比较两套策略：Wilson 区间（n 只有几十、率 0.25 时正态区间会掉到 0 以下）、精确 McNemar、以及**明确报出 MDE**（`mdePaired` 的灵敏度来自不一致对而不是样本量）。两条判据是硬约束：不一致对为零时 MDE 不能报 0（0 读起来像"无限灵敏"，正好相反），判决只在 `|delta| ≥ mde && p < alpha` 时成立，否则一律 `cannot-distinguish` 并写明"这个样本分不出 X 个点"。
 
 ### panel/
 

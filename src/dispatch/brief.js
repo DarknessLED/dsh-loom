@@ -146,6 +146,12 @@ export function buildWorkerBrief(input) {
   const branch = clamp(cleanString(workspace.branch), FIELD_CLAMP)
   const cwd = clamp(cleanString(workspace.cwd), FIELD_CLAMP)
   const verify = isRecord(task.verify) ? clamp(cleanString(task.verify.cmd), FIELD_CLAMP) : ''
+  // A task that declares an edit scope will have any other path refused by the
+  // gate (src/gate/scope.js). Not saying so would be a trap: the worker would
+  // spend the attempt on a patch that cannot land.
+  const editableScope = isRecord(task.verify) && isRecord(task.verify.scope) && Array.isArray(task.verify.scope.editable)
+    ? task.verify.scope.editable.map((p) => cleanString(p)).filter(Boolean)
+    : []
 
   const attemptIndex =
     typeof source.attemptIndex === 'number' && Number.isFinite(source.attemptIndex)
@@ -236,6 +242,7 @@ export function buildWorkerBrief(input) {
     if (cwd) lines.push(`Directory: ${cwd}`)
     if (bodyPrompt) lines.push(bodyPrompt)
     if (verify) lines.push(`Verify: \`${verify}\``)
+    if (editableScope.length) lines.push(`Editable: ${editableScope.join(', ')} (the gate refuses any other path)`)
     return lines.join('\n')
   }
 

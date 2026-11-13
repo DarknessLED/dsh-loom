@@ -122,6 +122,30 @@ function fence(text) {
 }
 
 {
+  // A declared edit scope is enforced by the gate, so the brief has to name it:
+  // the worker cannot discover a rule that only exists in the gate.
+  const brief = buildWorkerBrief({
+    objective: 'o',
+    task: {
+      prompt: 'p',
+      verify: { cmd: 'node check.mjs', scope: { editable: ['tests/a.test.mjs', 'tests/b.test.mjs'] } },
+    },
+  })
+  ok(
+    brief.includes('Editable: tests/a.test.mjs, tests/b.test.mjs (the gate refuses any other path)'),
+    'a declared scope is printed in the task section',
+    brief.split('\n').filter((l) => l.startsWith('Editable')).join('|'),
+  )
+  const bare = buildWorkerBrief({ objective: 'o', task: { prompt: 'p', verify: { cmd: 'node check.mjs' } } })
+  ok(!bare.includes('Editable:'), 'no scope means no Editable line')
+  const empty = buildWorkerBrief({
+    objective: 'o',
+    task: { prompt: 'p', verify: { cmd: 'node check.mjs', scope: { editable: [] } } },
+  })
+  ok(!empty.includes('Editable:'), 'an empty scope list prints nothing rather than an empty promise')
+}
+
+{
   const brief = buildWorkerBrief({ objective: 'o', task: { prompt: 'p' } })
   ok(
     brief.includes(
