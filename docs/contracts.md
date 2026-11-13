@@ -52,6 +52,7 @@
 
 - `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；对畸形输入不抛异常。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
+- `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。
 
 ### knowledge/ — 经验

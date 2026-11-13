@@ -1,0 +1,634 @@
+[
+ {
+  "file": "src\\runtime\\round.js",
+  "slug": "src\\runtime\\round",
+  "guard": [
+   "tests\\balance\\a-skipped-plan-is-a-decision.test.mjs",
+   "tests\\balance\\abandoned-work-still-counts.test.mjs",
+   "tests\\balance\\base-in-record.test.mjs",
+   "tests\\balance\\brief-states-deadline.test.mjs",
+   "tests\\balance\\heartbeat-in-record.test.mjs",
+   "tests\\balance\\holdout-noop.test.mjs",
+   "tests\\balance\\holdout-really-held-out.test.mjs",
+   "tests\\balance\\late-success.test.mjs",
+   "tests\\balance\\lesson-needs-work.test.mjs",
+   "tests\\balance\\plan-mode-evidence.test.mjs",
+   "tests\\balance\\plan-mode.test.mjs",
+   "tests\\balance\\planner-follows-the-chain.test.mjs",
+   "tests\\balance\\planning-failures.test.mjs",
+   "tests\\balance\\policy-model.test.mjs",
+   "tests\\balance\\policy-models-set.test.mjs",
+   "tests\\balance\\policy-override.test.mjs",
+   "tests\\balance\\salvage-timeout.test.mjs",
+   "tests\\balance\\second-candidate-gate.test.mjs",
+   "tests\\balance\\stop-paying-for-nothing.test.mjs",
+   "tests\\chaos2\\exhausted-round.test.mjs",
+   "tests\\chaos3\\stuck-gate.test.mjs",
+   "tests\\chaos\\child-death.test.mjs",
+   "tests\\chaos\\compaction.test.mjs",
+   "tests\\dag2\\deadline.test.mjs",
+   "tests\\dag4\\holdout-partition.test.mjs",
+   "tests\\defaults\\opinionated.test.mjs",
+   "tests\\landing-target.test.mjs",
+   "tests\\lifecycle\\dispose-recovery.test.mjs",
+   "tests\\lifecycle\\infra-pause.test.mjs",
+   "tests\\lifecycle\\infra-round.test.mjs",
+   "tests\\noop-landing.test.mjs",
+   "tests\\oracle-creation.test.mjs",
+   "tests\\oracle-gate.test.mjs",
+   "tests\\self14\\parallel-candidates.test.mjs",
+   "tests\\self4\\plateau-checkpoint.test.mjs",
+   "tests\\self5\\checkpoint-ids.test.mjs",
+   "tests\\self5\\holdout-gate.test.mjs",
+   "tests\\self5\\no-test-edits.test.mjs",
+   "tests\\self6\\usd-budget.test.mjs",
+   "tests\\self7\\chain-nodes.test.mjs",
+   "tests\\self8\\human-node.test.mjs",
+   "tests\\self8\\verifier-node.test.mjs",
+   "tests\\self9\\holdout-report.test.mjs",
+   "tests\\self9\\plateau-mutation.test.mjs",
+   "tests\\setup\\no-workspace-spam.test.mjs",
+   "tests\\taskbest.test.mjs",
+   "tests\\tri11\\holdout-rotation.test.mjs",
+   "tests\\tri11\\plan-timeout.test.mjs",
+   "tests\\tri13\\plan-model.test.mjs",
+   "tests\\tri2\\guard-reuse.test.mjs",
+   "tests\\tri2\\recon-reuse.test.mjs",
+   "tests\\tri3\\cascade.test.mjs",
+   "tests\\tri3\\plan-share.test.mjs",
+   "tests\\tri4\\cost-truth.test.mjs",
+   "tests\\tri4\\plan-delta.test.mjs",
+   "tests\\tri5\\holdout-split.test.mjs",
+   "tests\\tri6\\holdout-split.test.mjs",
+   "tests\\tri7\\adaptive-cascade.test.mjs",
+   "tests\\tri8\\token-cap.test.mjs",
+   "tests\\tri9\\early-abort.test.mjs",
+   "tests\\tri\\budget-preflight.test.mjs",
+   "tests\\tri\\verifier-reuse.test.mjs",
+   "tests\\triangle.test.mjs"
+  ],
+  "mutants": 698
+ },
+ {
+  "file": "src\\tools\\index.js",
+  "slug": "src\\tools\\index",
+  "guard": [
+   "tests\\approve-lands.test.mjs",
+   "tests\\config\\loader-shape.test.mjs",
+   "tests\\config\\schema.test.mjs",
+   "tests\\host-guard.test.mjs",
+   "tests\\self3\\policydiff.test.mjs",
+   "tests\\self3\\roundtable.test.mjs",
+   "tests\\self3\\spend.test.mjs",
+   "tests\\self\\report-lessons.test.mjs",
+   "tests\\setup\\one-call-start.test.mjs",
+   "tests\\tools\\doctor-tool.test.mjs",
+   "tests\\tri10\\status-compact.test.mjs",
+   "tests\\ui\\snooze.test.mjs"
+  ],
+  "mutants": 197
+ },
+ {
+  "file": "src\\exec\\worktree.js",
+  "slug": "src\\exec\\worktree",
+  "guard": [
+   "tests\\exec.test.mjs",
+   "tests\\exec\\patch-skips-deps.test.mjs",
+   "tests\\exec\\worktree-deps.test.mjs",
+   "tests\\exec\\worktree-prune-safe.test.mjs",
+   "tests\\exec\\worktree-race.test.mjs",
+   "tests\\oracle-creation.test.mjs"
+  ],
+  "mutants": 187
+ },
+ {
+  "file": "src\\dispatch\\session.js",
+  "slug": "src\\dispatch\\session",
+  "guard": [
+   "tests\\balance\\fallback-is-a-second-provider.test.mjs",
+   "tests\\balance\\light-model-optional.test.mjs",
+   "tests\\balance\\record-the-model-that-ran.test.mjs",
+   "tests\\chaos\\model-fallback.test.mjs",
+   "tests\\lifecycle\\deadline-covers-setup.test.mjs",
+   "tests\\lifecycle\\died-retry-when-earned.test.mjs",
+   "tests\\lifecycle\\dispatch-recovery.test.mjs",
+   "tests\\lifecycle\\infra-model-fallback.test.mjs",
+   "tests\\lifecycle\\model-inherit.test.mjs",
+   "tests\\lifecycle\\model-provider.test.mjs",
+   "tests\\lifecycle\\no-blind-retry.test.mjs",
+   "tests\\lifecycle\\retry-budget.test.mjs",
+   "tests\\lifecycle\\silent-diagnosis.test.mjs",
+   "tests\\lifecycle\\silent-slow-error.test.mjs",
+   "tests\\lifecycle\\timeout-fallover.test.mjs"
+  ],
+  "mutants": 182
+ },
+ {
+  "file": "src\\core\\reduce.js",
+  "slug": "src\\core\\reduce",
+  "guard": [
+   "tests\\approve-lands.test.mjs",
+   "tests\\autopilot.test.mjs",
+   "tests\\balance\\a-node-remembers-its-model.test.mjs",
+   "tests\\balance\\interrupted-round-keeps-its-story.test.mjs",
+   "tests\\chain.test.mjs",
+   "tests\\chaos2\\recover-idempotent.test.mjs",
+   "tests\\chaos\\ledger-drift.test.mjs",
+   "tests\\chaos\\restart-recovery.test.mjs",
+   "tests\\dag1\\node-identity.test.mjs",
+   "tests\\dag4\\holdout-partition.test.mjs",
+   "tests\\knowledge.test.mjs",
+   "tests\\loop.test.mjs",
+   "tests\\setup\\no-workspace-spam.test.mjs",
+   "tests\\setup\\one-call-start.test.mjs",
+   "tests\\triangle.test.mjs",
+   "tests\\ui\\snooze.test.mjs"
+  ],
+  "mutants": 132
+ },
+ {
+  "file": "src\\gate\\gate.js",
+  "slug": "src\\gate\\gate",
+  "guard": [
+   "tests\\gate.test.mjs",
+   "tests\\lean.test.mjs"
+  ],
+  "mutants": 118
+ },
+ {
+  "file": "src\\panel\\api.js",
+  "slug": "src\\panel\\api",
+  "guard": [
+   "tests\\balance\\a-node-remembers-its-model.test.mjs",
+   "tests\\chaos2\\panel-degrade.test.mjs",
+   "tests\\host-guard.test.mjs",
+   "tests\\panel-lesson-subject.test.mjs",
+   "tests\\panel.test.mjs",
+   "tests\\self13\\panel-reviews.test.mjs",
+   "tests\\self\\lessons-preview.test.mjs",
+   "tests\\ui\\node-attribution.test.mjs",
+   "tests\\ui\\policy-visible.test.mjs",
+   "tests\\ui\\snooze.test.mjs"
+  ],
+  "mutants": 112
+ },
+ {
+  "file": "src\\runtime\\runtime.js",
+  "slug": "src\\runtime\\runtime",
+  "guard": [
+   "tests\\balance\\heartbeat-in-record.test.mjs",
+   "tests\\balance\\policy-models-set.test.mjs",
+   "tests\\balance\\policy-set.test.mjs",
+   "tests\\chaos\\view-drift.test.mjs",
+   "tests\\panel-status-vocab.test.mjs",
+   "tests\\self4\\auto-finish.test.mjs",
+   "tests\\self4\\deferred-delivery.test.mjs",
+   "tests\\self4\\plateau-checkpoint.test.mjs",
+   "tests\\switch\\switch.test.mjs"
+  ],
+  "mutants": 108
+ },
+ {
+  "file": "src\\dispatch\\brief.js",
+  "slug": "src\\dispatch\\brief",
+  "guard": [
+   "tests\\brief.test.mjs",
+   "tests\\dispatch\\brief-states-budget.test.mjs",
+   "tests\\knowledge\\the-worker-states-the-claim.test.mjs",
+   "tests\\shell-is-stated.test.mjs"
+  ],
+  "mutants": 88
+ },
+ {
+  "file": "src\\runtime\\notify.js",
+  "slug": "src\\runtime\\notify",
+  "guard": [
+   "tests\\self6\\attention-batch.test.mjs",
+   "tests\\self\\quiet-hours.test.mjs"
+  ],
+  "mutants": 71
+ },
+ {
+  "file": "src\\runtime\\model-health.js",
+  "slug": "src\\runtime\\model-health",
+  "guard": [
+   "tests\\balance\\demote-dead-ref.test.mjs",
+   "tests\\balance\\per-model-health.test.mjs",
+   "tests\\balance\\sibling-kill-is-not-a-provider-failure.test.mjs"
+  ],
+  "mutants": 69
+ },
+ {
+  "file": "src\\runtime\\triangle.js",
+  "slug": "src\\runtime\\triangle",
+  "guard": [
+   "tests\\balance\\hedge-stats.test.mjs",
+   "tests\\balance\\models-are-visible.test.mjs",
+   "tests\\balance\\per-model-health.test.mjs",
+   "tests\\balance\\planning-accounting.test.mjs",
+   "tests\\balance\\planning-failures.test.mjs",
+   "tests\\tri3\\plan-share.test.mjs",
+   "tests\\tri4\\cost-truth.test.mjs",
+   "tests\\tri5\\parallel-window.test.mjs",
+   "tests\\tri5\\plan-aware.test.mjs",
+   "tests\\tri6\\attempt-window.test.mjs"
+  ],
+  "mutants": 65
+ },
+ {
+  "file": "src\\loop\\policy.js",
+  "slug": "src\\loop\\policy",
+  "guard": [
+   "tests\\balance\\policy-models-set.test.mjs",
+   "tests\\loop.test.mjs"
+  ],
+  "mutants": 64
+ },
+ {
+  "file": "src\\runtime\\candidates.js",
+  "slug": "src\\runtime\\candidates",
+  "guard": [
+   "tests\\balance\\second-candidate-tail.test.mjs",
+   "tests\\balance\\second-candidate.test.mjs",
+   "tests\\tri7\\adaptive-cascade.test.mjs"
+  ],
+  "mutants": 63
+ },
+ {
+  "file": "src\\config-schema.js",
+  "slug": "src\\config-schema",
+  "guard": [
+   "tests\\balance\\light-model-optional.test.mjs",
+   "tests\\config\\schema.test.mjs"
+  ],
+  "mutants": 60
+ },
+ {
+  "file": "src\\exec\\verifier.js",
+  "slug": "src\\exec\\verifier",
+  "guard": [
+   "tests\\exec.test.mjs",
+   "tests\\exec\\node-is-on-path.test.mjs"
+  ],
+  "mutants": 59
+ },
+ {
+  "file": "src\\knowledge\\impact.js",
+  "slug": "src\\knowledge\\impact",
+  "guard": [
+   "tests\\knowledge.test.mjs",
+   "tests\\knowledge\\no-work-is-not-knowledge.test.mjs",
+   "tests\\knowledge\\the-worker-states-the-claim.test.mjs"
+  ],
+  "mutants": 59
+ },
+ {
+  "file": "src\\knowledge\\select.js",
+  "slug": "src\\knowledge\\select",
+  "guard": [
+   "tests\\knowledge\\no-work-is-not-knowledge.test.mjs",
+   "tests\\select.test.mjs"
+  ],
+  "mutants": 55
+ },
+ {
+  "file": "src\\runtime\\cost.js",
+  "slug": "src\\runtime\\cost",
+  "guard": [
+   "tests\\self3\\spend.test.mjs",
+   "tests\\self6\\meter-usage.test.mjs",
+   "tests\\tri4\\cost-truth.test.mjs"
+  ],
+  "mutants": 55
+ },
+ {
+  "file": "src\\collab\\board.js",
+  "slug": "src\\collab\\board",
+  "guard": [
+   "tests\\board.test.mjs"
+  ],
+  "mutants": 53
+ },
+ {
+  "file": "src\\gate\\oracle.js",
+  "slug": "src\\gate\\oracle",
+  "guard": [
+   "tests\\oracle-scope.test.mjs"
+  ],
+  "mutants": 52
+ },
+ {
+  "file": "src\\runtime\\doctor.js",
+  "slug": "src\\runtime\\doctor",
+  "guard": [
+   "tests\\preflight\\doctor.test.mjs"
+  ],
+  "mutants": 40
+ },
+ {
+  "file": "src\\runtime\\review.js",
+  "slug": "src\\runtime\\review",
+  "guard": [
+   "tests\\self12\\review-queue.test.mjs"
+  ],
+  "mutants": 40
+ },
+ {
+  "file": "src\\exec\\node-bin.js",
+  "slug": "src\\exec\\node-bin",
+  "guard": [
+   "tests\\exec\\node-is-on-path.test.mjs"
+  ],
+  "mutants": 39
+ },
+ {
+  "file": "src\\lean\\task.js",
+  "slug": "src\\lean\\task",
+  "guard": [
+   "tests\\lean.test.mjs"
+  ],
+  "mutants": 34
+ },
+ {
+  "file": "src\\runtime\\verifier-reuse.js",
+  "slug": "src\\runtime\\verifier-reuse",
+  "guard": [
+   "tests\\tri4\\verifier-key.test.mjs"
+  ],
+  "mutants": 34
+ },
+ {
+  "file": "src\\runtime\\watchdog.js",
+  "slug": "src\\runtime\\watchdog",
+  "guard": [
+   "tests\\abort.test.mjs",
+   "tests\\balance\\heartbeat-in-record.test.mjs",
+   "tests\\lifecycle\\heartbeat-on-record.test.mjs",
+   "tests\\watchdog.test.mjs"
+  ],
+  "mutants": 33
+ },
+ {
+  "file": "src\\core\\config.js",
+  "slug": "src\\core\\config",
+  "guard": [
+   "tests\\balance\\deadline-shape.test.mjs",
+   "tests\\balance\\fallback-is-a-second-provider.test.mjs",
+   "tests\\balance\\late-success.test.mjs",
+   "tests\\balance\\light-model-optional.test.mjs",
+   "tests\\balance\\policy-models-set.test.mjs",
+   "tests\\balance\\policy-set.test.mjs",
+   "tests\\chaos\\view-drift.test.mjs",
+   "tests\\checkpoint-window.test.mjs",
+   "tests\\defaults\\opinionated.test.mjs",
+   "tests\\self4\\auto-finish.test.mjs",
+   "tests\\self4\\deferred-delivery.test.mjs",
+   "tests\\self4\\plateau-checkpoint.test.mjs",
+   "tests\\switch\\switch.test.mjs"
+  ],
+  "mutants": 32
+ },
+ {
+  "file": "src\\chain\\mutate.js",
+  "slug": "src\\chain\\mutate",
+  "guard": [
+   "tests\\chain.test.mjs"
+  ],
+  "mutants": 31
+ },
+ {
+  "file": "src\\lean\\probe.js",
+  "slug": "src\\lean\\probe",
+  "guard": [
+   "tests\\lean.test.mjs"
+  ],
+  "mutants": 31
+ },
+ {
+  "file": "src\\runtime\\deferred.js",
+  "slug": "src\\runtime\\deferred",
+  "guard": [
+   "tests\\self2\\deferred.test.mjs"
+  ],
+  "mutants": 30
+ },
+ {
+  "file": "src\\report\\digest.js",
+  "slug": "src\\report\\digest",
+  "guard": [
+   "tests\\balance\\models-are-visible.test.mjs",
+   "tests\\self13\\digest.test.mjs"
+  ],
+  "mutants": 29
+ },
+ {
+  "file": "src\\report\\export.js",
+  "slug": "src\\report\\export",
+  "guard": [
+   "tests\\self12\\export-bundle.test.mjs"
+  ],
+  "mutants": 29
+ },
+ {
+  "file": "src\\runtime\\quality.js",
+  "slug": "src\\runtime\\quality",
+  "guard": [
+   "tests\\balance\\a-killed-round-is-not-a-stall.test.mjs",
+   "tests\\balance\\mean-round-is-measured.test.mjs"
+  ],
+  "mutants": 28
+ },
+ {
+  "file": "src\\runtime\\recovery.js",
+  "slug": "src\\runtime\\recovery",
+  "guard": [
+   "tests\\chaos2\\recover-idempotent.test.mjs",
+   "tests\\chaos\\restart-recovery.test.mjs"
+  ],
+  "mutants": 28
+ },
+ {
+  "file": "src\\gate\\earned.js",
+  "slug": "src\\gate\\earned",
+  "guard": [
+   "tests\\self6\\graded-earned.test.mjs"
+  ],
+  "mutants": 27
+ },
+ {
+  "file": "src\\chain\\evidence.js",
+  "slug": "src\\chain\\evidence",
+  "guard": [
+   "tests\\chain.test.mjs"
+  ],
+  "mutants": 26
+ },
+ {
+  "file": "src\\chain\\spec.js",
+  "slug": "src\\chain\\spec",
+  "guard": [
+   "tests\\chain.test.mjs"
+  ],
+  "mutants": 26
+ },
+ {
+  "file": "src\\runtime\\sampling.js",
+  "slug": "src\\runtime\\sampling",
+  "guard": [
+   "tests\\self2\\sampling.test.mjs"
+  ],
+  "mutants": 26
+ },
+ {
+  "file": "src\\runtime\\baseline.js",
+  "slug": "src\\runtime\\baseline",
+  "guard": [
+   "tests\\balance\\spec-must-fail-on-base.test.mjs",
+   "tests\\self6\\baseline-cache-version.test.mjs"
+  ],
+  "mutants": 24
+ },
+ {
+  "file": "src\\lean\\gate.js",
+  "slug": "src\\lean\\gate",
+  "guard": [
+   "tests\\gate.test.mjs",
+   "tests\\lean.test.mjs"
+  ],
+  "mutants": 23
+ },
+ {
+  "file": "src\\loop\\replay.js",
+  "slug": "src\\loop\\replay",
+  "guard": [
+   "tests\\loop.test.mjs"
+  ],
+  "mutants": 23
+ },
+ {
+  "file": "src\\lean\\imagine.js",
+  "slug": "src\\lean\\imagine",
+  "guard": [
+   "tests\\imagine.test.mjs"
+  ],
+  "mutants": 19
+ },
+ {
+  "file": "src\\runtime\\switch.js",
+  "slug": "src\\runtime\\switch",
+  "guard": [
+   "tests\\switch\\switch.test.mjs"
+  ],
+  "mutants": 19
+ },
+ {
+  "file": "src\\runtime\\selector.js",
+  "slug": "src\\runtime\\selector",
+  "guard": [
+   "tests\\chaos\\restart-recovery.test.mjs",
+   "tests\\selector.test.mjs",
+   "tests\\self4\\auto-finish.test.mjs"
+  ],
+  "mutants": 17
+ },
+ {
+  "file": "src\\lean\\scan.js",
+  "slug": "src\\lean\\scan",
+  "guard": [
+   "tests\\lean.test.mjs"
+  ],
+  "mutants": 16
+ },
+ {
+  "file": "src\\index.js",
+  "slug": "src\\index",
+  "guard": [
+   "tests\\approve-lands.test.mjs",
+   "tests\\config\\loader-shape.test.mjs",
+   "tests\\config\\schema.test.mjs",
+   "tests\\host-guard.test.mjs",
+   "tests\\self3\\policydiff.test.mjs",
+   "tests\\self3\\roundtable.test.mjs",
+   "tests\\self3\\spend.test.mjs",
+   "tests\\self\\report-lessons.test.mjs",
+   "tests\\setup\\one-call-start.test.mjs",
+   "tests\\tools\\doctor-tool.test.mjs",
+   "tests\\tri10\\status-compact.test.mjs",
+   "tests\\ui\\snooze.test.mjs"
+  ],
+  "mutants": 14
+ },
+ {
+  "file": "src\\runtime\\lease.js",
+  "slug": "src\\runtime\\lease",
+  "guard": [
+   "tests\\lease.test.mjs"
+  ],
+  "mutants": 14
+ },
+ {
+  "file": "src\\runtime\\plan-budget.js",
+  "slug": "src\\runtime\\plan-budget",
+  "guard": [
+   "tests\\balance\\deadline-shape.test.mjs"
+  ],
+  "mutants": 14
+ },
+ {
+  "file": "src\\runtime\\halving.js",
+  "slug": "src\\runtime\\halving",
+  "guard": [
+   "tests\\knowledge.test.mjs"
+  ],
+  "mutants": 13
+ },
+ {
+  "file": "src\\runtime\\plateau.js",
+  "slug": "src\\runtime\\plateau",
+  "guard": [
+   "tests\\checkpoint-window.test.mjs",
+   "tests\\lifecycle\\infra-round.test.mjs",
+   "tests\\self2\\plateau.test.mjs"
+  ],
+  "mutants": 12
+ },
+ {
+  "file": "src\\exec\\patch.js",
+  "slug": "src\\exec\\patch",
+  "guard": [
+   "tests\\exec\\patch-skips-deps.test.mjs",
+   "tests\\noop-landing.test.mjs",
+   "tests\\patch-untracked.test.mjs"
+  ],
+  "mutants": 8
+ },
+ {
+  "file": "src\\core\\ledger.js",
+  "slug": "src\\core\\ledger",
+  "guard": [
+   "tests\\chaos\\ledger-drift.test.mjs",
+   "tests\\ledger.test.mjs",
+   "tests\\setup\\no-workspace-spam.test.mjs",
+   "tests\\setup\\one-call-start.test.mjs"
+  ],
+  "mutants": 4
+ },
+ {
+  "file": "src\\runtime\\exposure.js",
+  "slug": "src\\runtime\\exposure",
+  "guard": [
+   "tests\\self3\\exposure.test.mjs"
+  ],
+  "mutants": 4
+ },
+ {
+  "file": "src\\chain\\templates.js",
+  "slug": "src\\chain\\templates",
+  "guard": [
+   "tests\\self4\\auto-finish.test.mjs",
+   "tests\\self4\\plateau-checkpoint.test.mjs",
+   "tests\\switch\\switch.test.mjs"
+  ],
+  "mutants": 2
+ }
+]

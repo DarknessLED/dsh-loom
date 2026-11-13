@@ -1,0 +1,1 @@
+{"module":"src/runtime/candidates.js","suite":"guard","specs":3,"tried":63,"killed":34,"score":0.5397,"slowSurvivors":0}

@@ -1,0 +1,1 @@
+{"module":"src/gate/gate.js","suite":"guard","specs":2,"tried":118,"killed":65,"score":0.5508,"slowSurvivors":0}

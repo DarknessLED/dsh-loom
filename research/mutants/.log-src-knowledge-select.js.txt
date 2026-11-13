@@ -1,0 +1,1 @@
+{"module":"src/knowledge/select.js","suite":"guard","specs":2,"tried":55,"killed":50,"score":0.9091,"slowSurvivors":0}

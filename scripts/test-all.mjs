@@ -76,6 +76,10 @@ const standing = [
   // oracleScripts makes the pre-patch set empty, so the base run failed because the
   // script was missing -- a red base that looks like a bug fixed (e70 found this on
   // 75 landings, all by habit rather than check).
+  // a task that delivers test coverage needs the gate to allow exactly the
+  // declared file and nothing else: the rule was about self-measurement, not
+  // about the tests directory.
+  'tests/balance/scope-round.test.mjs',
   'tests/oracle-creation.test.mjs',
   // and the hedge is priced by its actual tail: with two candidates the old
   // reference was the slowest attempt, so 53 of 53 priceable campaigns read

@@ -1,0 +1,1 @@
+{"module":"src/gate/oracle.js","suite":"guard","specs":1,"tried":52,"killed":28,"score":0.5385,"slowSurvivors":0}

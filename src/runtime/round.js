@@ -36,6 +36,7 @@ import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
 import { oracleClean, oracleScripts, oracleCandidates, patchPaths } from '../gate/oracle.js'
+import { parseScope, scopeVerdict } from '../gate/scope.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
@@ -1851,10 +1852,28 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Measured on 75 landings (e70): the oracle was in the parent commit every
     // time, by habit, not by check. One `git cat-file -e` per oracle path (the
     // same command the base run names) makes the habit a property.
+    // A task may declare the only paths its patch may touch (src/gate/scope.js).
+    // Without a declaration the old rule stands: no test edits at all.
+    const scope = parseScope(acceptanceSpec?.scope)
+    let scopeResult = null
+    if (scope) {
+      const text = patchText(best?.patch)
+      scopeResult = scopeVerdict({
+        patchText: text,
+        patchUnreadable: Boolean(best?.patch) && text === null,
+        filesChanged: best?.diff?.filesChanged ?? null,
+        scope,
+      })
+    }
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
-      testsClean: !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
+      testsClean: scope
+        ? scopeResult.ok
+        : !patchTouchesTests(best?.patch) && !(best?.diff?.filesChanged ?? []).some(touchesTests),
+      ...(scope
+        ? { scope: { editable: scope.editable, checked: scopeResult.checked, violations: scopeResult.violations } }
+        : {}),
       oracleClean: oracleClean({ patchFile: best?.patch, oraclePaths, filesChanged: best?.diff?.filesChanged ?? null }),
       beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
     }
@@ -2271,6 +2290,21 @@ function touchesTests(p) {
  * Only `diff --git` section headers are parsed: content lines can begin with
  * `+++`/`---` too, so those prefixes are not reliable path markers.
  */
+/**
+ * The patch's text, or null when it cannot be read. Callers must treat null as
+ * "not inspected" rather than as "no changes"; an unreadable patch is refused.
+ * @param {string|null|undefined} patchPath
+ * @returns {string|null}
+ */
+function patchText(patchPath) {
+  if (!patchPath) return null
+  try {
+    return readFileSync(patchPath, 'utf8')
+  } catch {
+    return null
+  }
+}
+
 function patchTouchesTests(patchPath) {
   if (!patchPath) return false
   let text

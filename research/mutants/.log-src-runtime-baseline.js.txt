@@ -1,0 +1,1 @@
+{"module":"src/runtime/baseline.js","suite":"guard","specs":2,"tried":24,"killed":10,"score":0.4167,"slowSurvivors":0}

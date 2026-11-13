@@ -1,0 +1,159 @@
+// The graded verifier for a "harden this file's tests" task.
+//
+// Protocol: always exit 0 and print a 0..1 reading, because the task is graded
+// and a graded task signals progress with the number, not with the exit code
+// (src/gate/earned.js explains why the gate needs both readings).
+//
+//   KILLRATE=0.3750
+//   MUTANTS tried=16 killed=6 skipped=0
+//
+// Two properties make the number usable:
+//
+//   1. The mutant sample is deterministic per file and independent of position,
+//      so round 7 measures the same 16 mutants round 3 did. Ordering is by
+//      sha256("<slug>:<index>"), not by file offset, so adding a pattern later
+//      does not reshuffle the sample.
+//   2. A guard spec that reads the module's own source is refused. A test that
+//      asserts `readFileSync('src/x.js') === <snapshot>` kills 100% of mutants
+//      while pinning nothing, and that is the one cheat this instrument invites.
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawn } from 'node:child_process'
+import { mutantsFor, slug } from './gen.mjs'
+import { guardSet } from './plan-all.mjs'
+
+const args = Object.fromEntries(
+  process.argv.slice(2).map((a) => {
+    const [k, v] = a.replace(/^--/, '').split('=')
+    return [k, v ?? 'true']
+  }),
+)
+const moduleFile = args.module
+if (!moduleFile) { console.error('need --module='); process.exit(2) }
+const sample = Number(args.sample ?? 16)
+const maxSpecs = Number(args.maxSpecs ?? 3)
+const budgetMs = Number(args.budgetMs ?? 600000)
+
+// Refuse to measure a file that is already dirty: the snapshot below is what
+// every mutant is restored to, so a dirty file would bless someone else's edit as
+// "the original" and a later restore would silently ship it.
+{
+  const { execFileSync } = await import('node:child_process')
+  let dirt = ''
+  try {
+    dirt = execFileSync('git', ['status', '--porcelain', '--', moduleFile], { encoding: 'utf8', windowsHide: true }).trim()
+  } catch {
+    dirt = ''
+  }
+  if (dirt) { console.error(`module has uncommitted changes, refusing to snapshot it: ${dirt}`); process.exit(6) }
+}
+
+const original = fs.readFileSync(moduleFile)
+const sha = (b) => crypto.createHash('sha256').update(b).digest('hex').slice(0, 16)
+const originalSha = sha(original)
+const restore = () => fs.writeFileSync(moduleFile, original)
+process.on('exit', restore)
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { restore(); process.exit(130) })
+
+const fileSlug = slug(moduleFile)
+const all = mutantsFor(moduleFile)
+  .map((m, i) => ({ ...m, index: i, id: `${fileSlug}#${String(i).padStart(3, '0')}` }))
+  .map((m) => ({ ...m, rank: crypto.createHash('sha256').update(`${fileSlug}:${m.index}`).digest('hex') }))
+  .sort((a, b) => a.rank.localeCompare(b.rank))
+const picked = all.slice(0, sample)
+
+// Guard specs: either pinned by the task (`--specs=a,b`) or derived. Pinning
+// matters because the task's scope names exactly the files the candidate may
+// edit -- a spec the candidate cannot edit must not influence its reading.
+let guard = args.specs
+  ? String(args.specs).split(',').map((x) => x.trim()).filter(Boolean)
+  : guardSet(moduleFile)
+if (!guard.length) { console.error(`no guard spec imports ${moduleFile}`); process.exit(2) }
+// Line-level on purpose: `readFileSync` appears in most specs (they read tmp
+// files), and matching the module name anywhere in the file flags every spec
+// that merely imports it. The cheat needs the path inside the read call.
+const base = path.basename(moduleFile)
+const asPosix = moduleFile.replace(/\\/g, '/')
+const tampered = guard.filter((s) =>
+  fs.readFileSync(s, 'utf8').split('\n').some((line) => {
+    if (!/readFileSync\s*\(|readFile\s*\(/.test(line)) return false
+    return line.includes(asPosix) || line.includes(moduleFile) || line.includes(base)
+  }),
+)
+// Excluded, not fatal: several legitimate specs read source text (a tool
+// description that must appear, a registry table). A reading taken through a
+// source-grepping spec is not evidence about behaviour, so the spec leaves the
+// guard set and the reading is taken from the rest -- and a spec added later is
+// caught by the same check on the next run.
+if (tampered.length) {
+  console.error(`EXCLUDED=${tampered.length} spec(s) read the module under test: ${tampered.map((s) => path.basename(s)).join(', ')}`)
+  guard = guard.filter((s) => !tampered.includes(s))
+  if (!guard.length) { console.error('no guard spec left after excluding source readers'); process.exit(3) }
+}
+
+// Prefer the spec named after the module: tests/gate.test.mjs for src/gate/gate.js.
+// Without this the cap keeps whichever spec sorts first, and round.js then gets
+// measured by a single unrelated spec (0 of 6 mutants killed, which says nothing
+// about round.js).
+const stem = path.basename(moduleFile, '.js')
+if (!args.specs) guard = guard
+  .sort((a, b) => {
+    const sa = path.basename(a).startsWith(stem) ? 0 : 1
+    const sb = path.basename(b).startsWith(stem) ? 0 : 1
+    return sa - sb || a.split('/').length - b.split('/').length || a.localeCompare(b)
+  })
+  .slice(0, maxSpecs)
+if (guard.some((s) => !fs.existsSync(s))) { console.error('missing guard spec'); process.exit(2) }
+
+function runSpec(spec, timeoutMs) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [spec], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } })
+    let err = ''
+    child.stderr.on('data', (d) => { err += d })
+    child.stdout.on('data', () => {})
+    const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs)
+    child.on('close', (code) => { clearTimeout(timer); resolve({ code, err: err.slice(-500) }) })
+  })
+}
+
+const started = Date.now()
+let killed = 0
+let tried = 0
+let skipped = 0
+const results = []
+for (const m of picked) {
+  const mutated = Buffer.concat([
+    original.subarray(0, m.offset),
+    Buffer.from(m.replace, 'latin1'),
+    original.subarray(m.offset + m.find.length),
+  ])
+  if (mutated.equals(original)) { skipped += 1; continue }
+  if (Date.now() - started > budgetMs) { console.error(`budget exceeded after ${tried} mutants`); restore(); process.exit(4) }
+  try {
+    fs.writeFileSync(moduleFile, mutated)
+    let died = false
+    for (const spec of guard) {
+      const r = await runSpec(spec, 120000)
+      if (r.code !== 0) { died = true; break }
+    }
+    tried += 1
+    if (died) killed += 1
+    results.push({ id: m.id, pattern: m.pattern, killed: died })
+  } finally {
+    restore()
+    if (sha(fs.readFileSync(moduleFile)) !== originalSha) {
+      console.error('tree not restored: refusing to report a reading')
+      process.exit(5)
+    }
+  }
+}
+
+if (args.report === 'patterns') {
+  const byPattern = {}
+  for (const r of results) byPattern[r.pattern] = (byPattern[r.pattern] ?? 0) + (r.killed ? 0 : 1)
+  console.log(`SURVIVORS=${JSON.stringify(byPattern)}`)
+}
+const rate = tried ? killed / tried : 0
+console.log(`KILLRATE=${rate.toFixed(4)}`)
+console.log(`MUTANTS tried=${tried} killed=${killed} skipped=${skipped} sample=${sample} specs=${guard.length} ms=${Date.now() - started}`)

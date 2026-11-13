@@ -1,0 +1,1 @@
+{"module":"src/knowledge/impact.js","suite":"guard","specs":3,"tried":59,"killed":37,"score":0.6271,"slowSurvivors":0}
