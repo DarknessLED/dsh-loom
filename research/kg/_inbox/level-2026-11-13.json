@@ -1,0 +1,43 @@
+{
+ "nodes": [
+  {
+   "id": "ana-042",
+   "kind": "analysis",
+   "confidence": 0.95,
+   "topic": "instrument-design",
+   "title": "The instrument this loop needs is a score with headroom, and its own tests are the one place headroom cannot exist",
+   "body": "e91 shows the spec corpus is 93/104 green with a median of 3 assertions per task. That is not an accident of authoring: the loop's task unit is 'make this spec pass', so a corpus of solved tasks is the fixed point of the loop itself. Asking the same corpus for a finer score is asking a finished exam for more questions.\n\nThe two properties a graded score needs are in tension with how the corpus was built:\n\n* **headroom** requires the base state to be measurably below the ceiling, but every task here was authored to reach the ceiling;\n* **fine denominator** requires the task to report many independent observations, but a spec reports its own assertions, and 3 is what an assertion set looks like when a task is small enough to solve in one round.\n\nSo the score has to be computed by something the task does not own. Candidates, in order of distance from the current design:\n\n1. **a counter over the corpus** -- 93/104 today, resolution 1pp, headroom 11. Cheap, already computed, but the headroom is 11 units and the loop would exhaust it in 11 rounds.\n2. **mutation kill rate** -- independent of what any spec claims; headroom is enormous (measured 0.100 on src/knowledge/select.js and src/knowledge/impact.js, 0.429 on src/gate/gate.js) and the denominator is however many mutants you generate (measured 455 candidates across 8 modules).\n3. **a human judgement panel** -- highest construct validity, lowest repeatability, and this loop already showed its judgement cards carry none of the evidence a judgement needs (exp-gap-012).\n\nThe reason (2) is the interesting one for *this* goal is not that it is bigger. It is that the modules with the worst kill rate are `src/knowledge/select.js` and `src/knowledge/impact.js` -- the two modules that decide what the loop learns and how far a lesson reaches. A graded instrument on those modules measures the loop's own decision machinery with a number that cannot be produced by the machinery's own output, which is the property exp-kg-003/ana-025 showed was missing from the retrieval index.\n\nLimit, stated rather than hidden: a mutation score can be raised by writing tests that pin behaviour nobody cares about. The defence is a held-out mutant set generated after the tests are written, which is a real protocol rather than a formality -- and it is cheap because mutants are generated from source, not authored.",
+   "source": "exp-level-001, exp-mut-002, exp-mut-003, exp-kg-003"
+  },
+  {
+   "id": "exp-level-001",
+   "kind": "number",
+   "confidence": 0.96,
+   "topic": "instrument-design",
+   "title": "79% of the task corpus already prints a level (pass/total) that the gate discards, but 82 of those 83 are already green and the median denominator is 3",
+   "body": "Goal condition 1 asks for 20 tasks carrying a comparable continuous quantity. The cheap hypothesis was that no new instrument is needed: our spec files conventionally end with `<pass>/<EXPECTED> passed`, which is a level -- a partial fix shows 3/8 where a complete one shows 8/8 -- and the gate reads only the exit code, the same way it once discarded `QUALITY=` (exp-diff-003).\n\nMeasured over all 105 registered tasks (research/exp/e91.mjs; each task runs its own oracle, suite-oracle tasks excluded):\n\n| property | count |\n|---|---|\n| tasks run | 105 |\n| declare a metric in the evalset | 1 |\n| print `<pass>/<total> passed` | 83 (79.0%) |\n| of those, green today (headroom 0) | 82 |\n| of those, headroom > 0 | **1** (`plateau` 14/15) |\n| print no level at all | 22 |\n\nSo the level is free, already emitted -- and useless in this corpus, for two independent reasons.\n\n**The corpus is spent.** 93 of 104 tasks are green on today's tree. Each grants at most one promotion and then nothing, which is the same ceiling that made minGain fire in only 5 of 208 gate decisions.\n\n**The denominators are tiny.** Histogram of declared totals: 3 (33 tasks), 4 (17), 2 (12), 6 (7), 7 (3), 8 (2), then one each at 5, 10, 12, 13, 15, 17. Median 3. Even where headroom existed, one assertion is 33 percentage points -- coarser than the binary score it would replace.\n\nConclusion for the plan: 'add metrics to the existing tasks' is dead, and the reason is not implementation. A level needs both headroom and a fine denominator, and this corpus has neither. A graded instrument for this loop has to come from somewhere other than its own spec files.",
+   "source": "research/exp/e91.mjs, research/exp/e91.json; ~/.dsh/loom/campaigns/*/views/state.json evalset"
+  }
+ ],
+ "edges": [
+  {
+   "from": "ana-042",
+   "rel": "refines",
+   "to": "exp-mut-002",
+   "note": "turns the mutation measurement into the reason it is the right instrument"
+  },
+  {
+   "from": "exp-level-001",
+   "rel": "refines",
+   "to": "exp-ver-001",
+   "note": "extends the 94-task verifier sweep with what each verifier actually prints"
+  },
+  {
+   "from": "exp-level-001",
+   "rel": "contradicts",
+   "to": "exp-graded-001",
+   "note": "the graded channel works mechanically but this corpus supplies no headroom"
+  }
+ ],
+ "gaps": []
+}
