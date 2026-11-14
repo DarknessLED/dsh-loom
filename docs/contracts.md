@@ -89,6 +89,7 @@
 - `src/report/export.js` — 把 campaign 折成一个版本化、可 JSON 往返的自包含包（目标、链、策略、评测集、落地产物），供 `rsi_export` 写到 `export/bundle.json`，让证据能随代码一起归档。
 - `src/report/digest.js` — 面向人的有界追读摘要：表头（campaign、状态、轮数、结论、花费）、最新在前的回合行、按风险排序的待决评审、经验计数；不含 stdout/patch/JSON，行数与行长都有硬上限，`rsi_report` 以它开头。
 - `src/report/end.js` — 一个 campaign 结束时的结论：状态、原因、到达的轮次与分数、以及下一次 resume 的确切起点；纯函数且对残缺账本不抛错，面板与摘要共用同一句话，结束了的战役不必再靠猜。
+- `src/report/round-cost.js` — 回合的钱花在了哪里：`cacheHitRate(usage)` 是 cacheRead/(input+cacheRead+cacheWrite)（分母为 0 时为 0，空回合不是 100% 命中），`roundCost(round)` 给出该回合的 usd/tokens/命中率与按 attempt.node 合并的 byNode 明细，`costPerPromotedChange(rounds)` 把失败与回滚的回合也算进分母、按晋升次数摊成「一次落地改动的成本」，没有晋升时为 `null` 而不是除零；纯函数、零依赖，供面板与 `rsi_report` 共用同一份数字。
 
 ### runtime/ — 回合与运行时
 
