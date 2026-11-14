@@ -94,7 +94,7 @@
 
 - `src/runtime/baseline.js` — 基线裁决：回答「这条任务命令在补丁之前就已经通过了吗」。候选在从 HEAD 切出的工作树里验证，所以问题可以直接在 workspace 上问一次，答案按 `(任务, base, 命令)` 缓存，HEAD 一动就重测；缓存读坏只会多跑一次，绝不会伪造裁决。
 - `src/runtime/candidates.js` — 候选模式的自适应推断：`adaptiveCandidateMode(rounds)` 只看最近 `minRounds` 个「有测量」的回合，若每轮都采样了两个以上候选且每个候选都是满分 1，说明第二意见从未改变结果，下一轮应改为 `cascade`（先跑一个、满分就收手）；历史太短、只有一个候选或存在非 1 分时一律回落 `parallel`。是否启用由 `config.loopPolicy.autoCandidateMode` 决定，显式 `candidateMode` 永远优先，来源记在 `round.finished.candidateModeSource`（`config`/`auto`/`default`）。
-- `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；缺失 usage 时用 transcript 长度给出带 `estimated` 标记的上界。
+- `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；活会话消失后，`usageFromSessionLedger(home, sessionId)` 读 `<dsh home>/sessions/<workspace>/<sessionId>/session.v4.jsonl(.zstd)`，把子会话自己账本里的 usage 当作实测（`estimated: false`），账本缺失或无 usage 块返回 null 而不是零；再缺失时才用 transcript 长度给出带 `estimated` 标记的上界。
 - `src/runtime/deferred.js` — 静默时段计算：把落在 quiet hours 内的检查点推迟到窗口结束的瞬间，既不投递也不丢弃。
 - `src/runtime/doctor.js` — 预检医生：`doctor({workspace, home, runtime, config, now})` 同步检查 workspace 是否在 git 工作树内、工作树是否干净、Node 版本是否达标、home 是否可写、本窗口是否持有循环所有权；每项返回 `{id, ok, detail, fix}`，失败项给出可直接执行的修复命令（如 `git init`、commit 或 stash），单项抛错记为带错误文本的失败检查，函数本身永不抛错。
 - `src/runtime/exposure.js` — 决定本轮哪个候选看到经验：只暴露一个且按回合轮换，保证同一轮存在真正的对照组。

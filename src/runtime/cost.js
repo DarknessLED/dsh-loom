@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import * as zlib from 'node:zlib'
 import { svc } from '../core/services.js'
 
 // Token accounting for a child session. DSH exposes no dollar figure, so we sum
@@ -40,6 +43,112 @@ export function sumUsage(events) {
 
 function num(x) {
   return typeof x === 'number' && Number.isFinite(x) ? x : 0
+}
+
+/**
+ * The harness home that owns the on-disk session ledgers (`<dsh home>/sessions`).
+ * `DSH_HOME` is the host's own override; otherwise the profile directory is the
+ * same `~/.dsh` the harness writes to. Returns null when neither can be named,
+ * which `usageFromSessionLedger` treats as "no ledger" rather than an error.
+ */
+function dshHome() {
+  const explicit = process.env.DSH_HOME
+  if (typeof explicit === 'string' && explicit !== '') return explicit
+  const profile = process.env.USERPROFILE || process.env.HOME
+  return typeof profile === 'string' && profile !== '' ? join(profile, '.dsh') : null
+}
+
+/** Read one session's ledger text, plain first, then the zstd archive. */
+function readLedgerText(dir) {
+  try {
+    return readFileSync(join(dir, 'session.v4.jsonl'), 'utf8')
+  } catch {
+    /* no plain ledger: try the compressed archive */
+  }
+  try {
+    const packed = readFileSync(join(dir, 'session.v4.jsonl.zstd'))
+    const unzstd = zlib.zstdDecompressSync
+    return typeof unzstd === 'function' ? unzstd(packed).toString('utf8') : null
+  } catch {
+    return null
+  }
+}
+
+/** Find `<home>/sessions/<workspace>/<sessionId>/session.v4.jsonl(.zstd)` and read it. */
+function readSessionLedger(home, sessionId) {
+  if (typeof home !== 'string' || home === '') return null
+  let workspaces
+  try {
+    workspaces = readdirSync(join(home, 'sessions'), { withFileTypes: true })
+  } catch {
+    return null
+  }
+  for (const workspace of workspaces) {
+    if (!workspace.isDirectory()) continue
+    const text = readLedgerText(join(home, 'sessions', workspace.name, sessionId))
+    if (text !== null) return text
+  }
+  return null
+}
+
+/**
+ * Pull the usage record off one ledger event. The host writes assistant turns as
+ * `{type:'assistant', data:{message:{usage:{input_tokens,...}}}}` with snake_case
+ * token names, so both shapes and both spellings are accepted here.
+ */
+function ledgerUsage(ev) {
+  if (!ev || typeof ev.type !== 'string' || !ev.type.startsWith('assistant')) return null
+  const u = ev.data?.message?.usage ?? ev.data?.usage ?? ev.usage
+  if (!u || typeof u !== 'object') return null
+  const pick = (camel, snake) => {
+    const value = typeof u[camel] === 'number' ? u[camel] : u[snake]
+    return num(value)
+  }
+  return {
+    inputTokens: pick('inputTokens', 'input_tokens'),
+    outputTokens: pick('outputTokens', 'output_tokens'),
+    cacheReadTokens: pick('cacheReadTokens', 'cache_read_input_tokens'),
+    cacheWriteTokens: pick('cacheWriteTokens', 'cache_write_input_tokens'),
+  }
+}
+
+/**
+ * Bill a child from its own on-disk ledger when no live meter answers.
+ *
+ * The transcript survives `sessions.get(childId)` returning nothing, but it
+ * lives under the harness home, not the campaign directory, so the caller names
+ * that home. Returns null when the directory, the ledger, or every usage block
+ * is missing: a missing ledger is not evidence of zero tokens, and the caller
+ * must keep the next source of truth in line instead of billing $0.
+ *
+ * @param {string} home harness home holding `sessions/`
+ * @param {string} sessionId child session id
+ * @returns {{inputTokens:number,outputTokens:number,cacheReadTokens:number,cacheWriteTokens:number}|null}
+ */
+export function usageFromSessionLedger(home, sessionId) {
+  if (typeof sessionId !== 'string' || sessionId === '') return null
+  const text = readSessionLedger(home, sessionId)
+  if (text === null) return null
+  const total = { ...ZERO }
+  let found = false
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    let ev
+    try {
+      ev = JSON.parse(trimmed)
+    } catch {
+      continue
+    }
+    const usage = ledgerUsage(ev)
+    if (!usage) continue
+    found = true
+    total.inputTokens += usage.inputTokens
+    total.outputTokens += usage.outputTokens
+    total.cacheReadTokens += usage.cacheReadTokens
+    total.cacheWriteTokens += usage.cacheWriteTokens
+  }
+  return found ? total : null
 }
 
 /** Concatenate the actual text parts of a message's `content` field. */
@@ -277,7 +386,7 @@ function measureViaCostMeter(ctx, sessionId) {
  * host cost meter, then host token meter, then a `usage` block in the log, then
  * a transcript estimate. Returns zeros when the session is unavailable.
  */
-export function usageOfSession(ctx, sessionId, pricing) {
+export function usageOfSession(ctx, sessionId, pricing, home = dshHome()) {
   // Never touch ctx.<service> directly: under cordis a fiber without the
   // inject declaration throws on property access, and this runs inside a
   // timer fiber where `sessions` is not declared.
@@ -287,6 +396,13 @@ export function usageOfSession(ctx, sessionId, pricing) {
   // it wins over every guess below whenever it reports real tokens.
   const costed = measureViaCostMeter(ctx, sessionId)
   if (costed) return { ...costed, usage: costed, usd: priceUsage(costed, table), estimated: false }
+  // The child's own ledger outlives the live session object, so it is the
+  // surviving measurement when `sessions.get(childId)` is already gone. Null
+  // means "nothing to read", never "spent zero", so the fallbacks stay in line.
+  const fromLedger = usageFromSessionLedger(home, sessionId)
+  if (fromLedger) {
+    return { ...fromLedger, usage: fromLedger, usd: priceUsage(fromLedger, table), estimated: false }
+  }
   let events = []
   let logged = { ...ZERO }
   try {
