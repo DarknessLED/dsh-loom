@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dsh-loom sidebar panel — preview</title>
+<style>
+  html,body{margin:0;padding:0;background:#101113;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{display:flex;gap:0;align-items:stretch;min-height:100vh}
+  /* the widths the sidebar is asked to live in: 320 is the cramped case,
+     400 is comfortable, 720 is what the same component must do when the host
+     gives it half a window -- the grids are supposed to fill that extra room */
+  .canvas{display:flex;flex-direction:column}
+  .dark{flex:0 0 320px;width:320px}
+  .light{flex:0 0 400px;width:400px}
+  .wide{flex:0 0 720px;width:720px}
+  .label{font:11px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
+  .slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .dark{background:#08090a;color:#f7f8f8}
+  .light{background:#ffffff;color:#08090a;border-left:1px solid #e5e7eb}
+  /* the component pins this at mount from the host theme's computed colour;
+     a static page has to state it, and these are the same two inks */
+  /* the panel writes both of these at mount from the host theme: the ink it
+     found, and the canvas colour that ink sits on (what a solid button fills
+     with the ink and writes its label in) */
+  .dark .loom{--loom-ink-base:#f7f8f8;--loom-ink-canvas:#08090a}
+  .light .loom{--loom-ink-base:#08090a;--loom-ink-canvas:#ffffff}
+  .wide{background:#08090a;color:#f7f8f8;border-left:1px solid #23262b}
+  .wide .loom{--loom-ink-base:#f7f8f8;--loom-ink-canvas:#08090a}
+  .dark .label{color:#62666d}
+  .light .label{color:#8a8f98}
+  .wide .label{color:#62666d}
+.loom{
+ --loom-ink:currentColor;
+ --loom-base:var(--loom-ink-base,currentColor);
+ --loom-canvas:var(--loom-ink-canvas,#fff);
+ --loom-soft:rgba(127,127,127,1);--loom-soft:color-mix(in srgb,var(--loom-base) 78%,transparent);
+ --loom-quiet:rgba(127,127,127,.8);--loom-quiet:color-mix(in srgb,var(--loom-base) 56%,transparent);
+ --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 54%,transparent);
+ --loom-line:rgba(127,127,127,.18);--loom-line:color-mix(in srgb,var(--loom-base) 10%,transparent);
+ --loom-line2:rgba(127,127,127,.3);--loom-line2:color-mix(in srgb,var(--loom-base) 18%,transparent);
+ --loom-surface:rgba(127,127,127,.05);--loom-surface:color-mix(in srgb,var(--loom-base) 3.4%,transparent);
+ --loom-surface2:rgba(127,127,127,.09);--loom-surface2:color-mix(in srgb,var(--loom-base) 6%,transparent);
+ --loom-hover:rgba(127,127,127,.1);--loom-hover:color-mix(in srgb,var(--loom-base) 7%,transparent);
+ --loom-ok:#2f7d54;--loom-warn:#8a6f24;--loom-bad:#c2564a;--loom-idle:#70747c;
+ --loom-done:#3f7a63;--loom-stopped:#8a6a6a;
+ --loom-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+ --loom-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+ --loom-ease:cubic-bezier(.2,.7,.2,1);
+ --loomlift:0 1px 1px color-mix(in srgb,var(--loom-base) 3%,transparent),
+  0 10px 24px -18px color-mix(in srgb,var(--loom-base) 45%,transparent);
+ display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;
+ container-type:inline-size;
+ font-family:var(--loom-sans);font-size:13px;line-height:1.5;letter-spacing:-.001em;
+ color:var(--loom-ink);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;
+}
+.loom *{box-sizing:border-box}
+.loom .num,.loom code,.loom .m{font-family:var(--loom-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-tri,.loom-vitals,.loom-cp-head,.loom-hero-row{min-width:0}
+.loom-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;position:relative;z-index:2}
+.loom-mark{font-size:13px;font-weight:650;letter-spacing:.02em;white-space:nowrap;line-height:1}
+.loom-spacer{flex:1 1 auto;min-width:4px}
+.loom-switch{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;
+ padding:2px 4px;border-radius:999px;font-family:var(--loom-sans);font-size:11.5px;font-weight:500;
+ letter-spacing:0;color:var(--loom-faint);cursor:pointer;line-height:1;white-space:nowrap;
+ transition:color 180ms var(--loom-ease),border-color 180ms var(--loom-ease)}
+.loom-track{position:relative;display:inline-block;flex:0 0 auto;width:30px;height:18px;border-radius:999px;
+ background:var(--loom-line2);transition:background 180ms var(--loom-ease)}
+.loom-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:999px;background:#fff;
+ box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform 180ms var(--loom-ease)}
+.loom-switch[aria-checked="true"] .loom-track{background:var(--loom-ok)}
+.loom-switch[aria-checked="true"] .loom-knob{transform:translateX(12px)}
+.loom-switch[aria-checked="true"]{color:var(--loom-soft)}
+.loom-switch:hover{color:var(--loom-ink)}
+.loom-switch:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 32%,transparent);outline-offset:1px}
+.loom-dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;flex:0 0 auto}
+.loom-dot.on{color:var(--loom-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-ok) 16%,transparent)}
+.loom-dot.off{color:var(--loom-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-warn) 14%,transparent)}
+.loom-btn{appearance:none;background:var(--loom-surface);border:1px solid transparent;color:var(--loom-soft);
+ font-family:var(--loom-sans);font-size:12px;font-weight:500;line-height:1;padding:6px 10px;border-radius:8px;cursor:pointer;
+ transition:background 180ms var(--loom-ease),color 180ms var(--loom-ease),border-color 180ms var(--loom-ease),transform 180ms var(--loom-ease);
+ white-space:nowrap;min-height:26px}
+.loom-btn:hover{background:var(--loom-surface2);color:var(--loom-ink);border-color:var(--loom-line)}
+.loom-btn:active{transform:scale(.985)}
+.loom-btn:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}
+.loom-btn[disabled]{opacity:.4;cursor:default;transform:none}
+.loom-btn.bare{background:transparent;padding:6px 8px}
+.loom-btn.bare:hover{background:var(--loom-hover);border-color:transparent}
+.loom-btn.line{background:transparent;border-color:var(--loom-line2)}
+.loom-btn.line:hover{background:var(--loom-surface2);border-color:var(--loom-line2);color:var(--loom-ink)}
+.loom-btn.line.danger:hover{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 40%,transparent)}
+.loom-btn.solid{background:color-mix(in srgb,var(--loom-base) 90%,transparent);color:var(--loom-canvas);
+ font-weight:600;border-color:transparent}
+.loom-btn.solid:hover{background:var(--loom-base);color:var(--loom-canvas)}
+.loom-btn.danger:hover{color:var(--loom-bad);background:color-mix(in srgb,var(--loom-bad) 10%,transparent);border-color:transparent}
+.loom-camp .loom-hit:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}
+.loom-hero{position:sticky;top:0;z-index:3;margin:2px 12px 14px;border:1px solid var(--loom-line);
+ border-radius:14px;background:color-mix(in srgb,var(--loom-base) 6%,transparent);
+ backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);
+ box-shadow:var(--loomlift);overflow:hidden}
+.loom-hero-head{display:flex;align-items:baseline;gap:8px;padding:12px 14px 8px;min-width:0}
+.loom-hero-head .k{font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--loom-ink)}
+.loom-hero-head .v{margin-left:auto;font-family:var(--loom-mono);font-size:22px;font-weight:500;line-height:1;
+ letter-spacing:-.02em;color:var(--loom-warn)}
+.loom-hero-head .v.zero{color:var(--loom-faint)}
+.loom-hero-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--loom-line);
+ transition:background 180ms var(--loom-ease)}
+.loom-hero-row:hover{background:var(--loom-hover)}
+.loom-hero-row .txt{flex:1 1 auto;min-width:0;font-size:12.5px;line-height:1.45;color:var(--loom-quiet)}
+.loom-hero-row .txt b{font-weight:600;color:var(--loom-ink)}
+.loom-hero-row .txt .what{display:block;font-size:12.5px;line-height:1.35;color:var(--loom-quiet)}
+.loom-hero-row .txt .why{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+ overflow:hidden;margin-top:2px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}
+.loom-hero-row .txt .then{display:block;margin-top:3px;font-size:11px;line-height:1.5;color:var(--loom-soft)}
+.loom-hero-row .txt .then .flag{color:var(--loom-ink);font-weight:500}
+.loom-hero-acts{flex:0 0 auto;display:flex;align-items:center;gap:2px}
+.loom-hero-empty{display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:12px;color:var(--loom-quiet)}
+.loom-hero-empty .dot{width:6px;height:6px;border-radius:999px;background:var(--loom-ok);flex:0 0 auto}
+.loom-hero-empty .rest{min-width:0}
+.loom-hero-empty .rest .id{white-space:nowrap}
+.loom-note{padding:0 14px 10px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}
+.loom-figures{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:0 14px 12px;
+ font-size:11.5px;line-height:1.5;color:var(--loom-quiet)}
+.loom-figures .f{white-space:nowrap}
+.loom-figures .f b{font-family:var(--loom-mono);font-size:12px;font-weight:500;letter-spacing:-.01em;
+ color:var(--loom-soft)}
+.loom-figures .f.hot b{color:var(--loom-warn)}
+.loom-sec{padding:0 12px 6px}
+.loom-sec-head{display:flex;align-items:center;gap:8px;padding:12px 2px 8px;font-size:11.5px;font-weight:600;
+ letter-spacing:.01em;color:var(--loom-ink)}
+.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);font-size:11.5px;font-weight:400;letter-spacing:0;
+ color:var(--loom-faint)}
+.loom-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:8px;align-items:start;min-width:0}
+@container (min-width:560px){.loom-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:8px;align-items:start}
+.loom-cards .loom-camp:not(.folded){grid-column:1/-1}
+.loom-cards .loom-camp:not(.folded) .loom-tree{max-width:32em}}
+.loom-camp{padding:12px 13px 11px;border:1px solid var(--loom-line);border-radius:14px;min-width:0;
+ background:color-mix(in srgb,var(--loom-base) 1.4%,transparent);
+ transition:border-color 180ms var(--loom-ease),box-shadow 180ms var(--loom-ease),background 180ms var(--loom-ease)}
+.loom-camp:hover{border-color:var(--loom-line2)}
+.loom-camp.folded{padding:0;background:transparent;border-color:transparent}
+.loom-camp .loom-hit{display:flex;align-items:center;gap:8px;padding:10px 11px;min-width:0;cursor:pointer;
+ border-radius:12px;transition:background 180ms var(--loom-ease)}
+.loom-camp .loom-hit:hover{background:var(--loom-hover)}
+.loom-camp:not(.folded) .loom-hit{padding:0 0 3px}
+.loom-camp .loom-caret{margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--loom-faint);line-height:1}
+.loom-camp .loom-flag{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;letter-spacing:0;
+ padding:2px 6px;border-radius:999px;color:var(--loom-warn);
+ background:color-mix(in srgb,var(--loom-warn) 13%,transparent)}
+.loom-camp .loom-brief{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-faint);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-titlerow{display:flex;align-items:center;gap:8px;min-width:0}
+.loom-name{font-size:13.5px;font-weight:600;letter-spacing:-.005em;line-height:1.25;min-width:0;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-state{flex:0 0 auto;font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--loom-quiet);white-space:nowrap}
+.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);white-space:nowrap}
+.loom-obj{margin-top:5px;max-width:44em;font-size:12.5px;line-height:1.5;color:var(--loom-soft)}
+.loom-meta{margin-top:5px;font-size:11.5px;color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-chain{margin-top:4px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-models{margin-top:5px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.loom-model{display:flex;align-items:baseline;gap:6px;min-width:0}
+.loom-model .ref{font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.loom-model .ratio{font-family:var(--loom-mono);font-size:11px;color:var(--loom-soft);font-variant-numeric:tabular-nums;}
+.loom-model .ratio[data-tone=bad]{color:var(--loom-bad);}
+.loom-model .ratio[data-tone=warn]{color:var(--loom-warn);}
+.loom-model .note{font-size:11px;color:var(--loom-faint);}
+.loom-model .p90{font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);text-align:right;font-variant-numeric:tabular-nums;}
+.loom-tri{margin-top:7px;display:block;min-width:0;font-family:var(--loom-mono);
+ font-size:11px;letter-spacing:-.01em;line-height:1.55;color:var(--loom-quiet);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loom-tri .seg{color:var(--loom-soft)}
+.loom-tri .seg,.loom-tri .loom-chip{white-space:nowrap}
+.loom-tri .sep{padding:0 5px;color:var(--loom-line2)}
+.loom-tri .loom-chip{margin-left:0}
+.loom-vitals{margin-top:11px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.loom-sparkwrap{display:flex;align-items:flex-end;gap:10px;min-width:0}
+.loom-sparkwrap .cap{font-size:11px;line-height:1.2;color:var(--loom-faint);letter-spacing:0}
+.loom-sparkwrap .spacer{flex:1 1 auto}
+.loom-spark{display:flex;align-items:flex-end;gap:3px;height:22px;flex:0 0 auto;padding-bottom:1px}
+.loom-spark .pt{display:block;width:4px;border-radius:2px;background:var(--loom-faint);
+ transition:background 180ms var(--loom-ease),height 180ms var(--loom-ease)}
+.loom-spark .pt[data-tone="ok"]{background:var(--loom-ok)}
+.loom-spark .pt[data-tone="warn"]{background:var(--loom-warn)}
+.loom-spark .pt[data-tone="bad"]{background:var(--loom-bad)}
+.loom-spark .pt[data-tone="idle"]{background:var(--loom-faint)}
+.loom-spark .pt[data-zero="true"]{background:var(--loom-line2);border-radius:0}
+.loom-band{margin-top:9px;display:flex;width:100%;height:6px;border-radius:3px;
+ background:var(--loom-line);overflow:hidden}
+.loom-band-seg{display:block;height:100%;flex:0 0 auto;background:var(--loom-faint)}
+.loom-meters{width:100%;min-width:0;display:flex;flex-direction:column;gap:7px}
+.loom-meter{display:grid;grid-template-columns:4.2em minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0}
+.loom-meter .k{font-size:11px;line-height:1;letter-spacing:0;color:var(--loom-faint);white-space:nowrap}
+.loom-meter .bar{display:block;height:4px;border-radius:2px;background:var(--loom-line);overflow:hidden}
+.loom-meter .fill{display:block;height:100%;border-radius:2px;background:var(--loom-ok);
+ transition:width 180ms var(--loom-ease)}
+.loom-meter[data-tone="warn"] .fill{background:var(--loom-warn)}
+.loom-meter[data-tone="bad"] .fill{background:var(--loom-bad)}
+.loom-meter .num{justify-self:end;white-space:nowrap;font-family:var(--loom-mono);font-size:11px;line-height:1;
+ color:var(--loom-soft);white-space:nowrap}
+.loom-metric b,.loom-age,.loom-tri,.loom-meter .num,.loom-node .v{font-variant-numeric:tabular-nums}
+.loom-tree{margin-top:10px;position:relative}
+.loom-node{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;min-width:0;
+ row-gap:3px;padding:5px 0 5px 16px;transition:background 180ms var(--loom-ease);border-radius:6px}
+.loom-node:hover{background:var(--loom-hover)}
+.loom-node[data-depth="1"]:before{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;
+ background:var(--loom-line)}
+.loom-node[data-depth="1"]:after{content:"";position:absolute;left:5px;top:13px;width:8px;height:1px;
+ background:var(--loom-line)}
+.loom-node[data-depth="1"][data-last="1"]:before{bottom:auto;height:13px}
+.loom-node[data-depth="2"]{padding-left:26px}
+.loom-node[data-depth="2"]:before{content:"";position:absolute;left:15px;top:13px;width:7px;height:1px;
+ background:var(--loom-line)}
+.loom-node[data-depth="3"]{padding-left:36px}
+.loom-node .k{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;letter-spacing:.02em;color:var(--loom-faint)}
+.loom-node[data-role="lesson"] .v{order:2;margin-left:auto}
+.loom-node[data-role="lesson"] .t{order:3;flex:1 0 100%;white-space:normal;line-height:1.45;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.loom-node[data-role="wait"] .help{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.loom-node .t{flex:1 1 auto;min-width:0;font-size:12px;color:var(--loom-soft);
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loom-node .t.mono{font-family:var(--loom-mono);font-size:11.5px}
+.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);white-space:nowrap}
+.loom-node .acts{flex:0 1 auto;display:flex;flex-wrap:wrap;gap:4px;margin-left:auto;min-width:0}
+.loom-node .acts .loom-btn{font-size:11.5px;padding:4px 7px}
+.loom-node .help{flex:1 0 100%;font-size:11.5px;line-height:1.5;color:var(--loom-faint);white-space:normal}
+.loom-cp{margin:0;padding:7px 0 8px}
+.loom-cp-head{display:flex;align-items:center;gap:8px;font-family:var(--loom-mono);font-size:11px;
+ letter-spacing:.01em;color:var(--loom-quiet);justify-content:space-between}
+.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.02em}
+.loom-cp-body{margin-top:4px;font-size:12px;line-height:1.5;color:var(--loom-soft)}
+.loom-cp-acts{margin-top:7px;display:flex;gap:6px}
+.loom-acts{margin-top:11px;display:flex;align-items:center;gap:4px}
+.loom-acts .sep{width:1px;height:14px;background:var(--loom-line);margin:0 6px}
+.loom-chips{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+.loom-chip{font-family:var(--loom-sans);font-size:11px;line-height:1;padding:4px 7px;border-radius:999px;
+ background:var(--loom-surface);border:1px solid transparent;color:var(--loom-soft);white-space:nowrap}
+.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 30%,transparent)}
+.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 30%,transparent)}
+.loom-chip.live{color:var(--loom-ok)}
+.loom-chip.quiet{background:transparent;border-color:var(--loom-line);color:var(--loom-faint);letter-spacing:0}
+.loom-kfiles{display:block;padding:0 0 4px;min-width:0}
+.loom-kfile{min-width:0;padding:9px 11px;border-radius:12px;background:var(--loom-surface)}
+.loom-kfile .loom-kind{display:flex;align-items:baseline;gap:6px;padding:0 0 3px;min-width:0;
+ font-size:11px;letter-spacing:0;color:var(--loom-quiet)}
+.loom-kfile .loom-kind .p{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+ direction:rtl;text-align:left;font-family:var(--loom-mono);color:var(--loom-soft)}
+.loom-kfile .loom-kind .c{margin-left:auto;flex:0 0 auto;font-family:var(--loom-mono);color:var(--loom-faint)}
+.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:12px;color:var(--loom-soft);min-width:0}
+.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loom-lesson .score{font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);white-space:nowrap}
+.loom-lesson .score[data-tone=up]{color:color-mix(in srgb,var(--loom-base) 55%,var(--loom-ok));}
+.loom-lesson .score[data-tone=down]{color:color-mix(in srgb,var(--loom-base) 52%,var(--loom-bad));}
+.loom-kfile .loom-lesson{padding-left:0;padding-right:0;align-items:flex-start}
+.loom-kfile .loom-lesson .claim{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;
+ -webkit-box-orient:vertical;line-height:1.45}
+.loom-kfile .loom-lesson .kind{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;padding-top:1px;
+ color:var(--loom-faint);letter-spacing:.02em}
+.loom-kfile .loom-lesson .kind[data-kind=hazard]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-bad))}
+.loom-kfile .loom-lesson .kind[data-kind=recipe]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-ok))}
+.loom-more{padding:4px 0 2px 0;font-size:11.5px;color:var(--loom-faint)}
+.loom-more-groups{padding:6px 2px 10px}
+.loom-morebtn{appearance:none;background:transparent;border:0;padding:6px 2px;font-family:var(--loom-sans);
+ font-size:11.5px;color:var(--loom-quiet);cursor:pointer;text-align:left;line-height:1.4}
+.loom-morebtn:hover{color:var(--loom-ink)}
+.loom-morebtn:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}
+.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-width:thin;padding-top:2px}
+.loom-foot{display:flex;align-items:center;gap:6px;padding:9px 14px;font-size:11px;
+ letter-spacing:0;color:var(--loom-faint)}
+.loom-foot .sep{margin-left:auto}
+.loom-empty{padding:16px 14px 18px;font-size:12.5px;line-height:1.6;color:var(--loom-quiet)}
+.loom-empty code{font-size:12px;color:var(--loom-soft)}
+.loom-err{margin:0 12px 12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--loom-bad) 8%,transparent);
+ font-size:12px;color:var(--loom-bad);word-break:break-word}
+.loom-err b{display:block;margin-bottom:4px;font-size:12.5px;letter-spacing:0}
+.loom-err .hint{font-size:12px;line-height:1.55;color:var(--loom-soft);margin-bottom:6px}
+.loom-err .detail{margin-top:7px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);word-break:break-all}
+.loom-loading{padding:14px;font-size:12px;color:var(--loom-quiet)}
+.loom-broken{display:flex;align-items:baseline;gap:6px;padding:8px 14px;font-family:var(--loom-mono);font-size:11.5px;color:var(--loom-quiet)}
+.loom-broken b{font-weight:500;color:var(--loom-soft)}
+@container (min-width:560px){
+.loom-kfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.loom-hero-row .txt .why{-webkit-line-clamp:unset;overflow:visible}
+.loom-hero-row .txt .then{max-width:46em}}
+@container (max-width:400px){
+.loom-hero-row{flex-wrap:wrap;align-items:flex-start;padding:11px 14px}
+.loom-hero-row .txt{flex:1 1 auto}
+.loom-hero-acts{flex:1 0 100%;justify-content:flex-end;margin-top:7px}
+.loom-tri{white-space:normal;line-height:1.7}}
+@media (prefers-reduced-motion:reduce){.loom *{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="canvas dark"><div class="label">dark · #08090a · 320px</div><div class="slot"><div class="loom" style="height:100%"><div class="loom-head"><span class="loom-mark">RSI</span><span class="loom-spacer"></span><button class="loom-switch" title="不派规划 agent，候选直接开工；故障位置不明显时打开它" role="switch" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>规划</span></button><button class="loom-switch" title="循环正在派发；点这里停掉，战役历史不受影响" role="switch" aria-checked="true" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>循环</span></button><button class="loom-btn bare" title="重新读取 ~/.dsh/loom" style="padding:5px 6px;min-height:24px" type="button" aria-label="刷新">↻</button></div><div class="loom-scroll" style="overflow-y:auto"><div class="loom-hero" aria-live="polite" aria-label="待你处理"><div class="loom-hero-head"><span class="k">没有待处理的决定</span></div><div class="loom-hero-empty"><span class="dot"></span><span><span class="rest">2 个战役在跑（<span class="id">loom-self15 第 7 轮</span>、<span class="id">loom-triangle 第 2 轮</span>）</span></span></div></div><div class="loom-figures"><span class="f"><b>5</b> 战役</span><span class="f"><b>2</b> 运行中</span><span class="f"><b>26</b> 轮</span><span class="f"><b>$1.36</b> 花费</span><span class="f"><b>18</b> 知识</span></div><div class="loom-sec"><div class="loom-sec-head">战役<span class="n">5 个</span><button class="loom-btn bare" title="把所有战役收成一行" style="margin-left:auto;font-size:11px" type="button">全收起</button></div><div class="loom-cards"><div class="loom-camp"><div style="cursor:pointer"><div class="loom-titlerow"><span class="loom-dot" style="color:var(--loom-ok);margin-bottom:1px"></span><span class="loom-name" title="loom-self15">loom-self15</span><span class="loom-state">运行中</span><span class="loom-age" title="最近一次活动在 42秒前">42秒前</span><span class="loom-caret">⌄</span></div><div class="loom-obj">make the loop survive a hostile host: dead child sessions, drifting ledgers, exhausted model budgets — without ever believing a round landed when it did not</div><div class="loom-vitals"><div class="loom-sparkwrap"><span class="cap">最近 7 轮</span><span class="spacer"></span><div class="loom-spark" title="最近 7 轮：柱高按分数、柱色按结果；空白=未计分，底线=0 分"><span class="pt" title="第 1 轮 未晋升 0.62" style="height:9px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 2 轮 已晋升 0.71" style="height:10px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 3 轮 未晋升 0.66" style="height:10px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 4 轮 已晋升 0.8" style="height:11px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 5 轮 留出集未过 0.83" style="height:12px" data-tone="bad" data-zero="false"></span><span class="pt" title="第 6 轮 已晋升 0.9" style="height:13px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 7 轮 已晋升 0.94" style="height:13px" data-tone="ok" data-zero="false"></span></div></div><div class="loom-meters"><div class="loom-meter" title="已用 7 / 上限 12 轮" data-tone="ok"><span class="k">轮数</span><span class="bar"><span class="fill" style="width:58%"></span></span><span class="num">7/12</span></div><div class="loom-meter" title="已花 $0.41 / 上限 $1.00" data-tone="ok"><span class="k">花费</span><span class="bar"><span class="fill" style="width:41%"></span></span><span class="num">$0.41/$1.00</span></div><div class="loom-meter" title="轮内耗时 11 分 / 上限 240 分" data-tone="ok"><span class="k">时间</span><span class="bar"><span class="fill" style="width:5%"></span></span><span class="num">11/240 分</span></div></div></div><div class="loom-tri" title="平均每轮 96 秒（7/7 轮记录了墙钟） · 候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行） · 验证器占用墙钟 38% · 累计 18432 token，每轮 2.6k · 每次晋升 $0.08（共 $0.41，晋升率 71%）"><span class="seg" title="平均每轮 96 秒（7/7 轮记录了墙钟）">96秒/轮</span><span class="sep">·</span><span class="seg" title="候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行）">并行 ×2.3</span><span class="sep">·</span><span class="seg" title="验证器占用墙钟 38%">验证器 38%</span><span class="sep">·</span><span class="seg" title="累计 18432 token，每轮 2.6k">18.4k tok</span><span class="sep">·</span><span class="seg" title="每次晋升 $0.08（共 $0.41，晋升率 71%）">$0.08/晋升</span></div><div class="loom-meta" title="健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出"><span class="loom-dot" style="color:var(--loom-ok);margin-right:4px;vertical-align:middle"></span>健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出</div><div class="loom-chain" title="链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审">链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审</div></div><div class="loom-tree"><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="第 7 轮">第 7 轮</span><span class="v">已晋升 · 0.94</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a1">r7a1</span><span class="v">0.88</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a2">r7a2</span><span class="v">0.94</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r7a3">r7a3</span><span class="v">— · 已筛除</span></div><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="进行中">进行中</span><span class="v">1</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r8a1">r8a1</span><span class="v">运行中 · 静默 31 秒</span></div><div class="loom-node" data-depth="1" data-last="1"><span class="t" title="知识">知识</span><span class="v">6</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">round.js</span><span class="t" title="a child that died mid-turn can still pass the verifier on an unchanged tree">a child that died mid-turn can still pass the verifier on an unchanged tree</span><span class="v">+0.7</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">recovery.js</span><span class="t" title="an `autopilot.applied` with no commit is not a landing">an `autopilot.applied` with no commit is not a landing</span><span class="v">+0.5</span></div><div class="loom-node" data-depth="2" data-last="1" data-role="lesson"><span class="k">brief.js</span><span class="t" title="regenerate the brief at half length once the context blows">regenerate the brief at half length once the context blows</span><span class="v">+0.3</span></div></div><div class="loom-acts"><button class="loom-btn bare" title="暂停这一战役" type="button">暂停</button><button class="loom-btn bare danger" title="停止 loom-self15 — 需要再点一次确认" type="button">停止</button></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-warn)"></span><span class="loom-name" title="loom-chaos">loom-chaos</span><span class="loom-state">已暂停</span><span class="loom-brief" title="6 轮 · $0.29 · 最佳 1">6 轮 · $0.29 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-done)"></span><span class="loom-name" title="loom-self3">loom-self3</span><span class="loom-state">已完成</span><span class="loom-brief" title="11 轮 · $0.66 · 最佳 1">11 轮 · $0.66 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-ok)"></span><span class="loom-name" title="loom-triangle">loom-triangle</span><span class="loom-state">运行中</span><span class="loom-brief" title="2 轮 · 未定价">2 轮 · 未定价</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-idle)"></span><span class="loom-name" title="loom-fresh">loom-fresh</span><span class="loom-state">规划中</span><span class="loom-brief" title="0 轮 · $0">0 轮 · $0</span><span class="loom-caret">›</span></div></div></div></div><div class="loom-sec"><div class="loom-sec-head">知识<span class="n">15 有效 · 7 处 · 3 隔离</span></div><div class="loom-kfiles"><div class="loom-kfile"><div class="loom-kind" title="src/runtime/round.js"><span class="p">src/runtime/round.js</span><span class="c">3</span></div><div class="loom-lesson" title="a child that died mid-turn can still pass the verifier on an unchanged tree · 第 7 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a child that died mid-turn can still pass the verifier on an unchanged tree</span></div><div class="loom-lesson" title="a verifier that always fails is a gate nobody can reach · 第 4 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a verifier that always fails is a gate nobody can reach</span></div><div class="loom-lesson" title="a demoted provider must not keep planning · 第 3 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">a demoted provider must not keep planning</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/panel/api.js"><span class="p">src/panel/api.js</span><span class="c">2</span></div><div class="loom-lesson" title="wrap every per-campaign read, not just the loop · 第 2 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">wrap every per-campaign read, not just the loop</span></div><div class="loom-lesson" title="the panel reads one state object, never a campaign file · 第 4 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">the panel reads one state object, never a campaign file</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/dispatch/brief.js"><span class="p">src/dispatch/brief.js</span><span class="c">1</span></div><div class="loom-lesson" title="regenerate the brief at half length once the context blows · 第 5 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">regenerate the brief at half length once the context blows</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/exposure.js"><span class="p">src/runtime/exposure.js</span><span class="c">1</span></div><div class="loom-lesson" title="holdout tasks must rotate, or exposure becomes the lesson · 第 9 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">holdout tasks must rotate, or exposure becomes the lesson</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/ids.js"><span class="p">src/runtime/ids.js</span><span class="c">1</span></div><div class="loom-lesson" title="raise one checkpoint per stuck signature, not one per round · 第 3 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">raise one checkpoint per stuck signature, not one per round</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/recovery.js"><span class="p">src/runtime/recovery.js</span><span class="c">1</span></div><div class="loom-lesson" title="an `autopilot.applied` with no commit is not a landing · 第 6 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">an `autopilot.applied` with no commit is not a landing</span></div></div></div><div class="loom-more loom-more-groups">另有 1 处 · 共 15 条</div></div></div><div class="loom-foot"><span title="循环跑在这个窗口的进程里。关掉窗口 = 循环暂停：正在跑的候选会中断（这一轮的支出不退）。">关窗 = 循环暂停</span><span class="sep">Lean 就绪</span></div></div></div></div>
+  <div class="canvas light"><div class="label">light · #ffffff · 400px</div><div class="slot"><div class="loom" style="height:100%"><div class="loom-head"><span class="loom-mark">RSI</span><span class="loom-spacer"></span><button class="loom-switch" title="不派规划 agent，候选直接开工；故障位置不明显时打开它" role="switch" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>规划</span></button><button class="loom-switch" title="循环正在派发；点这里停掉，战役历史不受影响" role="switch" aria-checked="true" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>循环</span></button><button class="loom-btn bare" title="重新读取 ~/.dsh/loom" style="padding:5px 6px;min-height:24px" type="button" aria-label="刷新">↻</button></div><div class="loom-scroll" style="overflow-y:auto"><div class="loom-hero" aria-live="polite" aria-label="待你处理"><div class="loom-hero-head"><span class="k">没有待处理的决定</span></div><div class="loom-hero-empty"><span class="dot"></span><span><span class="rest">2 个战役在跑（<span class="id">loom-self15 第 7 轮</span>、<span class="id">loom-triangle 第 2 轮</span>）</span></span></div></div><div class="loom-figures"><span class="f"><b>5</b> 战役</span><span class="f"><b>2</b> 运行中</span><span class="f"><b>26</b> 轮</span><span class="f"><b>$1.36</b> 花费</span><span class="f"><b>18</b> 知识</span></div><div class="loom-sec"><div class="loom-sec-head">战役<span class="n">5 个</span><button class="loom-btn bare" title="把所有战役收成一行" style="margin-left:auto;font-size:11px" type="button">全收起</button></div><div class="loom-cards"><div class="loom-camp"><div style="cursor:pointer"><div class="loom-titlerow"><span class="loom-dot" style="color:var(--loom-ok);margin-bottom:1px"></span><span class="loom-name" title="loom-self15">loom-self15</span><span class="loom-state">运行中</span><span class="loom-age" title="最近一次活动在 42秒前">42秒前</span><span class="loom-caret">⌄</span></div><div class="loom-obj">make the loop survive a hostile host: dead child sessions, drifting ledgers, exhausted model budgets — without ever believing a round landed when it did not</div><div class="loom-vitals"><div class="loom-sparkwrap"><span class="cap">最近 7 轮</span><span class="spacer"></span><div class="loom-spark" title="最近 7 轮：柱高按分数、柱色按结果；空白=未计分，底线=0 分"><span class="pt" title="第 1 轮 未晋升 0.62" style="height:9px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 2 轮 已晋升 0.71" style="height:10px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 3 轮 未晋升 0.66" style="height:10px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 4 轮 已晋升 0.8" style="height:11px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 5 轮 留出集未过 0.83" style="height:12px" data-tone="bad" data-zero="false"></span><span class="pt" title="第 6 轮 已晋升 0.9" style="height:13px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 7 轮 已晋升 0.94" style="height:13px" data-tone="ok" data-zero="false"></span></div></div><div class="loom-meters"><div class="loom-meter" title="已用 7 / 上限 12 轮" data-tone="ok"><span class="k">轮数</span><span class="bar"><span class="fill" style="width:58%"></span></span><span class="num">7/12</span></div><div class="loom-meter" title="已花 $0.41 / 上限 $1.00" data-tone="ok"><span class="k">花费</span><span class="bar"><span class="fill" style="width:41%"></span></span><span class="num">$0.41/$1.00</span></div><div class="loom-meter" title="轮内耗时 11 分 / 上限 240 分" data-tone="ok"><span class="k">时间</span><span class="bar"><span class="fill" style="width:5%"></span></span><span class="num">11/240 分</span></div></div></div><div class="loom-tri" title="平均每轮 96 秒（7/7 轮记录了墙钟） · 候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行） · 验证器占用墙钟 38% · 累计 18432 token，每轮 2.6k · 每次晋升 $0.08（共 $0.41，晋升率 71%）"><span class="seg" title="平均每轮 96 秒（7/7 轮记录了墙钟）">96秒/轮</span><span class="sep">·</span><span class="seg" title="候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行）">并行 ×2.3</span><span class="sep">·</span><span class="seg" title="验证器占用墙钟 38%">验证器 38%</span><span class="sep">·</span><span class="seg" title="累计 18432 token，每轮 2.6k">18.4k tok</span><span class="sep">·</span><span class="seg" title="每次晋升 $0.08（共 $0.41，晋升率 71%）">$0.08/晋升</span></div><div class="loom-meta" title="健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出"><span class="loom-dot" style="color:var(--loom-ok);margin-right:4px;vertical-align:middle"></span>健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出</div><div class="loom-chain" title="链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审">链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审</div></div><div class="loom-tree"><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="第 7 轮">第 7 轮</span><span class="v">已晋升 · 0.94</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a1">r7a1</span><span class="v">0.88</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a2">r7a2</span><span class="v">0.94</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r7a3">r7a3</span><span class="v">— · 已筛除</span></div><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="进行中">进行中</span><span class="v">1</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r8a1">r8a1</span><span class="v">运行中 · 静默 31 秒</span></div><div class="loom-node" data-depth="1" data-last="1"><span class="t" title="知识">知识</span><span class="v">6</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">round.js</span><span class="t" title="a child that died mid-turn can still pass the verifier on an unchanged tree">a child that died mid-turn can still pass the verifier on an unchanged tree</span><span class="v">+0.7</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">recovery.js</span><span class="t" title="an `autopilot.applied` with no commit is not a landing">an `autopilot.applied` with no commit is not a landing</span><span class="v">+0.5</span></div><div class="loom-node" data-depth="2" data-last="1" data-role="lesson"><span class="k">brief.js</span><span class="t" title="regenerate the brief at half length once the context blows">regenerate the brief at half length once the context blows</span><span class="v">+0.3</span></div></div><div class="loom-acts"><button class="loom-btn bare" title="暂停这一战役" type="button">暂停</button><button class="loom-btn bare danger" title="停止 loom-self15 — 需要再点一次确认" type="button">停止</button></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-warn)"></span><span class="loom-name" title="loom-chaos">loom-chaos</span><span class="loom-state">已暂停</span><span class="loom-brief" title="6 轮 · $0.29 · 最佳 1">6 轮 · $0.29 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-done)"></span><span class="loom-name" title="loom-self3">loom-self3</span><span class="loom-state">已完成</span><span class="loom-brief" title="11 轮 · $0.66 · 最佳 1">11 轮 · $0.66 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-ok)"></span><span class="loom-name" title="loom-triangle">loom-triangle</span><span class="loom-state">运行中</span><span class="loom-brief" title="2 轮 · 未定价">2 轮 · 未定价</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-idle)"></span><span class="loom-name" title="loom-fresh">loom-fresh</span><span class="loom-state">规划中</span><span class="loom-brief" title="0 轮 · $0">0 轮 · $0</span><span class="loom-caret">›</span></div></div></div></div><div class="loom-sec"><div class="loom-sec-head">知识<span class="n">15 有效 · 7 处 · 3 隔离</span></div><div class="loom-kfiles"><div class="loom-kfile"><div class="loom-kind" title="src/runtime/round.js"><span class="p">src/runtime/round.js</span><span class="c">3</span></div><div class="loom-lesson" title="a child that died mid-turn can still pass the verifier on an unchanged tree · 第 7 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a child that died mid-turn can still pass the verifier on an unchanged tree</span></div><div class="loom-lesson" title="a verifier that always fails is a gate nobody can reach · 第 4 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a verifier that always fails is a gate nobody can reach</span></div><div class="loom-lesson" title="a demoted provider must not keep planning · 第 3 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">a demoted provider must not keep planning</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/panel/api.js"><span class="p">src/panel/api.js</span><span class="c">2</span></div><div class="loom-lesson" title="wrap every per-campaign read, not just the loop · 第 2 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">wrap every per-campaign read, not just the loop</span></div><div class="loom-lesson" title="the panel reads one state object, never a campaign file · 第 4 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">the panel reads one state object, never a campaign file</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/dispatch/brief.js"><span class="p">src/dispatch/brief.js</span><span class="c">1</span></div><div class="loom-lesson" title="regenerate the brief at half length once the context blows · 第 5 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">regenerate the brief at half length once the context blows</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/exposure.js"><span class="p">src/runtime/exposure.js</span><span class="c">1</span></div><div class="loom-lesson" title="holdout tasks must rotate, or exposure becomes the lesson · 第 9 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">holdout tasks must rotate, or exposure becomes the lesson</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/ids.js"><span class="p">src/runtime/ids.js</span><span class="c">1</span></div><div class="loom-lesson" title="raise one checkpoint per stuck signature, not one per round · 第 3 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">raise one checkpoint per stuck signature, not one per round</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/recovery.js"><span class="p">src/runtime/recovery.js</span><span class="c">1</span></div><div class="loom-lesson" title="an `autopilot.applied` with no commit is not a landing · 第 6 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">an `autopilot.applied` with no commit is not a landing</span></div></div></div><div class="loom-more loom-more-groups">另有 1 处 · 共 15 条</div></div></div><div class="loom-foot"><span title="循环跑在这个窗口的进程里。关掉窗口 = 循环暂停：正在跑的候选会中断（这一轮的支出不退）。">关窗 = 循环暂停</span><span class="sep">Lean 就绪</span></div></div></div></div>
+  <div class="canvas dark wide"><div class="label">dark · 720px · the same component, more room</div><div class="slot"><div class="loom" style="height:100%"><div class="loom-head"><span class="loom-mark">RSI</span><span class="loom-spacer"></span><button class="loom-switch" title="不派规划 agent，候选直接开工；故障位置不明显时打开它" role="switch" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>规划</span></button><button class="loom-switch" title="循环正在派发；点这里停掉，战役历史不受影响" role="switch" aria-checked="true" tabindex="0" type="button"><span class="loom-track"><span class="loom-knob"></span></span><span>循环</span></button><button class="loom-btn bare" title="重新读取 ~/.dsh/loom" style="padding:5px 6px;min-height:24px" type="button" aria-label="刷新">↻</button></div><div class="loom-scroll" style="overflow-y:auto"><div class="loom-hero" aria-live="polite" aria-label="待你处理"><div class="loom-hero-head"><span class="k">没有待处理的决定</span></div><div class="loom-hero-empty"><span class="dot"></span><span><span class="rest">2 个战役在跑（<span class="id">loom-self15 第 7 轮</span>、<span class="id">loom-triangle 第 2 轮</span>）</span></span></div></div><div class="loom-figures"><span class="f"><b>5</b> 战役</span><span class="f"><b>2</b> 运行中</span><span class="f"><b>26</b> 轮</span><span class="f"><b>$1.36</b> 花费</span><span class="f"><b>18</b> 知识</span></div><div class="loom-sec"><div class="loom-sec-head">战役<span class="n">5 个</span><button class="loom-btn bare" title="把所有战役收成一行" style="margin-left:auto;font-size:11px" type="button">全收起</button></div><div class="loom-cards"><div class="loom-camp"><div style="cursor:pointer"><div class="loom-titlerow"><span class="loom-dot" style="color:var(--loom-ok);margin-bottom:1px"></span><span class="loom-name" title="loom-self15">loom-self15</span><span class="loom-state">运行中</span><span class="loom-age" title="最近一次活动在 42秒前">42秒前</span><span class="loom-caret">⌄</span></div><div class="loom-obj">make the loop survive a hostile host: dead child sessions, drifting ledgers, exhausted model budgets — without ever believing a round landed when it did not</div><div class="loom-vitals"><div class="loom-sparkwrap"><span class="cap">最近 7 轮</span><span class="spacer"></span><div class="loom-spark" title="最近 7 轮：柱高按分数、柱色按结果；空白=未计分，底线=0 分"><span class="pt" title="第 1 轮 未晋升 0.62" style="height:9px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 2 轮 已晋升 0.71" style="height:10px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 3 轮 未晋升 0.66" style="height:10px" data-tone="warn" data-zero="false"></span><span class="pt" title="第 4 轮 已晋升 0.8" style="height:11px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 5 轮 留出集未过 0.83" style="height:12px" data-tone="bad" data-zero="false"></span><span class="pt" title="第 6 轮 已晋升 0.9" style="height:13px" data-tone="ok" data-zero="false"></span><span class="pt" title="第 7 轮 已晋升 0.94" style="height:13px" data-tone="ok" data-zero="false"></span></div></div><div class="loom-meters"><div class="loom-meter" title="已用 7 / 上限 12 轮" data-tone="ok"><span class="k">轮数</span><span class="bar"><span class="fill" style="width:58%"></span></span><span class="num">7/12</span></div><div class="loom-meter" title="已花 $0.41 / 上限 $1.00" data-tone="ok"><span class="k">花费</span><span class="bar"><span class="fill" style="width:41%"></span></span><span class="num">$0.41/$1.00</span></div><div class="loom-meter" title="轮内耗时 11 分 / 上限 240 分" data-tone="ok"><span class="k">时间</span><span class="bar"><span class="fill" style="width:5%"></span></span><span class="num">11/240 分</span></div></div></div><div class="loom-tri" title="平均每轮 96 秒（7/7 轮记录了墙钟） · 候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行） · 验证器占用墙钟 38% · 累计 18432 token，每轮 2.6k · 每次晋升 $0.08（共 $0.41，晋升率 71%）"><span class="seg" title="平均每轮 96 秒（7/7 轮记录了墙钟）">96秒/轮</span><span class="sep">·</span><span class="seg" title="候选累计耗时 ÷ 墙钟 = 2.30（1.0 是串行，2.0 是两个候选并行）">并行 ×2.3</span><span class="sep">·</span><span class="seg" title="验证器占用墙钟 38%">验证器 38%</span><span class="sep">·</span><span class="seg" title="累计 18432 token，每轮 2.6k">18.4k tok</span><span class="sep">·</span><span class="seg" title="每次晋升 $0.08（共 $0.41，晋升率 71%）">$0.08/晋升</span></div><div class="loom-meta" title="健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出"><span class="loom-dot" style="color:var(--loom-ok);margin-right:4px;vertical-align:middle"></span>健康 · 5/7 晋升 · 最佳 1 · 6 条知识 · 2 留出</div><div class="loom-chain" title="链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审">链 v2 · 执行/worker → 并行/candidates → 验证/tests → 人审</div></div><div class="loom-tree"><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="第 7 轮">第 7 轮</span><span class="v">已晋升 · 0.94</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a1">r7a1</span><span class="v">0.88</span></div><div class="loom-node" data-depth="2" data-last="0"><span class="t mono" title="r7a2">r7a2</span><span class="v">0.94</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r7a3">r7a3</span><span class="v">— · 已筛除</span></div><div class="loom-node" data-depth="1" data-last="0"><span class="loom-dot" style="color:var(--loom-ok);margin-right:2px"></span><span class="t" title="进行中">进行中</span><span class="v">1</span></div><div class="loom-node" data-depth="2" data-last="1"><span class="t mono" title="r8a1">r8a1</span><span class="v">运行中 · 静默 31 秒</span></div><div class="loom-node" data-depth="1" data-last="1"><span class="t" title="知识">知识</span><span class="v">6</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">round.js</span><span class="t" title="a child that died mid-turn can still pass the verifier on an unchanged tree">a child that died mid-turn can still pass the verifier on an unchanged tree</span><span class="v">+0.7</span></div><div class="loom-node" data-depth="2" data-last="0" data-role="lesson"><span class="k">recovery.js</span><span class="t" title="an `autopilot.applied` with no commit is not a landing">an `autopilot.applied` with no commit is not a landing</span><span class="v">+0.5</span></div><div class="loom-node" data-depth="2" data-last="1" data-role="lesson"><span class="k">brief.js</span><span class="t" title="regenerate the brief at half length once the context blows">regenerate the brief at half length once the context blows</span><span class="v">+0.3</span></div></div><div class="loom-acts"><button class="loom-btn bare" title="暂停这一战役" type="button">暂停</button><button class="loom-btn bare danger" title="停止 loom-self15 — 需要再点一次确认" type="button">停止</button></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-warn)"></span><span class="loom-name" title="loom-chaos">loom-chaos</span><span class="loom-state">已暂停</span><span class="loom-brief" title="6 轮 · $0.29 · 最佳 1">6 轮 · $0.29 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-done)"></span><span class="loom-name" title="loom-self3">loom-self3</span><span class="loom-state">已完成</span><span class="loom-brief" title="11 轮 · $0.66 · 最佳 1">11 轮 · $0.66 · 最佳 1</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-ok)"></span><span class="loom-name" title="loom-triangle">loom-triangle</span><span class="loom-state">运行中</span><span class="loom-brief" title="2 轮 · 未定价">2 轮 · 未定价</span><span class="loom-caret">›</span></div></div><div class="loom-camp folded"><div class="loom-hit" role="button" tabindex="0"><span class="loom-dot" style="color:var(--loom-idle)"></span><span class="loom-name" title="loom-fresh">loom-fresh</span><span class="loom-state">规划中</span><span class="loom-brief" title="0 轮 · $0">0 轮 · $0</span><span class="loom-caret">›</span></div></div></div></div><div class="loom-sec"><div class="loom-sec-head">知识<span class="n">15 有效 · 7 处 · 3 隔离</span></div><div class="loom-kfiles"><div class="loom-kfile"><div class="loom-kind" title="src/runtime/round.js"><span class="p">src/runtime/round.js</span><span class="c">3</span></div><div class="loom-lesson" title="a child that died mid-turn can still pass the verifier on an unchanged tree · 第 7 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a child that died mid-turn can still pass the verifier on an unchanged tree</span></div><div class="loom-lesson" title="a verifier that always fails is a gate nobody can reach · 第 4 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">a verifier that always fails is a gate nobody can reach</span></div><div class="loom-lesson" title="a demoted provider must not keep planning · 第 3 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">a demoted provider must not keep planning</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/panel/api.js"><span class="p">src/panel/api.js</span><span class="c">2</span></div><div class="loom-lesson" title="wrap every per-campaign read, not just the loop · 第 2 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">wrap every per-campaign read, not just the loop</span></div><div class="loom-lesson" title="the panel reads one state object, never a campaign file · 第 4 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">the panel reads one state object, never a campaign file</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/dispatch/brief.js"><span class="p">src/dispatch/brief.js</span><span class="c">1</span></div><div class="loom-lesson" title="regenerate the brief at half length once the context blows · 第 5 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">regenerate the brief at half length once the context blows</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/exposure.js"><span class="p">src/runtime/exposure.js</span><span class="c">1</span></div><div class="loom-lesson" title="holdout tasks must rotate, or exposure becomes the lesson · 第 9 轮"><span class="kind" data-kind="fact">事实</span><span class="claim">holdout tasks must rotate, or exposure becomes the lesson</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/ids.js"><span class="p">src/runtime/ids.js</span><span class="c">1</span></div><div class="loom-lesson" title="raise one checkpoint per stuck signature, not one per round · 第 3 轮"><span class="kind" data-kind="recipe">做法</span><span class="claim">raise one checkpoint per stuck signature, not one per round</span></div></div><div class="loom-kfile"><div class="loom-kind" title="src/runtime/recovery.js"><span class="p">src/runtime/recovery.js</span><span class="c">1</span></div><div class="loom-lesson" title="an `autopilot.applied` with no commit is not a landing · 第 6 轮"><span class="kind" data-kind="hazard">风险</span><span class="claim">an `autopilot.applied` with no commit is not a landing</span></div></div></div><div class="loom-more loom-more-groups">另有 1 处 · 共 15 条</div></div></div><div class="loom-foot"><span title="循环跑在这个窗口的进程里。关掉窗口 = 循环暂停：正在跑的候选会中断（这一轮的支出不退）。">关窗 = 循环暂停</span><span class="sep">Lean 就绪</span></div></div></div></div>
+</div>
+</body>
+</html>

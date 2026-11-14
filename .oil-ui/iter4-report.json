@@ -1,0 +1,22 @@
+[
+  {
+    "file": "page.png",
+    "state": null,
+    "size": "1440x900",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": [
+      {
+        "rule": "smallText",
+        "label": "文字小于 11px",
+        "count": 27,
+        "examples": [
+          "span.kind「风险」（10.5px）",
+          "span.kind「风险」（10.5px）",
+          "span.kind「事实」（10.5px）"
+        ]
+      }
+    ]
+  }
+]

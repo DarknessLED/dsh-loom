@@ -210,7 +210,10 @@ window.__ModuleLoader__.load({
       // the 400px sidebar.
       '@container (min-width:560px){.loom-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));',
       ' gap:8px;align-items:start}',
-      '.loom-cards .loom-camp:not(.folded){grid-column:1/-1}}',
+      '.loom-cards .loom-camp:not(.folded){grid-column:1/-1}',
+      // the open card may span the panel, but its rows stay one readable column:
+      // a label on the left and a score 500px to its right is not a row
+      '.loom-cards .loom-camp:not(.folded) .loom-tree{max-width:32em}}',
       '.loom-camp{padding:12px 13px 11px;border:1px solid var(--loom-line);border-radius:14px;min-width:0;',
       ' background:color-mix(in srgb,var(--loom-base) 1.4%,transparent);',
       ' transition:border-color 180ms var(--loom-ease),box-shadow 180ms var(--loom-ease),background 180ms var(--loom-ease)}',
@@ -234,7 +237,7 @@ window.__ModuleLoader__.load({
       // the objective is the one sentence that says what this campaign is for;
       // clipping it to two lines clipped it at every width, so it is shown whole
       // in the expanded card (the folded row has its own one-line brief)
-      '.loom-obj{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--loom-soft)}',
+      '.loom-obj{margin-top:5px;max-width:44em;font-size:12.5px;line-height:1.5;color:var(--loom-soft)}',
       '.loom-meta{margin-top:5px;font-size:11.5px;color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-chain{margin-top:4px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
@@ -657,7 +660,23 @@ window.__ModuleLoader__.load({
       if (cp && cp.kind === 'policy' && payload.policyVersion !== undefined && payload.policyVersion !== null) {
         return { verb: '生效', what: '把策略 v' + payload.policyVersion + ' 设为这一战役的策略', fatal: false }
       }
-      return { verb: '放行', what: '只表示可以继续，不落地任何补丁', fatal: false }
+      // Three kinds raise a checkpoint and apply nothing on approval. Saying "no
+      // patch is landed" three times is true and useless: say what carrying on
+      // means for this one.
+      var pass = {
+        stuck: '这一轮没有裁决，循环下一轮会再试同一道门',
+        holdout: '这一轮的候选作废，下一轮重新挑任务',
+        anomaly: '账本里的矛盾保持原样，之后按现状继续',
+        plateau: '保持当前工作链继续跑',
+        budget: '按当前预算继续，不再追加',
+        exhausted: '按当前模型配置继续，不再换模型',
+        human: '循环按现在的方向继续',
+      }
+      return {
+        verb: '放行',
+        what: pass[cp && cp.kind] || '只表示可以继续，不落地任何补丁',
+        fatal: false,
+      }
     }
 
     /** 一行里同时给出「是什么」和「不管会怎样」。 */
@@ -2235,7 +2254,6 @@ window.__ModuleLoader__.load({
         // consequence in a second line -- a decision the reader cannot price is
         // a decision they will postpone.
         var queueRows = queue.rows.map(function (q, rowIndex) {
-          var firstRow = rowIndex === 0
           var key = q.campaign + ':' + q.id
           var busyKey = q.campaign + ':decide'
           // Two clicks for the act that cannot be undone, one for the acts that
@@ -2315,7 +2333,9 @@ window.__ModuleLoader__.load({
                 'button',
                 {
                   type: 'button',
-                  className: firstRow ? 'loom-btn solid' : 'loom-btn line',
+                  // the filled button is the one that changes the repository: a
+                  // rule a reader can learn, instead of "whichever row is first"
+                  className: effect.fatal ? 'loom-btn solid' : 'loom-btn line',
                   disabled: box.busy === busyKey,
                   title: arming
                     ? '再点一次：' + effect.what

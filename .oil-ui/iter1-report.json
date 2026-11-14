@@ -1,0 +1,32 @@
+[
+  {
+    "file": "page.png",
+    "state": null,
+    "size": "1440x900",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": [
+      {
+        "rule": "smallText",
+        "label": "文字小于 11px",
+        "count": 51,
+        "examples": [
+          "div.label「DARK · #08090A · 320PX」（10px）",
+          "button.loom-btn.bare「全收起」（9.5px）",
+          "span.k「晋升待审」（10.5px）"
+        ]
+      },
+      {
+        "rule": "contrastLow",
+        "label": "文字对比度不达标（正文低于 3:1，大字低于 2.5:1）",
+        "count": 32,
+        "examples": [
+          "button.loom-btn.solid「批准」（1.31:1）",
+          "button.loom-btn.solid「批准」（1.31:1）",
+          "button.loom-btn.solid「批准」（1.31:1）"
+        ]
+      }
+    ]
+  }
+]

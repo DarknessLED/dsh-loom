@@ -1,0 +1,22 @@
+[
+  {
+    "file": "page-@2x.png",
+    "state": null,
+    "size": "1440x1000",
+    "zoom": 2,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": [
+      {
+        "rule": "smallText",
+        "label": "文字小于 11px",
+        "count": 45,
+        "examples": [
+          "span.k「晋升待审」（10.5px）",
+          "span.k「门不可达」（10.5px）",
+          "span.k「留出集」（10.5px）"
+        ]
+      }
+    ]
+  }
+]
