@@ -116,6 +116,14 @@ let payload = {
       status: 'running',
       rounds: 7,
       spendUsd: 0.41,
+      // Attempts are what the spend rows read: the per-model figure is summed
+      // here, and the tokens/usd totals agree with the triangle below so the
+      // preview does not show two numbers that cannot both be true.
+      attempts: [
+        { id: 'r6a1', model: 'deepseek-flash', costUsd: 0.26, tokens: 9_900 },
+        { id: 'r6a2', model: 'kimi-k2', costUsd: 0.11, tokens: 6_100 },
+        { id: 'r7a1', model: 'deepseek-flash', costUsd: 0.04, tokens: 2_432 },
+      ],
       open: 1,
       lessons: 6,
       quarantined: 1,

@@ -266,6 +266,12 @@ window.__ModuleLoader__.load({
       '.loom-model .ratio[data-tone=warn]{color:var(--loom-warn);}',
       '.loom-model .note{font-size:11px;color:var(--loom-faint);}',
       '.loom-model .p90{font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);text-align:right;font-variant-numeric:tabular-nums;}',
+      // the spend block is one column of full-width rows: model on the left,
+      // dollars then their share on the right, so the two numbers line up
+      // across models the way the rest of the card's mono columns do.
+      '.loom-spend{grid-template-columns:1fr}',
+      '.loom-spend .loom-model .usd{font-family:var(--loom-mono);font-size:11px;color:var(--loom-soft);margin-left:auto;font-variant-numeric:tabular-nums;}',
+      '.loom-spend .loom-model .share{font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);min-width:34px;text-align:right;font-variant-numeric:tabular-nums;}',
       // ---- the measured triangle, the trend, the budget -------------------
       '.loom-tri{margin-top:7px;display:block;min-width:0;font-family:var(--loom-mono);',
       ' font-size:11px;letter-spacing:-.01em;line-height:1.55;color:var(--loom-quiet);',
@@ -1667,6 +1673,50 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Which model spent the money, one row per model.
+     *
+     * The card shows one blended dollar figure, which cannot answer "where did
+     * the $0.31 go" when a campaign routes to four providers at four prices.
+     * Every attempt records `model`, `costUsd` and `tokens`, so the answer is a
+     * sum per model -- and the share is by dollars, not by attempt count: two
+     * candidates at the same price do not split the bill evenly with a fallback
+     * that ran once.
+     *
+     * An attempt that never recorded a model is `unknown`, not dropped: that is
+     * spend the host can see and the card would otherwise hide. A campaign that
+     * spent nothing has no rows at all -- there is no share of zero to draw, and
+     * a $0 row would claim a measurement the ledger does not contain.
+     */
+    function modelSpend(c) {
+      var attempts = c && Array.isArray(c.attempts) ? c.attempts : []
+      var by = Object.create(null)
+      var keys = []
+      attempts.forEach(function (a) {
+        if (!a || typeof a !== 'object') return
+        var ref = typeof a.model === 'string' && a.model.length > 0 ? a.model : 'unknown'
+        if (!by[ref]) {
+          by[ref] = { model: ref, usd: 0, tokens: 0 }
+          keys.push(ref)
+        }
+        var usd = amount(a.costUsd)
+        var tokens = amount(a.tokens)
+        by[ref].usd += usd === null ? 0 : usd
+        by[ref].tokens += tokens === null ? 0 : tokens
+      })
+      var total = keys.reduce(function (sum, key) { return sum + by[key].usd }, 0)
+      if (!(total > 0)) return []
+      return keys
+        .map(function (key) {
+          var row = by[key]
+          return { model: row.model, usd: row.usd, tokens: row.tokens, share: row.usd / total }
+        })
+        .sort(function (a, b) {
+          if (b.usd !== a.usd) return b.usd - a.usd
+          return a.model < b.model ? -1 : a.model > b.model ? 1 : 0
+        })
+    }
+
+    /**
      * Three thin meters: rounds, money, wall-clock. The numbers sit right
      * aligned in mono so the columns line up across campaigns; the fill is
      * clamped at 100% because a meter that overflows its own track is a
@@ -2806,6 +2856,14 @@ window.__ModuleLoader__.load({
 
         var tri = triangleChips(c)
         var modelRows_ = modelRows(c)
+        // A separate block, not a column on the reliability rows: `modelRows_`
+        // comes from the triangle and lists only providers it measured, while
+        // spend rides on the attempts themselves. A campaign can have one and
+        // not the other, and joining them would silently drop spend rows.
+        var spendRows_ = modelSpend(c)
+        var spendTitle = spendRows_.length > 0
+          ? '按模型拆分花费（共 ' + money(spendRows_.reduce(function (sum, row) { return sum + row.usd }, 0)) + '）'
+          : ''
         var spark = sparkOf(c)
         var meters = budgetMeters(c)
         var nodeKids = nodeChips(c)
@@ -2992,6 +3050,18 @@ window.__ModuleLoader__.load({
                 h('div', { key: row.key + ':r', className: 'p90', title: 'p90 用时（判过的尝试）' }, row.p90),
               ]
             }).reduce(function (all, pair) { return all.concat(pair) }, []))),
+            // Below the reliability rows: same block class, one full-width row
+            // per model, so the card reads "who ran it" then "who paid for it".
+            when(spendRows_.length > 0, h('div', { className: 'loom-models loom-spend', title: spendTitle }, spendRows_.map(function (row) {
+              return h('div', {
+                key: 'spend:' + row.model,
+                className: 'loom-model',
+                title: row.model + '：' + money(row.usd) + ' · 占 ' + Math.round(row.share * 100) + '% · ' + row.tokens + ' tokens',
+              },
+                h('span', { className: 'ref' }, row.model),
+                h('span', { className: 'usd' }, money(row.usd)),
+                h('span', { className: 'share' }, Math.round(row.share * 100) + '%'))
+            }))),
           ),
           bandNode,
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
@@ -3114,6 +3184,7 @@ window.__ModuleLoader__.load({
       endCauseLabel: endCauseLabel,
       triangleChips: triangleChips,
       modelRows: modelRows,
+      modelSpend: modelSpend,
       sparkOf: sparkOf,
       budgetMeters: budgetMeters,
       attemptChips: attemptChips,
