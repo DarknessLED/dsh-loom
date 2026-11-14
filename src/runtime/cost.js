@@ -74,19 +74,46 @@ function readLedgerText(dir) {
   }
 }
 
-/** Find `<home>/sessions/<workspace>/<sessionId>/session.v4.jsonl(.zstd)` and read it. */
+/**
+ * Find `<home>/sessions/<workspace>/<sessionId>/session.v4.jsonl(.zstd)` and read it.
+ *
+ * The host does not always name the directory `<id>`: an alias or an older
+ * writer prefixes it (`session-<uuid>`), so a directory whose name merely ends
+ * with the id still identifies the session. Every exact `<id>` is tried across
+ * every workspace before any suffix match, so a prefixed neighbour can never
+ * shadow the real directory when both exist.
+ */
 function readSessionLedger(home, sessionId) {
   if (typeof home !== 'string' || home === '') return null
+  const root = join(home, 'sessions')
   let workspaces
   try {
-    workspaces = readdirSync(join(home, 'sessions'), { withFileTypes: true })
+    workspaces = readdirSync(root, { withFileTypes: true }).filter((w) => w.isDirectory())
   } catch {
     return null
   }
+  // Common case: the directory is named exactly `<id>`, so one read per
+  // workspace and no directory listing of the session archives at all.
   for (const workspace of workspaces) {
-    if (!workspace.isDirectory()) continue
-    const text = readLedgerText(join(home, 'sessions', workspace.name, sessionId))
+    const text = readLedgerText(join(root, workspace.name, sessionId))
     if (text !== null) return text
+  }
+  // Prefixed case: list each workspace's session directories and take the one
+  // whose name ends with the id.
+  for (const workspace of workspaces) {
+    const workspaceDir = join(root, workspace.name)
+    let entries
+    try {
+      entries = readdirSync(workspaceDir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name === sessionId) continue
+      if (!entry.name.endsWith(sessionId)) continue
+      const text = readLedgerText(join(workspaceDir, entry.name))
+      if (text !== null) return text
+    }
   }
   return null
 }
