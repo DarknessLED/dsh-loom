@@ -312,10 +312,12 @@ test('one stylesheet, injected once, from the component not the module', () => {
 
 test('a destructive action needs a second click', () => {
   const source = readFileSync(clientPath, 'utf8')
-  assert.match(source, /armed \? '确定\?' : '驳回'/, 'reject arms before it fires')
-  assert.match(source, /armed \? '停止\?' : '停止'/, 'stop arms too')
+  assert.match(source, /armingReject \? '确认驳回' : '驳回'/, 'reject arms before it fires, and the armed button says what it will do')
+  assert.match(source, /stopping \? '确认停止' : item\.label/, 'stop arms too, through the same verb list the card draws')
   assert.match(source, /if \(action\.confirm && !isArmed\)/, 'a tree action with confirm only arms on the first click')
-  assert.match(source, /if \(!armed\) \{\s+setConfirming\(key\)/, 'the first click only arms')
+  assert.match(source, /if \(!armingReject\) \{\s+setConfirming\(key \+ ':reject'\)/, 'the first click only arms')
+  // the irreversible act is the one that needs two clicks: landing a patch
+  assert.match(source, /if \(effect\.fatal && !arming\)/, 'landing a patch arms before it lands')
 })
 
 // The campaign body is a tree, like the Agent Teams panel's delegation tree:
@@ -570,8 +572,10 @@ test('the grid answers to the container, and a wide panel packs by column', () =
   assert.match(CSS, /\.loom\{[^}]*container-type:inline-size/, 'the panel is a query container: its width, not the window\'s, decides')
   assert.match(CSS, /\.loom-cards\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(268px,1fr\)\)/,
     'campaigns flow into as many columns as fit')
-  assert.match(CSS, /@container \(min-width:560px\)\{\.loom-cards\{display:block;columns:2/,
-    'past 560px the cards stack into two columns, so an expanded campaign does not stretch its neighbours')
+  assert.match(CSS, /@container \(min-width:560px\)\{\.loom-cards\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,
+    'past 560px the folded campaigns pack two-up')
+  assert.match(CSS, /\.loom-cards \.loom-camp:not\(\.folded\)\{grid-column:1\/-1\}/,
+    'and the campaign being read takes the whole width instead of half of it')
   assert.match(CSS, /@container \(max-width:400px\)\{\s*\.loom-hero-row\{flex-wrap:wrap/,
     'a narrow queue puts the actions under the sentence instead of squeezing both')
   assert.match(CSS, /\.loom-kfiles\{display:block/,

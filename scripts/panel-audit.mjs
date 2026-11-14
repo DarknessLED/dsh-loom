@@ -298,7 +298,10 @@ for (const c of data.canvases) {
   if (c.panelWidth < 360 && c.cardColumns > 1) {
     problems.push(`${c.name} is only ${c.panelWidth}px wide but squeezes campaigns into ${c.cardColumns} columns`)
   }
-  if (c.panelWidth >= 380 && c.knowledgeColumns < 2) {
+  // Two knowledge columns are only worth having when each still holds a whole
+  // sentence: below ~520px the second column buys density by clipping claims,
+  // so one column is the correct answer there, not a miss.
+  if (c.panelWidth >= 520 && c.knowledgeColumns < 2) {
     problems.push(`${c.name} has room for two knowledge columns but renders ${c.knowledgeColumns}`)
   }
 }

@@ -171,9 +171,17 @@ window.__ModuleLoader__.load({
       // the full text lives in the title
       '.loom-hero-row .txt .why{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;',
       ' overflow:hidden;margin-top:2px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}',
+      // what the thumb does, in the reader's words -- one line, quiet, and the
+      // only place that separates "lands a commit" from "says carry on"
+      '.loom-hero-row .txt .then{display:block;margin-top:3px;font-size:11px;line-height:1.5;color:var(--loom-soft)}',
+      // the flag is emphasis, not another hue: at 11px a warn tone measured
+      // 3.7:1 on the dark canvas, and the words already carry the meaning
+      '.loom-hero-row .txt .then .flag{color:var(--loom-ink);font-weight:500}',
       '.loom-hero-acts{flex:0 0 auto;display:flex;align-items:center;gap:2px}',
       '.loom-hero-empty{display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:12px;color:var(--loom-quiet)}',
       '.loom-hero-empty .dot{width:6px;height:6px;border-radius:999px;background:var(--loom-ok);flex:0 0 auto}',
+      '.loom-hero-empty .rest{min-width:0}',
+      '.loom-hero-empty .rest .id{white-space:nowrap}',
       '.loom-note{padding:0 14px 10px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}',
       // ---- overview: a caption, not a table -------------------------------
       // Six boxed tiles read as a dashboard of six equal facts, and four of
@@ -196,8 +204,13 @@ window.__ModuleLoader__.load({
       // rows would stretch every card to the height of the tallest one in its
       // band, which is a screen of empty space beside an expanded campaign;
       // columns let each card take the height it earns
-      '@container (min-width:560px){.loom-cards{display:block;columns:2;column-gap:8px}',
-      '.loom-cards .loom-camp{break-inside:avoid;margin-bottom:8px}}',
+      // A wide panel shows the campaign you are reading at full width and packs
+      // the folded ones two-up underneath: masonry columns squeezed the open
+      // card into half the panel, which made the detail narrower than it was in
+      // the 400px sidebar.
+      '@container (min-width:560px){.loom-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));',
+      ' gap:8px;align-items:start}',
+      '.loom-cards .loom-camp:not(.folded){grid-column:1/-1}}',
       '.loom-camp{padding:12px 13px 11px;border:1px solid var(--loom-line);border-radius:14px;min-width:0;',
       ' background:color-mix(in srgb,var(--loom-base) 1.4%,transparent);',
       ' transition:border-color 180ms var(--loom-ease),box-shadow 180ms var(--loom-ease),background 180ms var(--loom-ease)}',
@@ -218,8 +231,10 @@ window.__ModuleLoader__.load({
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-state{flex:0 0 auto;font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--loom-quiet);white-space:nowrap}',
       '.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);white-space:nowrap}',
-      '.loom-obj{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--loom-soft);',
-      ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
+      // the objective is the one sentence that says what this campaign is for;
+      // clipping it to two lines clipped it at every width, so it is shown whole
+      // in the expanded card (the folded row has its own one-line brief)
+      '.loom-obj{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--loom-soft)}',
       '.loom-meta{margin-top:5px;font-size:11.5px;color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-chain{margin-top:4px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
@@ -368,8 +383,10 @@ window.__ModuleLoader__.load({
       // with room to spare the consequence sentence is read in full; the clamp
       // exists for the 320px sidebar, not for a half-window panel
       '.loom-hero-row .txt .why{-webkit-line-clamp:unset;overflow:visible}',
-      '.loom-hero-rows{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}',
-      '.loom-hero-row:nth-child(2){border-top:1px solid var(--loom-line)}}',
+      // the queue stays one column at every width: it is read top to bottom and
+      // answered in that order, and two columns put the second row lower than
+      // the third while the buttons landed on two different x-axes
+      '.loom-hero-row .txt .then{max-width:46em}}',
       // a sidebar narrower than ~400px cannot hold a sentence and two buttons
       // on one line: the sentence takes the width, the actions drop below it
       '@container (max-width:400px){',
@@ -619,6 +636,30 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // What a thumb on "approve" actually does. The three checkpoints in a queue
+    // are not the same act -- one lands a patch as a commit, one switches the
+    // chain, one merely says "carry on" -- so the row has to say which, and the
+    // button has to be the verb rather than the word "approve" three times.
+    function approveEffect(cp) {
+      var payload = (cp && cp.payload) || {}
+      if (payload.patch) {
+        return {
+          verb: '落地提交',
+          what: payload.attempt
+            ? '把 ' + payload.attempt + ' 的补丁写进工作区并提交'
+            : '把这一轮的补丁写进工作区并提交',
+          fatal: true,
+        }
+      }
+      if (cp && cp.kind === 'chain' && payload.chainVersion !== undefined && payload.chainVersion !== null) {
+        return { verb: '切换', what: '把工作链切到 v' + payload.chainVersion, fatal: false }
+      }
+      if (cp && cp.kind === 'policy' && payload.policyVersion !== undefined && payload.policyVersion !== null) {
+        return { verb: '生效', what: '把策略 v' + payload.policyVersion + ' 设为这一战役的策略', fatal: false }
+      }
+      return { verb: '放行', what: '只表示可以继续，不落地任何补丁', fatal: false }
+    }
+
     /** 一行里同时给出「是什么」和「不管会怎样」。 */
     function checkpointHelpText(kind) {
       var help = checkpointHelp(kind)
@@ -845,6 +886,7 @@ window.__ModuleLoader__.load({
             // paragraphs inside the campaign.
             help: checkpointHelpText(cp.kind),
             brief: checkpointHelp(cp.kind).what,
+            approve: approveEffect(cp),
             waitMs: at === null ? null : Math.max(0, now - at),
             // A postponed row says so, and says when it is worth reading again;
             // it stays in the queue so it is not silently forgotten.
@@ -2196,7 +2238,12 @@ window.__ModuleLoader__.load({
           var firstRow = rowIndex === 0
           var key = q.campaign + ':' + q.id
           var busyKey = q.campaign + ':decide'
-          var armed = confirming === key
+          // Two clicks for the act that cannot be undone, one for the acts that
+          // change nothing on disk. The armed state says what it will do, so a
+          // reader never has to remember why the button changed.
+          var arming = confirming === key
+          var armingReject = confirming === key + ':reject'
+          var effect = q.approve || { verb: '放行', what: '只表示可以继续，不落地任何补丁', fatal: false }
           var assessed = q.riskSource === 'review'
           var why = assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险'
           // What happened and what ignoring it costs, in the tooltip: the queue
@@ -2233,6 +2280,15 @@ window.__ModuleLoader__.load({
                   : null,
               ),
               h('span', { className: 'why' }, why),
+              // The row is the only place most checkpoints are read, and a
+              // decision you cannot price is one you will postpone: say what the
+              // thumb actually does, and whether it can be taken back.
+              h(
+                'span',
+                { className: 'then' },
+                '批准后：' + effect.what,
+                effect.fatal ? h('span', { className: 'flag' }, ' · 不可撤销') : null,
+              ),
             ),
             h(
               'span',
@@ -2243,33 +2299,37 @@ window.__ModuleLoader__.load({
                   type: 'button',
                   className: 'loom-btn line danger',
                   disabled: box.busy === busyKey,
-                  title: armed ? '再点一次即驳回' : '驳回 — 需要再点一次确认',
+                  title: armingReject ? '再点一次即驳回' : '驳回 — 需要再点一次确认',
                   onClick: function () {
-                    if (!armed) {
-                      setConfirming(key)
+                    if (!armingReject) {
+                      setConfirming(key + ':reject')
                       return
                     }
                     setConfirming(null)
                     act(q.campaign, 'decide', 'reject', q.id)
                   },
                 },
-                armed ? '确定?' : '驳回',
+                armingReject ? '确认驳回' : '驳回',
               ),
               h(
                 'button',
                 {
                   type: 'button',
-                  // one solid button on the whole panel: the first decision is
-                  // the one to take, the rest are still reachable but do not
-                  // compete with it
                   className: firstRow ? 'loom-btn solid' : 'loom-btn line',
                   disabled: box.busy === busyKey,
-                  title: '接受这个检查点，让这一轮落地',
+                  title: arming
+                    ? '再点一次：' + effect.what
+                    : effect.what + (effect.fatal ? '（不可撤销，需要再点一次）' : ''),
                   onClick: function () {
+                    if (effect.fatal && !arming) {
+                      setConfirming(key)
+                      return
+                    }
+                    setConfirming(null)
                     act(q.campaign, 'decide', 'approve', q.id)
                   },
                 },
-                '批准',
+                arming ? '确认' + effect.verb : effect.verb,
               ),
             ),
           )
@@ -2281,18 +2341,30 @@ window.__ModuleLoader__.load({
         var movingNow = ((data && data.campaigns) || []).filter(function (c) {
           return c.status === 'running'
         })
-        var lastMoving = movingNow.length
-          ? movingNow
-              .slice()
-              .sort(function (a, b) {
-                var an = (a.lastRound && a.lastRound.n) || 0
-                var bn = (b.lastRound && b.lastRound.n) || 0
-                return bn - an
-              })[0]
-          : null
-        var restLine = lastMoving
-          ? movingNow.length + ' 个战役在跑 · ' + lastMoving.id + ' 第 ' + ((lastMoving.lastRound && lastMoving.lastRound.n) || 0) + ' 轮'
-          : '循环在自己跑；需要人时，它会出现在这里'
+        // the busiest first: the campaign furthest into its budget is the one a
+        // reader wants named first
+        movingNow.sort(function (a, b) {
+          var an = (a.lastRound && a.lastRound.n) || 0
+          var bn = (b.lastRound && b.lastRound.n) || 0
+          return bn - an
+        })
+        // Name every campaign that is moving, not just the busiest one: "2 个在跑"
+        // beside a single name reads like one of them is unaccounted for.
+        var restKids = movingNow.length
+          ? [movingNow.length + ' 个战役在跑（']
+              .concat(
+                movingNow.slice(0, 3).reduce(function (all, c, i) {
+                  var n = (c.lastRound && c.lastRound.n) || 0
+                  if (i > 0) all.push('、')
+                  // an id is one word: it must not break between "loom-" and the
+                  // campaign's name at 320px
+                  all.push(h('span', { key: c.id, className: 'id' }, c.id + (n ? ' 第 ' + n + ' 轮' : '')))
+                  return all
+                }, []),
+              )
+              .concat([(movingNow.length > 3 ? ' 等' : '') + '）'])
+          : ['循环在自己跑；需要人时，它会出现在这里']
+        var restLine = h('span', { className: 'rest' }, restKids)
 
         var pendingBlock = h(
           'div',
@@ -2496,11 +2568,20 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'loom-foot' },
           // The one fact a reader must not have to discover by closing the
-          // window: the loop lives in this process.
+          // window: the loop lives in this process. Say what closing costs, not
+          // just where it runs -- "runs in this window" alone reads like a
+          // detail, and the reader closes the window to find out it was a rule.
           h(
             'span',
-            { title: '循环跑在这个窗口的进程里；关掉窗口，它就不跑了' },
-            data && data.ownership && data.ownership.mine === false ? '由另一个窗口运行' : '循环在本窗口运行',
+            {
+              title:
+                '循环跑在这个窗口的进程里。关掉窗口 = 循环暂停：' +
+                (queue.total > 0 ? '待你决定的 ' + queue.total + ' 条会保留，' : '') +
+                '正在跑的候选会中断（这一轮的支出不退）。',
+            },
+            data && data.ownership && data.ownership.mine === false
+              ? '由另一个窗口运行'
+              : '关窗 = 循环暂停' + (queue.total > 0 ? ' · 待决定 ' + queue.total + ' 条保留' : ''),
           ),
           data && data.lean ? h('span', { className: 'sep' }, 'Lean ' + (data.lean.available ? '就绪' : '未安装')) : null,
         )
@@ -2534,7 +2615,16 @@ window.__ModuleLoader__.load({
           h('span', { className: 'loom-dot', style: { color: TONES[cardTone(c)], marginBottom: 1 } }),
           h('span', { className: 'loom-name', title: c.id }, c.id),
           h('span', { className: 'loom-state' }, statusLabel(c.status)),
-          h('span', { className: 'loom-age', title: age(c.ageMs) ? '最近活动 ' + age(c.ageMs) + '前' : '' }, folded ? '' : age(c.ageMs)),
+          // "42秒" beside a running campaign reads as uptime; the card means
+          // "last thing that happened was 42 seconds ago", and says so
+          h(
+            'span',
+            {
+              className: 'loom-age',
+              title: age(c.ageMs) ? '最近一次活动在 ' + age(c.ageMs) + '前' : '',
+            },
+            folded || !age(c.ageMs) ? '' : age(c.ageMs) + '前',
+          ),
           folded ? null : h('span', { className: 'loom-caret' }, '⌄'),
         )
 
@@ -2747,61 +2837,40 @@ window.__ModuleLoader__.load({
           ),
           bandNode,
           when(treeRows.length > 0, h('div', { className: 'loom-tree' }, treeRows)),
+          // The card's verbs come from cardActions(), the same list a spec can
+          // assert: a running campaign offers 暂停 and 停止, a paused one 继续 and
+          // 停止. 收起 is gone -- the caret in the header already folds the card,
+          // and a view action sitting beside two state changes invites the wrong
+          // click.
           h(
             'div',
             { className: 'loom-acts' },
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'loom-btn bare',
-                title: '暂停这一战役',
-                disabled: busy === c.id + ':pause',
-                onClick: function () { props.act(c.id, 'pause') },
-              },
-              busy === c.id + ':pause' ? '…' : '暂停',
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'loom-btn bare',
-                title: '继续这一战役',
-                disabled: busy === c.id + ':resume',
-                onClick: function () { props.act(c.id, 'resume') },
-              },
-              busy === c.id + ':resume' ? '…' : '继续',
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'loom-btn bare danger',
-                title: armed ? '再点一次即停止这一战役' : '停止 ' + c.id,
-                disabled: busy === c.id + ':stop',
-                onClick: function () {
-                  if (!armed) {
-                    props.setConfirming(c.id + ':stop')
-                    return
-                  }
-                  props.act(c.id, 'stop')
+            cardActions(c).map(function (item) {
+              var key = c.id + ':' + item.key
+              var stopping = item.confirm && armed
+              return h(
+                'button',
+                {
+                  key: item.key,
+                  type: 'button',
+                  className: 'loom-btn bare' + (item.danger ? ' danger' : ''),
+                  disabled: busy === key,
+                  title: item.confirm
+                    ? stopping
+                      ? '再点一次即停止 ' + c.id + '：本轮作废，已花的时间不退'
+                      : '停止 ' + c.id + ' — 需要再点一次确认'
+                    : item.label + '这一战役',
+                  onClick: function () {
+                    if (item.confirm && !armed) {
+                      props.setConfirming(key)
+                      return
+                    }
+                    props.act(c.id, item.action)
+                  },
                 },
-              },
-              busy === c.id + ':stop' ? '…' : armed ? '停止?' : '停止',
-            ),
-            h('span', { className: 'sep' }),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'loom-btn bare',
-                title: '收起这一战役',
-                onClick: function () {
-                  props.onToggle(c.id)
-                },
-              },
-              '收起',
-            ),
+                busy === key ? '…' : stopping ? '确认停止' : item.label,
+              )
+            }),
           ),
         )
       }

@@ -386,7 +386,14 @@ const pendingPayload = LIVE || NO_PENDING ? (emptyPayload || payload) : {
     {
       ...payload.campaigns[0],
       openCheckpoints: [
-        { id: 'cp-9f21', kind: 'gate', payload: { verdict: 'improved', delta: 0.12 } },
+        // a real gate checkpoint carries the patch it would land: rounding it
+        // off here made every row look like "carry on", which is the one thing
+        // the row must not say
+        {
+          id: 'cp-9f21',
+          kind: 'gate',
+          payload: { patch: 'artifacts/r7a2.patch', attempt: 'r7a2', score: 0.94, delta: 0.12 },
+        },
         { id: 'cp-a01c', kind: 'stuck', payload: {} },
         { id: 'cp-b77e', kind: 'holdout', payload: { verdict: 'regressed' } },
       ],
