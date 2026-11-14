@@ -252,6 +252,10 @@ window.__ModuleLoader__.load({
       // in the expanded card (the folded row has its own one-line brief)
       '.loom-obj{margin-top:5px;max-width:44em;font-size:12.5px;line-height:1.5;color:var(--loom-soft)}',
       '.loom-meta{margin-top:5px;font-size:11.5px;color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      // The verdict sits under the meta line: a cause is quieter than a title
+      // and slightly warmer than metadata, because it is the one line a reader
+      // of a stopped campaign came for.
+      '.loom-end{margin-top:4px;font-size:11.5px;line-height:1.45;color:var(--loom-stopped);overflow-wrap:anywhere}',
       '.loom-chain{margin-top:4px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-models{margin-top:5px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}',
@@ -1305,6 +1309,71 @@ window.__ModuleLoader__.load({
       // Nothing measured: the artefacts campaignMeta owns are still facts, but
       // a folded row can only carry three of them.
       return meta.slice(0, 3).join(' · ') || statusLabel(c.status) || '暂无记录'
+    }
+
+    // The statuses that end a campaign, mirroring `src/runtime/runtime.js` and
+    // `src/report/end.js`. A ledger older than the verdict still ended; it just
+    // did not record why, and the card must say that rather than go quiet.
+    var ENDED = { converged: true, plateaued: true, done: true, stopped: true }
+
+    // One label per cause, so a campaign with no headline still reads as a
+    // verdict instead of a status. The raw cause is free-form (`human stop`,
+    // `round budget exhausted`), so the fallback matches on words, not just the
+    // exact keys the runtime happens to write today.
+    var END_CAUSE_ZH = {
+      budget: '预算耗尽',
+      exhausted: '额度耗尽',
+      'no-incumbent': '没有留下可比的分数',
+      spawn: '工作进程没起来',
+      plateau: '连续多轮没有增益',
+      holdout: '留出集回退',
+      stuck: '验证门不可达',
+      infrastructure: '基础设施故障',
+      'all-tasks-solved': '任务全部完成',
+      'human stop': '人工停止',
+      human: '人工停止',
+      'human:panel': '人工停止',
+      unrecorded: '原因未记录',
+    }
+
+    /** The per-cause label for a campaign whose headline is empty. */
+    function endCauseLabel(cause) {
+      var key = String(cause || '').toLowerCase()
+      if (END_CAUSE_ZH[key]) return END_CAUSE_ZH[key]
+      if (key.indexOf('budget') !== -1 || key.indexOf('cost') !== -1) return '预算耗尽'
+      if (key.indexOf('token') !== -1 || key.indexOf('exhaust') !== -1) return '额度耗尽'
+      if (key.indexOf('spawn') !== -1) return '工作进程没起来'
+      if (key.indexOf('infra') !== -1) return '基础设施故障'
+      return cause || END_CAUSE_ZH.unrecorded
+    }
+
+    /**
+     * The verdict a stopped campaign owes: why it ended, in the report's own
+     * words.
+     *
+     * `src/report/end.js` is the one place that turns a ledger into a cause and
+     * a headline, and `src/panel/api.js` ships its answer as `end`; the card
+     * must show that answer instead of inferring a story from `status` plus a
+     * round count. `end.cause === null` is the report's "has not ended" — a
+     * running campaign still carries a headline, so the cause is the flag.
+     * Returns null while there is nothing to say, and a sentence once the
+     * campaign has stopped.
+     */
+    function endNote(campaign) {
+      if (!campaign || typeof campaign !== 'object') return null
+      var end = campaign.end && typeof campaign.end === 'object' ? campaign.end : null
+      var status =
+        (end && typeof end.status === 'string' && end.status.trim()) ||
+        (typeof campaign.status === 'string' && campaign.status.trim()) ||
+        ''
+      var cause = end && typeof end.cause === 'string' ? end.cause.trim() : ''
+      var recorded = end !== null && end.cause !== null && end.cause !== undefined && cause !== ''
+      if (!recorded && !ENDED[status]) return null
+      var headline = end && typeof end.headline === 'string' ? end.headline.trim() : ''
+      if (headline) return headline
+      // No headline to quote: name the status and the cause, never the status
+      // alone. `unrecorded` is itself a cause, not an absence of one.
+      return statusLabel(status) + ' · ' + endCauseLabel(cause)
     }
 
     // ---- the triangle, the trend, the budget -------------------------------
@@ -2812,6 +2881,11 @@ window.__ModuleLoader__.load({
           meta.join(' · '),
         )
 
+        // Why it stopped, when it has: the card used to show a status and a
+        // round count, which is a state, not a verdict.
+        var verdict = endNote(c)
+        var endLine = verdict ? h('div', { className: 'loom-end', title: verdict }, verdict) : null
+
         var rows = flattenTree(treeOf(c, live, props.all), 1, [])
 
         var treeRows = rows.map(function (row) {
@@ -2882,6 +2956,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'loom-vitals' }, sparkWrap, metersNode),
             h('div', { className: 'loom-tri', title: tri.map(function (chip) { return chip.title }).join(' · ') }, triKids),
             metaLine,
+            endLine,
             when(nodeKids.length > 0, h('div', { className: 'loom-chips' }, nodeKids.map(function (chip) {
               return h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)
             }))),
@@ -3011,6 +3086,10 @@ window.__ModuleLoader__.load({
       chainPath: chainPath,
       campaignMeta: campaignMeta,
       foldBrief: foldBrief,
+      // The verdict a stopped campaign owes, and the label behind it, so a
+      // test can pin the sentence without rendering the panel.
+      endNote: endNote,
+      endCauseLabel: endCauseLabel,
       triangleChips: triangleChips,
       modelRows: modelRows,
       sparkOf: sparkOf,

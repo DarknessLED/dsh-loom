@@ -534,6 +534,12 @@ test('the card draws the strip, the trend and the meters its pure functions comp
   assert.match(source, /h\('div', \{ className: 'loom-vitals' \}, sparkWrap, metersNode\)/);
   assert.match(source, /className: 'loom-tri'/)
   assert.match(source, /className: 'loom-meter'/)
+  // The card closes a stopped campaign with the report's verdict, not just a
+  // status: a state is not a reason. The line and its rule are part of the
+  // card's text contract, so pin both alongside the strip and the meters.
+  assert.match(source, /var verdict = endNote\(c\)/, 'the card asks endNote, it does not infer the cause')
+  assert.match(source, /className: 'loom-end'/, 'the verdict has its own line on the card')
+  assert.match(source, /\.loom-end\{/, 'the verdict line is styled, not a bare div')
   assert.ok(!/'loom-ev'/.test(source), 'the old evidence line is gone, not left half rendered')
 })
 

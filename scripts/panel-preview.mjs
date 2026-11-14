@@ -249,8 +249,12 @@ let payload = {
       ageMs: 86_400_000,
       objective: 'cost per round, a round table, a policy diff and lesson exposure',
       chainVersion: 1,
-      incumbent: { score: 1 },
+      incumbent: { score: 1, round: 11 },
       quality: { verdict: 'healthy', promotions: 4, rounds: 11 },
+      // `src/panel/api.js` ships `end: describeEnd(state)`, so a finished
+      // campaign always reaches the card with the report's own verdict; the
+      // preview fixture carries one so the closing line is visible here too.
+      end: { status: 'done', cause: 'all-tasks-solved', headline: 'done · all-tasks-solved · best round 11 at 1' },
       lessonsAll: [
         { id: 'l5', claim: 'holdout tasks must rotate, or exposure becomes the lesson', kind: 'fact', score: 0.4, files: ['src/runtime/exposure.js'], createdRound: 9 },
         { id: 'l6', claim: 'a verifier that always fails is a gate nobody can reach', kind: 'hazard', score: 0.35, files: ['src/runtime/round.js'], createdRound: 4 },
