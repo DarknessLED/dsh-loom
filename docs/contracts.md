@@ -371,3 +371,19 @@ releasePromotionLock(home, owner) -> 同上，带 released 表示是否真的删
 `ok:false` 时 `holder` 一定是当前持有者，`expiresAt`/`retryInMs` 给出 ttl 之后的时刻；持有者也可以主动 `release()` 立即交棒。
 `release()` 与 `release:true` 都只释放 owner 匹配的锁；锁被偷后，旧持有者的释放返回 `false`，绝不误删新持有者的锁。
 同一 owner 重复 acquire 记作 `reentrant:true` 且不刷新 `at`（否则重试循环会无限续期）；锁文件缺失或损坏时没有可承认的持有者，按空闲处理并替换。
+
+## 13. 守卫路由（W20）
+
+```js
+// scripts/guard-plan.mjs
+guardPlan({ changed, promotionsSinceFull, fullEvery = 10 })
+  -> { mode: 'full' | 'light' | 'related', suites: string[] }
+```
+
+语义：守卫的默认实现是 `scripts/test-all.mjs`（好日子 3m41s，坏日子 12 分钟），而一个回合只有约十二分钟，
+所以按改动类别路由，但选路必须**过近似**——选择器看不见的改动一律跑全量。
+
+- `src/**`、`package.json` / 各种 lockfile 与构建配置、空 diff、以及任何不在 `src/`、`docs/`、`tests/` 内的路径 → `full`，`suites` 为 `['scripts/test-all.mjs']`。
+- 全是 docs（`docs/**` 或 `*.md`）→ `light`，只跑 docs pin（`tests/self11/docs-coverage.test.mjs`）。
+- 全是 `tests/**` 且至少一个 `*.test.mjs` → `related`，跑改动到的那些 spec 加 config pins（docs coverage 与守卫自身的路由 spec）；没有 spec 的测试树改动（helper/fixture）可以影响所有 spec，所以回落到 `full`。
+- `promotionsSinceFull` 记的是已完成的晋升数，因此紧挨着第 `since + 1` 次晋升的这次守卫运行在该数达到 `fullEvery` 时欠一次全量；它是周期兜底，优先于上面所有窄化。
