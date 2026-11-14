@@ -31,7 +31,7 @@ import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
-import { topoOrder } from '../chain/spec.js'
+import { topoOrder, runnableNodes, maxParallelOf } from '../chain/spec.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
@@ -572,8 +572,30 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
   // One tree, one base commit: every node in this round is planned against the
   // same worktree branch point, so read it once for all of them.
   const base = nodes.length ? await headCommit(state.workspace).catch(() => null) : null
-  for (const node of nodes) {
-    const id = String(node.id)
+  // A planning node is ready when every node it `needs` is settled. Ids outside
+  // this stage -- the map, its verifier, the human gate -- count as settled
+  // here: they are not this loop's work, and validation already refused a graph
+  // that named a node it does not declare.
+  const byId = new Map(nodes.map((node) => [String(node.id), node]))
+  const stageIds = new Set(byId.keys())
+  const graphIds = (Array.isArray(chain?.nodes) ? chain.nodes : [])
+    .map((n) => (n && typeof n === 'object' && typeof n.id === 'string' && n.id.trim() ? n.id : null))
+    .filter(Boolean)
+  const settled = new Set(graphIds.filter((id) => !stageIds.has(id)))
+  const pending = new Set(stageIds)
+  const width = maxParallelOf(chain)
+  while (pending.size) {
+    // Ask the chain what may run instead of walking topoOrder: two branches that
+    // share nothing are both ready at once, and one that needs the other waits
+    // for the node it named rather than for whatever the array happened to put
+    // first. This stage still writes one node's events per pass, so `width` only
+    // bounds how many ready ids a pass may consider; a wider pool is the graph's
+    // to declare, and replay stays deterministic either way.
+    const ready = runnableNodes(chain, [...settled]).filter((id) => pending.has(id))
+    const id = (ready.length ? ready : [...pending]).slice(0, width)[0]
+    pending.delete(id)
+    settled.add(id)
+    const node = byId.get(id)
     const startedAt = Date.now()
     const record = {
       id,
@@ -1452,6 +1474,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // and the event agree on it. A sibling that finished its turn before the
         // abort landed completed normally, so it keeps its own evidence.
         const cancelledBySibling = stoppedBySibling.has(attemptId) && runRes.stopReason !== 'completed' && runRes.timedOut !== true
+        // A branch stopped because a sibling solved the task is terminal, but it
+        // is not a failure: write it as `node.cancelled` so a replay can tell an
+        // abort from a death without reading attempt records, and a join that
+        // needed it can treat the branch as settled instead of waiting forever.
+        if (cancelledBySibling) {
+          runtime.append(
+            view,
+            'node.cancelled',
+            { id: `${workerId}:${attemptId}`, node: workerId, round: n, attemptId, reason: SOLVED_BY_SIBLING },
+            'system',
+          )
+        }
         const abandoned = cancelledBySibling
           ? SOLVED_BY_SIBLING
           : runRes.stopReason === 'aborted' && !runRes.timedOut
@@ -1667,6 +1701,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // A sibling that was stopped mid-flight may surface as a thrown run;
         // record it the same way as a resolved abort instead of a crash.
         const cancelled = stoppedBySibling.has(attemptId)
+        if (cancelled) {
+          runtime.append(
+            view,
+            'node.cancelled',
+            { id: `${workerId}:${attemptId}`, node: workerId, round: n, attemptId, reason: SOLVED_BY_SIBLING },
+            'system',
+          )
+        }
         // A sibling hand-off that surfaces as a thrown run is still a hand-off,
         // not a crash: classify it with the same function as the resolved path
         // instead of letting the exception decide the ledger's word.

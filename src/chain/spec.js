@@ -93,6 +93,74 @@ export function validateChainSpec(spec) {
 }
 
 /**
+ * Node ids that may start right now, in declaration order.
+ *
+ * A node is runnable when it is not settled itself and every id in `needs` is
+ * settled. `opts.cancelled` is the other half of settled: a branch the round
+ * aborted (a sibling already solved the task) will never finish, so a join that
+ * waits on it must still be unblocked or the round hangs on a promise nobody
+ * will resolve. A cancelled id is settled for its dependents but is never handed
+ * out itself.
+ *
+ * `settled` and `opts.cancelled` are both plain arrays of ids because they are
+ * written to the ledger as JSON. An id in `needs` that no node declares is a
+ * broken chain, not an empty pool: it throws with the name in the message so the
+ * caller can say which edge is wrong.
+ *
+ * @param {{nodes?: Array<{id?: string, needs?: string[]}>}} chain
+ * @param {string[]} [settled]
+ * @param {{cancelled?: string[]}} [opts]
+ * @returns {string[]} runnable node ids in declaration order
+ */
+export function runnableNodes(chain, settled, opts) {
+  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  const settledIds = new Set(Array.isArray(settled) ? settled.filter((id) => typeof id === 'string') : [])
+  const cancelledIds = new Set(
+    Array.isArray(opts?.cancelled) ? opts.cancelled.filter((id) => typeof id === 'string') : [],
+  )
+  const known = new Set()
+  for (const node of nodes) {
+    if (node && typeof node === 'object' && typeof node.id === 'string' && node.id.trim()) known.add(node.id)
+  }
+  const ready = []
+  for (const node of nodes) {
+    if (!node || typeof node !== 'object') continue
+    const id = node.id
+    if (typeof id !== 'string' || !id.trim()) continue
+    if (settledIds.has(id) || cancelledIds.has(id)) continue
+    const needs = Array.isArray(node.needs) ? node.needs : []
+    let allSettled = true
+    for (const dep of needs) {
+      if (typeof dep !== 'string' || !dep.trim()) continue
+      if (!known.has(dep)) throw new Error(`runnableNodes: node "${id}" needs unknown node "${dep}"`)
+      if (!settledIds.has(dep) && !cancelledIds.has(dep)) {
+        allSettled = false
+        break
+      }
+    }
+    if (allSettled) ready.push(id)
+  }
+  return ready
+}
+
+/**
+ * How wide the readiness pool may be: `params.maxParallel` clamped to >= 1.
+ *
+ * One is the default on purpose. The old scheduler ran one node at a time, and a
+ * chain that says nothing about parallelism must keep that behaviour; a chain
+ * that wants two branches in flight says `params: { maxParallel: 2 }`. A
+ * fractional, negative or non-numeric value cannot widen the pool, so it reads
+ * as the serial default instead of stalling the round at zero.
+ *
+ * @param {{params?: {maxParallel?: unknown}}} chain
+ * @returns {number} a positive integer
+ */
+export function maxParallelOf(chain) {
+  const raw = Number(chain?.params?.maxParallel)
+  return Number.isFinite(raw) && raw >= 1 ? Math.max(1, Math.floor(raw)) : 1
+}
+
+/**
  * Node ids in dependency order: every node after the nodes it `needs`.
  *
  * Stable: nodes that do not constrain each other keep their declaration order,

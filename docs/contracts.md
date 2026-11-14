@@ -256,6 +256,8 @@ export function attemptOutcome(input)
 
 map 之前的 agent 节点是可寻址的工作实例：派发前先写 `node.started{id,type,role,round,attempt,at,base,deadlineMs}`，结束后写 `node.finished{id,round,attempt,ok,durationMs,…}`，`reduce` 把它们折进 `state.nodes`；`round.finished` 落地时仍为 `running` 的节点折成 `lost`（只投影事实，不伪造成功）。没有 `node.*` 事件的旧账本折叠结果不变。
 
+节点调度是**就绪池**而不是按 `topoOrder` 线性走：`src/chain/spec.js` 的 `runnableNodes(chain, settled, {cancelled})` 返回所有 `needs` 都已在 `settled` 中、且自身未结算的节点 id（声明顺序）；`cancelled` 中的分支算已结算，否则等它的 join 永远醒不来，但它自己不会再被派发。未知依赖是坏链：抛错并在消息里点名那个 id。池宽由 `maxParallelOf(chain)` = `params.maxParallel` 取下限 1（缺省 1，非法值按 1），所以没写 `maxParallel` 的链保持旧的串行行为。`round.js` 用它们决定 pre-map 节点先跑哪一个。候选因兄弟已解题而被中止时，除了 attempt 记录，还要写一条终态 `node.cancelled{id,node,round,attemptId,reason:'solved-by-sibling'}`：被取消不等于死亡，账本必须能区分。
+
 晋升门还有一条**误差棒**：`policyFor()` 从 `config.loopPolicy.noiseSpread` 读出有限正数（默认 `null`，即「没测过」，行为与旧版一致），回合内联门把它当作额外门槛——存在 incumbent 时，`score - taskBest` 必须同时过 `minGain` 和 `noiseSpread` 才算 `beatsIncumbent`，`gate.evaluated.checks.noise` 记录这次是否过棒（只有测到误差棒时才出现）。它就是 `decidePromotion` 的同一条规则（`evidence.noiseSpread * config.noiseMultiplier`），让 campaign 把自己的重复性测量写进配置后，2 分的「提升」不再被当成进步。
 
 ---
