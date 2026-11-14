@@ -45,6 +45,15 @@ const standing = [
   // the loop must not be able to un-solve a task it already solved.
   'tests/self11/spend-estimate.test.mjs',
   'tests/self11/docs-coverage.test.mjs',
+  // self15: the six things the loop could not do. Each one was red in the tree
+  // when the campaign bought it, so keeping them here is what stops a later
+  // round from quietly removing the guard it took fourteen rounds to earn.
+  'tests/self15/billing.test.mjs',
+  'tests/self15/checkpoints.test.mjs',
+  'tests/self15/decisions.test.mjs',
+  'tests/self15/verdict.test.mjs',
+  'tests/self15/chain-dag.test.mjs',
+  'tests/self15/promotion-noise.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',
