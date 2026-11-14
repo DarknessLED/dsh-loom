@@ -232,23 +232,32 @@ test('attempt chips carry the verifier verdict, never a guess', () => {
   assert.deepEqual(client.__panel.attemptChips(undefined), [], 'a campaign that has not run still renders')
 })
 
-test('the palette is monochrome ink, and colour is reserved for 6px dots', () => {
+test('the palette is monochrome ink, and colour is reserved for state', () => {
   const client = loadClient()
   const css = client.__panel.CSS
   assert.ok(css.includes('--loom-base:var(--loom-ink-base,currentColor)'), 'tints mix against one pinned opaque ink')
   assert.ok(!/color-mix\(in srgb,\s*currentColor/.test(css), 'never mix against currentColor: nested labels would multiply the alpha')
   assert.ok(typeof client.__panel.paintInk === 'function', 'the ink is measured at mount, not guessed')
-  assert.ok(!/linear-gradient|radial-gradient/.test(css), 'no gradients: the reference has none')
-  assert.ok(!/border-radius:\s*(12|16|24)px/.test(css), 'radius stays at 4–6px')
-  assert.match(css, /transition:[^;]*150ms/, 'motion is 150ms, the reference’s micro duration')
-  assert.match(css, /cubic-bezier\(\.25,\.46,\.45,\.94\)/, 'and its easing, not a spring')
-  assert.ok(!/box-shadow:(?!.*var\(--loom-ok\)|.*var\(--loom-warn\))/.test(css), 'no card shadows')
+  assert.ok(!/linear-gradient|radial-gradient/.test(css), 'no gradients: colour is a state, not a decoration')
+  assert.ok(!/border-radius:\s*(16|20|24|32)px/.test(css), 'radius tops out at 14px; pills use 999')
+  assert.match(css, /transition:[^;]*180ms/, 'motion is 180ms')
+  assert.match(css, /cubic-bezier\(\.2,\.7,\.2,1\)/, 'and settles rather than bounces')
+  // one shadow token, used by exactly the one floating surface (the queue)
+  assert.match(css, /--loomlift:/, 'depth is one declared shadow, not a per-element guess')
+  assert.match(css, /\.loom-hero\{position:sticky[^}]*box-shadow:var\(--loomlift\)/, 'the queue floats: pinned, blurred underneath, one shadow')
+  assert.ok(!/\.loom-camp\{[^}]*box-shadow:/.test(css), 'cards are hairline surfaces, they do not float')
   assert.ok(css.includes('prefers-reduced-motion'), 'motion can be switched off')
   assert.match(css, /\.loom-spark \.pt\[data-tone="ok"\]\{background:var\(--loom-ok\)\}/, 'the trend borrows the state palette, it does not invent one')
   assert.match(css, /\.loom-tri\{[^}]*font-family:var\(--loom-mono\)/, 'five figures are mono so the decimals line up')
+  // one filled control per row, and it inverts: ink field, canvas label
+  assert.match(css, /\.loom-btn\.solid\{background:color-mix\(in srgb,var\(--loom-base\) 90%,transparent\);color:var\(--loom-canvas\)/,
+    'the filled action is ink on the canvas colour, the way a native control inverts')
+  // a switch is a track and a knob, not a word to parse
+  assert.match(css, /\.loom-track\{[^}]*width:30px;height:18px/, 'the switch draws its state as a position')
+  assert.match(css, /\.loom-switch\[aria-checked="true"\] \.loom-knob\{transform:translateX\(12px\)\}/, 'and the knob moves when it flips')
 })
 
-test('the ink base is measured from the host, and a hostile document cannot kill the panel', () => {
+test('the ink base is measured from the host, and the canvas inverted from it', () => {
   const { paintInk } = loadClient().__panel
   const writes = []
   const root = { style: { setProperty: (k, v) => writes.push([k, v]) } }
@@ -256,7 +265,28 @@ test('the ink base is measured from the host, and a hostile document cannot kill
     querySelector: (sel) => (sel === '.loom' ? root : null),
     defaultView: { getComputedStyle: () => ({ color: 'rgb(247, 248, 248)' }) },
   })
-  assert.deepEqual(writes, [['--loom-ink-base', 'rgb(247, 248, 248)']])
+  assert.deepEqual(writes, [
+    ['--loom-ink-base', 'rgb(247, 248, 248)'],
+    ['--loom-ink-canvas', '#101113'],
+  ], 'light ink means a dark canvas: the filled button needs both to be readable')
+  // A dark ink on a light canvas is the other way round, and a colour the regex
+  // cannot read must leave the canvas on its fallback rather than paint it white
+  // on white.
+  const second = []
+  paintInk({
+    querySelector: () => ({ style: { setProperty: (k, v) => second.push([k, v]) } }),
+    defaultView: { getComputedStyle: () => ({ color: 'rgb(8, 9, 10)' }) },
+  })
+  assert.deepEqual(second, [
+    ['--loom-ink-base', 'rgb(8, 9, 10)'],
+    ['--loom-ink-canvas', '#ffffff'],
+  ])
+  const third = []
+  paintInk({
+    querySelector: () => ({ style: { setProperty: (k, v) => third.push([k, v]) } }),
+    defaultView: { getComputedStyle: () => ({ color: 'oklch(0.7 0.1 200)' }) },
+  })
+  assert.deepEqual(third, [['--loom-ink-base', 'oklch(0.7 0.1 200)']], 'an unreadable colour keeps the ink and leaves the canvas on its fallback')
   // a detached panel, an exception during measurement, and a null document all
   // have to be survivable: the tint falls back to currentColor on its own
   assert.doesNotThrow(() => paintInk(null))
@@ -312,7 +342,7 @@ test('the tree hangs the round, the decisions, the live attempts and the lessons
   assert.deepEqual(lines, [
     '├─ 第 6 轮  已晋升 · 1',
     '  └─ r6a1  1',
-    '├─ 待审  1',
+    '├─ 待审  1 · 在顶部处理',
     '  └─ 晋升待审 cp-1  promote · Δ0.2',
     '├─ 进行中  1',
     '  └─ r7a1  运行中 · 静默 12 秒',
@@ -492,7 +522,8 @@ test('a budget that was never set is a dash, not a full meter', () => {
 test('the card draws the strip, the trend and the meters its pure functions compute', () => {
   const source = readFileSync(clientPath, 'utf8')
   assert.match(source, /var tri = triangleChips\(c\)/, 'the card asks the tested function, it does not re-derive the line')
-  assert.match(source, /h\('div', \{ className: 'loom-vitals' \}, sparkNode, metersNode\)/)
+  assert.match(source, /var sparkWrap = sparkNode/, 'the trend gets its own strip with a caption');
+  assert.match(source, /h\('div', \{ className: 'loom-vitals' \}, sparkWrap, metersNode\)/);
   assert.match(source, /className: 'loom-tri'/)
   assert.match(source, /className: 'loom-meter'/)
   assert.ok(!/'loom-ev'/.test(source), 'the old evidence line is gone, not left half rendered')
@@ -534,12 +565,19 @@ test('a folded campaign is one line that still says what it wants', () => {
   assert.match(source, /className: 'loom-caret' \}, '›'/, 'and it looks expandable')
 })
 
-test('the grid only grows columns when the host gives it room', () => {
+test('the grid answers to the container, and a wide panel packs by column', () => {
   const { CSS } = loadClient().__panel
-  assert.match(CSS, /\.loom-cards\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(296px,1fr\)\)/,
-    'campaigns flow into as many columns as fit, without a viewport media query')
-  assert.match(CSS, /\.loom-kfiles\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(180px,1fr\)\)/,
-    'knowledge files are packed into columns, not stacked one per line')
+  assert.match(CSS, /\.loom\{[^}]*container-type:inline-size/, 'the panel is a query container: its width, not the window\'s, decides')
+  assert.match(CSS, /\.loom-cards\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(268px,1fr\)\)/,
+    'campaigns flow into as many columns as fit')
+  assert.match(CSS, /@container \(min-width:560px\)\{\.loom-cards\{display:block;columns:2/,
+    'past 560px the cards stack into two columns, so an expanded campaign does not stretch its neighbours')
+  assert.match(CSS, /@container \(max-width:400px\)\{\s*\.loom-hero-row\{flex-wrap:wrap/,
+    'a narrow queue puts the actions under the sentence instead of squeezing both')
+  assert.match(CSS, /\.loom-kfiles\{display:block/,
+    'a claim is a sentence: it gets the full width until there is room for two readable columns')
+  assert.match(CSS, /@container \(min-width:560px\)\{[\s\S]*?\.loom-kfiles\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(260px,1fr\)\)/,
+    'and past 560px two columns, each wide enough that every sentence can finish')
   assert.ok(!/@media \(min-width/.test(CSS), 'container width is what decides, not the window width')
 })
 

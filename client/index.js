@@ -59,289 +59,326 @@ window.__ModuleLoader__.load({
     // The reference's tokens, expressed as one stylesheet rather than inline
     // objects: hover, focus and transition states are half of a design system
     // and inline styles cannot express them.
+    // The visual system, stated once so it can be argued with: a quiet
+    // instrument panel. Air instead of rules, one filled action per row, a
+    // type ramp that starts at 11px and lets the numbers speak, and colour
+    // reserved for state. The palette is still measured ink mixed against an
+    // opaque base, so the panel reads correctly on a light canvas and a dark
+    // one without a theme switch of its own.
     var CSS = [
       '.loom{',
       ' --loom-ink:currentColor;',
       // tint everything against an OPAQUE ink base. Mixing against currentColor
-      // looks identical until you nest: `.sec-head .n` inherits the head's
-      // half-transparent colour and mixes again, so the alphas multiply
-      // (0.58 × 0.5 → 0.29) and 9.5px text lands at 1.8:1. The base is written
-      // inline at mount from the panel's computed colour, so it is one flat
-      // value everywhere and the alphas simply add up to what they say.
+      // looks identical until you nest: a half-transparent heading mixes again
+      // and the alphas multiply (0.58 × 0.5 → 0.29). The base is written inline
+      // at mount from the panel's computed colour, so alphas simply add up.
       ' --loom-base:var(--loom-ink-base,currentColor);',
+      // the canvas the panel is drawn on, derived from the measured ink at
+      // mount: filled buttons invert against it the way a native control does.
+      ' --loom-canvas:var(--loom-ink-canvas,#fff);',
       ' --loom-soft:rgba(127,127,127,1);--loom-soft:color-mix(in srgb,var(--loom-base) 78%,transparent);',
-      ' --loom-quiet:rgba(127,127,127,.8);--loom-quiet:color-mix(in srgb,var(--loom-base) 68%,transparent);',
-      ' --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 52%,transparent);',
-      ' --loom-line:rgba(127,127,127,.18);--loom-line:color-mix(in srgb,var(--loom-base) 11%,transparent);',
-      ' --loom-line2:rgba(127,127,127,.3);--loom-line2:color-mix(in srgb,var(--loom-base) 20%,transparent);',
-      ' --loom-wash:rgba(127,127,127,.06);--loom-wash:color-mix(in srgb,var(--loom-base) 4%,transparent);',
+      ' --loom-quiet:rgba(127,127,127,.8);--loom-quiet:color-mix(in srgb,var(--loom-base) 56%,transparent);',
+      ' --loom-faint:rgba(127,127,127,.6);--loom-faint:color-mix(in srgb,var(--loom-base) 54%,transparent);',
+      ' --loom-line:rgba(127,127,127,.18);--loom-line:color-mix(in srgb,var(--loom-base) 10%,transparent);',
+      ' --loom-line2:rgba(127,127,127,.3);--loom-line2:color-mix(in srgb,var(--loom-base) 18%,transparent);',
+      ' --loom-surface:rgba(127,127,127,.05);--loom-surface:color-mix(in srgb,var(--loom-base) 3.4%,transparent);',
+      ' --loom-surface2:rgba(127,127,127,.09);--loom-surface2:color-mix(in srgb,var(--loom-base) 6%,transparent);',
       ' --loom-hover:rgba(127,127,127,.1);--loom-hover:color-mix(in srgb,var(--loom-base) 7%,transparent);',
-      // accents sit at the point where they clear 4.2:1 on BOTH canvases — a
-      // single value per hue, so the panel needs no theme switch of its own.
-      ' --loom-ok:#377f50;--loom-warn:#8a7431;--loom-bad:#b2503f;--loom-idle:#70747c;',
-      ' --loom-done:#4f7f68;--loom-stopped:#8f6f6f;',
+      // accents sit where they clear 4.2:1 on BOTH canvases -- one value per
+      // hue, so the panel needs no theme switch of its own.
+      ' --loom-ok:#2f7d54;--loom-warn:#8a6f24;--loom-bad:#c2564a;--loom-idle:#70747c;',
+      ' --loom-done:#3f7a63;--loom-stopped:#8a6a6a;',
       ' --loom-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;',
-      ' --loom-ease:cubic-bezier(.25,.46,.45,.94);',
-      ' display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;font-size:13px;line-height:1.45;',
-      ' color:var(--loom-ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;',
+      ' --loom-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;',
+      ' --loom-ease:cubic-bezier(.2,.7,.2,1);',
+      ' --loomlift:0 1px 1px color-mix(in srgb,var(--loom-base) 3%,transparent),',
+      '  0 10px 24px -18px color-mix(in srgb,var(--loom-base) 45%,transparent);',
+      ' display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;',
+      // the panel is a sidebar: it must answer to the width the host hands it,
+      // never to the width of the window the sidebar sits in
+      ' container-type:inline-size;',
+      ' font-family:var(--loom-sans);font-size:13px;line-height:1.5;letter-spacing:-.001em;',
+      ' color:var(--loom-ink);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;',
       '}',
       '.loom *{box-sizing:border-box}',
-      '.loom code,.loom .m{font-family:var(--loom-mono);font-variant-numeric:tabular-nums}',
-      // every flex row in a 320px sidebar needs its wandering child to be
-      // allowed to shrink: `min-width:auto` is what turns an ellipsis into a
-      // horizontal scrollbar.
-      '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-tri,.loom-vitals,.loom-cp-head{min-width:0}',
-      // header
-      '.loom-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--loom-line)}',
-      '.loom-mark{font-family:var(--loom-mono);font-size:11px;font-weight:500;letter-spacing:.14em;white-space:nowrap}',
+      '.loom .num,.loom code,.loom .m{font-family:var(--loom-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
+      '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-tri,.loom-vitals,.loom-cp-head,.loom-hero-row{min-width:0}',
+      // ---- header ---------------------------------------------------------
+      '.loom-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;position:relative;z-index:2}',
+      '.loom-mark{font-size:13px;font-weight:650;letter-spacing:.02em;white-space:nowrap;line-height:1}',
       '.loom-spacer{flex:1 1 auto;min-width:4px}',
-      '.loom-btn{appearance:none;background:transparent;border:1px solid var(--loom-line);color:var(--loom-soft);',
-      ' font-family:inherit;font-size:11px;font-weight:400;line-height:1;padding:4px 7px;border-radius:4px;cursor:pointer;',
-      ' transition:background 150ms var(--loom-ease),color 150ms var(--loom-ease),border-color 150ms var(--loom-ease);white-space:nowrap}',
-      '.loom-btn:hover{background:var(--loom-hover);color:var(--loom-ink);border-color:var(--loom-line2)}',
-      '.loom-btn:active{transform:translateY(.5px)}',
-      '.loom-btn:focus-visible{outline:1px solid var(--loom-soft);outline-offset:1px}',
-      '.loom-btn[disabled]{opacity:.38;cursor:default;transform:none}',
-      '.loom-btn.bare{border-color:transparent;padding:4px 5px}',
-      '.loom-btn.bare:hover{background:var(--loom-hover);border-color:transparent}',
-      '.loom-btn.danger:hover{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 45%,transparent)}',
-      // the loop switch: a dot and one word, not a traffic light
-      '.loom-switch{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;padding:4px 2px;',
-      ' font-family:var(--loom-mono);font-size:11px;letter-spacing:.02em;color:var(--loom-soft);cursor:pointer;',
-      ' transition:color 150ms var(--loom-ease)}',
+      // an install-level switch reads as a name and a track, the way a system
+      // setting does: the state is the knob's position, not a word to parse
+      '.loom-switch{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;',
+      ' padding:2px 4px;border-radius:999px;font-family:var(--loom-sans);font-size:11.5px;font-weight:500;',
+      ' letter-spacing:0;color:var(--loom-faint);cursor:pointer;line-height:1;white-space:nowrap;',
+      ' transition:color 180ms var(--loom-ease),border-color 180ms var(--loom-ease)}',
+      '.loom-track{position:relative;display:inline-block;flex:0 0 auto;width:30px;height:18px;border-radius:999px;',
+      ' background:var(--loom-line2);transition:background 180ms var(--loom-ease)}',
+      '.loom-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:999px;background:#fff;',
+      ' box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform 180ms var(--loom-ease)}',
+      '.loom-switch[aria-checked="true"] .loom-track{background:var(--loom-ok)}',
+      '.loom-switch[aria-checked="true"] .loom-knob{transform:translateX(12px)}',
+      '.loom-switch[aria-checked="true"]{color:var(--loom-soft)}',
       '.loom-switch:hover{color:var(--loom-ink)}',
-      '.loom-switch:focus-visible{outline:1px solid var(--loom-soft);outline-offset:2px}',
-      // A campaign row is a div with role=button, not a native button, so the
-      // ring has to be drawn here too: without it the keyboard lands on a row
-      // nobody can see. The outline is real and sits outside the row.
-      '.loom-camp .loom-hit:focus-visible{outline:1px solid var(--loom-soft);outline-offset:2px}',
+      '.loom-switch:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 32%,transparent);outline-offset:1px}',
       '.loom-dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:currentColor;flex:0 0 auto}',
-      '.loom-dot.on{color:var(--loom-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-ok) 14%,transparent)}',
+      '.loom-dot.on{color:var(--loom-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-ok) 16%,transparent)}',
       '.loom-dot.off{color:var(--loom-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--loom-warn) 14%,transparent)}',
-      // metrics: a ruled strip, values in mono
-      '.loom-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-bottom:1px solid var(--loom-line)}',
-      '.loom-metric{padding:7px 8px 8px;border-right:1px solid var(--loom-line);min-width:0}',
-      '.loom-metric:last-child{border-right:0}',
-      '.loom-metric b{display:block;font-family:var(--loom-mono);font-size:13px;font-weight:500;line-height:1.1;',
-      ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-metric span{display:block;margin-top:2px;font-size:9px;line-height:1.15;letter-spacing:.06em;',
-      ' color:var(--loom-quiet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-metric.hot b{color:var(--loom-warn)}',
-      // sections
-      '.loom-sec{border-bottom:1px solid var(--loom-line)}',
-      '.loom-sec:last-child{border-bottom:0}',
-      '.loom-sec-head{display:flex;align-items:center;gap:6px;padding:10px 12px 4px;',
-      ' font-size:10px;letter-spacing:.08em;color:var(--loom-quiet)}',
-      '.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);letter-spacing:0;color:var(--loom-quiet)}',
-      // rows
-      '.loom-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--loom-line);',
-      ' transition:background 150ms var(--loom-ease)}',
-      '.loom-row:hover{background:var(--loom-hover)}',
-      '.loom-row .txt{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-soft);',
-      ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.loom-row .txt b{font-weight:500;color:var(--loom-ink)}',
-      // campaign blocks: a responsive grid, so a wide panel spends its width on
-      // more campaigns instead of stretching one column of text. Cards hold the
-      // grid track (`minmax(0,1fr)` children are what actually prevents the
-      // overflow), and only the campaign that needs a decision is opened.
-      '.loom-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(296px,1fr));',
-      ' gap:8px;align-items:start;min-width:0}',
-      // knowledge is short claims, not prose: pack them into as many columns as
-      // the panel has room for instead of one tall list of dim text
-      // knowledge is filed per file: at a wide panel these are cards flowing into
-      // as many columns as fit, at a narrow one a single column of the same cards.
-      '.loom-kfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));',
-      ' gap:6px;padding:2px 12px 4px;min-width:0}',
-      '.loom-camp{padding:9px 11px 10px;border:1px solid var(--loom-line);border-radius:6px;min-width:0;',
-      ' background:color-mix(in srgb,var(--loom-base) 1.5%,transparent)}',
-      '.loom-camp.folded{padding:0}',
-      '.loom-camp .loom-hit{display:flex;align-items:center;gap:6px;padding:7px 9px;min-width:0;cursor:pointer;',
-      ' border-radius:5px;transition:background 150ms var(--loom-ease)}',
+      // ---- buttons --------------------------------------------------------
+      '.loom-btn{appearance:none;background:var(--loom-surface);border:1px solid transparent;color:var(--loom-soft);',
+      ' font-family:var(--loom-sans);font-size:12px;font-weight:500;line-height:1;padding:6px 10px;border-radius:8px;cursor:pointer;',
+      ' transition:background 180ms var(--loom-ease),color 180ms var(--loom-ease),border-color 180ms var(--loom-ease),transform 180ms var(--loom-ease);',
+      ' white-space:nowrap;min-height:26px}',
+      '.loom-btn:hover{background:var(--loom-surface2);color:var(--loom-ink);border-color:var(--loom-line)}',
+      '.loom-btn:active{transform:scale(.985)}',
+      '.loom-btn:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}',
+      '.loom-btn[disabled]{opacity:.4;cursor:default;transform:none}',
+      '.loom-btn.bare{background:transparent;padding:6px 8px}',
+      '.loom-btn.bare:hover{background:var(--loom-hover);border-color:transparent}',
+      // the pair around a decision: two things you can do, neither of them
+      // pretending to be a link
+      '.loom-btn.line{background:transparent;border-color:var(--loom-line2)}',
+      '.loom-btn.line:hover{background:var(--loom-surface2);border-color:var(--loom-line2);color:var(--loom-ink)}',
+      '.loom-btn.line.danger:hover{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 40%,transparent)}',
+      // the one filled action in a row: ink against canvas, the way a native
+      // control inverts. Never a hue -- colour here would be a second voice.
+      '.loom-btn.solid{background:color-mix(in srgb,var(--loom-base) 90%,transparent);color:var(--loom-canvas);',
+      ' font-weight:600;border-color:transparent}',
+      '.loom-btn.solid:hover{background:var(--loom-base);color:var(--loom-canvas)}',
+      '.loom-btn.danger:hover{color:var(--loom-bad);background:color-mix(in srgb,var(--loom-bad) 10%,transparent);border-color:transparent}',
+      '.loom-camp .loom-hit:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}',
+      // ---- the queue: the reason this panel exists ------------------------
+      // the queue is pinned: a decision you have to scroll back to is a decision
+      // you postpone. The blur keeps the cards readable underneath it without
+      // painting an opaque band over the host's own background.
+      '.loom-hero{position:sticky;top:0;z-index:3;margin:2px 12px 14px;border:1px solid var(--loom-line);',
+      ' border-radius:14px;background:color-mix(in srgb,var(--loom-base) 6%,transparent);',
+      ' backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);',
+      ' box-shadow:var(--loomlift);overflow:hidden}',
+      '.loom-hero-head{display:flex;align-items:baseline;gap:8px;padding:12px 14px 8px;min-width:0}',
+      '.loom-hero-head .k{font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--loom-ink)}',
+      '.loom-hero-head .v{margin-left:auto;font-family:var(--loom-mono);font-size:22px;font-weight:500;line-height:1;',
+      ' letter-spacing:-.02em;color:var(--loom-warn)}',
+      '.loom-hero-head .v.zero{color:var(--loom-faint)}',
+      '.loom-hero-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--loom-line);',
+      ' transition:background 180ms var(--loom-ease)}',
+      '.loom-hero-row:hover{background:var(--loom-hover)}',
+      '.loom-hero-row .txt{flex:1 1 auto;min-width:0;font-size:12.5px;line-height:1.45;color:var(--loom-quiet)}',
+      '.loom-hero-row .txt b{font-weight:600;color:var(--loom-ink)}',
+      '.loom-hero-row .txt .what{display:block;font-size:12.5px;line-height:1.35;color:var(--loom-quiet)}',
+      // the consequence sentence is why the row is here at all: two lines, then
+      // the full text lives in the title
+      '.loom-hero-row .txt .why{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;',
+      ' overflow:hidden;margin-top:2px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}',
+      '.loom-hero-acts{flex:0 0 auto;display:flex;align-items:center;gap:2px}',
+      '.loom-hero-empty{display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:12px;color:var(--loom-quiet)}',
+      '.loom-hero-empty .dot{width:6px;height:6px;border-radius:999px;background:var(--loom-ok);flex:0 0 auto}',
+      '.loom-note{padding:0 14px 10px;font-size:11.5px;line-height:1.5;color:var(--loom-faint)}',
+      // ---- overview: a caption, not a table -------------------------------
+      // Six boxed tiles read as a dashboard of six equal facts, and four of
+      // them repeat a number printed somewhere else on this panel. One quiet
+      // line keeps the totals available without competing with the queue.
+      '.loom-figures{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:0 14px 12px;',
+      ' font-size:11.5px;line-height:1.5;color:var(--loom-quiet)}',
+      '.loom-figures .f{white-space:nowrap}',
+      '.loom-figures .f b{font-family:var(--loom-mono);font-size:12px;font-weight:500;letter-spacing:-.01em;',
+      ' color:var(--loom-soft)}',
+      '.loom-figures .f.hot b{color:var(--loom-warn)}',
+      // ---- sections -------------------------------------------------------
+      '.loom-sec{padding:0 12px 6px}',
+      '.loom-sec-head{display:flex;align-items:center;gap:8px;padding:12px 2px 8px;font-size:11.5px;font-weight:600;',
+      ' letter-spacing:.01em;color:var(--loom-ink)}',
+      '.loom-sec-head .n{margin-left:auto;font-family:var(--loom-mono);font-size:11.5px;font-weight:400;letter-spacing:0;',
+      ' color:var(--loom-faint)}',
+      // ---- campaign cards -------------------------------------------------
+      '.loom-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:8px;align-items:start;min-width:0}',
+      // rows would stretch every card to the height of the tallest one in its
+      // band, which is a screen of empty space beside an expanded campaign;
+      // columns let each card take the height it earns
+      '@container (min-width:560px){.loom-cards{display:block;columns:2;column-gap:8px}',
+      '.loom-cards .loom-camp{break-inside:avoid;margin-bottom:8px}}',
+      '.loom-camp{padding:12px 13px 11px;border:1px solid var(--loom-line);border-radius:14px;min-width:0;',
+      ' background:color-mix(in srgb,var(--loom-base) 1.4%,transparent);',
+      ' transition:border-color 180ms var(--loom-ease),box-shadow 180ms var(--loom-ease),background 180ms var(--loom-ease)}',
+      '.loom-camp:hover{border-color:var(--loom-line2)}',
+      '.loom-camp.folded{padding:0;background:transparent;border-color:transparent}',
+      '.loom-camp .loom-hit{display:flex;align-items:center;gap:8px;padding:10px 11px;min-width:0;cursor:pointer;',
+      ' border-radius:12px;transition:background 180ms var(--loom-ease)}',
       '.loom-camp .loom-hit:hover{background:var(--loom-hover)}',
-      '.loom-camp:not(.folded) .loom-hit{padding:0 0 2px}',
-      '.loom-camp .loom-caret{margin-left:auto;flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;',
-      ' color:var(--loom-faint);line-height:1}',
-      '.loom-camp .loom-flag{flex:0 0 auto;font-family:var(--loom-mono);font-size:9px;letter-spacing:.04em;',
-      ' padding:1px 4px;border-radius:3px;color:var(--loom-warn);',
-      ' background:color-mix(in srgb,var(--loom-warn) 14%,transparent)}',
-      '.loom-camp .loom-brief{flex:1 1 auto;min-width:0;font-family:var(--loom-mono);font-size:10px;',
-      ' color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-camp:hover{background:color-mix(in srgb,var(--loom-base) 2.5%,transparent)}',
-      '.loom-titlerow{display:flex;align-items:baseline;gap:7px;min-width:0}',
-      '.loom-name{font-family:var(--loom-mono);font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;',
+      '.loom-camp:not(.folded) .loom-hit{padding:0 0 3px}',
+      '.loom-camp .loom-caret{margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--loom-faint);line-height:1}',
+      '.loom-camp .loom-flag{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;letter-spacing:0;',
+      ' padding:2px 6px;border-radius:999px;color:var(--loom-warn);',
+      ' background:color-mix(in srgb,var(--loom-warn) 13%,transparent)}',
+      '.loom-camp .loom-brief{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-faint);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-state{font-size:10px;letter-spacing:.02em;color:var(--loom-quiet);white-space:nowrap}',
-      '.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);white-space:nowrap}',
-      '.loom-obj{margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--loom-soft);',
+      '.loom-titlerow{display:flex;align-items:center;gap:8px;min-width:0}',
+      '.loom-name{font-size:13.5px;font-weight:600;letter-spacing:-.005em;line-height:1.25;min-width:0;',
+      ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.loom-state{flex:0 0 auto;font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--loom-quiet);white-space:nowrap}',
+      '.loom-age{margin-left:auto;font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);white-space:nowrap}',
+      '.loom-obj{margin-top:5px;font-size:12.5px;line-height:1.5;color:var(--loom-soft);',
       ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
-      '.loom-meta{margin-top:4px;font-family:var(--loom-mono);font-size:10px;letter-spacing:.01em;color:var(--loom-faint);',
+      '.loom-meta{margin-top:5px;font-size:11.5px;color:var(--loom-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.loom-chain{margin-top:4px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.loom-chain{margin-top:3px;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);',
-      // One row per model ref: the ratio a reader can act on, and the p90 that
-      // says whether it is fast. Laid out in a grid so the refs form a column
-      // instead of a ragged sentence.
-      '.loom-models{margin-top:4px;display:grid;grid-template-columns:1fr auto;gap:1px 8px;',
-      '.loom-model{display:flex;align-items:baseline;gap:6px;min-width:0;',
-      '.loom-model .ref{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}',
-      '.loom-model .ratio{font-family:var(--loom-mono);font-size:10px;color:var(--loom-soft);font-variant-numeric:tabular-nums;}',
+      '.loom-models{margin-top:5px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}',
+      '.loom-model{display:flex;align-items:baseline;gap:6px;min-width:0}',
+      '.loom-model .ref{font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}',
+      '.loom-model .ratio{font-family:var(--loom-mono);font-size:11px;color:var(--loom-soft);font-variant-numeric:tabular-nums;}',
       '.loom-model .ratio[data-tone=bad]{color:var(--loom-bad);}',
       '.loom-model .ratio[data-tone=warn]{color:var(--loom-warn);}',
-      '.loom-model .note{font-size:9.5px;color:var(--loom-faint);}',
-      '.loom-model .p90{font-family:var(--loom-mono);font-size:10px;color:var(--loom-faint);text-align:right;font-variant-numeric:tabular-nums;}',
-      ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      // ---- the measured triangle, the trend, the budget --------------------
-      // One line of five figures, then one line of structure. The line ellipsises
-      // instead of wrapping: a wrapped row of dashes reads as a broken table, and
-      // every segment carries its own title so the clipped text still explains
-      // itself on hover.
-      '.loom-tri{margin-top:5px;display:block;min-width:0;font-family:var(--loom-mono);',
-      ' font-size:9.5px;letter-spacing:.01em;line-height:1.5;color:var(--loom-quiet);',
+      '.loom-model .note{font-size:11px;color:var(--loom-faint);}',
+      '.loom-model .p90{font-family:var(--loom-mono);font-size:11px;color:var(--loom-faint);text-align:right;font-variant-numeric:tabular-nums;}',
+      // ---- the measured triangle, the trend, the budget -------------------
+      '.loom-tri{margin-top:7px;display:block;min-width:0;font-family:var(--loom-mono);',
+      ' font-size:11px;letter-spacing:-.01em;line-height:1.55;color:var(--loom-quiet);',
       ' white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.loom-tri .seg{color:var(--loom-soft)}',
-      '.loom-tri .sep{padding:0 4px;color:var(--loom-line2)}',
+      // the line wraps between figures, never inside one: "18.4k / tok" is two
+      // lines of a number, which is not a number
+      '.loom-tri .seg,.loom-tri .loom-chip{white-space:nowrap}',
+      '.loom-tri .sep{padding:0 5px;color:var(--loom-line2)}',
       '.loom-tri .loom-chip{margin-left:0}',
-      // the vitals row: the last rounds on the left, the budget on the right,
-      // both sitting on one baseline so a glance compares them.
-      '.loom-vitals{margin-top:6px;display:flex;align-items:flex-end;gap:10px;min-width:0}',
-      '.loom-spark{display:flex;align-items:flex-end;gap:2px;height:16px;flex:0 0 auto;padding-bottom:1px}',
-      // An unscored round draws nothing at all: no min-height, so height 0 is
-      // truly invisible instead of a 2px stub that reads as a zero score.
-      '.loom-spark .pt{display:block;width:4px;border-radius:1px;background:var(--loom-faint);',
-      ' transition:background 150ms var(--loom-ease)}',
+      // the trend and the budget meters were side by side, which left each meter
+      // about ninety pixels of track in a 320px sidebar. Stacked, every row can
+      // be read left to right without a squeezed number.
+      '.loom-vitals{margin-top:11px;display:flex;flex-direction:column;gap:10px;min-width:0}',
+      '.loom-sparkwrap{display:flex;align-items:flex-end;gap:10px;min-width:0}',
+      '.loom-sparkwrap .cap{font-size:11px;line-height:1.2;color:var(--loom-faint);letter-spacing:0}',
+      '.loom-sparkwrap .spacer{flex:1 1 auto}',
+      '.loom-spark{display:flex;align-items:flex-end;gap:3px;height:22px;flex:0 0 auto;padding-bottom:1px}',
+      '.loom-spark .pt{display:block;width:4px;border-radius:2px;background:var(--loom-faint);',
+      ' transition:background 180ms var(--loom-ease),height 180ms var(--loom-ease)}',
       '.loom-spark .pt[data-tone="ok"]{background:var(--loom-ok)}',
       '.loom-spark .pt[data-tone="warn"]{background:var(--loom-warn)}',
       '.loom-spark .pt[data-tone="bad"]{background:var(--loom-bad)}',
       '.loom-spark .pt[data-tone="idle"]{background:var(--loom-faint)}',
-      // A measured zero is a neutral baseline tick, not a verdict-coloured bar:
-      // it must be visible, and it must not be mistaken for an unscored slot.
       '.loom-spark .pt[data-zero="true"]{background:var(--loom-line2);border-radius:0}',
-      // The round as one 8px band: each measured node's share of the time, in
-      // reading order. The track has no gap on purpose - the segment widths are
-      // percentages that must add up to 100, and a gap would make the bar
-      // overflow the frame it is supposed to fill exactly.
-      '.loom-band{margin-top:7px;display:flex;width:100%;height:8px;border-radius:2px;',
+      '.loom-band{margin-top:9px;display:flex;width:100%;height:6px;border-radius:3px;',
       ' background:var(--loom-line);overflow:hidden}',
       '.loom-band-seg{display:block;height:100%;flex:0 0 auto;background:var(--loom-faint)}',
-      '.loom-meters{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}',
-      '.loom-meter{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0}',
-      '.loom-meter .k{font-size:9px;line-height:1;letter-spacing:.04em;color:var(--loom-faint);white-space:nowrap}',
-      '.loom-meter .bar{display:block;height:2px;border-radius:1px;background:var(--loom-line);overflow:hidden}',
-      '.loom-meter .fill{display:block;height:100%;border-radius:1px;background:var(--loom-ok);',
-      ' transition:width 150ms var(--loom-ease)}',
+      '.loom-meters{width:100%;min-width:0;display:flex;flex-direction:column;gap:7px}',
+      '.loom-meter{display:grid;grid-template-columns:4.2em minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0}',
+      '.loom-meter .k{font-size:11px;line-height:1;letter-spacing:0;color:var(--loom-faint);white-space:nowrap}',
+      '.loom-meter .bar{display:block;height:4px;border-radius:2px;background:var(--loom-line);overflow:hidden}',
+      '.loom-meter .fill{display:block;height:100%;border-radius:2px;background:var(--loom-ok);',
+      ' transition:width 180ms var(--loom-ease)}',
       '.loom-meter[data-tone="warn"] .fill{background:var(--loom-warn)}',
       '.loom-meter[data-tone="bad"] .fill{background:var(--loom-bad)}',
-      '.loom-meter .num{justify-self:end;font-family:var(--loom-mono);font-size:9px;line-height:1;',
+      '.loom-meter .num{justify-self:end;white-space:nowrap;font-family:var(--loom-mono);font-size:11px;line-height:1;',
       ' color:var(--loom-soft);white-space:nowrap}',
-      // every figure a poll can change is tabular, so the column does not twitch
       '.loom-metric b,.loom-age,.loom-tri,.loom-meter .num,.loom-node .v{font-variant-numeric:tabular-nums}',
-      // ---- the tree ----
-      // one hairline rail runs down the depth-1 nodes and every node but the
-      // last elbows onto it; deeper levels indent and keep a quieter dot. No
-      // SVG: the shape is structure, not decoration, so it is one pseudo
-      // element per row.
-      '.loom-tree{margin-top:7px;position:relative}',
-      // A checkpoint row can carry three buttons (approve / reject / snooze) and
-      // a signature-like value; at 320px they do not fit on one line, and a row
-      // that cannot wrap pushes the buttons outside the panel where overflow-x
-      // clips them - visible nowhere and clickable nowhere. So the row wraps, and
-      // the actions keep their own line rather than being squeezed to nothing.
+      // ---- the tree -------------------------------------------------------
+      // the rail is one hairline: structure, not decoration. Deeper rows
+      // indent and lose the rail rather than growing a second one.
+      '.loom-tree{margin-top:10px;position:relative}',
       '.loom-node{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;min-width:0;',
-      ' row-gap:2px;padding:3px 0 3px 18px;transition:background 150ms var(--loom-ease)}',
+      ' row-gap:3px;padding:5px 0 5px 16px;transition:background 180ms var(--loom-ease);border-radius:6px}',
       '.loom-node:hover{background:var(--loom-hover)}',
-      '.loom-node[data-depth="1"]:before{content:"";position:absolute;left:6px;top:0;bottom:0;width:1px;',
+      '.loom-node[data-depth="1"]:before{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;',
       ' background:var(--loom-line)}',
-      '.loom-node[data-depth="1"]:after{content:"";position:absolute;left:6px;top:11px;width:9px;height:1px;',
+      '.loom-node[data-depth="1"]:after{content:"";position:absolute;left:5px;top:13px;width:8px;height:1px;',
       ' background:var(--loom-line)}',
-      '.loom-node[data-depth="1"][data-last="1"]:before{bottom:auto;height:11px}',
-      '.loom-node[data-depth="2"]{padding-left:31px}',
-      '.loom-node[data-depth="2"]:before{content:"";position:absolute;left:19px;top:11px;width:7px;height:1px;',
+      '.loom-node[data-depth="1"][data-last="1"]:before{bottom:auto;height:13px}',
+      '.loom-node[data-depth="2"]{padding-left:26px}',
+      '.loom-node[data-depth="2"]:before{content:"";position:absolute;left:15px;top:13px;width:7px;height:1px;',
       ' background:var(--loom-line)}',
-      '.loom-node[data-depth="3"]{padding-left:43px}',
-      '.loom-node .k{flex:0 0 auto;font-family:var(--loom-mono);font-size:9.5px;letter-spacing:.04em;color:var(--loom-quiet)}',
-      '.loom-node .t{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--loom-soft);',
+      '.loom-node[data-depth="3"]{padding-left:36px}',
+      '.loom-node .k{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;letter-spacing:.02em;color:var(--loom-faint)}',
+      // a lesson reads file-and-weight first, the sentence second: the claim is
+      // the longest string on the row, so it takes its own line instead of
+      // shoving the weight into a stray column
+      '.loom-node[data-role="lesson"] .v{order:2;margin-left:auto}',
+      '.loom-node[data-role="lesson"] .t{order:3;flex:1 0 100%;white-space:normal;line-height:1.45;',
+      ' display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
+      '.loom-node[data-role="wait"] .help{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
+      '.loom-node .t{flex:1 1 auto;min-width:0;font-size:12px;color:var(--loom-soft);',
       ' overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.loom-node .t.mono{font-family:var(--loom-mono);font-size:10.5px}',
-      '.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
-      '.loom-node .acts{flex:0 1 auto;display:flex;flex-wrap:wrap;gap:2px;margin-left:auto;min-width:0}',
-      '.loom-node .acts .loom-btn{font-size:10.5px;padding:2px 5px}',
-      // 检查点解释换行显示：读者不必 hover 才知道这一行是什么、不管会怎样。
-      '.loom-node .help{flex:1 0 100%;font-size:10px;line-height:1.45;color:var(--loom-faint);white-space:normal}',
-      // checkpoint block: a hairline ledger entry inside the tree
-      '.loom-cp{margin:0;padding:5px 0 6px}',
-      '.loom-cp-head{display:flex;align-items:center;gap:6px;font-family:var(--loom-mono);font-size:10px;',
-      ' letter-spacing:.03em;color:var(--loom-quiet);justify-content:space-between}',
-      '.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.04em}',
-      '.loom-cp-body{margin-top:3px;font-size:11px;line-height:1.45;color:var(--loom-soft)}',
-      '.loom-cp-acts{margin-top:5px;display:flex;gap:4px}',
-      '.loom-acts{margin-top:8px;display:flex;align-items:center;gap:2px}',
-      '.loom-acts .sep{width:1px;height:12px;background:var(--loom-line);margin:0 4px}',
-      '.loom-chips{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}',
-      '.loom-chip{font-family:var(--loom-mono);font-size:10px;line-height:1;padding:3px 5px;border-radius:4px;',
-      ' background:var(--loom-wash);border:1px solid transparent;color:var(--loom-soft);white-space:nowrap}',
-      '.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 32%,transparent)}',
-      '.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 32%,transparent)}',
+      '.loom-node .t.mono{font-family:var(--loom-mono);font-size:11.5px}',
+      '.loom-node .v{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);white-space:nowrap}',
+      '.loom-node .acts{flex:0 1 auto;display:flex;flex-wrap:wrap;gap:4px;margin-left:auto;min-width:0}',
+      '.loom-node .acts .loom-btn{font-size:11.5px;padding:4px 7px}',
+      '.loom-node .help{flex:1 0 100%;font-size:11.5px;line-height:1.5;color:var(--loom-faint);white-space:normal}',
+      '.loom-cp{margin:0;padding:7px 0 8px}',
+      '.loom-cp-head{display:flex;align-items:center;gap:8px;font-family:var(--loom-mono);font-size:11px;',
+      ' letter-spacing:.01em;color:var(--loom-quiet);justify-content:space-between}',
+      '.loom-cp-head b{font-weight:500;color:var(--loom-ink);letter-spacing:.02em}',
+      '.loom-cp-body{margin-top:4px;font-size:12px;line-height:1.5;color:var(--loom-soft)}',
+      '.loom-cp-acts{margin-top:7px;display:flex;gap:6px}',
+      '.loom-acts{margin-top:11px;display:flex;align-items:center;gap:4px}',
+      '.loom-acts .sep{width:1px;height:14px;background:var(--loom-line);margin:0 6px}',
+      '.loom-chips{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}',
+      '.loom-chip{font-family:var(--loom-sans);font-size:11px;line-height:1;padding:4px 7px;border-radius:999px;',
+      ' background:var(--loom-surface);border:1px solid transparent;color:var(--loom-soft);white-space:nowrap}',
+      '.loom-chip.ok{color:var(--loom-ok);border-color:color-mix(in srgb,var(--loom-ok) 30%,transparent)}',
+      '.loom-chip.bad{color:var(--loom-bad);border-color:color-mix(in srgb,var(--loom-bad) 30%,transparent)}',
       '.loom-chip.live{color:var(--loom-ok)}',
-      // a chip that reports an absence: no fill, a hairline, no accent — it is
-      // a state of the data, not a state of the loop.
-      '.loom-chip.quiet{background:transparent;border-color:var(--loom-line);color:var(--loom-faint);letter-spacing:.06em}',
-      // knowledge
-      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11.5px;color:var(--loom-soft);min-width:0}',
-      '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.loom-lesson .score{font-family:var(--loom-mono);font-size:10px;color:var(--loom-quiet);white-space:nowrap}',
-      // A fixed accent cannot clear 4.5:1 on both a white and a near-black
-      // canvas at this size, so the number keeps canvas ink and borrows the
-      // accent as a tint: readable either way, still signed.
-      '.loom-lesson .score[data-tone=up]{color:color-mix(in srgb,var(--loom-base) 58%,var(--loom-ok));}',
-      '.loom-lesson .score[data-tone=down]{color:color-mix(in srgb,var(--loom-base) 55%,var(--loom-bad));}',
-      '.loom-kind{padding:3px 12px 1px 18px;font-size:10px;letter-spacing:.04em;color:var(--loom-quiet)}',
-      // a knowledge file: its path is the heading, its claims hang under it.
-      // The path is mono and truncated from the left, so two files in different
-      // directories are still distinguishable at this width.
-      '.loom-kfile{min-width:0;padding:3px 0 4px;border-top:1px solid var(--loom-line)}',
-      '.loom-kfile:first-child{border-top:0;padding-top:0}',
-      '.loom-kfile .loom-kind{display:flex;align-items:baseline;gap:6px;padding:1px 0 2px;min-width:0}',
+      '.loom-chip.quiet{background:transparent;border-color:var(--loom-line);color:var(--loom-faint);letter-spacing:0}',
+      // ---- knowledge ------------------------------------------------------
+      // A claim is one sentence and it is the deliverable: splitting the list into
+      // two columns at 400px buys 80px of width and spends the end of every
+      // sentence. One column until there is room for two readable ones.
+      '.loom-kfiles{display:block;padding:0 0 4px;min-width:0}',
+      '.loom-kfile{min-width:0;padding:9px 11px;border-radius:12px;background:var(--loom-surface)}',
+      '.loom-kfile .loom-kind{display:flex;align-items:baseline;gap:6px;padding:0 0 3px;min-width:0;',
+      ' font-size:11px;letter-spacing:0;color:var(--loom-quiet)}',
       '.loom-kfile .loom-kind .p{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
       ' direction:rtl;text-align:left;font-family:var(--loom-mono);color:var(--loom-soft)}',
       '.loom-kfile .loom-kind .c{margin-left:auto;flex:0 0 auto;font-family:var(--loom-mono);color:var(--loom-faint)}',
+      '.loom-lesson{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:12px;color:var(--loom-soft);min-width:0}',
+      '.loom-lesson .claim{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.loom-lesson .score{font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);white-space:nowrap}',
+      '.loom-lesson .score[data-tone=up]{color:color-mix(in srgb,var(--loom-base) 55%,var(--loom-ok));}',
+      '.loom-lesson .score[data-tone=down]{color:color-mix(in srgb,var(--loom-base) 52%,var(--loom-bad));}',
       '.loom-kfile .loom-lesson{padding-left:0;padding-right:0;align-items:flex-start}',
-      // the claim wraps to at most two lines: a card that grows without bound
-      // stops being a card. The tooltip holds the whole sentence.
       '.loom-kfile .loom-lesson .claim{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;',
-      ' -webkit-box-orient:vertical;line-height:1.42}',
-      '.loom-kfile .loom-lesson .kind{flex:0 0 auto;font-family:var(--loom-mono);font-size:9px;padding-top:1px;',
-      ' color:var(--loom-faint);letter-spacing:.04em}',
+      ' -webkit-box-orient:vertical;line-height:1.45}',
+      '.loom-kfile .loom-lesson .kind{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;padding-top:1px;',
+      ' color:var(--loom-faint);letter-spacing:.02em}',
       '.loom-kfile .loom-lesson .kind[data-kind=hazard]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-bad))}',
       '.loom-kfile .loom-lesson .kind[data-kind=recipe]{color:color-mix(in srgb,var(--loom-base) 45%,var(--loom-ok))}',
-      '.loom-note{padding:1px 12px 5px 18px;font-size:10px;line-height:1.5;color:var(--loom-faint)}',
-      '.loom-more{padding:1px 0 2px 0;font-family:var(--loom-mono);font-size:9.5px;color:var(--loom-faint)}',
-      '.loom-more-groups{padding:3px 12px 6px;border-top:1px solid var(--loom-line)}',
-      // shell
-      '.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;',
-      ' scrollbar-width:thin}',
-      '.loom-foot{display:flex;align-items:center;gap:6px;padding:7px 12px;border-top:1px solid var(--loom-line);',
-      ' font-size:9.5px;letter-spacing:.04em;color:var(--loom-soft)}',
+      '.loom-more{padding:4px 0 2px 0;font-size:11.5px;color:var(--loom-faint)}',
+      '.loom-more-groups{padding:6px 2px 10px}',
+      // turn the tail of a section into a control, not a paragraph
+      '.loom-morebtn{appearance:none;background:transparent;border:0;padding:6px 2px;font-family:var(--loom-sans);',
+      ' font-size:11.5px;color:var(--loom-quiet);cursor:pointer;text-align:left;line-height:1.4}',
+      '.loom-morebtn:hover{color:var(--loom-ink)}',
+      '.loom-morebtn:focus-visible{outline:2px solid color-mix(in srgb,var(--loom-base) 30%,transparent);outline-offset:1px}',
+      // ---- shell ----------------------------------------------------------
+      '.loom-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-width:thin;padding-top:2px}',
+      '.loom-foot{display:flex;align-items:center;gap:6px;padding:9px 14px;font-size:11px;',
+      ' letter-spacing:0;color:var(--loom-faint)}',
       '.loom-foot .sep{margin-left:auto}',
-      '.loom-empty{padding:14px 12px 16px;font-size:11.5px;line-height:1.6;color:var(--loom-quiet)}',
-      '.loom-empty code{font-size:11px;color:var(--loom-soft)}',
-      '.loom-err{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-bad);word-break:break-word}',
-      // the failure explains itself in three layers: a Chinese title, what it
-      // does and does not mean, then the raw message in a quieter tone so it
-      // stays available without being the headline
-      '.loom-err b{display:block;margin-bottom:4px;font-family:inherit;font-size:11.5px;letter-spacing:.04em}',
-      '.loom-err .hint{font-family:inherit;font-size:11px;line-height:1.55;color:var(--loom-soft);margin-bottom:6px}',
-      '.loom-err .detail{margin-top:7px;font-size:10px;color:var(--loom-quiet);word-break:break-all}',
-      '.loom-loading{padding:10px 12px;font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
-      '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-top:1px solid var(--loom-line);',
-      ' font-family:var(--loom-mono);font-size:10.5px;color:var(--loom-quiet)}',
+      '.loom-empty{padding:16px 14px 18px;font-size:12.5px;line-height:1.6;color:var(--loom-quiet)}',
+      '.loom-empty code{font-size:12px;color:var(--loom-soft)}',
+      '.loom-err{margin:0 12px 12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--loom-bad) 8%,transparent);',
+      ' font-size:12px;color:var(--loom-bad);word-break:break-word}',
+      '.loom-err b{display:block;margin-bottom:4px;font-size:12.5px;letter-spacing:0}',
+      '.loom-err .hint{font-size:12px;line-height:1.55;color:var(--loom-soft);margin-bottom:6px}',
+      '.loom-err .detail{margin-top:7px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);word-break:break-all}',
+      '.loom-loading{padding:14px;font-size:12px;color:var(--loom-quiet)}',
+      '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:8px 14px;font-family:var(--loom-mono);font-size:11.5px;color:var(--loom-quiet)}',
       '.loom-broken b{font-weight:500;color:var(--loom-soft)}',
-      // The strip narrows by dropping cells rather than shrinking all six: the
-      // payload already named the three that answer "is it running / is it
-      // stuck / what did it cost", so at 360px and below the rest is hidden
-      // instead of squeezed into an unreadable 38px row.
-      '@media (max-width:360px){.loom-metrics{display:flex}',
-      '.loom-metric{flex:1 1 0}',
-      '.loom-metric:not(.is-primary){display:none}',
-      '.loom-metric:last-child{border-right:0}}',
+      // a wide panel spends its width on two honest columns, never on a longer
+      // line of prose
+      '@container (min-width:560px){',
+      '.loom-kfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}',
+      // with room to spare the consequence sentence is read in full; the clamp
+      // exists for the 320px sidebar, not for a half-window panel
+      '.loom-hero-row .txt .why{-webkit-line-clamp:unset;overflow:visible}',
+      '.loom-hero-rows{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}',
+      '.loom-hero-row:nth-child(2){border-top:1px solid var(--loom-line)}}',
+      // a sidebar narrower than ~400px cannot hold a sentence and two buttons
+      // on one line: the sentence takes the width, the actions drop below it
+      '@container (max-width:400px){',
+      '.loom-hero-row{flex-wrap:wrap;align-items:flex-start;padding:11px 14px}',
+      '.loom-hero-row .txt{flex:1 1 auto}',
+      '.loom-hero-acts{flex:1 0 100%;justify-content:flex-end;margin-top:7px}',
+      // five figures plus separators do not fit 320px on one line; wrapping
+      // keeps every one of them readable instead of clipping the last
+      '.loom-tri{white-space:normal;line-height:1.7}}',
       '@media (prefers-reduced-motion:reduce){.loom *{transition:none!important}}',
     ].join('\n')
 
@@ -364,7 +401,20 @@ window.__ModuleLoader__.load({
         var root = doc.querySelector('.loom')
         if (!root) return
         var ink = doc.defaultView.getComputedStyle(root).color
-        if (ink) root.style.setProperty('--loom-ink-base', ink)
+        if (!ink) return
+        root.style.setProperty('--loom-ink-base', ink)
+        // A filled button paints ink and puts the canvas in the label, so the
+        // canvas has to be known. It is the ink's complement by definition --
+        // the host guarantees the text is readable on the surface it painted:
+        // light ink means a dark canvas, and the other way round.
+        var rgb = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(ink)
+        if (!rgb) return
+        var ch = [1, 2, 3].map(function (i) {
+          var v = Number(rgb[i]) / 255
+          return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+        })
+        var lum = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+        root.style.setProperty('--loom-ink-canvas', lum > 0.5 ? '#101113' : '#ffffff')
       } catch (error) {
         // a panel that cannot measure its ink still renders on the fallback
       }
@@ -789,8 +839,12 @@ window.__ModuleLoader__.load({
             riskSource: review ? 'review' : 'default',
             summary: review ? review.summary : '',
             // The queue is often the only place a checkpoint is read, so the
-            // row carries the same explanation the campaign tree shows.
+            // row carries the full explanation -- "what it is" is on screen,
+            // "what ignoring it costs" rides in the tooltip. `brief` is the
+            // on-screen half, so three checkpoints do not reprint three
+            // paragraphs inside the campaign.
             help: checkpointHelpText(cp.kind),
+            brief: checkpointHelp(cp.kind).what,
             waitMs: at === null ? null : Math.max(0, now - at),
             // A postponed row says so, and says when it is worth reading again;
             // it stays in the queue so it is not silently forgotten.
@@ -1754,8 +1808,12 @@ window.__ModuleLoader__.load({
       if (!cps.length) return null
       return {
         key: 'wait',
+        // One action surface, at the top of the panel, and it stays there while
+        // you read (it is sticky). Repeating 批准/驳回 on every row here turned
+        // a three-item queue into nine buttons and pushed the campaign's own
+        // state off the first screen.
         label: '待审',
-        meta: String(cps.length),
+        meta: cps.length + ' · 在顶部处理',
         tone: TONES.warn,
         children: cps.map(function (cp) {
           var payload = cp.payload || {}
@@ -1768,13 +1826,13 @@ window.__ModuleLoader__.load({
             kind: checkpointLabel(cp.kind),
             label: cp.id,
             meta: detail.join(' · '),
+            // the card names the checkpoint; the full consequence sentence is
+            // the hero's job (and this row's tooltip), so three checkpoints do
+            // not reprint three paragraphs inside the campaign
             help: checkpointHelpText(cp.kind),
+            brief: checkpointHelp(cp.kind).what,
             mono: true,
-            actions: [
-              { label: '批准', title: '接受这个检查点，让这一轮落地', action: 'decide', decision: 'approve', checkpoint: cp.id },
-              { label: '驳回', title: '驳回；再点一次确认', action: 'decide', decision: 'reject', checkpoint: cp.id, danger: true, confirm: true },
-              { label: '暂缓', title: '先放着，稍后再定', action: 'decide', decision: 'hold', checkpoint: cp.id },
-            ],
+            role: 'wait',
           }
         }),
       }
@@ -1814,6 +1872,7 @@ window.__ModuleLoader__.load({
           var where = (l.files && l.files.length ? String(l.files[0]) : '').split('/').pop()
           return {
             key: 'l-' + l.id,
+            role: 'lesson',
             kind: where || kindLabel(l.kind),
             label: text(l.claim, l.id),
             meta: (num(l.score) > 0 ? '+' : '') + num(l.score),
@@ -1860,9 +1919,11 @@ window.__ModuleLoader__.load({
           kind: node.kind || '',
           meta: node.meta || '',
           help: node.help || '',
+          brief: node.brief || node.help || '',
           tone: node.tone || '',
           mono: node.mono === true,
           lead: node.lead === true,
+          role: node.role || '',
           actions: node.actions || [],
         }
         rows.push(row)
@@ -2014,8 +2075,8 @@ window.__ModuleLoader__.load({
         var switchBtn = h(
           'button',
           switchLook,
-          h('span', { className: 'loom-dot ' + (rsiOn ? 'on' : 'off') }),
-          h('span', null, rsiOn ? '循环 开' : '循环 关'),
+          h('span', { className: 'loom-track' }, h('span', { className: 'loom-knob' })),
+          h('span', null, '循环'),
         )
         // Planning is the other install-level control: it changes what a round buys,
         // not what a campaign is. It sits next to the switch for the same reason --
@@ -2034,8 +2095,8 @@ window.__ModuleLoader__.load({
         var planBtn = h(
           'button',
           planLook,
-          h('span', { className: 'loom-dot ' + (planOn ? 'on' : 'off') }),
-          h('span', null, planOn ? '规划 开' : '规划 关'),
+          h('span', { className: 'loom-track' }, h('span', { className: 'loom-knob' })),
+          h('span', null, '规划'),
         )
         var header = h(
           'div',
@@ -2049,6 +2110,7 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               className: 'loom-btn bare',
+              style: { padding: '5px 6px', minHeight: 24 },
               title: '重新读取 ~/.dsh/loom',
               'aria-label': '刷新',
               onClick: load,
@@ -2057,16 +2119,22 @@ window.__ModuleLoader__.load({
           ),
         )
 
-        var figs = metrics(data)
+        // The queue count is the hero's figure; repeating it in a caption would
+        // put the same number on screen twice. "轮数" is the data function's
+        // name for it -- a caption has room for the short word.
+        var caption = { rounds: '轮' }
+        var figs = metrics(data).filter(function (m) {
+          return m.key !== 'pending'
+        })
         var strip = h(
           'div',
-          { className: 'loom-metrics' },
+          { className: 'loom-figures' },
           figs.map(function (m) {
             return h(
-              'div',
-              { key: m.key, className: 'loom-metric' + (m.hot ? ' hot' : '') + (m.primary ? ' is-primary' : '') },
+              'span',
+              { key: m.key, className: 'f' + (m.hot ? ' hot' : '') },
               h('b', null, m.value),
-              h('span', null, m.label),
+              ' ' + (caption[m.key] || m.label),
             )
           }),
         )
@@ -2120,112 +2188,136 @@ window.__ModuleLoader__.load({
         if (queue.unlisted > 0) queueNotes.push('另有 ' + queue.unlisted + ' 条宿主只给了数量，没有明细。')
         var queueNote = queueNotes.length ? h('div', { className: 'loom-note' }, queueNotes.join('')) : null
 
-        var pendingBlock =
-          queue.total === 0
-            ? null
-            : h(
-                'div',
-                {
-                  className: 'loom-sec',
-                  // A checkpoint can arrive while the panel is already open, so
-                  // the whole queue is a polite live region: additions are
-                  // announced, and nothing interrupts what is being read. The
-                  // quoted keys below are React props; the canonical names are
-                  // aria-live: 'polite' and aria-label: '待你处理'.
-                  'aria-live': 'polite',
-                  'aria-label': '待你处理',
-                },
-                h(
-                  'div',
-                  { className: 'loom-sec-head' },
-                  '待你处理',
-                  h(
-                    'span',
-                    {
-                      className: 'n',
-                      title:
-                        queue.total + ' 条等待中，其中 ' + queue.assessed + ' 条有风险评估，' +
-                        queueUnassessed + ' 条没有（宿主最多只评估三条）',
-                    },
-                    queue.total + ' 条 · ' + queue.assessed + ' 已评估',
-                  ),
-                ),
-                queueNote,
-                queue.rows.map(function (q) {
-                  var key = q.campaign + ':' + q.id
-                  var busyKey = q.campaign + ':decide'
-                  var armed = confirming === key
-                  var assessed = q.riskSource === 'review'
-                  var why = assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险'
-                  // What happened and what ignoring it costs, in the tooltip:
-                  // the queue row is too narrow to wrap the whole explanation.
-                  var rowTitle = q.help ? why + ' · ' + q.help : why
-                  return h(
-                    'div',
-                    { key: key, className: 'loom-row' },
-                    h('span', {
-                      className: 'loom-dot',
-                      // An unreviewed checkpoint has unknown risk, not normal:
-                      // the dot stays neutral instead of borrowing the "normal"
-                      // amber the host never sent.
-                      style: { color: assessed ? riskTone(q.risk) : 'var(--loom-faint)' },
-                    }),
-                    h(
+        // The queue is the product. It is the first thing on the panel, it shows
+        // the count as a figure rather than a caption, and each row carries its
+        // consequence in a second line -- a decision the reader cannot price is
+        // a decision they will postpone.
+        var queueRows = queue.rows.map(function (q, rowIndex) {
+          var firstRow = rowIndex === 0
+          var key = q.campaign + ':' + q.id
+          var busyKey = q.campaign + ':decide'
+          var armed = confirming === key
+          var assessed = q.riskSource === 'review'
+          var why = assessed ? q.summary || checkpointLabel(q.kind) : '宿主没有评估这条检查点的风险'
+          // What happened and what ignoring it costs, in the tooltip: the queue
+          // row is too narrow to wrap the whole explanation.
+          var rowTitle = q.help ? why + ' · ' + q.help : why
+          return h(
+            'div',
+            { key: key, className: 'loom-hero-row' },
+            h('span', {
+              className: 'loom-dot',
+              style: { color: assessed ? riskTone(q.risk) : 'var(--loom-faint)', marginTop: 5 },
+            }),
+            h(
+              'span',
+              { className: 'txt', title: rowTitle },
+              h(
+                'span',
+                { className: 'what' },
+                h('b', null, q.campaign),
+                h('span', { style: { color: 'var(--loom-faint)' } }, ' · ' + checkpointLabel(q.kind)),
+                assessed
+                  ? null
+                  : h('span', { className: 'loom-chip quiet', style: { marginLeft: 6, padding: '2px 6px', fontSize: 10.5 } }, '未评估'),
+                q.deferred
+                  ? h(
                       'span',
-                      { className: 'txt', title: rowTitle },
-                      h('b', null, q.campaign),
-                      ' · ' + checkpointLabel(q.kind) + (q.summary ? ' — ' + q.summary : ''),
-                      assessed
-                        ? null
-                        : h('span', { className: 'loom-chip quiet', style: { marginLeft: 6 } }, '未评估'),
-                      // A held row is still in the queue on purpose, but it says
-                      // so: 暂缓 postponed it, it did not answer it.
-                      q.deferred
-                        ? h(
-                            'span',
-                            {
-                              className: 'loom-chip quiet',
-                              style: { marginLeft: 6 },
-                              title: '已暂缓至 ' + new Date(q.deferUntil).toLocaleString('zh-CN'),
-                            },
-                            '已暂缓',
-                          )
-                        : null,
-                    ),
-                    h(
-                      'button',
                       {
-                        type: 'button',
-                        className: 'loom-btn bare',
-                        disabled: box.busy === busyKey,
-                        title: '接受这个检查点，让这一轮落地',
-                        onClick: function () {
-                          act(q.campaign, 'decide', 'approve', q.id)
-                        },
+                        className: 'loom-chip quiet',
+                        style: { marginLeft: 6, padding: '2px 6px', fontSize: 10.5 },
+                        title: '已暂缓至 ' + new Date(q.deferUntil).toLocaleString('zh-CN'),
                       },
-                      '批准',
-                    ),
-                    h(
-                      'button',
-                      {
-                        type: 'button',
-                        className: 'loom-btn bare danger',
-                        disabled: box.busy === busyKey,
-                        title: armed ? '再点一次即驳回' : '驳回 — 需要再点一次确认',
-                        onClick: function () {
-                          if (!armed) {
-                            setConfirming(key)
-                            return
-                          }
-                          setConfirming(null)
-                          act(q.campaign, 'decide', 'reject', q.id)
-                        },
-                      },
-                      armed ? '确定?' : '驳回',
-                    ),
-                  )
-                }),
+                      '已暂缓',
+                    )
+                  : null,
+              ),
+              h('span', { className: 'why' }, why),
+            ),
+            h(
+              'span',
+              { className: 'loom-hero-acts' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'loom-btn line danger',
+                  disabled: box.busy === busyKey,
+                  title: armed ? '再点一次即驳回' : '驳回 — 需要再点一次确认',
+                  onClick: function () {
+                    if (!armed) {
+                      setConfirming(key)
+                      return
+                    }
+                    setConfirming(null)
+                    act(q.campaign, 'decide', 'reject', q.id)
+                  },
+                },
+                armed ? '确定?' : '驳回',
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  // one solid button on the whole panel: the first decision is
+                  // the one to take, the rest are still reachable but do not
+                  // compete with it
+                  className: firstRow ? 'loom-btn solid' : 'loom-btn line',
+                  disabled: box.busy === busyKey,
+                  title: '接受这个检查点，让这一轮落地',
+                  onClick: function () {
+                    act(q.campaign, 'decide', 'approve', q.id)
+                  },
+                },
+                '批准',
+              ),
+            ),
+          )
+        })
+
+        // An empty queue is not an empty screen: it is the loop working without
+        // you. So the resting state answers "is anything happening" with the
+        // campaign that moved last, instead of a zero.
+        var movingNow = ((data && data.campaigns) || []).filter(function (c) {
+          return c.status === 'running'
+        })
+        var lastMoving = movingNow.length
+          ? movingNow
+              .slice()
+              .sort(function (a, b) {
+                var an = (a.lastRound && a.lastRound.n) || 0
+                var bn = (b.lastRound && b.lastRound.n) || 0
+                return bn - an
+              })[0]
+          : null
+        var restLine = lastMoving
+          ? movingNow.length + ' 个战役在跑 · ' + lastMoving.id + ' 第 ' + ((lastMoving.lastRound && lastMoving.lastRound.n) || 0) + ' 轮'
+          : '循环在自己跑；需要人时，它会出现在这里'
+
+        var pendingBlock = h(
+          'div',
+          { className: 'loom-hero', 'aria-live': 'polite', 'aria-label': '待你处理' },
+          h(
+            'div',
+            { className: 'loom-hero-head' },
+            h('span', { className: 'k' }, queue.total > 0 ? '需要你决定' : '没有待处理的决定'),
+            // a zero is not a figure worth 22px; when the queue is empty the
+            // count line simply is not there
+            queue.total > 0
+              ? h('span', { className: 'v', title: queue.total + ' 条等待中' }, String(queue.total))
+              : null,
+          ),
+          queue.total === 0
+            ? h(
+                'div',
+                { className: 'loom-hero-empty' },
+                h('span', { className: 'dot' }),
+                h('span', null, restLine),
               )
+            : h('div', { className: 'loom-hero-rows' }, queueRows),
+          queueNote,
+        )
+
 
         // Knowledge is filed by file, not by kind. Every claim the loop writes
         // is a `fact`, so a kind grouping was one undifferentiated bucket --
@@ -2233,6 +2325,11 @@ window.__ModuleLoader__.load({
         // group is the axis a reader can use ("what does it know about this
         // module?"), and a claim that names no file says so instead of being
         // filed somewhere arbitrary.
+        var reusedAny = tree.files.some(function (g) {
+          return (g.items || []).some(function (it) {
+            return it.uses > 0
+          })
+        })
         var treeBlock =
           tree.files.length === 0
             ? null
@@ -2275,20 +2372,26 @@ window.__ModuleLoader__.load({
                         },
                         h('span', { className: 'kind', 'data-kind': item.kind }, kindLabel(item.kind).slice(0, 2)),
                         h('span', { className: 'claim' }, text(item.claim, item.id)),
-                        h(
-                          'span',
-                          {
-                            className: 'score',
-                            'data-tone': item.harm > 0 ? 'down' : item.uses > 0 ? 'up' : 'flat',
-                            title: item.uses > 0
-                              ? '用上过 ' + item.uses + ' 次' + (item.harm > 0 ? '，其中 ' + item.harm + ' 次有害' : '')
-                              : '还没有哪一轮用上过它',
-                          },
-                          // A reusable claim is described by how often it was
-                          // reused; the gain it was born with is a number about
-                          // a round that is over.
-                          item.uses > 0 ? '用 ' + item.uses : '新',
-                        ),
+                        // A badge on every row is a badge on none: when nothing
+                        // here has been reused yet, "新" fifteen times says only
+                        // that the section is new, and the header already says
+                        // how many there are.
+                        item.uses > 0 || reusedAny
+                          ? h(
+                              'span',
+                              {
+                                className: 'score',
+                                'data-tone': item.harm > 0 ? 'down' : item.uses > 0 ? 'up' : 'flat',
+                                title: item.uses > 0
+                                  ? '用上过 ' + item.uses + ' 次' + (item.harm > 0 ? '，其中 ' + item.harm + ' 次有害' : '')
+                                  : '还没有哪一轮用上过它',
+                              },
+                              // A reusable claim is described by how often it
+                              // was reused; the gain it was born with is a
+                              // number about a round that is over.
+                              item.uses > 0 ? '用 ' + item.uses : '新',
+                            )
+                          : null,
                       )
                     }),
                     g.items.length > KITEMS_SHOWN
@@ -2342,15 +2445,15 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'loom-sec-head' },
               '战役',
-              h('span', { className: 'n' }, String(data.campaigns.filter(function (c) {
+              h('span', { className: 'n' }, data.campaigns.filter(function (c) {
                 return c && !c.error
-              }).length)),
+              }).length + ' 个'),
               h(
                 'button',
                 {
                   type: 'button',
                   className: 'loom-btn bare',
-                  style: { marginLeft: 'auto', fontSize: '9.5px' },
+                  style: { marginLeft: 'auto', fontSize: '11px' },
                   title: anyOpen ? '把所有战役收成一行' : '展开所有战役',
                   onClick: function () {
                     foldAll(anyOpen)
@@ -2392,7 +2495,13 @@ window.__ModuleLoader__.load({
         var footer = h(
           'div',
           { className: 'loom-foot' },
-          h('span', null, data && data.ownership && data.ownership.mine === false ? '由另一个窗口驱动' : '本窗口驱动'),
+          // The one fact a reader must not have to discover by closing the
+          // window: the loop lives in this process.
+          h(
+            'span',
+            { title: '循环跑在这个窗口的进程里；关掉窗口，它就不跑了' },
+            data && data.ownership && data.ownership.mine === false ? '由另一个窗口运行' : '循环在本窗口运行',
+          ),
           data && data.lean ? h('span', { className: 'sep' }, 'Lean ' + (data.lean.available ? '就绪' : '未安装')) : null,
         )
 
@@ -2402,8 +2511,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'loom', style: { height: '100%' } },
           header,
-          strip,
-          h('div', { className: 'loom-scroll', style: { overflowY: 'auto' } }, pendingBlock, body, treeBlock),
+          h('div', { className: 'loom-scroll', style: { overflowY: 'auto' } }, pendingBlock, strip, body, treeBlock),
           footer,
         )
       }
@@ -2514,6 +2622,16 @@ window.__ModuleLoader__.load({
           )
           : null
 
+        var sparkWrap = sparkNode
+          ? h(
+            'div',
+            { className: 'loom-sparkwrap' },
+            h('span', { className: 'cap' }, '最近 ' + spark.count + ' 轮'),
+            h('span', { className: 'spacer' }),
+            sparkNode,
+          )
+          : null
+
         var metersNode = h(
           'div',
           { className: 'loom-meters' },
@@ -2555,7 +2673,9 @@ window.__ModuleLoader__.load({
           if (row.meta) parts.push(h('span', { className: 'v', key: 'v' }, row.meta))
           // The explanation wraps onto its own line: the row says what the
           // checkpoint is and what ignoring it costs without a hover.
-          if (row.help) parts.push(h('span', { className: 'help', key: 'h' }, row.help))
+          // the row shows the short half; the tooltip on the label carries
+          // the whole sentence (what it is, and what ignoring it costs)
+          if (row.brief) parts.push(h('span', { className: 'help', key: 'h' }, row.brief))
           if (row.actions && row.actions.length) {
             parts.push(
               h(
@@ -2594,6 +2714,7 @@ window.__ModuleLoader__.load({
               className: 'loom-node',
               'data-depth': String(row.depth),
               'data-last': row.last ? '1' : '0',
+              'data-role': row.role || undefined,
             },
             parts,
           )
@@ -2607,7 +2728,7 @@ window.__ModuleLoader__.load({
             { onClick: function () { props.onToggle(c.id) }, style: { cursor: 'pointer' } },
             head,
             h('div', { className: 'loom-obj' }, text(c.objective, '未记录目标')),
-            h('div', { className: 'loom-vitals' }, sparkNode, metersNode),
+            h('div', { className: 'loom-vitals' }, sparkWrap, metersNode),
             h('div', { className: 'loom-tri', title: tri.map(function (chip) { return chip.title }).join(' · ') }, triKids),
             metaLine,
             when(nodeKids.length > 0, h('div', { className: 'loom-chips' }, nodeKids.map(function (chip) {

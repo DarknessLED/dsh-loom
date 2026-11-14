@@ -120,7 +120,7 @@ const AUDIT = `
     }
     return false;
   }
-  var out = { canvases: [], truncated: 0, clipped: [], overright: [], contrast: [], shadows: 0, fonts: {}, dots: 0 };
+  var out = { canvases: [], truncated: 0, clipped: [], overright: [], contrast: [], shadows: 0, shadowStrays: [], fonts: {}, dots: 0 };
   var canvases = document.querySelectorAll('.canvas');
   for (var i = 0; i < canvases.length; i++) {
     var cv = canvases[i];
@@ -129,9 +129,20 @@ const AUDIT = `
     var scroller = panel.querySelector('.loom-scroll');
     // A grid that never grows a second track is a column with extra steps: this
     // is the number that says whether the wide layout actually uses its room.
-    var tracks = function (sel) {
+    // Count the columns a reader can see: how many distinct left edges the
+    // children actually start at. Grid tracks and the css columns property lay out the
+    // same thing by different means, and only one of them answers
+    // getComputedStyle().gridTemplateColumns.
+    var tracks = function (sel, child) {
       var el = panel.querySelector(sel);
       if (!el) return 0;
+      var kids = el.querySelectorAll(child);
+      if (kids.length) {
+        var xs = {};
+        for (var k = 0; k < kids.length; k += 1) xs[Math.round(kids[k].getBoundingClientRect().left)] = 1;
+        var n = Object.keys(xs).length;
+        if (n) return n;
+      }
       var t = getComputedStyle(el).gridTemplateColumns;
       return t && t !== 'none' ? t.split(' ').filter(function (x) { return x.length > 0 }).length : 0;
     };
@@ -141,8 +152,8 @@ const AUDIT = `
       scroller: Math.round(scroller.clientHeight) + '/' + Math.round(scroller.scrollHeight),
       scrolls: scroller.scrollHeight > scroller.clientHeight + 1,
       hScroll: panel.scrollWidth > panel.clientWidth + 1 || scroller.scrollWidth > scroller.clientWidth + 1,
-      cardColumns: tracks('.loom-cards'),
-      knowledgeColumns: tracks('.loom-kfiles'),
+      cardColumns: tracks('.loom-cards', '.loom-camp'),
+      knowledgeColumns: tracks('.loom-kfiles', '.loom-kfile'),
       dividers: cv.querySelectorAll('.loom-head, .loom-metrics, .loom-row, .loom-camp, .loom-foot').length
     });
     // A child that reaches past the panel's right edge is not a scrollbar: the
@@ -166,7 +177,13 @@ const AUDIT = `
     for (var j = 0; j < all.length; j++) {
       var el = all[j];
       var cs = getComputedStyle(el);
-      if (cs.boxShadow && cs.boxShadow !== 'none') out.shadows++;
+      if (cs.boxShadow && cs.boxShadow !== 'none') {
+        out.shadows++;
+        // exactly two kinds of element may float: the pinned queue, and the
+        // switch knob. Anything else with a shadow is depth nobody declared.
+        var shadowCls = String(el.className || el.tagName);
+        if (!/loom-hero(?!-)|loom-knob/.test(shadowCls)) out.shadowStrays.push(name + ' ' + shadowCls);
+      }
       if (/loom-dot/.test(el.className || '')) out.dots++;
       // overflow only counts when the element itself holds the text and has no
       // clamp/ellipsis of its own: a parent's scrollWidth also measures a child
@@ -269,7 +286,10 @@ if (data.canvases.some((c) => c.hScroll)) problems.push('a canvas scrolls horizo
 if (data.overright.length) problems.push('nodes reach past the panel edge and are clipped away:\n  ' + data.overright.slice(0, 8).join('\n  '))
 if (data.clipped.length) problems.push('unclipped overflow: ' + data.clipped.slice(0, 6).join(', '))
 if (data.contrast.length) problems.push('contrast below floor:\n  ' + data.contrast.slice(0, 10).join('\n  '))
-if (data.shadows > data.canvases.length) problems.push(`too many shadows (${data.shadows} across ${data.canvases.length} canvases)`)
+// one floating surface and one knob per canvas; a third kind of shadow, or
+// more shadows than that budget, means depth crept back in unannounced
+if (data.shadows > data.canvases.length * 3) problems.push(`too many shadows (${data.shadows} across ${data.canvases.length} canvases)`)
+if (data.shadowStrays && data.shadowStrays.length) problems.push('undeclared shadows: ' + data.shadowStrays.slice(0, 6).join(', '))
 for (const c of data.canvases) {
   // Room given must be used, and room not given must not be faked.
   if (c.panelWidth >= 640 && c.cardColumns < 2) {

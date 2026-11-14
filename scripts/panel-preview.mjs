@@ -371,7 +371,16 @@ if (LIVE) {
   payload = { ...live, now: live.now ?? now }
 }
 
-const pendingPayload = LIVE ? payload : {
+// The panel's resting state is a queue with nothing in it -- that is the whole
+// point of a loop that runs while a person does something else. LOOM_PENDING=0
+// renders that state so it gets looked at as often as the busy one.
+const NO_PENDING = process.env.LOOM_PENDING === '0'
+
+const emptyPayload = NO_PENDING
+  ? { ...payload, campaigns: payload.campaigns.map((c) => ({ ...c, open: 0, openCheckpoints: [], reviews: [] })) }
+  : null
+
+const pendingPayload = LIVE || NO_PENDING ? (emptyPayload || payload) : {
   ...payload,
   campaigns: [
     {
@@ -418,16 +427,19 @@ const page = `<!DOCTYPE html>
   .dark{flex:0 0 320px;width:320px}
   .light{flex:0 0 400px;width:400px}
   .wide{flex:0 0 720px;width:720px}
-  .label{font:10px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
+  .label{font:11px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 12px;color:#6b7078}
   .slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   .dark{background:#08090a;color:#f7f8f8}
   .light{background:#ffffff;color:#08090a;border-left:1px solid #e5e7eb}
   /* the component pins this at mount from the host theme's computed colour;
      a static page has to state it, and these are the same two inks */
-  .dark .loom{--loom-ink-base:#f7f8f8}
-  .light .loom{--loom-ink-base:#08090a}
+  /* the panel writes both of these at mount from the host theme: the ink it
+     found, and the canvas colour that ink sits on (what a solid button fills
+     with the ink and writes its label in) */
+  .dark .loom{--loom-ink-base:#f7f8f8;--loom-ink-canvas:#08090a}
+  .light .loom{--loom-ink-base:#08090a;--loom-ink-canvas:#ffffff}
   .wide{background:#08090a;color:#f7f8f8;border-left:1px solid #23262b}
-  .wide .loom{--loom-ink-base:#f7f8f8}
+  .wide .loom{--loom-ink-base:#f7f8f8;--loom-ink-canvas:#08090a}
   .dark .label{color:#62666d}
   .light .label{color:#8a8f98}
   .wide .label{color:#62666d}

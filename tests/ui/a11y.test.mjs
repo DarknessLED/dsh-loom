@@ -65,8 +65,8 @@ const css = String(panel.CSS ?? source)
 //    focus ring survives the dark canvas.
 {
   assert.ok(/aria-live/.test(source), 'the waiting section is a live region')
-  assert.ok(/aria-live:\s*'polite'/.test(source), 'and it is polite: it must not interrupt')
-  assert.ok(/aria-label:\s*'待你处理'/.test(source), 'and it is labelled in Chinese')
+  assert.ok(/['"]?aria-live['"]?:\s*'polite'/.test(source), 'and it is polite: it must not interrupt')
+  assert.ok(/['"]?aria-label['"]?:\s*'待你处理'/.test(source), 'and it is labelled in Chinese')
   assert.ok(/:focus-visible/.test(css), 'the stylesheet defines a keyboard focus ring')
   const ring = css.slice(css.indexOf(':focus-visible'))
   assert.ok(/outline:\s*\d/.test(ring), 'the ring is a real outline, not a colour change alone')
