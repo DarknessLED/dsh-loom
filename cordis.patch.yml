@@ -4,3 +4,50 @@
       name: dsh-loom
       config:
         tickMs: 20000
+        # Price per MILLION tokens, one entry per relay/model actually routed to.
+        # A relay resells the same weights at a different rate, so the model id is
+        # what the table keys on -- not the provider, not the vendor.
+        #
+        # `default` is the rate used when a model has no entry of its own, and
+        # `byModel` wins over it. Until this block existed every round booked at
+        # DEFAULT_PRICING (0.28 / 0.42 / 0.028) whatever model actually ran, and
+        # `round.finished.priceSource` said "default" to admit it.
+        #
+        # The numbers below for `deepseek-flash` are DeepSeek's published list
+        # price (the same as DEFAULT_PRICING). The relay rows are PLACEHOLDERS
+        # carrying that same rate: replace each with what that relay actually
+        # charges you, or the ledger will be precise about tokens and wrong about
+        # money. cacheRead is billed lower than input on every provider that
+        # reports it, which is why a cached session costs a fraction of a cold one.
+        models:
+          pricing:
+            default:
+              inputPerMTok: 0.28
+              outputPerMTok: 0.42
+              cacheReadPerMTok: 0.028
+              cacheWritePerMTok: 0
+            byModel:
+              # the official API
+              'deepseek-flash':
+                inputPerMTok: 0.28
+                outputPerMTok: 0.42
+                cacheReadPerMTok: 0.028
+                cacheWritePerMTok: 0
+              # relay: command-code (api.commandcode.ai) -- replace with its rate
+              'command-code/deepseek/deepseek-v4.1-flash':
+                inputPerMTok: 0.28
+                outputPerMTok: 0.42
+                cacheReadPerMTok: 0.028
+                cacheWritePerMTok: 0
+              # relay: opencode-go -- replace with its rate
+              'opencode-go/deepseek-v4.1-flash':
+                inputPerMTok: 0.28
+                outputPerMTok: 0.42
+                cacheReadPerMTok: 0.028
+                cacheWritePerMTok: 0
+              # relay: open-design (amr-link.open-design.ai) -- replace with its rate
+              'open-design/deepseek-v4.1-flash':
+                inputPerMTok: 0.28
+                outputPerMTok: 0.42
+                cacheReadPerMTok: 0.028
+                cacheWritePerMTok: 0
