@@ -10,3 +10,6 @@ research/kg/store.sqlite-*
 .kgbench/
 scripts/_mutprobe*.mjs
 research/wave9/src/
+
+# UI screenshot scratch (local only; regenerate with scripts/panel-preview.mjs)
+.oil-ui/
