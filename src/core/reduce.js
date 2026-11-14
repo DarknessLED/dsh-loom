@@ -260,9 +260,37 @@ function apply(s, ev) {
         s.incumbent = { round: d.round, score: d.score ?? null, patch: d.patch ?? null, branch: d.branch ?? null, at: ev.t }
       }
       break
-    case 'checkpoint.raised':
+    case 'checkpoint.raised': {
+      // A closed checkpoint is a verdict about that id. Replaying the raise
+      // (a retry, a re-read of an older log) must not put a resolved question
+      // back in the inbox: nothing would ever close it again.
+      const existing = s.checkpoints.find((x) => x.id === d.id)
+      if (existing && existing.status === 'closed') break
       s.checkpoints.push({ id: d.id, kind: d.kind, at: ev.t, payload: d.payload, status: 'open' })
       break
+    }
+    case 'checkpoint.closed': {
+      // An explicit closure outranks a still-open question: the decision was
+      // answered elsewhere or superseded, and only the reason has to survive.
+      const c = s.checkpoints.find((x) => x.id === d.id)
+      if (c) Object.assign(c, { status: 'closed', closedReason: d.reason ?? null, closedAt: ev.t })
+      break
+    }
+    case 'campaign.finished': {
+      // The campaign's own end is a fact about every pending decision: a
+      // checkpoint nobody can act on any more must not stay `open` forever.
+      s.ended = { status: d.status ?? null, cause: d.cause ?? null, at: ev.t }
+      for (const c of s.checkpoints) {
+        if (c.status !== 'open') continue
+        Object.assign(c, {
+          status: 'closed',
+          closedBy: 'campaign-finished',
+          closedReason: 'campaign-finished',
+          closedAt: ev.t,
+        })
+      }
+      break
+    }
     case 'checkpoint.answered': {
       const c = s.checkpoints.find((x) => x.id === d.id)
       if (c) Object.assign(c, { status: 'answered', answer: d.answer, by: ev.actor, answeredAt: ev.t })

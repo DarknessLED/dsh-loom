@@ -22,6 +22,13 @@ import { validatePolicyOverride } from '../loop/policy.js'
 const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'done', 'stopped']
 
 /**
+ * Statuses that end a campaign. `campaign.finished` is written for these, once:
+ * the event is what closes the open checkpoints, so a second terminal status
+ * (a human stop after convergence) must not write it again.
+ */
+const TERMINAL_STATUSES = new Set(['converged', 'plateaued', 'done', 'stopped'])
+
+/**
  * Owns campaign storage and the materialized views. The scheduler/round engine
  * (M1) plugs into `tick()`.
  */
@@ -186,7 +193,20 @@ export class Runtime {
   }
 
   append(view, type, data, actor = 'system') {
+    // The end of a campaign is a fact about every pending decision: it closes
+    // the inbox, so the runtime writes it here (the one door every
+    // `campaign.status` writer goes through) instead of at each call site.
+    // `view.state.ended` keeps that write to exactly one per campaign.
+    const endsCampaign = type === 'campaign.status' && TERMINAL_STATUSES.has(data?.status)
+    const alreadyEnded = endsCampaign && view.state?.ended != null
     view.ledger.append(type, data, actor)
+    if (endsCampaign && !alreadyEnded) {
+      view.ledger.append(
+        'campaign.finished',
+        { status: data.status, cause: data.reason ?? actor ?? null },
+        'system',
+      )
+    }
     const state = reduce(view.ledger.all(), view.id)
     view.state = state
     this.flush(view)
