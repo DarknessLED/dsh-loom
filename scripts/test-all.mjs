@@ -79,6 +79,9 @@ const standing = [
   'tests/self20/hedge-wiring.test.mjs',
   'tests/self20/model-wiring.test.mjs',
   'tests/self20/killrate-metrics.test.mjs',
+  // the guard runs with the app's PATH, which has no Git on it: twelve suites
+  // died with `spawnSync git ENOENT` and two p6 promotions were rolled back.
+  'tests/self20/guard-env.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',

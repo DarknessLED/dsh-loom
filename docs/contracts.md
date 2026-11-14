@@ -50,6 +50,7 @@
 - `src/exec/patch.js` — 把尝试的改动导出为补丁文件，并在晋升或回滚时正向应用或反向撤销。
 - `src/exec/rollback.js` — 只按补丁文本工作的回滚收尾：`createdByPatch(patchText)` 从每个 `diff --git` 小节的文件头（`new file mode` 或旧侧 `/dev/null`）读出该补丁**创建**的路径，`sweepCreated(workspace, patchText)` 删除且只删除这些文件（缺失的文件不算错，改过的和无关的未跟踪文件一概不碰，越出 workspace 的路径忽略），并清掉因删除而变空的父目录。存在的理由：`git checkout` 只还原已跟踪文件，补丁创建的新文件会活下来，一次失败的回合会永久把仓库变成 `workspace-dirty`。
 - `src/exec/node-bin.js` — 找出真正能回答 `node` 的解释器目录：宿主的 `process.execPath` 可能是 Electron 应用（目录里没有 node.exe），所以按「正在运行的 node → `DSH_NODE_BIN` → PATH → `~/.dsh/dsh-runtimes/*` → 常规安装位置」搜索，并把找到的目录前置进 PATH；找不到就不改 PATH，绝不假造一个。
+- `src/exec/git-bin.js` — 找出真正能回答 `git` 的目录并前置进 PATH，理由与 `node-bin.js` 同源：验证器与 autopilot 守卫跑在应用进程里，PATH 来自 Explorer，没有 Git 安装目录，于是任何 `git init` 的套件都以 `spawnSync git ENOENT` 失败、晋升被回滚成「候选没干活」。候选目录 = Windows 的三个常规安装位置 + 本机 `~/.dsh/dsh-ops/shells/<shell>/[<sha>/]winuxcmd/usr/bin`（这台机器上 git 只存在于那个打包 shell 里）；`hasGit`/`gitBinDir`/`gitOnPath`/`withGitOnPath` 全部可注入 `env`/`platform` 以便测试。
 
 ### gate/
 

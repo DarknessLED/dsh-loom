@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { runVerifier } from '../exec/verifier.js'
+import { withGitOnPath } from '../exec/git-bin.js'
 import {
   createWorktree,
   removeWorktree,
@@ -61,7 +62,10 @@ import { demoteChain } from './model-health.js'
 // had nothing to do with the candidate. `withNodeOnPath` finds a directory that
 // really answers the command and keeps the caller's own order behind it.
 const verifierEnv = {
-  PATH: withNodeOnPath(process.env.PATH),
+  // node AND git. `git` is on the developer's PATH and not on the app's, so a
+  // guard running a suite that calls `git init` dies with `spawnSync git ENOENT`
+  // and the round is rolled back for a directory the candidate never touched.
+  PATH: withGitOnPath(withNodeOnPath(process.env.PATH)),
 }
 
 // What the brief says about the shell, so an attempt does not spend its budget
