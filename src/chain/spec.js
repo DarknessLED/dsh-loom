@@ -1,8 +1,20 @@
 export const NODE_TYPES = new Set(['agent', 'verifier', 'human', 'map'])
 
+/** Ids of the top-level nodes of a spec, in declaration order. */
+function topLevelIds(nodes) {
+  return nodes
+    .map((n) => (n && typeof n === 'object' && typeof n.id === 'string' && n.id.trim() ? n.id : null))
+    .filter(Boolean)
+}
+
 /**
  * Minimal structural validation. The chain spec is JSON (no YAML dependency),
  * authored by the main agent from a template and versioned by the ledger.
+ *
+ * A node may declare `needs: string[]` — the ids of the nodes that must run
+ * before it. That turns the array into a graph: position stops being a
+ * dependency statement, which is what makes a reordering safe. Unknown ids,
+ * self-reference and cycles are refused here; `topoOrder` resolves the graph.
  */
 export function validateChainSpec(spec) {
   const errs = []
@@ -32,8 +44,93 @@ export function validateChainSpec(spec) {
       if (!node.of || typeof node.of !== 'object') errs.push(`${path}.of (inner node) is required for map nodes`)
       else check(node.of, `${path}.of`)
     }
+    if (node.needs !== undefined) {
+      if (!Array.isArray(node.needs)) {
+        errs.push(`${path}.needs must be an array of node ids`)
+      } else {
+        for (const dep of node.needs) {
+          if (typeof dep !== 'string' || !dep.trim()) errs.push(`${path}.needs must contain non-empty node ids`)
+        }
+      }
+    }
   }
   nodes.forEach((n, i) => check(n, `nodes[${i}]`))
   if (spec.params != null && typeof spec.params !== 'object') errs.push('spec.params must be an object')
+
+  // `needs` is only a dependency inside the executable graph: the top-level
+  // nodes. An inner `map.of` node is not addressable, and its `needs` (if any)
+  // is not part of the graph.
+  const graphIds = new Set(topLevelIds(nodes))
+  const needsOf = new Map()
+  nodes.forEach((node, i) => {
+    if (!node || typeof node !== 'object' || typeof node.id !== 'string' || !node.id.trim()) return
+    const needs = Array.isArray(node.needs) ? node.needs.filter((d) => typeof d === 'string' && d.trim()) : []
+    needsOf.set(node.id, needs)
+    for (const dep of needs) {
+      if (!graphIds.has(dep)) errs.push(`nodes[${i}].needs: unknown node "${dep}"`)
+    }
+  })
+  // Depth-first walk: a node that is still on the stack when it is revisited
+  // closes a cycle. Self-reference is the smallest one ("a -> a").
+  const state = new Map()
+  const cycles = []
+  const visit = (id, trail) => {
+    const seen = state.get(id) ?? 0
+    if (seen === 2) return
+    if (seen === 1) {
+      cycles.push([...trail, id].join(' -> '))
+      return
+    }
+    state.set(id, 1)
+    for (const dep of needsOf.get(id) ?? []) {
+      if (graphIds.has(dep)) visit(dep, [...trail, id])
+    }
+    state.set(id, 2)
+  }
+  for (const id of needsOf.keys()) visit(id, [])
+  if (cycles.length) errs.push(`nodes: cycle in needs (${cycles[0]})`)
   return errs
+}
+
+/**
+ * Node ids in dependency order: every node after the nodes it `needs`.
+ *
+ * Stable: nodes that do not constrain each other keep their declaration order,
+ * so a spec without `needs` orders exactly as written (the old contract).
+ * A cyclic spec cannot be ordered; the nodes that could not be placed are
+ * appended in declaration order so the result is still a permutation, but
+ * `validateChainSpec` is what refuses such a spec by name.
+ */
+export function topoOrder(spec) {
+  const nodes = Array.isArray(spec?.nodes) ? spec.nodes : []
+  const ids = nodes.map((n) => (n && typeof n === 'object' && typeof n.id === 'string' && n.id.trim() ? n.id : null))
+  const present = new Set(ids.filter(Boolean))
+  const needs = new Map()
+  ids.forEach((id, i) => {
+    if (!id) return
+    const list = Array.isArray(nodes[i]?.needs) ? nodes[i].needs : []
+    needs.set(id, new Set(list.filter((d) => typeof d === 'string' && d !== id && present.has(d))))
+  })
+  const order = []
+  const done = new Set()
+  let progressed = true
+  while (progressed && order.length < needs.size) {
+    progressed = false
+    for (const id of ids) {
+      if (!id || done.has(id)) continue
+      let ready = true
+      for (const dep of needs.get(id) ?? []) {
+        if (!done.has(dep)) {
+          ready = false
+          break
+        }
+      }
+      if (!ready) continue
+      order.push(id)
+      done.add(id)
+      progressed = true
+    }
+  }
+  for (const id of ids) if (id && !done.has(id)) order.push(id)
+  return order
 }

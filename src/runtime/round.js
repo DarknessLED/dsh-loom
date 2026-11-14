@@ -31,6 +31,7 @@ import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
 import { proposeMutations } from '../chain/mutate.js'
+import { topoOrder } from '../chain/spec.js'
 import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
@@ -145,6 +146,28 @@ export function activeChain(state) {
 }
 
 /**
+ * The chain's nodes in dependency order.
+ *
+ * The chain is a graph: `needs` says what must run first, and the array is only
+ * a tie-breaker between independent nodes. Unnamed nodes cannot be referenced
+ * by `needs`, so they keep their declaration position at the end.
+ */
+function orderedNodes(chain) {
+  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  const byId = new Map()
+  for (const node of nodes) {
+    if (node && typeof node === 'object' && typeof node.id === 'string' && node.id.trim()) byId.set(String(node.id), node)
+  }
+  const out = []
+  for (const id of topoOrder(chain)) {
+    const node = byId.get(id)
+    if (node) out.push(node)
+  }
+  for (const node of nodes) if (node && typeof node === 'object' && !out.includes(node)) out.push(node)
+  return out
+}
+
+/**
  * The chain's own acceptance command, if it declares one.
  *
  * A chain may contain more than one verifier node (the `refactor` template has
@@ -153,7 +176,7 @@ export function activeChain(state) {
  * still yields a usable command from its first verifier node.
  */
 export function chainVerifierNode(chain) {
-  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  const nodes = orderedNodes(chain)
   const usable = (n) => n?.type === 'verifier' && typeof n.cmd === 'string' && n.cmd.trim() !== ''
   const mapAt = nodes.findIndex((n) => n?.type === 'map')
   const afterMap = mapAt >= 0 ? nodes.slice(mapAt + 1) : []
@@ -230,14 +253,18 @@ const RECON_GUIDE =
  * every parallel worker gets its findings in the brief. A chain without one
  * (or one whose first node is the map) must behave exactly as it did before
  * chains had executable nodes, so an empty list here means "no extra work".
+ *
+ * Order comes from `needs`, not from array position: "before the map" means
+ * before it in the dependency graph.
  */
 export function preMapAgentNodes(chain) {
+  const ordered = orderedNodes(chain)
+  const mapAt = ordered.findIndex((node) => node?.type === 'map')
+  // Everything from the map onward is per-candidate work; only what comes
+  // before it in dependency order is shared setup.
+  const setup = mapAt >= 0 ? ordered.slice(0, mapAt) : ordered
   const out = []
-  for (const node of Array.isArray(chain?.nodes) ? chain.nodes : []) {
-    if (!node || typeof node !== 'object') continue
-    // Everything from the map onward is per-candidate work; only what comes
-    // before it is shared setup.
-    if (node.type === 'map') break
+  for (const node of setup) {
     if (node.type !== 'agent') continue
     if (typeof node.prompt !== 'string' || !node.prompt.trim()) continue
     out.push(node)
@@ -247,12 +274,12 @@ export function preMapAgentNodes(chain) {
 
 /**
  * The chain node a candidate implements: the map node's inner node when the
- * chain declares one, otherwise the last agent node (a chain may list its
- * worker directly and skip the map). Dispatch labels use it so a reader can
- * tell a planner from a worker without opening the brief.
+ * chain declares one, otherwise the last agent node in dependency order (a
+ * chain may list its worker directly and skip the map). Dispatch labels use it
+ * so a reader can tell a planner from a worker without opening the brief.
  */
 function workerNodeId(chain) {
-  const nodes = Array.isArray(chain?.nodes) ? chain.nodes : []
+  const nodes = orderedNodes(chain)
   for (const node of nodes) {
     if (node?.type === 'map' && node.of && typeof node.of === 'object' && node.of.id) return String(node.of.id)
   }
