@@ -301,9 +301,20 @@ export function panelState({ runtime, config } = {}) {
   } catch {
     /* keep the configured default rather than take the panel down */
   }
+  // Planning is an install-level default with a workbench toggle, so the panel
+  // reports the value in force and where it came from: `settings` when the
+  // operator flipped it, `config` when the file has never been written.
+  let settings = { plan: null, at: null, by: 'config', reason: 'default' }
+  try {
+    if (typeof runtime.settingsState === 'function') settings = runtime.settingsState()
+  } catch {
+    /* an unreadable file keeps the configured default rather than taking the panel down */
+  }
+  const planOn = settings.plan === null ? config?.loopPolicy?.planMode === 'full' : settings.plan === true
   return {
     campaigns: rows,
     live,
+    planning: { on: planOn, at: settings.at ?? null, by: settings.plan === null ? 'config' : settings.by ?? 'human', reason: settings.reason ?? null },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },
     lean: lean ? { available: lean.available === true, versions: lean.versions ?? null } : null,
@@ -329,6 +340,14 @@ export function panelAction({ runtime, config }, body) {
   // The master switch is not campaign state, so it is decided before any
   // campaign is resolved: a panel with zero campaigns must still be able to
   // turn the loop off.
+  // Planning is the one default the workbench owns. It is install-level, so it is
+  // decided before a campaign is resolved: a panel with zero campaigns must still
+  // be able to say whether the next campaign plans.
+  if (action === 'plan') {
+    const on = body.enabled === true || body.on === true
+    runtime.setSettings({ plan: on }, { by: 'human:panel', reason: body.reason ?? null })
+    return { ok: true, planning: panelState({ runtime, config }).planning }
+  }
   if (action === 'enable' || action === 'disable') {
     if (typeof runtime.setEnabled !== 'function') throw new Error('this runtime cannot switch the loop')
     const record = runtime.setEnabled(action === 'enable', { by: 'human:panel', reason: body.reason ?? null })

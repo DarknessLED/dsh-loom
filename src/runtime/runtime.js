@@ -14,6 +14,7 @@ import { probeLean } from '../lean/probe.js'
 import { sweepLeases } from './lease.js'
 import { noWorkLessons, planRecovery, repairWorkspace } from './recovery.js'
 import { readSwitch, writeSwitch } from './switch.js'
+import { readSettings, roundConfigWithSettings, writeSettings } from '../core/settings.js'
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 import { validatePolicyOverride } from '../loop/policy.js'
@@ -343,6 +344,29 @@ export class Runtime {
     return readSwitch(this.home, this.config.rsi?.enabled !== false)
   }
 
+  /** The workbench toggle for install-level defaults (currently: planning). */
+  settingsState() {
+    return readSettings(this.home)
+  }
+
+  setSettings(patch, opts = {}) {
+    const written = writeSettings(this.home, patch, { by: 'human:panel', ...opts })
+    return { ...readSettings(this.home), written }
+  }
+
+  /**
+   * The config a round actually runs under.
+   *
+   * Planning is the one field the workbench owns: the settings file is the
+   * operator's latest word, so it replaces the configured default here rather than
+   * being merged somewhere a round might not read. A campaign that named its own
+   * policy still outranks this -- that precedence lives in `effectivePolicy` and
+   * `policyFor`, not here.
+   */
+  roundConfig() {
+    return roundConfigWithSettings(this.config, this.home)
+  }
+
   enabled() {
     return this.switchState().enabled
   }
@@ -553,7 +577,7 @@ export class Runtime {
     const notify = this.config.checkpoint?.notify === false
       ? null
       : (kind, payload) => notifyCheckpoint(this.ctx, { view, kind, payload, config: this.config, log: this.log })
-    const done = runRound({ runtime: this, view, config: this.config, dispatcher, log: this.log, notify })
+    const done = runRound({ runtime: this, view, config: this.roundConfig(), dispatcher, log: this.log, notify })
     done
       .catch((err) => this.log(`round for ${view.id} failed:`, err?.stack ?? err))
       .finally(() => this.inflight.delete(view.id))
@@ -578,7 +602,7 @@ export class Runtime {
       const notify = this.config.checkpoint?.notify === false
         ? null
         : (kind, payload) => notifyCheckpoint(this.ctx, { view, kind, payload, config: this.config, log: this.log })
-      const out = await runRound({ runtime: this, view, config: this.config, dispatcher, log: this.log, notify })
+      const out = await runRound({ runtime: this, view, config: this.roundConfig(), dispatcher, log: this.log, notify })
       const rounds = view.state.rounds || []
       const last = rounds[rounds.length - 1] || null
       return {

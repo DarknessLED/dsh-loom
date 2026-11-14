@@ -107,6 +107,9 @@ const standing = [
   // `candidates+1` two days after the A/B had rejected it, and `no-test-edits` to
   // tasks whose deliverable is a test edit.
   'tests/chain-propose-guard.test.mjs',
+  // and planning is off until asked for: the workbench toggle and rsi_control plan
+  // write one value, and the planner node stays in the template so it can come back.
+  'tests/plan-default.test.mjs',
 
   // a contradiction that can only be listed is a museum: it is decided, the
   // decision is kept as evidence, and it survives a pack/unpack and a merge.

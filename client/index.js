@@ -1957,19 +1957,16 @@ window.__ModuleLoader__.load({
         }, [load])
 
         var act = useCallback(
-          function (campaign, action, decision, checkpoint) {
+          function (campaign, action, decision, checkpoint, extra) {
             setBox(function (prev) {
               return { loading: false, data: prev.data, error: prev.error, busy: campaign + ':' + action }
             })
             fetch(ROUTE, {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
-                campaign: campaign,
-                action: action,
-                decision: decision,
-                checkpoint: checkpoint,
-              }),
+              body: JSON.stringify(
+                Object.assign({ campaign: campaign, action: action, decision: decision, checkpoint: checkpoint }, extra || {}),
+              ),
             })
               .then(function (r) {
                 return r.json().then(function (body) {
@@ -2020,11 +2017,32 @@ window.__ModuleLoader__.load({
           h('span', { className: 'loom-dot ' + (rsiOn ? 'on' : 'off') }),
           h('span', null, rsiOn ? '循环 开' : '循环 关'),
         )
+        // Planning is the other install-level control: it changes what a round buys,
+        // not what a campaign is. It sits next to the switch for the same reason --
+        // it never asks which campaign it refers to.
+        var planOn = !!(data && data.planning && data.planning.on)
+        var planToggle = function () {
+          act('', 'plan', null, null, { enabled: !planOn })
+        }
+        var planLook = switchProps(planOn, planToggle)
+        planLook.type = 'button'
+        planLook.className = 'loom-switch'
+        planLook.onClick = planToggle
+        planLook.title = planOn
+            ? '每轮先派一个规划 agent 找落点；约 25% 轮钟。点这里关掉'
+            : '不派规划 agent，候选直接开工；故障位置不明显时打开它'
+        var planBtn = h(
+          'button',
+          planLook,
+          h('span', { className: 'loom-dot ' + (planOn ? 'on' : 'off') }),
+          h('span', null, planOn ? '规划 开' : '规划 关'),
+        )
         var header = h(
           'div',
           { className: 'loom-head' },
           h('span', { className: 'loom-mark' }, 'RSI'),
           h('span', { className: 'loom-spacer' }),
+          planBtn,
           switchBtn,
           h(
             'button',

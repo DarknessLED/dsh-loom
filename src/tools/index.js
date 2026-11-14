@@ -382,15 +382,22 @@ export function registerTools(ctx, { runtime, config }) {
         id: ID,
         action: {
           type: 'string',
-          enum: ['enable', 'disable', 'pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot', 'policy'],
-          description: 'enable/disable: the global loop switch (no campaign required). policy: record this campaign\'s own policy override.',
+          enum: ['enable', 'disable', 'pause', 'resume', 'start', 'stop', 'budget', 'constraint', 'note', 'autopilot', 'policy', 'plan'],
+          description:
+            'enable/disable: the global loop switch (no campaign required). policy: record this campaign\'s own policy override. ' +
+            'plan: turn the planning leg on or off -- with an id it is that campaign\'s policy, without one it is the install default.',
         },
         usd: { type: 'number', description: 'action=budget: new USD cap' },
         tokens: { type: 'number', description: 'action=budget: new token cap (what the provider actually meters)' },
         rounds: { type: 'integer', description: 'action=budget: new round cap' },
         text: { type: 'string', description: 'action=constraint|note: the text' },
         reason: { type: 'string', description: 'action=stop|enable|disable: why' },
-        enabled: { type: 'boolean', description: 'action=autopilot: apply verified patches without waiting for a human.' },
+        enabled: {
+          type: 'boolean',
+          description:
+            'action=autopilot: apply verified patches without waiting for a human. ' +
+            'action=plan: true (default) buys the planning leg, false skips it.',
+        },
         policy: {
           type: 'object',
           description:
@@ -421,6 +428,19 @@ export function registerTools(ctx, { runtime, config }) {
             : 'loop disabled — nothing will be dispatched; every tool keeps working and history is untouched',
         }
       }
+      // Planning without a campaign id is the install default: the workbench toggle
+      // and this action write the same file, so a person who says "add planning" in
+      // a conversation and one who clicks the switch are changing one value.
+      if (action === 'plan' && !args.id) {
+        const on = args.enabled !== false
+        const rec = runtime.setSettings({ plan: on }, { by: 'human', reason: args.reason ?? null })
+        return {
+          scope: 'install',
+          planMode: on ? 'full' : 'off',
+          planning: { on: rec.plan === true, at: rec.at ?? null, by: rec.by ?? 'human' },
+          note: 'written to <home>/settings.json with an audit line; campaigns that named their own planMode keep it',
+        }
+      }
       own()
       const view = resolve(runtime, args.id)
       let state
@@ -434,6 +454,19 @@ export function registerTools(ctx, { runtime, config }) {
         // was interrupted, so nothing is silently rewritten.
         const aborted = runtime.abortCampaign ? runtime.abortCampaign(view.id) : 0
         if (aborted) runtime.append(view, 'campaign.aborted', { attempts: aborted }, 'human')
+      } else if (action === 'plan') {
+        // A campaign's own word outranks the install default, and it is a policy
+        // rather than a chain change: the planner node stays in the spec and is
+        // simply not bought, so this needs no checkpoint and takes effect next round.
+        const on = args.enabled !== false
+        const out = runtime.control(view.id, 'policy', { policy: { planMode: on ? 'full' : 'off' } }, 'human')
+        return {
+          ...out,
+          id: view.id,
+          scope: 'campaign',
+          planMode: on ? 'full' : 'off',
+          note: 'recorded as one campaign.policy event; the next round buys (or skips) the planning leg',
+        }
       } else if (action === 'policy') {
         // This action records the campaign's own terms; it returns the accepted
         // override, not a state snapshot, because the lifecycle did not move.

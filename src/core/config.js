@@ -198,10 +198,20 @@ export const DEFAULT_CONFIG = {
    * `candidateMode` always outranks the inference.
    *
    * `planMode` decides whether a round buys the chain's pre-map planning stage:
-   * `'auto'` (the default) plans unless the record says otherwise, `'full'`
-   * always plans, `'off'` never does. `'auto'` stops planning only after the
-   * planner timed out on the previous two rounds *and* both of those rounds
-   * were promoted — a timed-out plan in a loss proves nothing about planning.
+   * `'off'` (the default) never does, `'full'` always does, and `'auto'` plans
+   * unless the record says otherwise.
+   *
+   * The default is off because the planner's product is "where to look", and the
+   * measured tasks already hand that to the worker in `verify.scope.editable`: on
+   * four mutation tasks the endpoint did not move at all while the planner spent
+   * 580 s of 2,289 s of round clock (25.3%), and 36 of 195 planner runs across the
+   * corpus aborted having returned nothing. Planning is a real tool for tasks whose
+   * failure is not localised, so it is not removed — it is off until asked for.
+   *
+   * Asked for three ways, weakest first: `loopPolicy.planMode` in config, the
+   * workbench toggle (`<home>/settings.json`, the install default), and the
+   * campaign's own policy (`rsi_control(action:"plan", id)` — what "add planning"
+   * in a conversation writes, and what outranks the other two).
    */
   /**
    * `autoApply` is what L1 does with a promotion that passed every gate: apply
@@ -213,7 +223,7 @@ export const DEFAULT_CONFIG = {
    * human node to `when: 'always'`, which outranks this default; `when: 'never'`
    * keeps a campaign unattended even with autopilot off.
    */
-  loopPolicy: { replayOnly: true, humanGate: true, autoApply: true, autoCandidateMode: false, planMode: 'auto' },
+  loopPolicy: { replayOnly: true, humanGate: true, autoApply: true, autoCandidateMode: false, planMode: 'off' },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }

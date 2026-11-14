@@ -74,6 +74,29 @@ The other two kinds remain untested hypotheses. Measuring either needs a paired 
 the same tasks (about 25 minutes per arm at four tasks), and at n=4 the floor is a
 0.070 quality difference — a prompt-level change is unlikely to clear it.
 
+## Planning is optional, and off by default
+
+The planner leg (`recon`) is the one part of the chain that a person turns on and off
+while the loop runs. It is off by default because its product is "where to look", and
+the measured tasks already hand that to the worker: on four mutation tasks it moved no
+endpoint and spent 580 s of 2,289 s of round clock (25.3%), and 36 of 195 planner runs
+across the corpus aborted having returned nothing.
+
+Three ways to ask for it, weakest first:
+
+| where | what it writes | scope |
+|---|---|---|
+| `loopPolicy.planMode` in the config file | `'full'` / `'off'` / `'auto'` | the install, overridden below |
+| workbench toggle (panel header) or `rsi_control(action:"plan")` without an id | `<home>/settings.json` (`plan: true/false`) + an audit line in `settings.jsonl` | every campaign that did not name its own |
+| `rsi_control(action:"plan", id:"<campaign>")` — what "add planning" in a conversation writes | one `campaign.policy` event with `planMode` | that campaign |
+
+The planner node stays in `code-fix`. A node that was deleted cannot be switched back
+on by a setting, and the toggle is the point. `'auto'` is still supported for an install
+that would rather let the ledger decide (`planModeFor`: stop planning after two
+promoted-but-wasted rounds, resume after one unplanned loss).
+
+Turning planning on is a policy, not a chain change: no checkpoint, no version, and it
+takes effect on the next round (`tests/plan-default.test.mjs`).
 ## What is waiting for a person
 
 **The adoption is not global.** `loom-v2check` ran chain v2 and converged 3/3 with no

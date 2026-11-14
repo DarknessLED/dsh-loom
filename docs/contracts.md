@@ -35,6 +35,7 @@
 - `src/core/paths.js` — 状态目录布局：`~/.dsh/loom` 根、campaign 目录校验、目录创建与安全文件名片段。
 - `src/core/reduce.js` — 纯 reducer：把事件序列折叠成 `state.json` 形状的 campaign 状态，是面板与工具读到的同一份事实。
 - `src/core/services.js` — `ctx.get(name)` 的服务解析垫片，让 effect、定时器、工具回调都能在不声明 inject 的地方取到宿主服务。
+- `src/core/settings.js` — 安装级默认值（目前只有 `plan`）：`settings.json` 原子写 + `settings.jsonl` 审计，缺文件/坏文件一律回落到配置默认；`roundConfigWithSettings` 把工作台开关折进每轮实际使用的 config，战役自己的策略仍然优先。
 
 ### dispatch/ — 子会话
 
