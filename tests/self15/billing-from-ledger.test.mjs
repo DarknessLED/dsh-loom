@@ -97,6 +97,24 @@ test('the compressed ledger the host actually writes is decompressed', () => {
   assert.equal(usage.cacheReadTokens, 8448)
 })
 
+test('the ledger is a sequence of frames, not one frame', () => {
+  // The host flushes as it goes: a 161 KB ledger on this machine decompresses
+  // to 270 bytes if only the first zstd frame is read, which is why the round
+  // kept booking an estimate while the real numbers sat on disk.
+  const dir = join(home, 'sessions', '--C-Projects-RSI--', 'zstd-multi')
+  mkdirSync(dir, { recursive: true })
+  const one = turn({ inputTokens: 100, outputTokens: 10 })
+  const two = turn({ inputTokens: 200, outputTokens: 20, cacheReadTokens: 3000 })
+  writeFileSync(
+    join(dir, 'session.v4.jsonl.zstd'),
+    Buffer.concat([zstdCompressSync(Buffer.from(one, 'utf8')), zstdCompressSync(Buffer.from(two, 'utf8'))]),
+  )
+  const usage = usageFromSessionLedger(home, 'zstd-multi')
+  assert.equal(usage.inputTokens, 300, 'both frames are read')
+  assert.equal(usage.outputTokens, 30)
+  assert.equal(usage.cacheReadTokens, 3000, 'and the cache reads in the later frame are priced')
+})
+
 test('a session with no ledger returns null instead of zero tokens', () => {
   assert.equal(usageFromSessionLedger(home, 'does-not-exist'), null)
   assert.equal(usageFromSessionLedger(home, ''), null)
