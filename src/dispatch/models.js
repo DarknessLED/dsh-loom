@@ -61,6 +61,58 @@ export function orderedModels(spec = {}) {
 }
 
 /**
+ * The ordered chain one dispatch should walk, given how many real model failures
+ * it follows.
+ *
+ * This is the ordering decision itself, extracted from the dispatcher so it can
+ * be read and tested without a host. With nothing failed the worker model leads
+ * and the configured fallbacks follow; once the worker has failed, the chain
+ * leads with the fallback and keeps the failed model last -- still reachable, so
+ * "provider down" never becomes "no model left to try", but never asked first
+ * again on the strength of the same failure.
+ *
+ * `failures` counts *real* model failures (context window, token budget, quota,
+ * a provider that refused), not attempts: callers with none pass 0 or omit it.
+ * One failure walks one step deeper into the fallback list and stops on the last
+ * fallback, the same one-step-per-failure rule `nextModel` implements, so the
+ * ordering here and the rotation there cannot disagree about where the chain is.
+ *
+ * Only named refs live in this chain: when no worker is named the result is just
+ * the fallbacks, and the caller keeps its own "let the host decide" sentinel
+ * (a `null` head) rather than having one invented here.
+ *
+ * @param {{model?: string|null, fallback?: Array<string>, failures?: number}} spec
+ * @returns {Array<string>} deduped refs; worker first before any failure,
+ *   fallback first and the failed worker last after one
+ */
+export function modelChainFor(spec = {}) {
+  const worker = normalize(spec?.model)
+  const fallback = []
+  const seen = new Set()
+  for (const ref of listOf(spec?.fallback)) {
+    const key = normalize(ref)
+    // The worker is not a fallback for itself, and naming a ref twice does not
+    // make it two places to try.
+    if (!key || key === worker || seen.has(key)) continue
+    seen.add(key)
+    fallback.push(key)
+  }
+
+  const n = Number(spec?.failures)
+  const failures = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+
+  if (!worker) return fallback
+  if (fallback.length === 0) return [worker]
+  if (failures === 0) return [worker, ...fallback]
+
+  // Step into the fallbacks, one per failure, stopping on the last one: past the
+  // end a chain keeps trying its final fallback rather than wrapping back to the
+  // model that just failed. The failed worker stays last, not dropped.
+  const lead = Math.min(failures - 1, fallback.length - 1)
+  return [...fallback.slice(lead), ...fallback.slice(0, lead), worker]
+}
+
+/**
  * Which model the attempt runs after `failures` real failures.
  *
  * Rotation is one step per failure and stops on the last ref: past the end the

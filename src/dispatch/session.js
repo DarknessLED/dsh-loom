@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { svc } from '../core/services.js'
+import { modelChainFor } from './models.js'
 
 function textOf(output) {
   if (!Array.isArray(output)) return ''
@@ -59,13 +60,16 @@ export function modelFor(config, role) {
   return textual ? light : null
 }
 
-export function modelChain(models, model, config) {
+export function modelChain(models, model, config, failures = 0) {
   // An entry of `null` is a real instruction: "let the host decide here". It has to
   // survive, because dropping it would promote the entry behind it into the first
   // slice -- the child would run on the fallback provider and never try the
   // session's own model at all.
   const explicit = Array.isArray(models) && models.length ? models : null
   if (explicit) {
+    // A campaign that named its own chain already decided the order (and
+    // `demoteChain` applied the recorded failures to it), so the config's
+    // worker-by-default ordering must not be applied twice.
     const kept = explicit.map((m) => (typeof m === 'string' && m.length > 0 ? m : null))
     return kept.length ? kept : [null]
   }
@@ -73,13 +77,21 @@ export function modelChain(models, model, config) {
   const first = typeof named === 'string' && named ? named : null
   const fallback = Array.isArray(config?.models?.fallback) ? config.models.fallback : []
   const rest = fallback.filter((m) => typeof m === 'string' && m.length > 0)
+  // The ordering decision is `modelChainFor` in models.js, not an expression
+  // inline here: worker first while nothing has failed, fallback first after a
+  // failure with the failed worker still last, and a chain of one when no
+  // fallback is configured. `failures` is the dispatcher's own count of real
+  // model failures, so a retry leads with the fallback instead of re-buying the
+  // ref that just died.
+  const ordered = modelChainFor({ model: first, fallback: rest, failures })
   // A `null` head means "let the host decide", and it has to survive. Filtering it
   // out would make a config of `{worker: null, fallback: [...]}` dispatch its FIRST
   // child on the fallback provider -- the loop would silently run on the wrong
   // provider and would never try the session's own model at all. That is the
-  // shape the default config now has.
-  if (first === null && rest.length === 0) return [null]
-  return first === null ? [null, ...rest] : [first, ...rest]
+  // shape the default config now has. `modelChainFor` only orders named refs, so
+  // the sentinel is re-attached here, in front, and never demoted.
+  if (first === null) return ordered.length ? [null, ...ordered] : [null]
+  return ordered.length ? ordered : [null]
 }
 
 /**
@@ -232,7 +244,7 @@ export class Dispatcher {
    *   failureKind:'ok'|'timeout'|'context'|'tokens'|'died'|'exhausted',
    *   model:string|null, modelsTried:string[], modelSwitch:{from:string|null,to:string|null}|null}>}
    */
-  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, onStart = null } = {}) {
+  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, failures = 0, onStart = null } = {}) {
     if (this.disposed) throw new Error('dispatcher disposed')
     const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
@@ -248,7 +260,10 @@ export class Dispatcher {
     // substituting a name here would make `parseModelRef` treat the inherited model
     // as an explicit choice and drop the inherited provider with it -- and is only
     // named in the record.
-    const chain = modelChain(models, model, this.config)
+    // The request this attempt will spawn is built from the ordered chain: an
+    // explicit campaign chain if one was passed, otherwise the config's worker +
+    // fallbacks ordered by `modelChainFor` with the failures already recorded.
+    const chain = modelChain(models, model, this.config, failures)
     const named = (entry) => entry ?? inheritedName ?? 'default'
     const tried = []
     let res = null
