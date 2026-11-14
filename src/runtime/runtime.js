@@ -18,6 +18,8 @@ import { readSettings, roundConfigWithSettings, writeSettings } from '../core/se
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 import { validatePolicyOverride } from '../loop/policy.js'
+import { fundingFor } from '../loop/funding.js'
+import { DEFAULT_CONFIG } from '../core/config.js'
 
 const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'done', 'stopped']
 
@@ -181,10 +183,22 @@ export class Runtime {
     const dir = this.campaignPath(cid)
     if (existsSync(join(dir, 'events.jsonl'))) throw new Error(`campaign exists: ${cid}`)
     ensureDir(dir)
+    // A cap is only a budget if it buys the rounds it claims to fund. Compare
+    // the two at creation and record the verdict, so a cap that cannot fund its
+    // plan is a fact in this campaign's own state instead of something the loop
+    // discovers halfway through. `funding` travels inside `budget` because that
+    // is the one field the reducer already merges into the campaign state.
+    const effective = { ...DEFAULT_CONFIG.budget, ...(budget || {}) }
+    const funding = fundingFor({
+      rounds: effective.rounds,
+      usdPerRound: effective.usdPerRound,
+      capUsd: effective.usd,
+    })
+    const recordedBudget = { usdPerRound: effective.usdPerRound, funding, ...(budget || {}) }
     const ledger = new Ledger(join(dir, 'events.jsonl'))
     ledger.append(
       'campaign.created',
-      { id: cid, objective, workspace: workspace || null, budget: budget || null, initiator },
+      { id: cid, objective, workspace: workspace || null, budget: recordedBudget, initiator },
       actor,
     )
     const view = this.open(cid)

@@ -6,7 +6,14 @@ export const DEFAULT_CONFIG = {
   tickMs: 20_000,
   /** State root; null = ~/.dsh/loom */
   home: null,
-  budget: { usd: 5, rounds: 12, minutes: 240 },
+  /**
+   * The price of one round, so the cap can answer "how many rounds does this
+   * buy?" instead of only "how much may I spend?". A measured round cost
+   * $0.0508-$0.19 (0.0508 / 0.0597 / 0.0676 observed), so 0.12 is the middle of
+   * that band: the $5 / 12-round default is funded with room (12 * 0.12 = 1.44),
+   * and even the top of the measured band keeps it funded (12 * 0.19 = 2.28).
+   */
+  budget: { usd: 5, rounds: 12, minutes: 240, usdPerRound: 0.12 },
   gate: {
     minGain: 0.05,
     minTasks: 6,
