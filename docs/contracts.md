@@ -337,8 +337,14 @@ proposeMutations(base, { fromVersion, max = 3 }) -> [{ kind, spec }]
 ## 11. 面板与多窗口所有权（M7）
 
 ```js
+// src/panel/route.js —— 路由契约；宿主注册的就是这个 handler
+routeState(runtime, req) -> { status, headers, body }
+panelRoute(runtime, { write? }) -> { kind: 'exact', path: '/dsh-loom/state', handler }
+
 // src/panel/api.js
-registerPanel(ctx, { runtime, config, log }) -> void      // ctx.effect 注册三条路由
+registerPanel(ctx, { runtime, config, log }) -> void      // ctx.effect 注册上面那条路由
+panelSource(deps) -> { panelState() }                     // 把 Runtime + config 收成路由的读口
+actionHandler(deps) -> (req) -> Promise<decision>         // 面板写入口，一次 body 交给 panelAction
 panelState({ runtime }) -> { campaigns, live, ownership, lean, at }
 panelAction({ runtime }, { campaign, action, decision, note })
   -> { ok, campaign, action, decision?, open? }           // action ∈ pause|resume|stop|decide
@@ -355,8 +361,12 @@ releaseLock(file) -> boolean                // 只删自己的记录
 
 | 方法 | 路径 | 语义 |
 |---|---|---|
-| GET | `/dsh-loom/state` | `panelState` JSON，单战役读取失败只替换该行为 `{id,error}` |
-| POST | `/dsh-loom/state` | `{campaign, action, decision?, note?}`；写操作先 `ensureOwner()` |
+| GET | `/dsh-loom/state` | 200 + `application/json`，body 是 `runtime.panelState()` 的 JSON；`panelState` 抛错是 500，错误信息在 body |
+| 其他 | `/dsh-loom/state` | 405，且在读 runtime 之前拒绝——读路由不接受写，也不允许写顺带读到状态 |
+| * | 其他路径 | 404，不是 payload |
+
+`routeState` 是纯决策：一个请求进，`{status, headers, body}` 出。`panelRoute` 的 handler 既可按 `handler(req)` 调用（返回决策，spec 断言的是这个），也可按宿主的 `handler(req, res)` 调用（同一决策写到 res），因此 spec 与宿主不可能跑在两条不同的实现上。
+面板的写入口是显式的：只有宿主注册时传入 `write`，非 GET 才在同一路径上交给人处理；不传时该路由只读。
 
 语义：**所有权不是独占访问，是独占派发**——每个窗口都注册工具、都能读；只有心跳最新者跑 `tick()` 派发回合。
 `claimOwnership` 是 newest-writer-wins，因此旧窗口不会因为「先启动」而永久占住循环，也不会出现两个窗口同时派发。

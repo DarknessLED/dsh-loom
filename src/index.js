@@ -7,7 +7,8 @@ import { claimOwnership, releaseLock } from './core/lock.js'
 import { Runtime } from './runtime/runtime.js'
 import { svc } from './core/services.js'
 import { registerTools } from './tools/index.js'
-import { registerPanel } from './panel/api.js'
+import { panelSource, actionHandler } from './panel/api.js'
+import { panelRoute } from './panel/route.js'
 import { loadConfigSchema, mergeConfigValues } from './config-schema.js'
 
 export const name = 'dsh-loom'
@@ -111,10 +112,18 @@ function applyInner(ctx, config) {
   // route silently never exists (the panel then shows HTTP 404). `inject`
   // runs the closure when the service shows up, and never runs on a headless
   // host that has no webServer at all.
+  //
+  // The handler comes from `./panel/route.js` -- the exact module the panel
+  // route spec exercises -- so a spec can never pass against a handler the
+  // host does not serve.
   if (typeof ctx.inject === 'function') {
     ctx.inject(['webServer'], (scope) => {
       try {
-        registerPanel(scope, { runtime, config: cfg })
+        const webServer = svc(scope, 'webServer')
+        const route = panelRoute(panelSource({ runtime, config: cfg }), {
+          write: actionHandler({ runtime, config: cfg }),
+        })
+        scope.effect(() => webServer.register(route), 'dsh-loom: panel route')
       } catch (err) {
         log('panel route failed:', err?.message ?? err)
       }

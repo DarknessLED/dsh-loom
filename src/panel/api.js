@@ -6,6 +6,7 @@ import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
+import { panelRoute } from './route.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -68,11 +69,6 @@ function lessonWhere(lesson, index) {
   if (fromAttempt && fromAttempt.length) return fromAttempt.map(tidyPath)
   const claim = typeof lesson?.claim === 'string' ? lesson.claim : ''
   return filesInClaim(claim).map(tidyPath)
-}
-
-function send(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
-  res.end(JSON.stringify(body))
 }
 
 function openCheckpointsOf(state) {
@@ -402,27 +398,38 @@ export function panelAction({ runtime, config }, body) {
 }
 
 export function registerPanel(ctx, deps) {
-  const route = {
-    name: 'dsh-loom-panel',
-    kind: 'exact',
-    path: '/dsh-loom/state',
-    handler: async (req, res) => {
-      try {
-        if (req.method === 'GET') {
-          send(res, 200, panelState(deps))
-          return
-        }
-        if (req.method !== 'POST') {
-          res.writeHead(405).end()
-          return
-        }
-        const body = await readBody(req)
-        send(res, 200, panelAction(deps, body))
-      } catch (err) {
-        send(res, 409, { error: String(err?.message ?? err) })
-      }
-    },
-  }
+  // The handler itself lives in `./route.js`, which is the module the panel
+  // route spec exercises; registering the same object keeps the spec and the
+  // host from drifting into two different implementations of one contract.
   const webServer = svc(ctx, 'webServer')
+  const route = panelRoute(panelSource(deps), { write: actionHandler(deps) })
   ctx.effect(() => webServer.register(route), 'dsh-loom: panel route')
+}
+
+/**
+ * The read half of the route as the state route expects it: one `panelState()`
+ * call, with the runtime and config already bound. The real `Runtime` has no
+ * method of that name, so the net is converted here rather than duplicated in
+ * every caller.
+ */
+export function panelSource(deps) {
+  return { panelState: () => panelState(deps) }
+}
+
+/**
+ * The write half: one POST body through `panelAction`, answered as a decision
+ * the route can write. A bad body is a 409 with the reason (the shape the
+ * panel's existing contract documents), not a 500 and never a throw out of the
+ * handler.
+ */
+export function actionHandler(deps) {
+  const headers = { 'content-type': 'application/json; charset=utf-8' }
+  return async (req) => {
+    try {
+      const body = await readBody(req)
+      return { status: 200, headers, body: JSON.stringify(panelAction(deps, body)) }
+    } catch (err) {
+      return { status: 409, headers, body: JSON.stringify({ error: String(err?.message ?? err) }) }
+    }
+  }
 }
