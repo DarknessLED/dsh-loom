@@ -74,7 +74,7 @@
 ### loop/ — 循环策略（L2）
 
 - `src/loop/policy.js` — 把循环策略（增益阈值、候选数、知识注入、halving、holdout slack）变成可归一化、可比较的纯数据。
-- `src/loop/candidates.js` — 第二候选的对冲定价：`hedgeDecision({pSolve, gainIfSolved, extraCostUsd, tailMs, budgetLeftMs})` 只在任务尚未解出（`pSolve < 1`）、`(1 - pSolve) * gainIfSolved` 严格超过第二候选的价格、且尾部不超过剩余预算一半时才买；拒绝理由按检查顺序分为 `solved` / `no-tail-room` / `negative-ev`，`expectedGain` 报出 `(1 - pSolve) * pSolve * gainIfSolved`，盈亏相抵（含浮点上的 0.95 情形）与不可测输入一律不买。存在理由：每轮默认采样两个候选，第二个只该在第一个可能失败时付钱，而这个问题是期望值问题，不是配置问题。
+- `src/loop/candidates.js` — 第二候选的对冲定价：`hedgeDecision({pSolve, gainIfSolved, extraCostUsd, tailMs, budgetLeftMs})` 只在任务尚未解出（`pSolve < 1`）、`(1 - pSolve) * gainIfSolved` 严格超过第二候选的价格、且尾部不超过剩余预算一半时才买；拒绝理由按检查顺序分为 `solved` / `no-tail-room` / `negative-ev`，`expectedGain` 报出 `(1 - pSolve) * pSolve * gainIfSolved`，盈亏相抵（含浮点上的 0.95 情形）与不可测输入一律不买。`planCandidates` 把它折成规划器要的数量：拒绝时 `count: 1`（`no-tail-room` 保留时钟理由，其余归入 `negative-ev`），买入时 `count: max`（默认 2，`max` 是上限不是建议）。`src/runtime/round.js` 在决定候选数处调用它，传入该任务的历史解题率与战役剩余墙钟预算；任一项测不出时不调用，沿用配置数量。存在理由：每轮默认采样两个候选，第二个只该在第一个可能失败时付钱，而这个问题是期望值问题，不是配置问题。
 - `src/loop/replay.js` — 只重放数值决策的策略回放：同一批回合在不同阈值下会晋升几次；明确不模拟换任务或换提示。
 - `src/loop/ab.js` — 配对比较两套策略：Wilson 区间（n 只有几十、率 0.25 时正态区间会掉到 0 以下）、精确 McNemar、以及**明确报出 MDE**（`mdePaired` 的灵敏度来自不一致对而不是样本量）。两条判据是硬约束：不一致对为零时 MDE 不能报 0（0 读起来像"无限灵敏"，正好相反），判决只在 `|delta| ≥ mde && p < alpha` 时成立，否则一律 `cannot-distinguish` 并写明"这个样本分不出 X 个点"。
 - `src/loop/decisions.js` — 循环对自己链路的决策台账：缺少证据（`evidence` 里没有一个有限数值）就按名字拒绝，按 kind+decision 去重，原子写入并保持人类可读的 JSON 数组；缺失或损坏的文件读作空表，绝不抛错。

@@ -149,3 +149,51 @@ export function hedgeDecision(input = {}) {
     note: `expected recovery ${expectedRecovery} beats the ${price} the second attempt costs and the tail fits`,
   }
 }
+
+/**
+ * How many candidates the planner should buy, from the hedge's answer.
+ *
+ * `hedgeDecision` answers a yes/no question in dollars and score; the planner
+ * needs a count. This adapter exists so the round asks one question in one
+ * place instead of re-deriving the thresholds: one candidate whenever the hedge
+ * refuses, `max` (default 2) whenever it buys.
+ *
+ * The refusal is folded onto the two constraints the planner can act on.
+ * `no-tail-room` keeps its own reason because it names the clock; every other
+ * refusal — a certain win, a negative expected value, or an input the loop
+ * could not measure — reads as `negative-ev`, because in each case the second
+ * candidate's expected recovery does not beat its price.
+ *
+ * `max` is a ceiling, not a suggestion: a campaign configured for one candidate
+ * cannot have a second one bought back by the arithmetic. It defaults to 2 (the
+ * historical count), and the result is never below 1.
+ *
+ * @param {{
+ *   pSolve?: number|string,
+ *   gainIfSolved?: number|string,
+ *   extraCostUsd?: number|string,
+ *   tailMs?: number|string,
+ *   budgetLeftMs?: number|string,
+ *   max?: number|string,
+ * }} [input]
+ *   Same price as `hedgeDecision`, plus `max` — the most candidates the round
+ *   may plan (the campaign's configured count).
+ * @returns {{count: number, reason: 'expected-value'|'negative-ev'|'no-tail-room'}}
+ *   `count` is 1 when the hedge refuses, otherwise `max`; `reason` names the
+ *   constraint that decided it.
+ */
+export function planCandidates(input = {}) {
+  const args = input && typeof input === 'object' ? input : {}
+  const rawMax = measure(args.max)
+  // A ceiling the caller cannot name is the historical two, and a broken
+  // ceiling must not silently mean "one": clamp into the range a round can use.
+  const max = rawMax === null ? 2 : Math.max(1, Math.floor(rawMax))
+  const decision = hedgeDecision(args)
+  if (!decision.buy) {
+    return {
+      count: 1,
+      reason: decision.reason === 'no-tail-room' ? 'no-tail-room' : 'negative-ev',
+    }
+  }
+  return { count: max, reason: 'expected-value' }
+}

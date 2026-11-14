@@ -26,6 +26,7 @@ import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
 import { adaptiveCandidateMode, secondCandidateGate } from './candidates.js'
+import { planCandidates } from '../loop/candidates.js'
 import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
@@ -935,6 +936,83 @@ export function roundStats(attempts, startedAt, verifierRuns, verifierMs, planMs
 }
 
 /**
+ * How often this campaign has solved one task, or `null` when it has never
+ * measured a round on it.
+ *
+ * Only earlier finished rounds on the same task count, and only ones that
+ * produced a verdict: a budget or interrupted round never measured the task, so
+ * counting it as a failure would price the hedge on an attempt that never
+ * happened. A round counts as solved when its patch landed or it was promoted,
+ * matching the gate's own notion of a solved task.
+ */
+function taskSolveRate(rounds, taskId, beforeRound) {
+  let measured = 0
+  let solved = 0
+  for (const round of Array.isArray(rounds) ? rounds : []) {
+    if (!round || round.taskId !== taskId) continue
+    if (Number(round.n) >= Number(beforeRound)) continue
+    if (round.status === 'interrupted' || round.status === 'budget') continue
+    measured += 1
+    if (round.landed === true || round.promoted === true || round.status === 'promoted') solved += 1
+  }
+  return measured ? solved / measured : null
+}
+
+/**
+ * Wall-clock budget left in the campaign, or `null` when the ledger cannot say.
+ *
+ * `budget.minutes` is a campaign cap measured from `createdAt`; a state that
+ * carries neither (a fixture, or a ledger from before the wall-clock cap) has no
+ * answer, and `null` is how the caller knows not to price a tail against a clock
+ * that does not exist.
+ */
+function budgetLeftMsOf(state) {
+  const minutes = Number(state?.budget?.minutes)
+  const startedAt = Date.parse(state?.createdAt)
+  if (!Number.isFinite(minutes) || !Number.isFinite(startedAt)) return null
+  return Math.max(0, minutes * 60_000 - (Date.now() - startedAt))
+}
+
+/**
+ * What one more candidate is expected to add at the tail, in ms.
+ *
+ * Prefer this campaign's own measured attempts; a campaign with no timing falls
+ * back to the per-attempt wall-clock cap, which is the most the loop can be
+ * asked to wait for one candidate anyway. The mean is deliberate: the tail is a
+ * cost, not a worst case.
+ */
+function candidateTailMs(rounds, config) {
+  const durations = []
+  for (const round of Array.isArray(rounds) ? rounds : []) {
+    for (const attempt of Array.isArray(round?.attempts) ? round.attempts : []) {
+      const ms = Number(attempt?.durationMs)
+      if (Number.isFinite(ms) && ms > 0) durations.push(ms)
+    }
+  }
+  if (durations.length) return durations.reduce((sum, ms) => sum + ms, 0) / durations.length
+  const cap = Number(config?.session?.attemptTimeoutMs)
+  return Number.isFinite(cap) && cap > 0 ? cap : 600_000
+}
+
+/**
+ * What one candidate has been costing this campaign, in dollars.
+ *
+ * Mean of the attempt costs the ledger recorded. A campaign whose attempts carry
+ * no cost reads 0, which only means "the record cannot price the dollars" — the
+ * tail check still applies. A negative cost is not a discount.
+ */
+function candidateCostUsd(rounds) {
+  const costs = []
+  for (const round of Array.isArray(rounds) ? rounds : []) {
+    for (const attempt of Array.isArray(round?.attempts) ? round.attempts : []) {
+      const usd = Number(attempt?.costUsd)
+      if (Number.isFinite(usd) && usd >= 0) costs.push(usd)
+    }
+  }
+  return costs.length ? costs.reduce((sum, usd) => sum + usd, 0) / costs.length : 0
+}
+
+/**
  * One round: pick a task, run `candidates` attempts in isolated worktrees, verify
  * mechanically, promote the best one. Never throws: every failure becomes an
  * event + (when it needs a human) a checkpoint.
@@ -1172,6 +1250,37 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
     }
   }
+  // The hedge that prices the second candidate is in dollars and score, so the
+  // planner needs the task's own odds and the campaign's own clock. Ask it only
+  // when the record can answer both — how often this task has solved, and how
+  // much wall-clock budget is left — because an unmeasured input is not
+  // permission to drop a candidate. The answer can only lower the configured
+  // count: a campaign that asked for one candidate cannot have a second bought
+  // back by arithmetic.
+  let candidatePlan = null
+  const priorSolveRate = taskSolveRate(state.rounds, task.id, n)
+  const budgetLeftMs = budgetLeftMsOf(state)
+  if (
+    candidateMode === 'parallel' &&
+    secondCandidatePreference !== 'always' &&
+    priorSolveRate !== null &&
+    budgetLeftMs !== null
+  ) {
+    candidatePlan = planCandidates({
+      pSolve: priorSolveRate,
+      // A solve is worth at least the round's promotion threshold: below it the
+      // gate would not promote the patch at all.
+      gainIfSolved: Number(policy.minGain) > 0 ? Number(policy.minGain) : 1,
+      extraCostUsd: candidateCostUsd(state.rounds),
+      tailMs: candidateTailMs(state.rounds, config),
+      budgetLeftMs,
+      max: candidates,
+    })
+    if (candidatePlan.count < candidates) {
+      candidates = candidatePlan.count
+      candidateModeSource = 'evidence'
+    }
+  }
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).
   const exposed = exposeIndexes(candidates, n)
@@ -1238,6 +1347,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // out of the time it was given" from "it was given a shorter leash today".
     planBudgetMs: planTimeoutMs,
     ...(secondCandidate ? { secondCandidate } : {}),
+    // The count decision and why, so a round that planned one candidate says
+    // which constraint bought the refusal rather than leaving it to inference.
+    ...(candidatePlan ? { candidatePlan } : {}),
   })
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
