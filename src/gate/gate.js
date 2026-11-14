@@ -177,10 +177,13 @@ export function rankAttempts(attempts) {
  *   2. `tasksEvaluated < config.minTasks`  → reject("insufficient tasks")
  *   3. `incumbent == null`                 → promote iff `candidate.score > 0`
  *   4. `delta < config.minGain`            → reject("gain below threshold")
- *   5. both holdout scores present and
+ *   5. an incumbent exists, `evidence.noiseSpread` is finite and positive, and
+ *      `delta < noiseSpread * noiseMultiplier`
+ *                                          → reject("within measured noise")
+ *   6. both holdout scores present and
  *      `candidate.holdoutScore < incumbent.holdoutScore - holdoutSlack`
  *                                          → reject("holdout regression")
- *   6. otherwise                           → promote
+ *   7. otherwise                           → promote
  *
  * `delta` is `candidate.score - incumbent.score`, or `candidate.score` when
  * there is no incumbent. Scores and delta are normalized to 6 decimals, and a
@@ -194,19 +197,34 @@ export function rankAttempts(attempts) {
  * non-finite candidate or incumbent score is read as `0`; a non-finite
  * holdout score is read as "no data" and the holdout comparison is skipped.
  *
+ * Measured noise is an error bar, not a tie-breaker: `evidence.noiseSpread`
+ * comes from a repeatability measurement (the same tree run twice), and a delta
+ * inside `noiseSpread * noiseMultiplier` is indistinguishable from repetition
+ * noise however it compares to `minGain`. The rule only applies when an
+ * incumbent exists and the spread is a finite positive number; a zero, NaN,
+ * string or missing spread is "not measured" and the legacy rules stand. The
+ * multiplier defaults to `1` and is read only when finite and non-negative.
+ * The first baseline (`incumbent == null`) is deliberately exempt: there is no
+ * delta to compare against the bar.
+ *
  * `checks` exposes one boolean per sub-decision:
  *   - `complete`     evidence.complete === true
  *   - `enoughTasks`  tasksEvaluated >= minTasks
  *   - `baseline`     candidate.score > 0 when there is no incumbent (true when
  *                    an incumbent exists — the rule does not apply)
  *   - `gain`         delta >= minGain (true when there is no incumbent)
+ *   - `noise`        delta >= noiseSpread * noiseMultiplier; present ONLY when a
+ *                    noise bar was measured, absent otherwise, so a caller
+ *                    without a repeatability measurement sees the old shape
  *   - `holdout`      no holdout regression (true when not comparable)
  *
  * @param {{
  *   candidate: {score:number, holdoutScore:number|null},
  *   incumbent: {score:number, holdoutScore:number|null}|null,
- *   config: {minGain:number, holdoutSlack:number, minTasks:number},
- *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean},
+ *   config: {minGain:number, holdoutSlack:number, minTasks:number,
+ *            noiseMultiplier?:number},
+ *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean,
+ *              noiseSpread?:number},
  * }} input
  * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
  */
@@ -243,8 +261,23 @@ export function decidePromotion(input) {
     ? candidateHoldout >= incumbentHoldout - holdoutSlack - EPSILON
     : true
 
+  // Repetition noise as an error bar. `null` means "not measured" (no bar), and
+  // only a positive finite spread with an incumbent can produce one: a zero
+  // spread would claim the measurement is exact, which a repeat run never is.
+  const noiseSpread = finiteOrNull(evidence.noiseSpread)
+  const rawMultiplier = finiteOrNull(config.noiseMultiplier)
+  const noiseMultiplier = rawMultiplier !== null && rawMultiplier >= 0 ? rawMultiplier : 1
+  const noiseBar =
+    incumbent !== null && noiseSpread !== null && noiseSpread > 0
+      ? noiseSpread * noiseMultiplier
+      : null
+  const noise = noiseBar === null ? true : delta >= noiseBar - EPSILON
+
   /** @type {Record<string, boolean>} */
   const checks = { complete, enoughTasks, baseline, gain, holdout }
+  // Adding `noise` only when it was measured keeps the checks shape stable for
+  // every caller that has no repeatability measurement.
+  if (noiseBar !== null) checks.noise = noise
 
   if (!complete) {
     return { promote: false, reason: 'incomplete evidence', delta, checks }
@@ -271,6 +304,14 @@ export function decidePromotion(input) {
 
   if (!gain) {
     return { promote: false, reason: 'gain below threshold', delta, checks }
+  }
+  if (!noise) {
+    return {
+      promote: false,
+      reason: `within measured noise: delta=${fmt(delta)} < noiseSpread=${fmt(noiseSpread)} x ${fmt(noiseMultiplier)} = ${fmt(noiseBar)}, so it is not a gain`,
+      delta,
+      checks,
+    }
   }
   if (!holdout) {
     return { promote: false, reason: 'holdout regression', delta, checks }

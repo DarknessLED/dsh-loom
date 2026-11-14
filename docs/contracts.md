@@ -183,8 +183,10 @@ export function rankAttempts(attempts)
  * @param {{
  *   candidate: {score:number, holdoutScore:number|null},
  *   incumbent: {score:number, holdoutScore:number|null}|null,
- *   config: {minGain:number, holdoutSlack:number, minTasks:number},
- *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean},
+ *   config: {minGain:number, holdoutSlack:number, minTasks:number,
+ *            noiseMultiplier?:number},
+ *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean,
+ *              noiseSpread?:number},
  * }} input
  * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
  */
@@ -196,8 +198,14 @@ export function decidePromotion(input)
 - `evidence.tasksEvaluated < minTasks` → reject("insufficient tasks")。
 - `incumbent == null` → promote iff `candidate.score > 0`（首轮基线）。
 - `delta = candidate.score - incumbent.score`；`delta < minGain` → reject("gain below threshold")。
+- `evidence.noiseSpread` 是有限正数且存在 incumbent 时，误差棒为 `noiseSpread * noiseMultiplier`（`config.noiseMultiplier` 缺省 `1`，非有限或负数按 `1` 处理）；`delta < 误差棒` → reject("within measured noise")。误差棒是重复跑同一棵树的实测离散度：落在棒内的 delta 无论是否过 `minGain` 都不算进步。`0` / `NaN` / 字符串 / 缺省一律视为「没测过」，退回上面的旧规则；首轮基线（`incumbent == null`）不受噪声约束。
 - `candidate.holdoutScore != null && incumbent.holdoutScore != null`：`candidate.holdoutScore < incumbent.holdoutScore - holdoutSlack` → reject("holdout regression")。
 - 其余 → promote，reason 带 delta 与 holdout 数据。
+
+`checks` 每个子判定一个布尔：`complete` / `enoughTasks` / `baseline` / `gain` / `holdout`，
+以及 `noise`——**仅在真的测到误差棒时存在**（存在 incumbent 且 `noiseSpread` 为有限正数），
+表示 `delta >= noiseSpread * noiseMultiplier`；没有测量时该键缺席，因此没有重复性测量的调用方看到的
+`checks` 形状与旧版完全一致。
 
 ## 4. `src/dispatch/session.js`（lead 负责）
 
@@ -219,6 +227,8 @@ export async function runRound({runtime, view, config, dispatcher, log}): Promis
 事件序列：`round.started` → 每个 attempt 一次 `attempt.finished` → `candidate.proposed` →（可选）`gate.evaluated` → `artifact.promoted` → `round.finished`。
 
 map 之前的 agent 节点是可寻址的工作实例：派发前先写 `node.started{id,type,role,round,attempt,at,base,deadlineMs}`，结束后写 `node.finished{id,round,attempt,ok,durationMs,…}`，`reduce` 把它们折进 `state.nodes`；`round.finished` 落地时仍为 `running` 的节点折成 `lost`（只投影事实，不伪造成功）。没有 `node.*` 事件的旧账本折叠结果不变。
+
+晋升门还有一条**误差棒**：`policyFor()` 从 `config.loopPolicy.noiseSpread` 读出有限正数（默认 `null`，即「没测过」，行为与旧版一致），回合内联门把它当作额外门槛——存在 incumbent 时，`score - taskBest` 必须同时过 `minGain` 和 `noiseSpread` 才算 `beatsIncumbent`，`gate.evaluated.checks.noise` 记录这次是否过棒（只有测到误差棒时才出现）。它就是 `decidePromotion` 的同一条规则（`evidence.noiseSpread * config.noiseMultiplier`），让 campaign 把自己的重复性测量写进配置后，2 分的「提升」不再被当成进步。
 
 ---
 

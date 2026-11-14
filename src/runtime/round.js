@@ -309,6 +309,12 @@ export function policyFor({ config, campaign } = {}) {
   const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
   // `minGain` is a fraction, so a negative or >1 override cannot be a policy.
   const minGain = Number(decide('minGain', over.minGain, config?.gate?.minGain, isRatio, 0.05))
+  // Repetition noise is an error bar, not a policy opinion: `null` means "not
+  // measured" and leaves the legacy minGain comparison untouched. Config-only,
+  // because it describes how repeatable this host's measurements are, not what
+  // this experiment wants; a zero spread would claim the measurement is exact.
+  const noiseSpread = Number.isFinite(loop.noiseSpread) && loop.noiseSpread > 0 ? loop.noiseSpread : null
+  sources.noiseSpread = noiseSpread === null ? 'default' : 'config'
   // How many rounds in a row may die of infrastructure before the loop stops
   // itself. A provider outage is not a hard task, and burning a budget on it
   // teaches nobody anything.
@@ -351,7 +357,7 @@ export function policyFor({ config, campaign } = {}) {
       }
     }
   }
-  return { planMode, candidateMode, minGain, infraPauseAfter, models, sources, rejected }
+  return { planMode, candidateMode, minGain, noiseSpread, infraPauseAfter, models, sources, rejected }
 }
 
 /**
@@ -1872,6 +1878,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         scope,
       })
     }
+    // Measured repetition noise is the error bar, not a tie-breaker: a delta
+    // inside it is indistinguishable from running the same tree twice, however
+    // it compares to minGain. `policy.noiseSpread` is null unless the config
+    // measured its own repeatability (loopPolicy.noiseSpread), so the legacy
+    // comparison is untouched by default.
+    const incumbentDelta = taskBest === null ? null : score - taskBest
+    const noiseBar =
+      typeof policy.noiseSpread === 'number' && Number.isFinite(policy.noiseSpread)
+        ? policy.noiseSpread
+        : null
+    const beatsNoise = incumbentDelta === null || noiseBar === null || incumbentDelta >= noiseBar - 1e-9
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
@@ -1882,8 +1899,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         ? { scope: { editable: scope.editable, checked: scopeResult.checked, violations: scopeResult.violations } }
         : {}),
       oracleClean: oracleClean({ patchFile: best?.patch, oraclePaths, filesChanged: best?.diff?.filesChanged ?? null }),
-      beatsIncumbent: taskBest === null || score - taskBest >= policy.minGain - 1e-9,
+      beatsIncumbent: taskBest === null || (score - taskBest >= policy.minGain - 1e-9 && beatsNoise),
     }
+    // Recorded only when a bar was measured, so a campaign without a
+    // repeatability measurement keeps the legacy checks shape.
+    if (incumbentDelta !== null && noiseBar !== null) checks.noise = beatsNoise
     // The existence filter in `oracleScripts` is the right answer to "which file
     // does this command run" and the wrong one for "did that file exist when the
     // base was measured": a candidate that creates the instrument makes the first
