@@ -223,7 +223,17 @@ export const DEFAULT_CONFIG = {
    * human node to `when: 'always'`, which outranks this default; `when: 'never'`
    * keeps a campaign unattended even with autopilot off.
    */
-  loopPolicy: { replayOnly: true, humanGate: true, autoApply: true, autoCandidateMode: false, planMode: 'off' },
+  loopPolicy: {
+    replayOnly: true,
+    humanGate: true,
+    autoApply: true,
+    autoCandidateMode: false,
+    planMode: 'off',
+    // Repetition noise as an error bar: the pooled spread the loop measured on
+    // repeated runs of the same tree. An install that has not measured its own
+    // repeatability inherits this figure instead of promoting at minGain alone.
+    noiseSpread: 0.1,
+  },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
 }

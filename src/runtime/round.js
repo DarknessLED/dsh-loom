@@ -14,6 +14,7 @@ import {
   fileAtCommit,
 } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
+import { DEFAULT_CONFIG } from '../core/config.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
@@ -370,11 +371,19 @@ export function policyFor({ config, campaign } = {}) {
   const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
   // `minGain` is a fraction, so a negative or >1 override cannot be a policy.
   const minGain = Number(decide('minGain', over.minGain, config?.gate?.minGain, isRatio, 0.05))
-  // Repetition noise is an error bar, not a policy opinion: `null` means "not
-  // measured" and leaves the legacy minGain comparison untouched. Config-only,
-  // because it describes how repeatable this host's measurements are, not what
-  // this experiment wants; a zero spread would claim the measurement is exact.
-  const noiseSpread = Number.isFinite(loop.noiseSpread) && loop.noiseSpread > 0 ? loop.noiseSpread : null
+  // Repetition noise is an error bar, not a policy opinion. Config-only, because
+  // it describes how repeatable this host's measurements are, not what this
+  // experiment wants. The shipped default is the measured pooled spread (0.1),
+  // so an install that never measured its own repeatability still gets a bar
+  // instead of promoting on minGain alone; an explicit zero (or junk) means
+  // "not measured" and leaves the legacy comparison untouched.
+  const configuredNoise = loop.noiseSpread
+  const noiseSpread =
+    configuredNoise === undefined || configuredNoise === null
+      ? DEFAULT_CONFIG.loopPolicy.noiseSpread
+      : Number.isFinite(configuredNoise) && configuredNoise > 0
+        ? configuredNoise
+        : null
   sources.noiseSpread = noiseSpread === null ? 'default' : 'config'
   // How many rounds in a row may die of infrastructure before the loop stops
   // itself. A provider outage is not a hard task, and burning a budget on it

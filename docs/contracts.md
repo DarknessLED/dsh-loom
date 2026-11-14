@@ -211,10 +211,10 @@ export function noopDecision(input)
   说明的是那棵树而不是候选。真补丁原样交给 `decidePromotion`，所以包装函数不可能放行普通门
   会拒的东西；`reason === 'no-patch'` 是它唯一自己拥有的拒绝。
 - `evidence.complete === false` → reject("incomplete evidence")。
-- `evidence.tasksEvaluated < minTasks` → reject("insufficient tasks")。
+- `evidence.tasksEvaluated < minTasks` → reject("insufficient tasks")；`evidence.tasks` 是同一个计数的短名，两者都有时以 `tasksEvaluated` 为准。
 - `incumbent == null` → promote iff `candidate.score > 0`（首轮基线）。
 - `delta = candidate.score - incumbent.score`；`delta < minGain` → reject("gain below threshold")。
-- `evidence.noiseSpread` 是有限正数且存在 incumbent 时，误差棒为 `noiseSpread * noiseMultiplier`（`config.noiseMultiplier` 缺省 `1`，非有限或负数按 `1` 处理）；`delta < 误差棒` → reject("within measured noise")。误差棒是重复跑同一棵树的实测离散度：落在棒内的 delta 无论是否过 `minGain` 都不算进步。`0` / `NaN` / 字符串 / 缺省一律视为「没测过」，退回上面的旧规则；首轮基线（`incumbent == null`）不受噪声约束。
+- 有效误差棒（effective noise）依次取 `evidence.noiseSpread`（本轮实测）、`policy.noiseSpread`（campaign 记录的）、`config.noiseSpread`（安装配置）中第一个有限数；存在 incumbent 且该值为正时，误差棒为 `noiseSpread * noiseMultiplier`（`config.noiseMultiplier` 缺省 `1`，非有限或负数按 `1` 处理）；`delta < 误差棒` → reject("within measured noise")。误差棒是重复跑同一棵树的实测离散度：落在棒内的 delta 无论是否过 `minGain` 都不算进步。`0` / `NaN` / 字符串 / 三处都缺省一律视为「没测过」，退回上面的旧规则；首轮基线（`incumbent == null`）不受噪声约束。
 - `candidate.holdoutScore != null && incumbent.holdoutScore != null`：`candidate.holdoutScore < incumbent.holdoutScore - holdoutSlack` → reject("holdout regression")。
 - 其余 → promote，reason 带 delta 与 holdout 数据。
 
@@ -260,7 +260,7 @@ map 之前的 agent 节点是可寻址的工作实例：派发前先写 `node.st
 
 节点调度是**就绪池**而不是按 `topoOrder` 线性走：`src/chain/spec.js` 的 `runnableNodes(chain, settled, {cancelled})` 返回所有 `needs` 都已在 `settled` 中、且自身未结算的节点 id（声明顺序）；`cancelled` 中的分支算已结算，否则等它的 join 永远醒不来，但它自己不会再被派发。未知依赖是坏链：抛错并在消息里点名那个 id。池宽由 `maxParallelOf(chain)` = `params.maxParallel` 取下限 1（缺省 1，非法值按 1），所以没写 `maxParallel` 的链保持旧的串行行为。`round.js` 用它们决定 pre-map 节点先跑哪一个。候选因兄弟已解题而被中止时，除了 attempt 记录，还要写一条终态 `node.cancelled{id,node,round,attemptId,reason:'solved-by-sibling'}`：被取消不等于死亡，账本必须能区分。
 
-晋升门还有一条**误差棒**：`policyFor()` 从 `config.loopPolicy.noiseSpread` 读出有限正数（默认 `null`，即「没测过」，行为与旧版一致），回合内联门把它当作额外门槛——存在 incumbent 时，`score - taskBest` 必须同时过 `minGain` 和 `noiseSpread` 才算 `beatsIncumbent`，`gate.evaluated.checks.noise` 记录这次是否过棒（只有测到误差棒时才出现）。它就是 `decidePromotion` 的同一条规则（`evidence.noiseSpread * config.noiseMultiplier`），让 campaign 把自己的重复性测量写进配置后，2 分的「提升」不再被当成进步。
+晋升门还有一条**误差棒**：`policyFor()` 从 `config.loopPolicy.noiseSpread` 读出有限正数（缺省 `0.1`，即安装默认使用的实测 pooled spread，`DEFAULT_CONFIG.loopPolicy.noiseSpread`；显式 `0` 或垃圾值视为「没测过」，行为与旧版一致），回合内联门把它当作额外门槛——存在 incumbent 时，`score - taskBest` 必须同时过 `minGain` 和 `noiseSpread` 才算 `beatsIncumbent`，`gate.evaluated.checks.noise` 记录这次是否过棒（只有测到误差棒时才出现）。它就是 `decidePromotion` 的同一条规则（`evidence.noiseSpread * config.noiseMultiplier`），让 campaign 把自己的重复性测量写进配置后，2 分的「提升」不再被当成进步。
 
 ---
 

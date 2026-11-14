@@ -105,6 +105,21 @@ function fmt(n) {
 }
 
 /**
+ * Read a candidate / incumbent as either a score holder object or a bare score.
+ * A numeric side (`candidate: 0.86`) is the same fact as `{score: 0.86}` with no
+ * holdout, and accepting it keeps callers that only have a number from being
+ * silently read as "no candidate". Anything else is absent.
+ * @param {unknown} value
+ * @returns {object|null}
+ */
+function scoreHolder(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { score: value, holdoutScore: null }
+  }
+  return value !== null && typeof value === 'object' ? value : null
+}
+
+/**
  * Aggregate one attempt's evaluation into a 0..1 score.
  *
  * - Base score is the mean of `attempt.taskScores` (0..1 each); without any
@@ -177,8 +192,8 @@ export function rankAttempts(attempts) {
  *   2. `tasksEvaluated < config.minTasks`  → reject("insufficient tasks")
  *   3. `incumbent == null`                 → promote iff `candidate.score > 0`
  *   4. `delta < config.minGain`            → reject("gain below threshold")
- *   5. an incumbent exists, `evidence.noiseSpread` is finite and positive, and
- *      `delta < noiseSpread * noiseMultiplier`
+ *   5. an incumbent exists, the effective noise spread is finite and positive,
+ *      and `delta < noiseSpread * noiseMultiplier`
  *                                          → reject("within measured noise")
  *   6. both holdout scores present and
  *      `candidate.holdoutScore < incumbent.holdoutScore - holdoutSlack`
@@ -197,11 +212,15 @@ export function rankAttempts(attempts) {
  * non-finite candidate or incumbent score is read as `0`; a non-finite
  * holdout score is read as "no data" and the holdout comparison is skipped.
  *
- * Measured noise is an error bar, not a tie-breaker: `evidence.noiseSpread`
- * comes from a repeatability measurement (the same tree run twice), and a delta
- * inside `noiseSpread * noiseMultiplier` is indistinguishable from repetition
- * noise however it compares to `minGain`. The rule only applies when an
- * incumbent exists and the spread is a finite positive number; a zero, NaN,
+ * Measured noise is an error bar, not a tie-breaker: the effective spread comes
+ * from a repeatability measurement (the same tree run twice) and a delta inside
+ * `noiseSpread * noiseMultiplier` is indistinguishable from repetition noise
+ * however it compares to `minGain`. The effective spread is the first finite
+ * number among `evidence.noiseSpread` (this round's measurement),
+ * `policy.noiseSpread` and `config.noiseSpread` (the campaign's / install's
+ * recorded figure); an install that never measured its own repeatability passes
+ * none of them, so the legacy `minGain` comparison stands. The rule only
+ * applies when an incumbent exists and the spread is positive; a zero, NaN,
  * string or missing spread is "not measured" and the legacy rules stand. The
  * multiplier defaults to `1` and is read only when finite and non-negative.
  * The first baseline (`incumbent == null`) is deliberately exempt: there is no
@@ -209,7 +228,8 @@ export function rankAttempts(attempts) {
  *
  * `checks` exposes one boolean per sub-decision:
  *   - `complete`     evidence.complete === true
- *   - `enoughTasks`  tasksEvaluated >= minTasks
+ *   - `enoughTasks`  tasksEvaluated >= minTasks (`evidence.tasks` is the same
+ *                    count under its short name)
  *   - `baseline`     candidate.score > 0 when there is no incumbent (true when
  *                    an incumbent exists — the rule does not apply)
  *   - `gain`         delta >= minGain (true when there is no incumbent)
@@ -219,31 +239,34 @@ export function rankAttempts(attempts) {
  *   - `holdout`      no holdout regression (true when not comparable)
  *
  * @param {{
- *   candidate: {score:number, holdoutScore:number|null},
- *   incumbent: {score:number, holdoutScore:number|null}|null,
+ *   candidate: {score:number, holdoutScore:number|null}|number,
+ *   incumbent: {score:number, holdoutScore:number|null}|number|null,
  *   config: {minGain:number, holdoutSlack:number, minTasks:number,
- *            noiseMultiplier?:number},
- *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean,
- *              noiseSpread?:number},
+ *            noiseMultiplier?:number, noiseSpread?:number},
+ *   policy?: {noiseSpread?:number},
+ *   evidence: {tasksEvaluated?:number, tasks?:number, holdoutEvaluated:number,
+ *              complete:boolean, noiseSpread?:number},
  * }} input
  * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
  */
 export function decidePromotion(input) {
   const safe = input !== null && typeof input === 'object' ? input : {}
-  const candidate =
-    safe.candidate !== null && typeof safe.candidate === 'object' ? safe.candidate : null
-  const incumbent =
-    safe.incumbent !== null && typeof safe.incumbent === 'object' ? safe.incumbent : null
+  const candidate = scoreHolder(safe.candidate)
+  const incumbent = scoreHolder(safe.incumbent)
   const config = safe.config !== null && typeof safe.config === 'object' ? safe.config : {}
   const evidence =
     safe.evidence !== null && typeof safe.evidence === 'object' ? safe.evidence : {}
+  const policy = safe.policy !== null && typeof safe.policy === 'object' ? safe.policy : {}
 
   const candidateScore = roundScore(finiteOrNull(candidate?.score) ?? 0)
   const incumbentScore = roundScore(finiteOrNull(incumbent?.score) ?? 0)
   const delta =
     incumbent === null ? candidateScore : round6(candidateScore - incumbentScore)
 
-  const tasksEvaluated = finiteOrNull(evidence.tasksEvaluated) ?? 0
+  // `tasks` is the short spelling of the same count: a caller that reports how
+  // many tasks it evaluated must not be read as evaluating zero of them.
+  const tasksEvaluated =
+    finiteOrNull(evidence.tasksEvaluated) ?? finiteOrNull(evidence.tasks) ?? 0
   const minTasks = finiteOrNull(config.minTasks) ?? Infinity
   const minGain = finiteOrNull(config.minGain) ?? Infinity
   const holdoutSlack = finiteOrNull(config.holdoutSlack) ?? 0
@@ -264,7 +287,13 @@ export function decidePromotion(input) {
   // Repetition noise as an error bar. `null` means "not measured" (no bar), and
   // only a positive finite spread with an incumbent can produce one: a zero
   // spread would claim the measurement is exact, which a repeat run never is.
-  const noiseSpread = finiteOrNull(evidence.noiseSpread)
+  // This round's measurement wins; otherwise the campaign policy's recorded
+  // figure, then the install config's. `null` from all three means "not
+  // measured", and the legacy comparison stands.
+  const noiseSpread =
+    finiteOrNull(evidence.noiseSpread) ??
+    finiteOrNull(policy.noiseSpread) ??
+    finiteOrNull(config.noiseSpread)
   const rawMultiplier = finiteOrNull(config.noiseMultiplier)
   const noiseMultiplier = rawMultiplier !== null && rawMultiplier >= 0 ? rawMultiplier : 1
   const noiseBar =
