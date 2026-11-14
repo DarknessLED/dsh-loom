@@ -54,6 +54,10 @@ const standing = [
   'tests/self15/verdict.test.mjs',
   'tests/self15/chain-dag.test.mjs',
   'tests/self15/promotion-noise.test.mjs',
+  // the panel owes the reader the same answer the ledger holds: one decision
+  // at a time, and a verdict on a campaign that stopped.
+  'tests/self15/panel-one-row.test.mjs',
+  'tests/self15/panel-end.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',
