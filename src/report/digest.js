@@ -19,6 +19,7 @@ import { campaignUsage } from '../runtime/cost.js'
 import { campaignQuality } from '../runtime/quality.js'
 import { reviewQueue } from '../runtime/review.js'
 import { modelHealth } from '../runtime/model-health.js'
+import { describeEnd } from './end.js'
 
 /** Hard ceiling on the whole digest, header and sections included. */
 export const DIGEST_MAX_LINES = 10
@@ -73,6 +74,21 @@ function headerLine(state) {
     `${oneLine(state?.id) || 'campaign'} [${oneLine(state?.status) || 'unknown'}]` +
       ` round ${rounds.length} · ${verdict} · ${spendSummary(state)}`,
   )
+}
+
+/**
+ * The verdict for a campaign that has ended, and nothing while it runs.
+ *
+ * A settled campaign used to be readable only by inference: the header said
+ * `stopped`, the rounds said what was reached, and the reason and the next step
+ * lived in neither. `describeEnd` is the single answer; this renders it as two
+ * bounded lines, and relies on `cause === null` meaning "not ended" so the
+ * digest does not invent a verdict for a campaign that is still working.
+ */
+function endLines(state) {
+  const end = describeEnd(state)
+  if (end.cause === null) return []
+  return [clip(`verdict: ${end.headline}`), clip(`resume: ${end.resumeHint}`)]
 }
 
 function roundLine(round) {
@@ -160,11 +176,12 @@ export function campaignDigest(state, opts = {}) {
 
   const reviews = reviewLines(state)
   const lessons = lessonLine(state)
-  const lines = [headerLine(state)]
+  const ended = endLines(state)
+  const lines = [headerLine(state), ...ended]
 
-  // Reserve room for the header, every review line and the lesson line first;
-  // whatever is left is the round window. This is what keeps the total bounded
-  // even when a campaign has more rounds than the caller asked for.
+  // Reserve room for the header, the verdict, every review line and the lesson
+  // line first; whatever is left is the round window. This is what keeps the
+  // total bounded even when a campaign has more rounds than the caller asked for.
   const models = modelLine(state)
   const reserved = lines.length + reviews.length + (lessons ? 1 : 0) + (models ? 1 : 0)
   const room = Math.max(0, DIGEST_MAX_LINES - reserved)

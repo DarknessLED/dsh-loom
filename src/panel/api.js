@@ -5,6 +5,7 @@ import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
+import { describeEnd } from '../report/end.js'
 
 /**
  * The browser half's only data source: one JSON route.
@@ -213,6 +214,10 @@ function campaignRow(view, now, campaignId, config) {
     incumbent: s.incumbent
       ? { round: s.incumbent.round ?? null, score: s.incumbent.score ?? null }
       : null,
+    // The verdict a stopped campaign owes: why it ended, what it reached and
+    // what a resume should do next. The client renders it instead of inferring
+    // a story from `status` plus a round count.
+    end: describeEnd(s),
     policy: s.policy?.status ? { status: s.policy.status, version: s.policy.version } : null,
     // What runs, not just what was written down: `policy` above is the record,
     // `loop` is the merged knobs with the source of each value.
