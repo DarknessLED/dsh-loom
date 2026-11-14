@@ -15,7 +15,7 @@ import {
 } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
-import { campaignUsage, fallbackSpend, hasTokens, resolvePricing, usageOfSession } from './cost.js'
+import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
@@ -885,10 +885,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // the dispatch and the record it writes cannot disagree.
   const planTimeoutMs = plannerBudget(state, config)
   const workerId = workerNodeId(chain)
-  // Resolve the price table once: every attempt in this round is billed at the
-  // same rates, and the finished record must name the table its dollars came
-  // from ('default' rates when the campaign configured none).
-  const pricing = resolvePricing(config.models?.pricing)
+  // Resolve the round-level table once for the records that describe the round
+  // (a split table answers `default` when no model is named). Each attempt is
+  // priced again below with the model that actually answered, because one
+  // campaign can run the same model through relays with different rates.
+  const pricing = pricingFor(config.models?.pricing)
   const raise = (kind, payload) => {
     const id = raiseCheckpoint(runtime, view, kind, payload)
     if (notify) {
@@ -1491,13 +1492,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           verifierOk: gateOk,
           metrics: ver.metrics,
         })
-        const spend = usageOfSession(runtime.ctx, runRes.sessionId, pricing.table)
+        // Price this attempt with the table of the model that actually ran: a
+        // relay that charged 9x the default must not be billed at the default,
+        // and the record keeps the key so a report can audit the choice.
+        const attemptPricing = pricingFor(config.models?.pricing, runRes.model)
+        const spend = usageOfSession(runtime.ctx, runRes.sessionId, attemptPricing.table)
         const parsed = parseAttemptReport(runRes.text || '')
         const report = parsed.ok ? parsed.report : null
         // A session that reported tokens already priced them. When it published
         // no usage at all, `tokensOf` still counts the brief and the answer —
         // bill that same fallback, or the record shows tokens with $0.00.
-        const billed = hasTokens(spend.usage) ? spend : fallbackSpend(brief, runRes.text, pricing.table)
+        const billed = hasTokens(spend.usage) ? spend : fallbackSpend(brief, runRes.text, attemptPricing.table)
         record = {
           ...record,
           // The tree this attempt was cut against: salvage re-verifies against it.
@@ -1526,7 +1531,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           usage: billed.usage,
           usageEstimated: billed.estimated === true,
           costUsd: billed.usd,
-          priceSource: pricing.source,
+          priceSource: attemptPricing.source,
+          priceKey: attemptPricing.source.startsWith('model:') ? attemptPricing.source.slice('model:'.length) : null,
           tokens: tokensOf(billed, brief, runRes.text),
           textChars: (runRes.text || '').length,
           error: runRes.error,

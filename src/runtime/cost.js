@@ -137,6 +137,41 @@ export function resolvePricing(pricing) {
   return configured ? { table: pricing, source: 'configured' } : { table: DEFAULT_PRICING, source: 'default' }
 }
 
+/** True when a table fans out per relay/model instead of holding one rate set. */
+function isSplitTable(table) {
+  if (!table || typeof table !== 'object') return false
+  if (table.byModel && typeof table.byModel === 'object') return true
+  return table.default !== null && typeof table.default === 'object'
+}
+
+/**
+ * Pick the rate set that prices one model's work, and name where it came from.
+ *
+ * A campaign can run the same model through several relays at very different
+ * prices, so a table may fan out as `{default: {...}, byModel: {'<modelId>':
+ * {...}}}`. Matching the model id identifies the relay that actually answered
+ * instead of averaging every relay into one rate. A legacy flat table keeps the
+ * old `configured` contract, and an absent (or empty) table means the documented
+ * defaults.
+ *
+ * @returns {{table: object, source: string}} source is `model:<id>`,
+ *   `configured`, or `default`; the caller records it so a report can say which
+ *   rates produced its dollars.
+ */
+export function pricingFor(table, model) {
+  if (!isSplitTable(table)) {
+    return resolvePricing(table)
+  }
+  const byModel = table.byModel && typeof table.byModel === 'object' ? table.byModel : {}
+  const matched = typeof model === 'string' && model ? byModel[model] : undefined
+  if (matched && typeof matched === 'object') return { table: matched, source: `model:${model}` }
+  const fallback = table.default
+  if (fallback && typeof fallback === 'object' && PRICE_KEYS.some((k) => isRate(fallback[k]))) {
+    return { table: fallback, source: 'default' }
+  }
+  return { table: DEFAULT_PRICING, source: 'default' }
+}
+
 /** Use an explicit rate when present, else the default for that leg. */
 function rateOf(value, fallback) {
   return isRate(value) ? value : fallback
@@ -148,7 +183,7 @@ function rateOf(value, fallback) {
  * partial override cannot silently make output free.
  */
 export function priceUsage(usage, pricing) {
-  const table = resolvePricing(pricing).table
+  const table = pricingFor(pricing).table
   const u = usage || ZERO
   const inP = rateOf(table.inputPerMTok, DEFAULT_PRICING.inputPerMTok)
   const outP = rateOf(table.outputPerMTok, DEFAULT_PRICING.outputPerMTok)
@@ -196,28 +231,62 @@ function measureViaMeter(ctx, sessionId) {
   }
 }
 
-/** Coerce a meter result (`usage`-wrapped or flat) into a token record. */
+/**
+ * Coerce a meter result into a token record. Host meters answer in several
+ * shapes — `{usage: {...}}`, `{tokens: {...}}`, or the token fields flat on the
+ * result — and an empty or non-finite answer means "no measurement", not
+ * "spent nothing", so callers can keep the next source of truth in line.
+ */
 function normalizeMeterUsage(raw) {
-  const u = raw || typeof raw === 'object' && raw.usage && typeof raw.usage === 'object' ? raw.usage : raw
+  const u = raw && typeof raw === 'object'
+    ? raw.usage && typeof raw.usage === 'object'
+      ? raw.usage
+      : raw.tokens && typeof raw.tokens === 'object'
+        ? raw.tokens
+        : raw
+    : null
   if (!u || typeof u !== 'object') return null
-  return {
+  const usage = {
     inputTokens: num(u.inputTokens),
     outputTokens: num(u.outputTokens),
     cacheReadTokens: num(u.cacheReadTokens),
     cacheWriteTokens: num(u.cacheWriteTokens),
   }
+  return hasTokens(usage) ? usage : null
+}
+
+/**
+ * Ask the host's cost meter for a session's real token usage. Unlike
+ * `tokenMeter`, `costMeter` is the ledger a DSH host actually installs, and it
+ * keeps counting cache reads, so it is the only measurement that agrees with
+ * the child session's own price. Returns null when the service is absent, does
+ * not expose `getSessionCost`, reports nothing usable, or throws.
+ */
+function measureViaCostMeter(ctx, sessionId) {
+  try {
+    const meter = svc(ctx, 'costMeter')
+    if (!meter || typeof meter.getSessionCost !== 'function') return null
+    return normalizeMeterUsage(meter.getSessionCost(sessionId))
+  } catch {
+    return null
+  }
 }
 
 /**
  * Read one session's token usage, preferring real measurements over guesses:
- * host meter, then a `usage` block in the log, then a transcript estimate.
- * Returns zeros when the session is unavailable.
+ * host cost meter, then host token meter, then a `usage` block in the log, then
+ * a transcript estimate. Returns zeros when the session is unavailable.
  */
 export function usageOfSession(ctx, sessionId, pricing) {
   // Never touch ctx.<service> directly: under cordis a fiber without the
   // inject declaration throws on property access, and this runs inside a
   // timer fiber where `sessions` is not declared.
   if (!sessionId) return zeroResult()
+  const table = pricingFor(pricing).table
+  // The cost meter bills what the child actually spent, cache reads included;
+  // it wins over every guess below whenever it reports real tokens.
+  const costed = measureViaCostMeter(ctx, sessionId)
+  if (costed) return { ...costed, usage: costed, usd: priceUsage(costed, table), estimated: false }
   let events = []
   let logged = { ...ZERO }
   try {
@@ -230,11 +299,11 @@ export function usageOfSession(ctx, sessionId, pricing) {
   }
   // The host measurement is authoritative whenever it reports real tokens.
   const measured = measureViaMeter(ctx, sessionId)
-  if (measured) return { ...measured, usage: measured, usd: priceUsage(measured, pricing), estimated: false }
+  if (measured) return { ...measured, usage: measured, usd: priceUsage(measured, table), estimated: false }
   // A real usage block in the log is also a measurement, not an estimate.
-  if (hasTokens(logged)) return { ...logged, usage: logged, usd: priceUsage(logged, pricing), estimated: false }
+  if (hasTokens(logged)) return { ...logged, usage: logged, usd: priceUsage(logged, table), estimated: false }
   // No measurement at all: the transcripts still prove the session did work.
   const estimate = estimateUsage(events)
   const estimated = hasTokens(estimate)
-  return { ...estimate, usage: estimate, usd: priceUsage(estimate, pricing), estimated }
+  return { ...estimate, usage: estimate, usd: priceUsage(estimate, table), estimated }
 }
