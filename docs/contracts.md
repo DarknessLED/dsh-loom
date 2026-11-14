@@ -56,6 +56,7 @@
 - `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；`noopDecision` 在阈值之前拒绝空补丁（否则把没干的活记成晋升）；对畸形输入不抛异常。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
+- `src/gate/metrics.js` — 纯函数「验证器输出里的度量」：`parseMetrics(stdout)` 只认整行 `KILLRATE=<0..1>` / `MUTANTS=<非负整数>`，缺失、被别的文字包住或不是十进制数一律 `null`（绝不回落 0，否则「没测到」会被读成「0 杀死率」），`verifyMetrics({stdout,status})` 只把真正读到的度量交给调用方。存在的理由：变异杀死率 harness 一直打印 `KILLRATE=0.3114`，但没有任何回合读过它，判据只剩下二值退出码 —— 杀掉 31% 变异体的补丁和一个也没杀掉的补丁得分相同。
 - `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。
 
 ### knowledge/ — 经验
@@ -390,3 +391,21 @@ guardPlan({ changed, promotionsSinceFull, fullEvery = 10 })
 - 全是 docs（`docs/**` 或 `*.md`）→ `light`，只跑 docs pin（`tests/self11/docs-coverage.test.mjs`）。
 - 全是 `tests/**` 且至少一个 `*.test.mjs` → `related`，跑改动到的那些 spec 加 config pins（docs coverage 与守卫自身的路由 spec）；没有 spec 的测试树改动（helper/fixture）可以影响所有 spec，所以回落到 `full`。
 - `promotionsSinceFull` 记的是已完成的晋升数，因此紧挨着第 `since + 1` 次晋升的这次守卫运行在该数达到 `fullEvery` 时欠一次全量；它是周期兜底，优先于上面所有窄化。
+
+## 14. 判据指标（W22）
+
+```js
+// src/gate/metrics.js
+parseMetrics(stdout) -> { killRate, mutants }        // 缺失/非法为 null，永不回落到 0
+verifyMetrics({ stdout, status }) -> { metrics, status }
+```
+
+语义：变异杀死率 harness 把 `KILLRATE=0.3114` 写在验证器输出里，但过去没有任何回合读过它，
+判据只剩二值退出码——杀掉 31% 变异体的补丁与一个也没杀掉的补丁得分相同。这个模块只做「读」：
+
+- 只认整行 `KILLRATE=<0..1>` 与 `MUTANTS=<非负整数>`；名字不在表里、值被别的文字包住、不是十进制数或超出范围，都算「没测到」并保持 `null`。
+- **`null` 不是 0**：没有 KILLRATE 行与 `KILLRATE=0.0000` 是相反的事实，前者若被当成 0 会让「没测」冒充「测得差」，所以它永远不参与比较。
+- 同一名字出现多次时以最后一个合法读数为准；后面的畸形行不会抹掉前面已经读到的数。
+- `verifyMetrics` 只把非 `null` 的度量放进 `metrics`（什么也没打印就是 `{}`），并把 `status` 原样带回；它不替调用方决定晋升。
+
+用它晋升是之后独立的、要有测量的决定，不属于本模块。
