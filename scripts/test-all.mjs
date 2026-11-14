@@ -49,6 +49,7 @@ const standing = [
   // when the campaign bought it, so keeping them here is what stops a later
   // round from quietly removing the guard it took fourteen rounds to earn.
   'tests/self15/billing.test.mjs',
+  'tests/self15/billing-from-ledger.test.mjs',
   'tests/self15/checkpoints.test.mjs',
   'tests/self15/decisions.test.mjs',
   'tests/self15/verdict.test.mjs',
