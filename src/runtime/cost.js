@@ -58,6 +58,94 @@ function dshHome() {
   return typeof profile === 'string' && profile !== '' ? join(profile, '.dsh') : null
 }
 
+// zstd frame magic (little endian 0xFD2FB528) and the skippable-frame range
+// (0x184D2A50..0x184D2A5F). The host appends a fresh frame on every flush
+// instead of rewriting one, so a ledger is a sequence of concatenated frames.
+const ZSTD_FRAME_MAGIC = 0xfd2fb528
+const ZSTD_SKIPPABLE_MIN = 0x184d2a50
+const ZSTD_SKIPPABLE_MAX = 0x184d2a5f
+
+/** Every place in `packed` where a zstd (or skippable) frame starts. */
+function zstdFrameStarts(packed) {
+  const starts = []
+  for (let i = 0; i + 4 <= packed.length; i += 1) {
+    const word = packed.readUInt32LE(i)
+    if (word === ZSTD_FRAME_MAGIC) starts.push({ offset: i, skippable: false })
+    else if (word >= ZSTD_SKIPPABLE_MIN && word <= ZSTD_SKIPPABLE_MAX) {
+      starts.push({ offset: i, skippable: true })
+    }
+  }
+  return starts
+}
+
+/**
+ * Decompress EVERY zstd frame in a packed ledger, not just the first one.
+ *
+ * `zlib.zstdDecompressSync` (and a stream decoder) silently returns only the
+ * first frame of a concatenated stream, which on this host meant a 161 KB
+ * ledger decompressed to 270 bytes and the round fell back to characters/4
+ * while the real usage sat on disk. Since the node API reports no consumed
+ * length, frame boundaries are taken from the magic: each frame runs to the
+ * next frame start (a false magic inside a payload is caught because that
+ * slice fails to decode, so the boundary is extended) and the final frame runs
+ * to the end of the buffer. A partially written last frame fails to decode and
+ * is dropped without discarding the complete frames before it; skippable
+ * frames are stepped over by their declared length.
+ */
+function decodeZstdFrames(packed) {
+  const unzstd = zlib.zstdDecompressSync
+  if (typeof unzstd !== 'function') return null
+  const markers = zstdFrameStarts(packed)
+  if (markers.length === 0) {
+    try {
+      return unzstd(packed).toString('utf8')
+    } catch {
+      return null
+    }
+  }
+  let text = ''
+  let decodedAny = false
+  let i = 0
+  while (i < markers.length) {
+    const marker = markers[i]
+    if (marker.skippable) {
+      // magic(4) + little-endian payload size(4) + payload
+      if (marker.offset + 8 > packed.length) break
+      const size = packed.readUInt32LE(marker.offset + 4)
+      const end = marker.offset + 8 + size
+      if (end > packed.length) break
+      i = firstMarkerAtOrAfter(markers, end)
+      continue
+    }
+    let consumed = -1
+    let frame = null
+    for (let j = i + 1; j <= markers.length; j += 1) {
+      const end = j < markers.length ? markers[j].offset : packed.length
+      if (end <= marker.offset) continue
+      try {
+        frame = unzstd(packed.subarray(marker.offset, end)).toString('utf8')
+        consumed = j
+        break
+      } catch {
+        /* interior false magic, or a truncated/corrupt frame: extend the slice */
+      }
+    }
+    if (frame !== null) {
+      text += frame
+      decodedAny = true
+    }
+    i = consumed === -1 ? i + 1 : consumed
+  }
+  return decodedAny ? text : null
+}
+
+/** Index of the first marker at or after `offset` (markers are ascending). */
+function firstMarkerAtOrAfter(markers, offset) {
+  let i = 0
+  while (i < markers.length && markers[i].offset < offset) i += 1
+  return i
+}
+
 /** Read one session's ledger text, plain first, then the zstd archive. */
 function readLedgerText(dir) {
   try {
@@ -67,8 +155,7 @@ function readLedgerText(dir) {
   }
   try {
     const packed = readFileSync(join(dir, 'session.v4.jsonl.zstd'))
-    const unzstd = zlib.zstdDecompressSync
-    return typeof unzstd === 'function' ? unzstd(packed).toString('utf8') : null
+    return decodeZstdFrames(packed)
   } catch {
     return null
   }
