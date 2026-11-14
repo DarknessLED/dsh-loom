@@ -244,7 +244,13 @@ test('the palette is monochrome ink, and colour is reserved for state', () => {
   assert.match(css, /cubic-bezier\(\.2,\.7,\.2,1\)/, 'and settles rather than bounces')
   // one shadow token, used by exactly the one floating surface (the queue)
   assert.match(css, /--loomlift:/, 'depth is one declared shadow, not a per-element guess')
-  assert.match(css, /\.loom-hero\{position:sticky[^}]*box-shadow:var\(--loomlift\)/, 'the queue floats: pinned, blurred underneath, one shadow')
+  // it used to float: sticky + blurred. Three checkpoints of frosted glass hid
+  // the campaigns the checkpoints were about, so the queue scrolls now and the
+  // header carries the count instead.
+  assert.doesNotMatch(css, /\.loom-hero\{[^}]*position:sticky/, 'the queue does not float over the panel')
+  assert.doesNotMatch(css, /\.loom-hero\{[^}]*backdrop-filter/, 'and nothing blurs what is underneath it')
+  assert.match(css, /\.loom-wait\{/, 'the header badge that says how many are waiting')
+  assert.match(readFileSync(clientPath, 'utf8'), /waitTotal > 0/, 'and the count comes from the queue, drawn before it')
   assert.ok(!/\.loom-camp\{[^}]*box-shadow:/.test(css), 'cards are hairline surfaces, they do not float')
   assert.ok(css.includes('prefers-reduced-motion'), 'motion can be switched off')
   assert.match(css, /\.loom-spark \.pt\[data-tone="ok"\]\{background:var\(--loom-ok\)\}/, 'the trend borrows the state palette, it does not invent one')

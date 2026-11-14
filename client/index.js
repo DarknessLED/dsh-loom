@@ -104,8 +104,17 @@ window.__ModuleLoader__.load({
       '.loom .num,.loom code,.loom .m{font-family:var(--loom-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
       '.loom-titlerow,.loom-obj,.loom-meta,.loom-chain,.loom-tri,.loom-vitals,.loom-cp-head,.loom-hero-row{min-width:0}',
       // ---- header ---------------------------------------------------------
-      '.loom-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;position:relative;z-index:2}',
+      // the header is the one fixed band; a hairline under it is what says the
+      // rows are sliding beneath something rather than being cut in half
+      '.loom-head{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;position:relative;z-index:2;',
+      ' border-bottom:1px solid var(--loom-line2);background:var(--loom-canvas)}',
       '.loom-mark{font-size:13px;font-weight:650;letter-spacing:.02em;white-space:nowrap;line-height:1}',
+      '.loom-wait{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:2px 7px;',
+      ' border:1px solid color-mix(in srgb,var(--loom-warn) 34%,transparent);border-radius:999px;',
+      ' background:color-mix(in srgb,var(--loom-warn) 12%,transparent);color:var(--loom-warn);',
+      ' font:500 11px/1.4 var(--loom-mono);cursor:pointer;transition:background-color 180ms cubic-bezier(.2,.7,.2,1)}',
+      '.loom-wait:hover{background:color-mix(in srgb,var(--loom-warn) 20%,transparent)}',
+      '.loom-wait .dot{width:5px;height:5px;border-radius:999px;background:currentColor}',
       '.loom-spacer{flex:1 1 auto;min-width:4px}',
       // an install-level switch reads as a name and a track, the way a system
       // setting does: the state is the knob's position, not a word to parse
@@ -152,9 +161,13 @@ window.__ModuleLoader__.load({
       // the queue is pinned: a decision you have to scroll back to is a decision
       // you postpone. The blur keeps the cards readable underneath it without
       // painting an opaque band over the host's own background.
-      '.loom-hero{position:sticky;top:0;z-index:3;margin:2px 12px 14px;border:1px solid var(--loom-line);',
-      ' border-radius:14px;background:color-mix(in srgb,var(--loom-base) 6%,transparent);',
-      ' backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);',
+      // The queue is the first block, not a floating one. It used to be sticky
+      // with a blurred backdrop, which meant the taller it got the more of the
+      // panel it hid: three checkpoints covered the campaigns they were about.
+      // It scrolls away like everything else; the header keeps a count so a
+      // reader who scrolled past still knows something is waiting.
+      '.loom-hero{margin:2px 12px 14px;border:1px solid var(--loom-line);',
+      ' border-radius:14px;background:color-mix(in srgb,var(--loom-base) 5%,transparent);',
       ' box-shadow:var(--loomlift);overflow:hidden}',
       '.loom-hero-head{display:flex;align-items:baseline;gap:8px;padding:12px 14px 8px;min-width:0}',
       '.loom-hero-head .k{font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--loom-ink)}',
@@ -2159,10 +2172,38 @@ window.__ModuleLoader__.load({
           h('span', { className: 'loom-track' }, h('span', { className: 'loom-knob' })),
           h('span', null, '规划'),
         )
+        // the header is drawn before the queue block, so it asks for the count
+        // itself rather than waiting for that variable to exist
+        var waitTotal = queueOf(data).total
+
         var header = h(
           'div',
           { className: 'loom-head' },
           h('span', { className: 'loom-mark' }, 'RSI'),
+          // The queue scrolls with the page now, so the count lives where the
+          // reader looks for state: the header. Pressing it goes back up.
+          waitTotal > 0
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'loom-wait',
+                  title: waitTotal + ' 条检查点等你决定 — 点一下回到队列',
+                  'aria-label': '待你决定 ' + waitTotal + ' 条，回到队列',
+                  onClick: function (e) {
+                    // stay inside this panel: the host may show more than one
+                    var home =
+                      e && e.currentTarget && e.currentTarget.closest
+                        ? e.currentTarget.closest('.loom')
+                        : globalThis.document && globalThis.document.querySelector('.loom')
+                    var sc = home && home.querySelector ? home.querySelector('.loom-scroll') : null
+                    if (sc) sc.scrollTop = 0
+                  },
+                },
+                h('span', { className: 'dot' }),
+                String(waitTotal),
+              )
+            : null,
           h('span', { className: 'loom-spacer' }),
           planBtn,
           switchBtn,

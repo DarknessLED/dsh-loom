@@ -451,6 +451,9 @@ const page = `<!DOCTYPE html>
   .light .label{color:#8a8f98}
   .wide .label{color:#62666d}
 ${CSS}
+  /* a panel pinned to a real sidebar height is the only way to see what the
+     top of it does while the reader is somewhere else in the list */
+  ${process.env.LOOM_VIEWPORT ? `.canvas{height:${Number(process.env.LOOM_VIEWPORT)}px;min-height:0}` : ''}
 </style>
 </head>
 <body>
@@ -459,6 +462,14 @@ ${CSS}
   <div class="canvas light"><div class="label">light · #ffffff · 400px</div><div class="slot">${panelHtml}</div></div>
   <div class="canvas dark wide"><div class="label">dark · 720px · the same component, more room</div><div class="slot">${panelHtml}</div></div>
 </div>
+${process.env.LOOM_SCROLL ? `<script>
+  // scroll every canvas to the same place, the way a reader would
+  addEventListener('load', function () {
+    document.querySelectorAll('.loom-scroll').forEach(function (sc) {
+      sc.scrollTop = ${Number(process.env.LOOM_SCROLL)}
+    })
+  })
+</script>` : ''}
 </body>
 </html>
 `
