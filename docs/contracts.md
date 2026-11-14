@@ -55,6 +55,7 @@
 ### gate/
 
 - `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；`noopDecision` 在阈值之前拒绝空补丁（否则把没干的活记成晋升）；对畸形输入不抛异常。
+- `src/gate/score.js` — 纯函数「一次尝试该记几分、分从哪来」：`scoreOf(attempt)` 在 `metrics.killRate` 是有限数时返回该连续读数（`0` 是实测值，`source:'killRate'`），否则回落到 `verifierOk ? 1 : 0`（`source:'binary'`）。返回 `source` 不是装饰：杀死率与二值判定是两种度量，调用方必须先决定混合比较的语义，而不是直接相减。存在的理由：验证器只答 1/0，勉强通过和大有余量同分，而 kill-rate harness 已经打印了连续读数。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/metrics.js` — 纯函数「验证器输出里的度量」：`parseMetrics(stdout)` 只认整行 `KILLRATE=<0..1>` / `MUTANTS=<非负整数>`，缺失、被别的文字包住或不是十进制数一律 `null`（绝不回落 0，否则「没测到」会被读成「0 杀死率」），`verifyMetrics({stdout,status})` 只把真正读到的度量交给调用方。存在的理由：变异杀死率 harness 一直打印 `KILLRATE=0.3114`，但没有任何回合读过它，判据只剩下二值退出码 —— 杀掉 31% 变异体的补丁和一个也没杀掉的补丁得分相同。
@@ -189,16 +190,29 @@ export function scoreAttempt(attempt)
 export function rankAttempts(attempts)
 
 /**
- * 晋升判定
+ * 一次尝试的分数与来源（src/gate/score.js）：
+ * metrics.killRate 有限（含 0）→ 该读数；否则 verifierOk ? 1 : 0
+ * @param {unknown} attempt
+ * @returns {{score:number, source:'killRate'|'binary'}}
+ */
+export function scoreOf(attempt)
+
+/**
+ * 晋升判定：candidate / incumbent 可以是数值，也可以是 attempt 对象
  * @param {{
- *   candidate: {score:number, holdoutScore:number|null},
- *   incumbent: {score:number, holdoutScore:number|null}|null,
+ *   candidate: {score?:number, metrics?:Record<string,number>,
+ *               verifierOk?:boolean, holdoutScore?:number|null}|number,
+ *   incumbent: {score?:number, metrics?:Record<string,number>,
+ *               verifierOk?:boolean, holdoutScore?:number|null}|number|null,
  *   config: {minGain:number, holdoutSlack:number, minTasks:number,
- *            noiseMultiplier?:number},
- *   evidence: {tasksEvaluated:number, holdoutEvaluated:number, complete:boolean,
- *              noiseSpread?:number},
+ *            noiseMultiplier?:number, noiseSpread?:number},
+ *   policy?: {noiseSpread?:number},
+ *   evidence: {tasksEvaluated?:number, tasks?:number, holdoutEvaluated:number,
+ *              complete:boolean, noiseSpread?:number},
  * }} input
- * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
+ * @returns {{promote:boolean, reason:string, delta:number,
+ *            checks:Record<string,boolean>, metrics:Record<string,number>,
+ *            scoreSource:'killRate'|'score'|'binary'}}
  */
 export function decidePromotion(input)
 
@@ -219,9 +233,11 @@ export function noopDecision(input)
   会拒的东西；`reason === 'no-patch'` 是它唯一自己拥有的拒绝。
 - `evidence.complete === false` → reject("incomplete evidence")。
 - `evidence.tasksEvaluated < minTasks` → reject("insufficient tasks")；`evidence.tasks` 是同一个计数的短名，两者都有时以 `tasksEvaluated` 为准。
-- `incumbent == null` → promote iff `candidate.score > 0`（首轮基线）。
+- 每一侧先读成一种度量：数值 / 显式 `score` / 有限 `metrics.killRate`（走 `scoreOf`）/ 仅 `verifierOk`；`scoreSource` 记候选用的种类（`killRate` / `score` / `binary`），`metrics` 带候选读到的度量。
+- `incumbent == null` → promote iff 候选读数 > 0（首轮基线）。
+- 度量不可比时（候选有 killRate、incumbent 没有）：二值 1 不是杀死率必须越过的门槛，按基线处理——promote iff 候选读数 > 0。反方向（候选无度量、incumbent 有 killRate）→ reject("incomparable measurement")：无法在 incumbent 的度量上证明增益。holdout 与误差棒只在同类度量之间比较。
 - `delta = candidate.score - incumbent.score`；`delta < minGain` → reject("gain below threshold")。
-- 有效误差棒（effective noise）依次取 `evidence.noiseSpread`（本轮实测）、`policy.noiseSpread`（campaign 记录的）、`config.noiseSpread`（安装配置）中第一个有限数；存在 incumbent 且该值为正时，误差棒为 `noiseSpread * noiseMultiplier`（`config.noiseMultiplier` 缺省 `1`，非有限或负数按 `1` 处理）；`delta < 误差棒` → reject("within measured noise")。误差棒是重复跑同一棵树的实测离散度：落在棒内的 delta 无论是否过 `minGain` 都不算进步。`0` / `NaN` / 字符串 / 三处都缺省一律视为「没测过」，退回上面的旧规则；首轮基线（`incumbent == null`）不受噪声约束。
+- 有效误差棒（effective noise）依次取 `evidence.noiseSpread`（本轮实测）、`policy.noiseSpread`（campaign 记录的）、`config.noiseSpread`（安装配置）中第一个有限数；存在**可比** incumbent 且该值为正时，误差棒为 `noiseSpread * noiseMultiplier`（`config.noiseMultiplier` 缺省 `1`，非有限或负数按 `1` 处理）；`delta < 误差棒` → reject("within measured noise")。误差棒是重复跑同一棵树的实测离散度：落在棒内的 delta 无论是否过 `minGain` 都不算进步。`0` / `NaN` / 字符串 / 三处都缺省一律视为「没测过」，退回上面的旧规则；首轮基线（`incumbent == null`）不受噪声约束。
 - `candidate.holdoutScore != null && incumbent.holdoutScore != null`：`candidate.holdoutScore < incumbent.holdoutScore - holdoutSlack` → reject("holdout regression")。
 - 其余 → promote，reason 带 delta 与 holdout 数据。
 
