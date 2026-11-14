@@ -51,7 +51,7 @@
 
 ### gate/
 
-- `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；对畸形输入不抛异常。
+- `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；`noopDecision` 在阈值之前拒绝空补丁（否则把没干的活记成晋升）；对畸形输入不抛异常。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。
@@ -111,7 +111,7 @@
 - `src/runtime/review.js` — 待决队列排序：按风险（holdout/anomaly 高、gate/policy 中、其余低）再按提出时间与 id 排列，为每条决策生成单行摘要与动词短语建议，供 `rsi_status` 渲染。
 - `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动；另外在启动时把「没有改动」这类旧 claim 退役（`noWorkLessons`），因为它们仍在被选进简报。
 - `src/runtime/recon-reuse.js` — 规划复用：以基提交 sha、链版本、任务与节点提示拼出 key，缓存上一轮的侦察计划；树没动就直接复用（`reused:true`、耗时记 0）并照常把计划交给 worker，HEAD 一变即重新规划；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
-- `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点。
+- `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点；`attemptOutcome` 把「被兄弟解题而中止」与真正的死亡分开记账。
 - `src/runtime/runtime.js` — `Runtime`：campaign 生命周期与 tick 派发，含所有权心跳、watchdog 看护、租约对账和状态缓存。
 - `src/runtime/sampling.js` — 确定性选题：普通轮在未解决任务间轮转，每 `holdoutEvery` 轮消耗一个 holdout 任务，可重放。
 - `src/runtime/selector.js` — 选题策略：跳过已满分任务以免浪费回合，全部做满时报告 `allSolved` 让调度收尾。
@@ -192,9 +192,22 @@ export function rankAttempts(attempts)
  * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
  */
 export function decidePromotion(input)
+
+/**
+ * 空补丁的晋升门：没补丁一律拒绝，真补丁原样交给 decidePromotion
+ * @param {{hasPatch?:boolean, verifierOk?:boolean, score?:number,
+ *          candidate?:object, incumbent?:object|null, config?:object,
+ *          evidence?:object}} input
+ * @returns {{promote:boolean, reason:string, delta:number, checks:Record<string,boolean>}}
+ */
+export function noopDecision(input)
 ```
 
 规则（写死，单测覆盖）：
+- `noopDecision`：`hasPatch !== true` → reject("no-patch")，且在第 17 轮那种空补丁
+  （`hasPatch:false, diff.files 0`）上**先于任何阈值**拒绝——验证器在没动过的树上打印绿色，
+  说明的是那棵树而不是候选。真补丁原样交给 `decidePromotion`，所以包装函数不可能放行普通门
+  会拒的东西；`reason === 'no-patch'` 是它唯一自己拥有的拒绝。
 - `evidence.complete === false` → reject("incomplete evidence")。
 - `evidence.tasksEvaluated < minTasks` → reject("insufficient tasks")。
 - `incumbent == null` → promote iff `candidate.score > 0`（首轮基线）。
@@ -223,7 +236,21 @@ export class Dispatcher {
 
 ```js
 export async function runRound({runtime, view, config, dispatcher, log}): Promise<void>
+
+/**
+ * 这次尝试在账本里到底是哪一种结局
+ * @param {{stopReason?:string|null, solvedBy?:string|null, verifierOk?:boolean,
+ *          score?:number, error?:string|null, attemptId?:string|null}} input
+ * @returns {{failureKind:'solved-by-sibling'|'died'|'ok'}}
+ */
+export function attemptOutcome(input)
 ```
+
+`attemptOutcome` 的顺序是契约：`solvedBy` 指向另一个 attempt → `solved-by-sibling`
+（兄弟已经解题，被中止的子会话无论看起来多像崩溃都不是失败）；`stopReason === 'error'` → `died`；
+其余 → `ok`。回合在**知道赢家的地方**用它给 `failureKind` 定名——分派器只看见会话停下，
+中止的子会话与真正死掉的子会话在它那里长得一模一样，第 15 轮 `r15a1` 的顺利交接就是这样被记成
+`died` 的。
 
 事件序列：`round.started` → 每个 attempt 一次 `attempt.finished` → `candidate.proposed` →（可选）`gate.evaluated` → `artifact.promoted` → `round.finished`。
 

@@ -107,6 +107,40 @@ function lostToInfrastructure(attempt) {
 }
 
 /**
+ * What actually happened to one attempt, in the ledger's own vocabulary.
+ *
+ * The dispatcher only sees a session stop, so an aborted child looks identical
+ * whether a sibling won the task or the process died. The round is the first
+ * place that knows which it was, so it classifies here instead of letting the
+ * default `died`/abandoned reading write a successful hand-off down as a crash.
+ *
+ * Order matters: a hand-off outranks every other reading, because nothing the
+ * stopped child reported can change a round a sibling already solved. Then an
+ * `error` stop is a death. Anything else is an ordinary outcome -- including a
+ * timeout or a budget exhaustion, whose own kinds are decided earlier by
+ * `classifyResult` and must not be flattened to `ok` by this function; callers
+ * therefore use the `solved-by-sibling` answer only when this says so.
+ *
+ * `attemptId`, when supplied, keeps the rule honest: an attempt that reports
+ * itself as the solver was not stopped by a sibling. Without it the presence of
+ * any `solvedBy` is enough, which is what the ledger knows at that point.
+ *
+ * @param {{stopReason?:string|null, solvedBy?:string|null, verifierOk?:boolean,
+ *          score?:number, error?:string|null, attemptId?:string|null}} input
+ * @returns {{failureKind:'solved-by-sibling'|'died'|'ok'}}
+ */
+export function attemptOutcome(input) {
+  const safe = input !== null && typeof input === 'object' ? input : {}
+  const solvedBy = safe.solvedBy
+  const attemptId = safe.attemptId
+  const named = solvedBy !== null && solvedBy !== undefined && String(solvedBy) !== ''
+  const other = attemptId === null || attemptId === undefined || String(solvedBy) !== String(attemptId)
+  if (named && other) return { failureKind: SOLVED_BY_SIBLING }
+  if (safe.stopReason === 'error') return { failureKind: 'died' }
+  return { failureKind: 'ok' }
+}
+
+/**
  * Best score this campaign has already seen on one task, or null.
  *
  * Scores are only comparable inside a single task: a multi-task campaign runs
@@ -1423,6 +1457,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           : runRes.stopReason === 'aborted' && !runRes.timedOut
             ? stall || 'interrupted'
             : null
+        // `outcomeKind` came from the dispatcher, which only saw a session stop.
+        // Where the round knows a sibling won, the ledger must not keep filing
+        // that hand-off under `died`: relabel it with the classification the
+        // whole campaign agrees on.
+        if (cancelledBySibling) {
+          const handOff = attemptOutcome({ stopReason: runRes.stopReason, solvedBy, attemptId })
+          if (handOff.failureKind !== 'ok') outcomeKind = handOff.failureKind
+        }
 
         // The patch is the candidate's evidence; hash it before the verifier so
         // a byte-identical candidate can inherit a verdict this campaign has
@@ -1625,11 +1667,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // A sibling that was stopped mid-flight may surface as a thrown run;
         // record it the same way as a resolved abort instead of a crash.
         const cancelled = stoppedBySibling.has(attemptId)
+        // A sibling hand-off that surfaces as a thrown run is still a hand-off,
+        // not a crash: classify it with the same function as the resolved path
+        // instead of letting the exception decide the ledger's word.
+        const handOff = cancelled ? attemptOutcome({ stopReason: 'aborted', solvedBy, attemptId }) : null
         record = {
           ...record,
           ...(cancelled ? { abandoned: true, reason: SOLVED_BY_SIBLING } : {}),
           durationMs: Date.now() - startedAt,
-          failureKind: 'crash',
+          failureKind: handOff?.failureKind === SOLVED_BY_SIBLING ? SOLVED_BY_SIBLING : 'crash',
           error: String(err?.message ?? err),
         }
         log(`attempt ${attemptId} failed:`, record.error)

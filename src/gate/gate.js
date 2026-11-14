@@ -324,3 +324,32 @@ export function decidePromotion(input) {
     checks,
   }
 }
+
+/**
+ * The promotion gate for a candidate whose patch may be empty.
+ *
+ * An empty patch is refused before any threshold is read: a candidate that
+ * moved no bytes has delivered no work, so a verifier that printed green on an
+ * untouched tree is evidence about the tree, not about the candidate. That is
+ * the round-17 no-op (`hasPatch:false, diff.files 0`) the ordinary gate happily
+ * promoted. `hasPatch` must be exactly `true`; a missing, null or non-boolean
+ * value fails closed.
+ *
+ * A real patch defers to `decidePromotion` unchanged, so this wrapper can never
+ * promote something the ordinary gate would reject and its intent cannot drift
+ * away from the thresholds. `reason === 'no-patch'` is therefore the only
+ * refusal this function owns.
+ *
+ * @param {{hasPatch?:boolean, verifierOk?:boolean, score?:number,
+ *          candidate?:object, incumbent?:object|null, config?:object,
+ *          evidence?:object}} input
+ * @returns {{promote:boolean, reason:string, delta:number,
+ *            checks:Record<string,boolean>}}
+ */
+export function noopDecision(input) {
+  const safe = input !== null && typeof input === 'object' ? input : {}
+  if (safe.hasPatch !== true) {
+    return { promote: false, reason: 'no-patch', delta: 0, checks: {} }
+  }
+  return decidePromotion(safe)
+}
