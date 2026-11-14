@@ -59,6 +59,17 @@ const standing = [
   // at a time, and a verdict on a campaign that stopped.
   'tests/self15/panel-one-row.test.mjs',
   'tests/self15/panel-end.test.mjs',
+  // self20: a DAG that runs by dependency, rounds that file their own outcome,
+  // cost broken down per node, the checkpoint backlog migration, the measured
+  // noise bar, guard routing, the promotion lock and the rollback sweep.
+  'tests/self20/dag-parallel.test.mjs',
+  'tests/self20/round-honesty.test.mjs',
+  'tests/self20/round-cost.test.mjs',
+  'tests/self20/ledger-migrate.test.mjs',
+  'tests/self20/gate-noise.test.mjs',
+  'tests/self20/guard-routing.test.mjs',
+  'tests/self20/promotion-lock.test.mjs',
+  'tests/self20/rollback-clean.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',
