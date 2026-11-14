@@ -50,9 +50,11 @@ const data = {
 }
 
 {
-  const q = queueOf(data, { now })
+  // A caller that wants every row asks for them: the panel's own default is
+  // one row (the queue is a front, not a list), so this spec states its cap.
+  const q = queueOf(data, { now, limit: 5 })
   assert.equal(q.total, 5, 'five questions are waiting')
-  assert.equal(q.rows.length, 5, 'and all five reach the reader')
+  assert.equal(q.rows.length, 5, 'and all five reach the caller that asks')
   const assessed = q.rows.filter((r) => r.riskSource === 'review')
   assert.equal(assessed.length, 3, 'three of them were assessed')
   const unassessed = q.rows.filter((r) => r.riskSource === 'default')

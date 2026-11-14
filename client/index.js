@@ -979,6 +979,11 @@ window.__ModuleLoader__.load({
      * alone would let `total` fall to whatever survived that trim — the exact
      * lie this queue exists to prevent — so each campaign contributes the
      * larger of its listed rows and its reported open count.
+     *
+     * The queue is a front, not a list: a reader handed a stack of questions
+     * answers the cheapest one, so by default exactly one row is drawn and
+     * `more` says how many wait behind it. Callers that want the whole list
+     * (the audit, the preview) pass an explicit `limit`.
      */
     function queueOf(data, opts) {
       var rows = pending(data, opts)
@@ -994,8 +999,11 @@ window.__ModuleLoader__.load({
         total += Math.max(listed[campaign.id] || 0, openCount(campaign))
       }
       var raw = opts && opts.limit
-      var limit = typeof raw === 'number' && isFinite(raw) && raw >= 0 ? Math.floor(raw) : null
-      var drawn = limit === null ? rows : rows.slice(0, limit)
+      // One question on the table at a time: a stack of decisions is a stack a
+      // reader postpones. An explicit limit still opens the list for the tools
+      // that need to measure all of it.
+      var limit = typeof raw === 'number' && isFinite(raw) && raw >= 0 ? Math.floor(raw) : 1
+      var drawn = rows.slice(0, limit)
       var reviewed = 0
       for (var k = 0; k < rows.length; k += 1) {
         if (rows[k].riskSource === 'review') reviewed += 1
@@ -1006,6 +1014,11 @@ window.__ModuleLoader__.load({
         shown: drawn.length,
         limit: limit,
         assessed: reviewed,
+        // What the drawn row is standing in front of. `total` is the true count
+        // (including questions the host only numbered), so subtract only the
+        // rows actually drawn; `unlisted` rows wait too and are already inside
+        // the difference.
+        more: Math.max(0, total - drawn.length),
         // Questions the host counted but did not itemise. They are waiting
         // too; the header must not hide them just because no row can be drawn.
         unlisted: Math.max(0, total - rows.length),
@@ -2517,6 +2530,15 @@ window.__ModuleLoader__.load({
                 h('span', null, restLine),
               )
             : h('div', { className: 'loom-hero-rows' }, queueRows),
+          // The front is one row; the rest must still be visible as a count or
+          // the panel would claim the only question is the one on screen.
+          queue.more > 0
+            ? h(
+                'div',
+                { className: 'loom-more' },
+                '还有 ' + queue.more + ' 条决定在排队，先处理这一条',
+              )
+            : null,
           queueNote,
         )
 
