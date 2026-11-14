@@ -7,15 +7,24 @@
  * priced at all. The estimate came from `fallbackSpend` (characters/4) because
  * by the time the round asks, `sessions.get(childId)` is already gone.
  *
- * The child's own transcript survives that: it is on disk under
- * `<dsh home>/sessions/<workspace>/<sessionId>/session.v4.jsonl(.zstd)`. So
- * `usageFromSessionLedger(home, sessionId)` reads it, sums the usage blocks of
- * the assistant turns, and returns null when there is nothing to read — a
- * missing ledger is not an error and must never be billed as zero tokens.
+ * The child's transcript survives that: it is on disk under
+ * `<dsh home>/sessions/<workspace>/<...>/session.v4.jsonl(.zstd)`.
+ *
+ * The shape below is copied from a real ledger line, not guessed:
+ *   {"type":"assistant/message","seq":21,
+ *    "data":{"turn":1,"step":1,"message":{...},
+ *            "usage":{"inputTokens":21011,"outputTokens":380,
+ *                     "cacheReadTokens":8448,"cacheWriteTokens":0,
+ *                     "totalTokens":29839}}}
+ * so the reader must accept the `assistant/message` event type, a usage block
+ * at `data.usage` (not only inside the message), and the snake_case spellings
+ * an older host may still write. The session directory is not always named
+ * `<id>`: match any directory whose name ends with the session id.
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { zstdCompressSync } from 'node:zlib'
 import { join } from 'node:path'
 
 const { usageFromSessionLedger } = await import('../../src/runtime/cost.js')
@@ -29,12 +38,12 @@ const test = (name, fn) => {
 
 const home = mkdtempSync(join(tmpdir(), 'loom-ledger-'))
 
-/** One turn the way the host writes it: an assistant event carrying usage. */
-const turn = (usage) =>
+/** One assistant turn exactly as the host writes it (camelCase, data.usage). */
+const turn = (usage, type = 'assistant/message') =>
   JSON.stringify({
-    type: 'assistant',
+    type,
     seq: 1,
-    data: { message: { role: 'assistant', content: [], usage } },
+    data: { turn: 1, step: 1, message: { role: 'assistant', content: [] }, usage },
   }) + '\n'
 
 test('sums the usage blocks of every assistant turn', () => {
@@ -42,9 +51,9 @@ test('sums the usage blocks of every assistant turn', () => {
   mkdirSync(dir, { recursive: true })
   writeFileSync(
     join(dir, 'session.v4.jsonl'),
-    turn({ input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 5000 }) +
-      turn({ input_tokens: 400, output_tokens: 90, cache_read_input_tokens: 7000 }) +
-      JSON.stringify({ type: 'user', data: { text: 'hi' } }) + '\n',
+    turn({ inputTokens: 1000, outputTokens: 200, cacheReadTokens: 5000 }) +
+      turn({ inputTokens: 400, outputTokens: 90, cacheReadTokens: 7000 }) +
+      JSON.stringify({ type: 'user/message', data: { text: 'hi' } }) + '\n',
   )
   const usage = usageFromSessionLedger(home, 'abc-123')
   assert.deepEqual(usage, {
@@ -55,6 +64,39 @@ test('sums the usage blocks of every assistant turn', () => {
   })
 })
 
+test('the snake_case spelling of an older host is read the same way', () => {
+  const dir = join(home, 'sessions', '--C-Projects-RSI--', 'snake-1')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(
+    join(dir, 'session.v4.jsonl'),
+    JSON.stringify({
+      type: 'assistant/message',
+      data: { message: { role: 'assistant', usage: { input_tokens: 11, output_tokens: 5 } } },
+    }) + '\n',
+  )
+  const usage = usageFromSessionLedger(home, 'snake-1')
+  assert.equal(usage.inputTokens, 11)
+  assert.equal(usage.outputTokens, 5)
+})
+
+test('a session directory that only ends with the id is found', () => {
+  const dir = join(home, 'sessions', '--C-Projects-RSI--', 'session-prefixed-9')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'session.v4.jsonl'), turn({ inputTokens: 3, outputTokens: 2 }))
+  const usage = usageFromSessionLedger(home, 'prefixed-9')
+  assert.equal(usage.inputTokens, 3)
+})
+
+test('the compressed ledger the host actually writes is decompressed', () => {
+  const dir = join(home, 'sessions', '--C-Projects-RSI--', 'zstd-1')
+  mkdirSync(dir, { recursive: true })
+  const body = turn({ inputTokens: 21011, outputTokens: 380, cacheReadTokens: 8448 })
+  writeFileSync(join(dir, 'session.v4.jsonl.zstd'), zstdCompressSync(Buffer.from(body, 'utf8')))
+  const usage = usageFromSessionLedger(home, 'zstd-1')
+  assert.equal(usage.inputTokens, 21011, 'a .zstd ledger is the normal case, not an edge case')
+  assert.equal(usage.cacheReadTokens, 8448)
+})
+
 test('a session with no ledger returns null instead of zero tokens', () => {
   assert.equal(usageFromSessionLedger(home, 'does-not-exist'), null)
   assert.equal(usageFromSessionLedger(home, ''), null)
@@ -63,17 +105,8 @@ test('a session with no ledger returns null instead of zero tokens', () => {
 test('a ledger with no usage blocks is not a measurement either', () => {
   const dir = join(home, 'sessions', '--C-Projects-RSI--', 'no-usage')
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'session.v4.jsonl'), JSON.stringify({ type: 'user', data: {} }) + '\n')
+  writeFileSync(join(dir, 'session.v4.jsonl'), JSON.stringify({ type: 'user/message', data: {} }) + '\n')
   assert.equal(usageFromSessionLedger(home, 'no-usage'), null)
-})
-
-test('the ledger path works for a nested workspace id', () => {
-  const dir = join(home, 'sessions', '--D-other-repo--', 'nested-1')
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'session.v4.jsonl'), turn({ input_tokens: 7, output_tokens: 3 }))
-  const usage = usageFromSessionLedger(home, 'nested-1')
-  assert.equal(usage.inputTokens, 7)
-  assert.equal(usage.outputTokens, 3)
 })
 
 rmSync(home, { recursive: true, force: true })
