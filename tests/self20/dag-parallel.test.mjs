@@ -21,7 +21,7 @@ const chain = {
   nodes: [
     { id: 'a', type: 'agent', prompt: 'left branch' },
     { id: 'b', type: 'agent', prompt: 'right branch' },
-    { id: 'join', type: 'verifier', cmd: 'true', needs: ['a', 'b'] },
+    { id: 'join', type: 'verifier', cmd: 'node -e "process.exit(0)"', needs: ['a', 'b'] },
   ],
 }
 
