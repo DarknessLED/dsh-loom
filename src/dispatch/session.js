@@ -163,13 +163,27 @@ export class Dispatcher {
     if (sessionId) this.parentSessionId = String(sessionId)
   }
 
+  /**
+   * The agent a child activation hangs under.
+   *
+   * Two host services answer this question and neither is stable across
+   * releases: `sessionController.resolveAgent` may hand back the agent or a
+   * `{agent}` wrapper, and `agentLoop.createAgent` may hand back a handle with
+   * an `.agent` field or the agent itself. Reading `.agent` off a bare agent
+   * yields `undefined`, and the host then dies inside `startActivation` with
+   * `Cannot read properties of undefined (reading 'id')` -- a message that
+   * names neither this file nor the service, which is how eight rounds burned
+   * their budget on a spawn that never started. Accept both shapes, and refuse
+   * a parent that cannot identify itself.
+   */
   async ensureParent() {
-    if (this.owned) return this.owned.agent
+    if (this.owned) return this.parentAgent(this.owned, 'owned')
     const sc = svc(this.ctx, 'sessionController')
     if (this.parentSessionId && sc?.resolveAgent) {
       try {
         const resolved = await sc.resolveAgent(this.parentSessionId)
-        if (resolved?.agent) return resolved.agent
+        const agent = this.agentOf(resolved)
+        if (agent) return agent
       } catch (err) {
         this.log('resolveAgent failed:', err?.message ?? err)
       }
@@ -182,7 +196,27 @@ export class Dispatcher {
       meta: { cwd: this.config?.home || process.cwd() },
     })
     this.owned = handle
-    return handle.agent
+    return this.parentAgent(handle, 'createAgent')
+  }
+
+  /** `{agent}` or a bare agent -- whichever the host returned. */
+  agentOf(value) {
+    if (!value || typeof value !== 'object') return null
+    const wrapped = value.agent
+    if (wrapped && typeof wrapped === 'object' && wrapped.id) return wrapped
+    if (value.id) return value
+    return null
+  }
+
+  parentAgent(handle, source) {
+    const agent = this.agentOf(handle)
+    if (!agent) {
+      throw new Error(`${source} returned no agent (keys: ${handle && typeof handle === 'object' ? Object.keys(handle).join(',') || 'none' : String(handle)})`)
+    }
+    if (!agent.id) {
+      throw new Error(`${source} agent has no id (keys: ${Object.keys(agent).join(',') || 'none'})`)
+    }
+    return agent
   }
 
   /**
@@ -372,23 +406,44 @@ export class Dispatcher {
     if (maxTokens > 0) agentOptions.maxTokens = maxTokens
     const agentPreset = this.config?.session?.preset || undefined
 
+    const request = {
+      cwd,
+      prompt: [{ type: 'text', text: prompt }],
+      parent,
+      agentOptions: Object.keys(agentOptions).length ? agentOptions : undefined,
+      agentPreset,
+    }
+    const base = { provider: 'spawn', label, delivery: 'caller', signal: controller.signal }
     let activation
     try {
-      activation = await subagents.startActivation({
-        provider: 'spawn',
-        label,
-        request: {
-          cwd,
-          prompt: [{ type: 'text', text: prompt }],
-          parent,
-          agentOptions: Object.keys(agentOptions).length ? agentOptions : undefined,
-          agentPreset,
-        },
-        delivery: 'caller',
-        signal: controller.signal,
-      })
+      // 0.2.2-rc.3 takes the delegation request FLAT (`startActivation` destructures
+      // `{provider, delivery, ...request}` and then reads `spec.parent`), so a nested
+      // `request: {parent}` leaves `spec.parent` undefined. The host then dies in
+      // `SubagentManager.rootOf(undefined)` with "Cannot read properties of undefined
+      // (reading 'id')" -- before any child exists, which is why ten rounds looked
+      // like workers refusing to start. The nested shape is what 0.2.1 wanted, so
+      // fall back once rather than pinning the plugin to one host.
+      activation = await subagents.startActivation({ ...base, ...request })
     } catch (err) {
-      return { sessionId: null, text: '', structured: null, stopReason: 'error', timedOut: false, error: String(err?.message ?? err) }
+      if (!/reading 'id'|exact live parent/i.test(String(err?.message ?? err))) throw err
+      try {
+        activation = await subagents.startActivation({ ...base, request })
+      } catch (retryErr) {
+        // The host's activation failures are opaque one-liners ("Cannot read
+        // properties of undefined (reading 'id')"), which cost eight rounds before
+        // anyone could tell a bad parent from a bad request. Keep the first stack
+        // frames so the next occurrence names a file.
+        const frames = typeof retryErr?.stack === 'string' ? retryErr.stack.split('\n').slice(1, 4).map((s) => s.trim()).join(' | ') : ''
+        const head = String(retryErr?.message ?? retryErr)
+        return {
+          sessionId: null,
+          text: '',
+          structured: null,
+          stopReason: 'error',
+          timedOut: false,
+          error: frames ? `${head} @ ${frames}` : head,
+        }
+      }
     }
 
     const childId = activation.childId
