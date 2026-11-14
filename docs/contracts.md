@@ -76,6 +76,7 @@
 - `src/loop/ab.js` — 配对比较两套策略：Wilson 区间（n 只有几十、率 0.25 时正态区间会掉到 0 以下）、精确 McNemar、以及**明确报出 MDE**（`mdePaired` 的灵敏度来自不一致对而不是样本量）。两条判据是硬约束：不一致对为零时 MDE 不能报 0（0 读起来像"无限灵敏"，正好相反），判决只在 `|delta| ≥ mde && p < alpha` 时成立，否则一律 `cannot-distinguish` 并写明"这个样本分不出 X 个点"。
 - `src/loop/decisions.js` — 循环对自己链路的决策台账：缺少证据（`evidence` 里没有一个有限数值）就按名字拒绝，按 kind+decision 去重，原子写入并保持人类可读的 JSON 数组；缺失或损坏的文件读作空表，绝不抛错。
 - `src/loop/migrate.js` — 清理由「结束」留下的历史欠账：`planMigration(campaigns)` 只把已终结（done/stopped/converged 且带 `ended` 记录）战役里仍 `open` 的 checkpoint 放进 `close`，已被回答的、以及 `heldUntil` 还在未来的（人在处理）一律不动，其余 `open` 进 `keep`；`applyMigration(runtime, campaigns)` 每个 planned id 只追加一条 `checkpoint.closed`（reason 为 `campaign-ended`），并把内存状态标成 closed，所以重跑是 no-op。
+- `src/loop/lock.js` — 跨 campaign 的晋升锁：`acquirePromotionLock(home, {owner, now, ttlMs, release})` 把「apply → guard → commit」这段唯一的写 checkout 窗口串行化；同一时刻只有一个持有者，后来者拿到 `{ok:false, holder}` 被告知谁占着；`release()` 交棒；超过 ttl 的锁被偷并标 `stolen:true`（死掉的回合不能把机器卡住）；释放按 owner 校验，非持有者的 `release:true` 不会解锁。
 
 ### runtime/ — 运行期支撑
 
@@ -355,3 +356,18 @@ releaseLock(file) -> boolean                // 只删自己的记录
 语义：**所有权不是独占访问，是独占派发**——每个窗口都注册工具、都能读；只有心跳最新者跑 `tick()` 派发回合。
 `claimOwnership` 是 newest-writer-wins，因此旧窗口不会因为「先启动」而永久占住循环，也不会出现两个窗口同时派发。
 `decide` 走的是与工具路径相同的 `checkpoint.answered` 事件（`answer.source = "panel"`），所以面板和模型看到的是同一份决策记录。
+
+## 12. 晋升锁（W20）
+
+```js
+// src/loop/lock.js
+promotionLockPath(home) -> string                    // <home>/promotion.lock
+acquirePromotionLock(home, { owner, now = Date.now(), ttlMs = 15 * 60_000, release = false })
+  -> { ok, holder, file, stolen?, reentrant?, since?, expiresAt?, retryInMs?, reason?, release: () => boolean }
+releasePromotionLock(home, owner) -> 同上，带 released 表示是否真的删掉
+```
+
+语义：锁落在 loom home 而不是 campaign 目录，因为要序列化的是同一棵 checkout 上的写窗口，不是战役状态。
+`ok:false` 时 `holder` 一定是当前持有者，`expiresAt`/`retryInMs` 给出 ttl 之后的时刻；持有者也可以主动 `release()` 立即交棒。
+`release()` 与 `release:true` 都只释放 owner 匹配的锁；锁被偷后，旧持有者的释放返回 `false`，绝不误删新持有者的锁。
+同一 owner 重复 acquire 记作 `reentrant:true` 且不刷新 `at`（否则重试循环会无限续期）；锁文件缺失或损坏时没有可承认的持有者，按空闲处理并替换。
