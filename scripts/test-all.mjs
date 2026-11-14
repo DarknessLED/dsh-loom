@@ -74,6 +74,11 @@ const standing = [
   // a guard that fails on a flake costs a round: p5-wire round 3 was rolled back
   // for tests/tri9/early-abort.test.mjs passing alone seconds later.
   'tests/self20/guard-retry.test.mjs',
+  // self20/p5: the three decisions p4 wrote are now called by the planner, the
+  // dispatcher and the verifier -- a library function nobody calls is a comment.
+  'tests/self20/hedge-wiring.test.mjs',
+  'tests/self20/model-wiring.test.mjs',
+  'tests/self20/killrate-metrics.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',
