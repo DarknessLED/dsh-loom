@@ -199,22 +199,27 @@ export class Dispatcher {
     return this.parentAgent(handle, 'createAgent')
   }
 
-  /** `{agent}` or a bare agent -- whichever the host returned. */
+  /**
+   * `{agent}` or a bare agent -- whichever the host returned.
+   *
+   * A object that carries an `agent` key whose value is not an object is a
+   * wrapper with nothing inside it, not an agent: returning it would hand the
+   * host `undefined` on the next hop. Everything else that is an object is
+   * taken at face value, because the host is free to return a bare handle and
+   * requiring `.id` here only rejects parents the host itself accepts.
+   */
   agentOf(value) {
     if (!value || typeof value !== 'object') return null
     const wrapped = value.agent
-    if (wrapped && typeof wrapped === 'object' && wrapped.id) return wrapped
-    if (value.id) return value
-    return null
+    if (wrapped && typeof wrapped === 'object') return wrapped
+    if ('agent' in value) return null
+    return value
   }
 
   parentAgent(handle, source) {
     const agent = this.agentOf(handle)
     if (!agent) {
       throw new Error(`${source} returned no agent (keys: ${handle && typeof handle === 'object' ? Object.keys(handle).join(',') || 'none' : String(handle)})`)
-    }
-    if (!agent.id) {
-      throw new Error(`${source} agent has no id (keys: ${Object.keys(agent).join(',') || 'none'})`)
     }
     return agent
   }
@@ -414,16 +419,22 @@ export class Dispatcher {
       agentPreset,
     }
     const base = { provider: 'spawn', label, delivery: 'caller', signal: controller.signal }
+    // 0.2.2-rc.3 takes the delegation request FLAT (`startActivation` destructures
+    // `{provider, delivery, ...request}` and then reads `spec.parent`), so a nested
+    // `request: {parent}` leaves `spec.parent` undefined. The host then dies in
+    // `SubagentManager.rootOf(undefined)` with "Cannot read properties of undefined
+    // (reading 'id')" -- before any child exists, which is why ten rounds looked
+    // like workers refusing to start.
+    //
+    // The `request` key stays attached but NON-ENUMERABLE: 0.2.1's shape (and every
+    // test double written against it) still reads `spec.request.prompt`, while the
+    // host's rest/destructuring copies only enumerable keys and therefore never
+    // forwards the alias into the provider request.
+    const spec = { ...base, ...request }
+    Object.defineProperty(spec, 'request', { value: request, enumerable: false })
     let activation
     try {
-      // 0.2.2-rc.3 takes the delegation request FLAT (`startActivation` destructures
-      // `{provider, delivery, ...request}` and then reads `spec.parent`), so a nested
-      // `request: {parent}` leaves `spec.parent` undefined. The host then dies in
-      // `SubagentManager.rootOf(undefined)` with "Cannot read properties of undefined
-      // (reading 'id')" -- before any child exists, which is why ten rounds looked
-      // like workers refusing to start. The nested shape is what 0.2.1 wanted, so
-      // fall back once rather than pinning the plugin to one host.
-      activation = await subagents.startActivation({ ...base, ...request })
+      activation = await subagents.startActivation(spec)
     } catch (err) {
       if (!/reading 'id'|exact live parent/i.test(String(err?.message ?? err))) throw err
       try {
