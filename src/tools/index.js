@@ -1,5 +1,4 @@
 import { join } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
 import { output } from './output.js'
 import { svc } from '../core/services.js'
 import { loomHome } from '../core/paths.js'
@@ -16,6 +15,7 @@ import { runVerifier } from '../exec/verifier.js'
 import { checkLemma } from '../lean/gate.js'
 import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
+import { readDecisions } from '../loop/decisions.js'
 import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
@@ -41,25 +41,6 @@ function resolve(runtime, id) {
   if (all.length === 1) return viewOf(runtime, all[0])
   if (all.length === 0) throw new Error('no campaigns yet — call rsi_start first')
   throw new Error(`multiple campaigns (${all.join(', ')}); pass id`)
-}
-
-/**
- * The decisions the loop has already made about its own chain.
- *
- * Kept beside the campaigns (`<home>/decisions.json`, written by whoever answers an
- * L2 question) rather than inside one campaign, because the whole point is that a
- * refuted hypothesis stays refuted in the next campaign. A missing or malformed file
- * is an empty list: it must never stop a proposal, only annotate one.
- */
-function readDecisions(config) {
-  try {
-    const file = join(loomHome(config), 'decisions.json')
-    if (!existsSync(file)) return []
-    const parsed = JSON.parse(readFileSync(file, 'utf8'))
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
 }
 
 /**
@@ -602,7 +583,7 @@ export function registerTools(ctx, { runtime, config }) {
         // What the loop already knows: a mutation that was measured is not a
         // hypothesis, and a task whose deliverable is a test edit cannot be given
         // an instruction that forbids test edits.
-        const decided = readDecisions(config)
+        const decided = readDecisions(join(loomHome(config), 'decisions.json'))
         const tasks = view.state.evalset?.tasks || []
         const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
         const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable })

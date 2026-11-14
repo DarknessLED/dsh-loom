@@ -15,10 +15,11 @@
 //   4. if 2 cannot be met, adopt only when a saving exists that needs no
 //      statistics to see -- here, planner minutes that disappear
 //   5. a distinguishable regression is refused regardless of cost
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { screenDip } from '../../src/loop/ab.js'
+import { appendDecision } from '../../src/loop/decisions.js'
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => {
@@ -221,25 +222,33 @@ writeFileSync(out, JSON.stringify(report, null, 2))
 // proposed `candidates+1` two days after this script rejected exactly that change.
 // `--kind` names the chain mutation the two arms differ by; without it there is
 // nothing for the proposer to match on and the decision stays research-only.
+//
+// The entry carries the numbers the verdict rested on (rounds, pairs, scoreDelta,
+// mde), so a later campaign can weigh the decision instead of only skipping the
+// kind: `appendDecision` refuses a decision that cannot say what it measured, and
+// records a repeated verdict once.
 const kindArg = args.kind ?? args['kind']
 if (kindArg) {
   const home = process.env.LOOM_HOME || join(homedir(), '.dsh', 'loom')
   const file = join(home, 'decisions.json')
-  let list = []
-  try { list = JSON.parse(readFileSync(file, 'utf8')) } catch { list = [] }
-  if (!Array.isArray(list)) list = []
-  list = list.filter((d) => !(d && d.kind === kindArg))
-  list.push({
+  // `endpoint` is the graded endpoint rule 2 read: `compareMeans` reports the
+  // paired difference (delta), its detectable floor (mde) and how many pairs (n).
+  const evidence = {
+    rounds: Array.isArray(stats.rounds) ? stats.rounds.length : null,
+    pairs: Number.isFinite(endpoint?.n) ? endpoint.n : rows0.length,
+    scoreDelta: Number.isFinite(endpoint?.delta) ? endpoint.delta : null,
+    mde: Number.isFinite(endpoint?.mde) ? endpoint.mde : null,
+  }
+  const { added } = appendDecision(file, {
     kind: kindArg,
     decision,
     base,
     candidate: cand,
     at: new Date().toISOString(),
     report: out.replace(/\\/g, '/'),
+    evidence,
   })
-  mkdirSync(home, { recursive: true })
-  writeFileSync(file, JSON.stringify(list, null, 2))
-  console.log(`recorded ${kindArg} -> ${decision} in ${file}`)
+  console.log(`${added ? 'recorded' : 'already recorded'} ${kindArg} -> ${decision} in ${file}`)
 }
 
 console.log(`decide: ${base} vs ${cand}`)
