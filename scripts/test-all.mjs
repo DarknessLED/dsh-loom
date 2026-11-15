@@ -131,6 +131,9 @@ const standing = [
   // self26/procedure-induction: two verified promotions on one subject earn a
   // procedure; one is an anecdote; a failure on that subject becomes a notWhen.
   'tests/self26/procedure-induction.test.mjs',
+  // self27/knowledge-integration: real rounds, not just units — round 2's
+  // promotion becomes round 3's procedure, once, in the store and the brief.
+  'tests/self27/knowledge-integration.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

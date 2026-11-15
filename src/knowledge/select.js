@@ -17,7 +17,7 @@
 // clamped to +/-1e9) and rounded to 6 decimals so ranking is reproducible.
 
 import { isNoWorkClaim } from './impact.js'
-import { transferRoute } from './cross.js'
+import { transferRoute, trialVerdict } from './cross.js'
 
 const DEFAULT_TTL = 12
 const DEFAULT_LIMIT = 3
@@ -191,6 +191,9 @@ export function selectLessons(lessons, options) {
     if (lesson.status !== 'active') continue
     if (isExpired(lesson, { round })) continue
     if (excludedFamilies.has(lesson.family)) continue
+    // Twenty showings that lost more often than they won is a verdict. It is
+    // enforced here, where the brief is built, not left in a status field.
+    if (trialVerdict(lesson) === 'drop') continue
     if (phase === 'repair' && (lesson.kind === 'recipe' || lesson.kind === 'procedure')) continue
     if (lesson.kind === 'procedure' && !allowProcedures) continue
     const route = transferRoute(lesson, task)

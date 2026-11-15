@@ -122,3 +122,33 @@ procedure = {
 诚实的边界：Trace2Skill 之外的四篇只读了摘要与部分章节；"抽象记忆迁移更好"只有一篇受控研究支持；我们的任务与那些基准是否共享 shape，仍是假设。
 
 
+
+## 9. T1/T2 验证（2026-11-15 夜，m02966）
+
+T1 是确定性集成测试，不是演示：`tests/self27/knowledge-integration.test.mjs` 用真的 `runRound` 跑三轮，假 dispatcher 只写文件、真正跑 verifier。四条断言分别证明：
+
+1. 同一 subject 的两次晋升会在本轮 `lessons` 和 `<home>/knowledge.json` 里各产生一条 `kind:'procedure'`（且只一条）；
+2. 第三轮的 brief 里出现这条 procedure 的 id，尝试记录也带着它 —— 归纳真的回到了选择里；
+3. `notWhen:['locked']` 的任务文本命中时，这条经验不再发给 worker；
+4. `trials:{shown:20,wins:3,losses:9}` 的经验不再发给 worker —— 输掉的试验会真的停掉它的曝光。
+
+写这条规格时修了两个真问题：`selectLessons` 原本没有执行 `trialVerdict === 'drop'` 的过滤；`tests/self22/fixture.mjs` 的假 runtime 只折叠 rounds/checkpoints，不折叠 `lesson.added`，所以"第三轮看见第二轮的经验"这件事从未被测过。两处都已改。
+
+T2 是只读回放，脚本 `scripts/knowledge-report.mjs`（默认 `~/.dsh/loom`，`--json` 出结构化结果，不写任何文件）。对现有 **114** 个战役的回放：
+
+- 38 个战役能归纳出至少一条 procedure，共 **57** 条；
+- support 分布：恰好 2 次晋升的 **42/57（74%）**，3 次 6 条，4 次 5 条，6 次 2 条，8 次 2 条；
+- 步骤数：只有 1 个文件的 **18/57（32%）**，2 个 13 条，3 个 14 条，4 个 11 条，5 个 1 条；
+- `notWhen` 非空的：**0/57**；
+- 48 个 family，跨战役重复 id 只有 1 条（`proc-fa4293e9`，同为 `lib.mjs`）。
+
+**结论（这是 T2 想回答的）**：规则偏松，且松在结构上，不只是阈值。
+
+- subject 取"第一个被改的文件"，所以两条晋升只要碰过同一个文件就算同 subject；claim 因此是套套逻辑 —— 示例原文是"2 verified attempts in t1 changed src/list.mjs through the same files"，它复述共现，没有指出杠杆。
+- 32% 的条目只有一步"change X"，这不是 procedure，是"这个仓库改这个文件就行"。
+- 74% 的 support 恰好等于阈值 2；把 `minSupport` 提到 3 会砍掉 42/57，说明目前证据本来就薄。
+- 0 条 `notWhen` 说明"同 subject 的失败"几乎没有被记录（旧账本里失败尝试常无 report），所以抑制条件这条线在真实数据上还没被检验过。
+
+不建议现在调阈值来"让数字好看"。更合理的是收紧归纳条件本身：要求两次晋升的**首个改动文件相同**（subject 身份，而不是集合相交）、要求步骤 ≥2 个不同文件、`notWhen` 只从同 subject 的失败里取。这三条都会减少条数，但会提高每条的可检验性 —— 是否做，等你定；T3（小预算真实战役攒 20 次展示）比继续加规则更能说明问题。
+
+**回放不能证明的**：这些 procedure 是否帮到了任何一次尝试。旧账本没有 shown/control 记录，回放只能看"会归纳出什么"，不能看因果。T3/T4 仍然必要。

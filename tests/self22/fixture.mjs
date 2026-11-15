@@ -54,8 +54,15 @@ export function makeRuntime({ repo, tasks, spec = chainSpec(), budget = {} } = {
     stallReason() {
       return null
     },
-    append(_view, type, data) {
+    append(view, type, data) {
       events.push({ type, data })
+      // A real runtime reduces the ledger into the view; this one folds just
+      // the state a later round reads back. Lessons matter to selection (a
+      // procedure added in round 2 is offered in round 3), and keeping the
+      // fold honest is what lets the knowledge specs run real rounds.
+      if (type === 'lesson.added' && data?.lesson && Array.isArray(view?.state?.lessons)) {
+        if (!view.state.lessons.some((l) => l.id === data.lesson.id)) view.state.lessons.push(data.lesson)
+      }
       // Fold just enough for the next predicate: plateau detection reads
       // `finished.rounds` and the checkpoints it already raised (the second card
       // must cover a new window, not the one it just asked about).
