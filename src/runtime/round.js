@@ -1847,6 +1847,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // only group by the files a worker happened to name, and two
           // campaigns working the same kind of problem never recognise it.
           family: task.family ?? task.id ?? '*',
+          taskId: task.id,
           notesShown: notes.length,
           lessons: lessons.map((l) => l.id),
           stdoutTail: (ver.stdout || '').split('\n').slice(-15).join('\n'),

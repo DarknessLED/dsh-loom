@@ -33,11 +33,14 @@ const report = (files) =>
     nextHint: '',
   })
 
-function dispatcher(record, files = ['fixed.txt']) {
+function dispatcher(record, files = ['fixed.txt', 'note.txt']) {
   return {
     run: async (brief, opts = {}) => {
       record.push({ brief, opts })
       writeFileSync(join(opts.cwd, 'fixed.txt'), 'fixed\n')
+      // A second file, so the induced procedure has two steps. A single-file
+      // edit is deliberately not promoted to a procedure any more.
+      writeFileSync(join(opts.cwd, 'note.txt'), 'what changed\n')
       return { sessionId: 'w', text: report(files), stopReason: 'completed' }
     },
   }
@@ -63,7 +66,14 @@ const tasks = [
 async function round(n, ctx) {
   // The round number is derived from the projected rounds; a fake runtime only
   // folds what it was told to fold.
-  ctx.view.state.rounds = ctx.runtime.events.filter((e) => e.type === 'round.started').map((e) => ({ n: e.data.n }))
+  const finished = ctx.runtime.events.filter((e) => e.type === 'round.finished')
+  ctx.view.state.rounds = finished.map((f) => ({
+    n: f.data.n,
+    ...f.data,
+    attempts: ctx.runtime.events
+      .filter((a) => a.type === 'attempt.finished' && String(a.data.id).startsWith(`r${f.data.n}a`))
+      .map((a) => a.data),
+  }))
   return runRound({ runtime: ctx.runtime, view: ctx.view, config: ctx.config, dispatcher: ctx.dispatcher, log: () => {}, notify: () => {} })
 }
 

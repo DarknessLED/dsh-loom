@@ -9,7 +9,8 @@ import test from 'node:test'
 
 import { induceProcedures } from '../../src/knowledge/procedure.js'
 
-const attempt = (id, { family = 'code', files = [], claim = 'fix the parser', ok = true, error = null } = {}) => ({
+const attempt = (id, { task = 't1', family = 'code', files = [], claim = 'fix the parser', ok = true, error = null } = {}) => ({
+  taskId: task,
   id,
   family,
   verifierOk: ok,
@@ -22,8 +23,8 @@ const attempt = (id, { family = 'code', files = [], claim = 'fix the parser', ok
 
 test('two promotions on the same subject earn exactly one procedure', () => {
   const out = induceProcedures([
-    attempt('r1a1', { files: ['src/parser.js'] }),
-    attempt('r2a1', { files: ['src/parser.js', 'src/lexer.js'] }),
+    attempt('r1a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'] }),
+    attempt('r2a1', { task: 't2', files: ['src/parser.js', 'src/lexer.js'] }),
   ])
   assert.equal(out.length, 1)
   const proc = out[0]
@@ -44,9 +45,9 @@ test('one promotion is an anecdote, not a procedure', () => {
 
 test('a failure on the same subject becomes a notWhen, not silence', () => {
   const out = induceProcedures([
-    attempt('r1a1', { files: ['src/parser.js'] }),
-    attempt('r2a1', { files: ['src/parser.js'] }),
-    attempt('r3a1', { files: ['src/parser.js'], ok: false, error: 'ETIMEDOUT' }),
+    attempt('r1a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'] }),
+    attempt('r2a1', { task: 't2', files: ['src/parser.js', 'src/lexer.js'] }),
+    attempt('r3a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'], ok: false, error: 'ETIMEDOUT' }),
   ])
   assert.equal(out.length, 1)
   assert.deepEqual(out[0].notWhen, ['error'])
@@ -54,8 +55,8 @@ test('a failure on the same subject becomes a notWhen, not silence', () => {
 })
 
 test('the same evidence induces the same procedure regardless of order', () => {
-  const a = attempt('r1a1', { files: ['src/parser.js', 'src/lexer.js'] })
-  const b = attempt('r2a1', { files: ['src/parser.js'] })
+  const a = attempt('r1a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'] })
+  const b = attempt('r2a1', { task: 't2', files: ['src/parser.js', 'src/ast.js'] })
   assert.deepEqual(
     induceProcedures([a, b]).map((p) => [p.id, p.steps, p.support]),
     induceProcedures([b, a]).map((p) => [p.id, p.steps, p.support]),
@@ -64,14 +65,14 @@ test('the same evidence induces the same procedure regardless of order', () => {
 
 test('an existing procedure is not re-induced', () => {
   const first = induceProcedures([
-    attempt('r1a1', { files: ['src/parser.js'] }),
-    attempt('r2a1', { files: ['src/parser.js'] }),
+    attempt('r1a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'] }),
+    attempt('r2a1', { task: 't2', files: ['src/parser.js', 'src/ast.js'] }),
   ])
   const again = induceProcedures(
     [
-      attempt('r1a1', { files: ['src/parser.js'] }),
-      attempt('r2a1', { files: ['src/parser.js'] }),
-      attempt('r3a1', { files: ['src/parser.js'] }),
+      attempt('r1a1', { task: 't1', files: ['src/parser.js', 'src/lexer.js'] }),
+      attempt('r2a1', { task: 't2', files: ['src/parser.js', 'src/ast.js'] }),
+      attempt('r3a1', { task: 't3', files: ['src/parser.js', 'src/lexer.js'] }),
     ],
     { existing: first },
   )

@@ -152,3 +152,29 @@ T2 是只读回放，脚本 `scripts/knowledge-report.mjs`（默认 `~/.dsh/loom
 不建议现在调阈值来"让数字好看"。更合理的是收紧归纳条件本身：要求两次晋升的**首个改动文件相同**（subject 身份，而不是集合相交）、要求步骤 ≥2 个不同文件、`notWhen` 只从同 subject 的失败里取。这三条都会减少条数，但会提高每条的可检验性 —— 是否做，等你定；T3（小预算真实战役攒 20 次展示）比继续加规则更能说明问题。
 
 **回放不能证明的**：这些 procedure 是否帮到了任何一次尝试。旧账本没有 shown/control 记录，回放只能看"会归纳出什么"，不能看因果。T3/T4 仍然必要。
+
+## 10. 收紧归纳规则（2026-11-16 凌晨）
+
+T2 指出的两个结构问题直接改在规则上，不是调阈值。`induceProcedures` 现在要求：
+
+- **同任务不算独立**：support 里至少要来自 `minSupport` 个不同 taskId。同一任务两轮成功是"缓存答案"，不是可迁移的情境。
+- **一步不算 procedure**：步骤至少 `minSteps`（默认 2）个不同文件；"1. change src/parser.js" 这种条目不再产生。
+- **subject 身份不变**：仍然按"首个被改文件"分组，两条晋升必须从同一个文件起步；不同入口文件永不合并。
+- **claim 改成观察句**：从"changed X through the same files"改成"N verified promotions on M task(s) began at X; together they also changed K other file(s)"——它描述证据，不暗示因果。
+
+配套改动：`attempt.finished` 现在带 `taskId`（此前只有 `family`，独立性和回放都没法判断）；回放脚本会把每个 group 的拒绝原因计数（`onReject`），所以"规则砍掉了什么"是可数的，不靠感觉。
+
+**同一批 114 个战役的回放，规则收紧前后：**
+
+| | 收紧前 | 收紧后 |
+|---|---|---|
+| 能归纳出 procedure 的战役 | 38 | 2 |
+| procedure 总数 | 57 | 2 |
+| 只有一步的条目 | 18 | 0 |
+| support = 2 的条目 | 42 | 0 |
+
+拒绝原因：`same-task` **67** 组，`too-few-steps` **4** 组。也就是说，旧规则下 57 条里有 55 条要么是"同一任务重复成功"，要么是"只改了一个文件"——两类都不该被称为可迁移的过程。剩下两条（`loom-self8`、`loom-self9`）各有 3–4 次晋升、2 个任务、2–3 个步骤，claim 是"began at src/runtime/round.js; together they also changed 2 other file(s)"。
+
+**这带来的新问题，必须说清楚**：procedure 现在非常稀有（2/114 战役），`lesson.shown` 的真实样本会比以前更少，"20 次展示后裁决"在现有战役规模下可能长期停在 `insufficient`。这不是缺陷，是收紧的代价——要么接受 procedure 是低频高置信单元，要么用 T3 的小预算战役专门攒展示次数。在你决定 T3 之前，我不会为了让数字好看再放宽规则。
+
+新规格：`tests/self28/procedure-tightening.test.mjs`（5 条）；旧规格 `tests/self26`、`tests/self27` 按新规则改写（不是放宽断言：T1 的 fixture 现在写两个文件，因为单文件编辑已不再产生 procedure）。

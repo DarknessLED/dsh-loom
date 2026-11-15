@@ -75,17 +75,18 @@ function conditionsFrom(failures) {
   return { notWhen: [...tokens].sort(), pitfalls: [...new Set(pitfalls)].slice(0, 4) }
 }
 
-function stepsFrom(support) {
+function stepsFrom(support, { files = false } = {}) {
   const counts = new Map()
   for (const a of support) {
     for (const file of lessonFiles(a)) counts.set(file, (counts.get(file) || 0) + 1)
   }
-  const files = [...counts.entries()]
+  const ordered = [...counts.entries()]
     .sort((x, y) => (y[1] !== x[1] ? y[1] - x[1] : x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
     .slice(0, MAX_STEPS)
     .map(([file]) => file)
-  if (!files.length) return []
-  return files.map((file, i) => `${i + 1}. change ${file}`)
+  if (!ordered.length) return []
+  if (files) return ordered
+  return ordered.map((file, i) => `${i + 1}. change ${file}`)
 }
 
 /**
@@ -93,7 +94,7 @@ function stepsFrom(support) {
  *
  * @param {Array<object>} attempts  attempts as recorded by a round (they carry
  *        `report.changed`, `verifierOk`, `promotable`, `score`, `error`)
- * @param {{existing?: Array<object>, minSupport?: number, round?: number}} [options]
+ * @param {{existing?: Array<object>, minSupport?: number, round?: number, minSteps?: number, distinctTasks?: boolean, onReject?: Function}} [options]
  * @returns {Array<object>} new procedure lessons, deterministically ordered
  */
 export function induceProcedures(attempts, options = {}) {
@@ -107,6 +108,12 @@ export function induceProcedures(attempts, options = {}) {
       .filter(Boolean),
   )
   const round = Number.isFinite(Number(options.round)) ? Number(options.round) : 0
+  // Two rules added after the T2 replay, because the rule was loose in
+  // structure: two rounds of the SAME task are a cached answer, and a
+  // one-line "change this file" is not a procedure.
+  const minSteps = Number.isFinite(Number(options.minSteps)) ? Math.max(1, Math.floor(Number(options.minSteps))) : 2
+  const distinctTasks = options.distinctTasks !== false
+  const onReject = typeof options.onReject === 'function' ? options.onReject : null
 
   const groups = new Map()
   for (const attempt of list) {
@@ -133,15 +140,28 @@ export function induceProcedures(attempts, options = {}) {
     if (existing.has(id)) continue
 
     const support = group.wins.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    const taskIds = [...new Set(support.map((a) => a.taskId).filter((t) => typeof t === 'string' && t))]
+    if (distinctTasks && taskIds.length < minSupport) {
+      if (onReject) onReject('same-task', { family: group.family, subject: group.subject, ids: support.map((a) => a.id) })
+      continue
+    }
     const steps = stepsFrom(support)
-    if (!steps.length) continue
+    if (steps.length < minSteps) {
+      if (onReject) onReject('too-few-steps', { family: group.family, subject: group.subject, ids: support.map((a) => a.id) })
+      continue
+    }
     const { notWhen, pitfalls } = conditionsFrom(group.losses)
     const when = `family ${group.family} and the change touches ${group.subject}`
+    const otherFiles = stepsFrom(support, { files: true }).filter((f) => f !== group.subject)
+    const claim =
+      support.length === 1
+        ? `1 verified promotion on ${taskIds.length || 1} task began at ${group.subject}.`
+        : `${support.length} verified promotions on ${taskIds.length} task(s) began at ${group.subject}; together they also changed ${otherFiles.length} other file(s).`
 
     out.push({
       id,
       family: group.family,
-      taskIds: [...new Set(support.map((a) => a.taskId).filter((t) => typeof t === 'string'))],
+      taskIds,
       tags: [],
       kind: 'procedure',
       title: `Working through ${group.subject}`,
@@ -149,7 +169,7 @@ export function induceProcedures(attempts, options = {}) {
       steps,
       pitfalls,
       notWhen,
-      claim: `${support.length} verified attempts in ${group.family} changed ${group.subject} through the same files.`,
+      claim,
       evidence: `round ${round} induced from attempts ${support.map((a) => a.id).join(', ')}`,
       derivedFrom: support.map((a) => a.id),
       support: support.map((a) => a.id),

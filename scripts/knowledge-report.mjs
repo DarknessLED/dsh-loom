@@ -84,7 +84,10 @@ function replay(dir) {
     })
   }
 
-  const procs = induceProcedures(attempts, {})
+  const rejects = new Map()
+  const procs = induceProcedures(attempts, {
+    onReject: (reason) => rejects.set(reason, (rejects.get(reason) ?? 0) + 1),
+  })
   const tasks = [...new Set(attempts.map((a) => a.taskId).filter(Boolean))]
   return {
     id: dir.split(/[\\/]/).pop(),
@@ -92,6 +95,7 @@ function replay(dir) {
     promotions: promoted.size,
     tasks: tasks.length,
     procedures: procs,
+    rejects,
     // What a procedure would have reached: tasks in the same family that the
     // campaign actually ran. An upper bound on showings, not a prediction.
     reach: (proc) =>
@@ -150,4 +154,10 @@ if (asJson) {
   }
   const tooThin = all.filter((p) => p.steps.length < 2).length
   console.log(`\nwith fewer than two steps (too generic to try): ${tooThin}/${all.length}`)
+  const rejected = new Map()
+  for (const r of reports) for (const [k, n] of r.rejects ?? []) rejected.set(k, (rejected.get(k) ?? 0) + n)
+  if (rejected.size) {
+    console.log('rejected groups (tightened rule):')
+    for (const [reason, n] of [...rejected].sort((a, b) => b[1] - a[1])) console.log(`  ${reason}: ${n}`)
+  }
 }
