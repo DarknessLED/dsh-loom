@@ -153,6 +153,10 @@ const standing = [
   // "never useful" rule fired mid-trial; an open trial is retired by its
   // verdict, not by a rule written before trials existed.
   'tests/self32/prune-trial.test.mjs',
+  // self33/trial-persist: the trial counter must outlive the campaign that
+  // earned it, or every new campaign borrows a fresh 0/20 and the measurement
+  // never concludes. T3 spent two budgets discovering that.
+  'tests/self33/trial-persist.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

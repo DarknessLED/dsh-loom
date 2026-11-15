@@ -2174,6 +2174,32 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             'system',
           )
         }
+        // A trial only concludes if its counter survives the campaign that
+        // happened to run it. The counter lives in this ledger, but the lesson
+        // lives in the global store; without this write-back the next campaign
+        // borrows a fresh `{shown:0}` and starts the same twenty showings over.
+        // Merge by max, so two campaigns running in parallel cannot lower it.
+        if (runtime.home) {
+          try {
+            const fresh = new Map((view.state?.lessons ?? []).map((l) => [l.id, l]))
+            const stored = new Map(readGlobalLessons(runtime.home).map((l) => [l.id, l]))
+            for (const imp of impacts) {
+              const rec = fresh.get(imp.lessonId)
+              if (!rec?.trials) continue
+              const had = stored.get(rec.id)?.trials
+              const trials = {
+                shown: Math.max(Number(had?.shown) || 0, Number(rec.trials.shown) || 0),
+                wins: Math.max(Number(had?.wins) || 0, Number(rec.trials.wins) || 0),
+                losses: Math.max(Number(had?.losses) || 0, Number(rec.trials.losses) || 0),
+                ties: Math.max(Number(had?.ties) || 0, Number(rec.trials.ties) || 0),
+              }
+              appendGlobalLesson(runtime.home, { ...rec, trials })
+            }
+          } catch (err) {
+            // A failed write-back must not fail the round that earned it.
+            log('lesson trial write-back failed:', err?.message ?? err)
+          }
+        }
         const next = applyImpacts(state.lessons || [], impacts, { round: n })
         const activeIds = new Set((state.lessons || []).filter((l) => l.status === 'active').map((l) => l.id))
         for (const l of next) {
