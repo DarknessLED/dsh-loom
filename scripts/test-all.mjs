@@ -74,6 +74,13 @@ const standing = [
   // a guard that fails on a flake costs a round: p5-wire round 3 was rolled back
   // for tests/tri9/early-abort.test.mjs passing alone seconds later.
   'tests/self20/guard-retry.test.mjs',
+  // p6-route: the panel route finally answered a real request (GET 200 from the
+  // host port, not a proxy 404), the budget now says what it can afford, and the
+  // gate reads a graded score when the verifier prints one.
+  'tests/self20/panel-route.test.mjs',
+  'tests/self20/budget-funding.test.mjs',
+  'tests/self20/killrate-score.test.mjs',
+  'tests/self20/guard-env.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',
@@ -81,7 +88,6 @@ const standing = [
   'tests/self20/killrate-metrics.test.mjs',
   // the guard runs with the app's PATH, which has no Git on it: twelve suites
   // died with `spawnSync git ENOENT` and two p6 promotions were rolled back.
-  'tests/self20/guard-env.test.mjs',
   // the chain got cheaper and the loop has to stay that way: no second candidate
   // once the first one solves the task, and planning counted as its own leg.
   'tests/tri3/cascade.test.mjs',
