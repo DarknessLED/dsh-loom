@@ -28,6 +28,7 @@ import { landingTarget } from '../runtime/round.js'
 import { campaignQuality, qualityLine } from '../runtime/quality.js'
 import { doctor } from '../runtime/doctor.js'
 import { reviewQueue } from '../runtime/review.js'
+import { consolidate } from '../knowledge/dream.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -300,9 +301,19 @@ export function registerTools(ctx, { runtime, config }) {
       // `status()` is the cheap projection and deliberately omits the chain
       // record; calibration needs it, so read the state the projection came from.
       const state = runtime.get(id)?.state
-      return compactStatus(
+      // Offline consolidation, computed on read: duplicates merged, expired
+      // claims retired, and contradictions surfaced as questions. The status
+      // view is the one place a person looks, so that is where they appear.
+      const dream = consolidate(state?.lessons ?? [], { round: state?.rounds?.length ?? 0 })
+      const out = compactStatus(
         {
           ...view,
+          knowledge: {
+            lessons: dream.lessons.length,
+            merged: dream.merged.length,
+            retired: dream.retired.length,
+            questions: dream.questions.slice(0, 3),
+          },
           // How well the forecasts have held so far, in the same view as the
           // chain they came from. The graded records stay under chain.measurements.
           calibration: summarizeCalibration(state?.chain?.measurements ?? []),
@@ -314,6 +325,14 @@ export function registerTools(ctx, { runtime, config }) {
         },
         { detail: args.detail },
       )
+      // The text is what most readers actually see; keep the count and the
+      // sharpest open question there, not only in the structured payload.
+      if (out && typeof out.text === 'string') {
+        const q = dream.questions[0]
+        out.text += `\nknowledge: ${dream.lessons.length} lesson(s), ${dream.merged.length} merged, ${dream.retired.length} retired` +
+          (q ? `, open question: ${q.question}` : '')
+      }
+      return out
     },
   })
 

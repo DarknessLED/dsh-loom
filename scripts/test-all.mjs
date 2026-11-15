@@ -120,6 +120,10 @@ const standing = [
   // standing list (tests/self* is skipped by the directory scan) and drifted red;
   // pinned now so "ask once per window" cannot rot unnoticed again.
   'tests/self2/plateau.test.mjs',
+  // self24/cross-domain: advice only when the scope matches; a shared difficulty
+  // shape across domains is inspiration, not an instruction; offline dream merges
+  // duplicates and turns a contradiction into a question.
+  'tests/self24/cross-domain.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

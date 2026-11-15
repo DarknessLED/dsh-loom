@@ -71,6 +71,8 @@
 
 - `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用；`claimHeadline` 把一条经验压成第一句（≤140 字符、不在词中砍断），`lessonFiles`/`filesInClaim`/`symbolInClaim` 回答「这条经验是关于什么东西的」，供面板按文件归组。
 - `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
+- `src/knowledge/cross.js` — 跨领域迁移：同家族/同任务/同标签是 `direct`（可当建议展示），不同领域但共享「困难形状」（signature）是 `analogy`（只当灵感假设，永不作为指令），两者都无则 `none`；`findAnalogies` 只返回跨域类比并按分数、id 稳定排序。
+- `src/knowledge/dream.js` — 离线巩固：按 claim 词集 Jaccard 合并同家族近似重复（保留合并来源与累计证据），按 TTL/非 active 退休，同 subject 上极性相反的两条 active 经验升级为一条 contradiction 问题；纯函数、确定性排序。
 
 ### lean/ — Lean 门
 
