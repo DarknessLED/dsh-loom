@@ -10,7 +10,12 @@ export function emptyState(id = null) {
     workspace: null,
     constraints: [],
     budget: { usd: 5, rounds: 12, spentUsd: 0, roundsUsed: 0, minutes: 240 },
-    chain: { activeVersion: null, versions: [] },
+    /**
+     * `versions` is the proposal record; `pending` is the one forecast awaiting
+     * its first measured round under the adopted chain, and `measurements` is
+     * the small permanent record of forecasts that were checked.
+     */
+    chain: { activeVersion: null, versions: [], pending: null, measurements: [] },
     evalset: { tasks: [], holdout: [] },
     /**
      * Which holdout partition actually ran, and from which pool. A holdout
@@ -93,16 +98,60 @@ function apply(s, ev) {
       break
     case 'chain.proposed': {
       const v = { version: d.version, spec: d.spec, by: ev.actor, at: ev.t, status: 'candidate' }
+      // The evidence that justified the proposal travels with it: a card read
+      // weeks later must show the forecast it was adopted on, not a guess
+      // reconstructed from the spec.
+      for (const key of ['prediction', 'diff', 'evidence']) {
+        if (d[key] !== undefined) v[key] = d[key]
+      }
       s.chain.versions = s.chain.versions.filter((x) => x.version !== d.version).concat(v)
       break
     }
-    case 'chain.activated':
+    case 'chain.activated': {
+      const fromVersion = s.chain.activeVersion
+      const adopted = s.chain.versions.find((v) => v.version === d.version)
+      // The baseline is the best score each task had reached before adoption.
+      // Comparing the first round under the new chain against it is the only
+      // cheap way to say whether the forecast materialised.
+      const baseline = {}
+      for (const r of s.rounds) {
+        if (!r || !Number.isFinite(Number(r.score))) continue
+        const task = r.taskId ?? '_'
+        if (!(task in baseline) || Number(r.score) > baseline[task]) baseline[task] = Number(r.score)
+      }
+      const prediction = adopted?.prediction ?? d.prediction ?? null
       s.chain.activeVersion = d.version
+      s.chain.pending = {
+        version: d.version,
+        prediction,
+        fromVersion: fromVersion ?? null,
+        atRound: s.rounds.length ? s.rounds[s.rounds.length - 1].n : null,
+        baseline,
+        at: ev.t,
+      }
       for (const v of s.chain.versions) {
         if (v.version === d.version) v.status = 'active'
         else if (v.status === 'active') v.status = 'superseded'
       }
       break
+    }
+    case 'chain.measured': {
+      if (!d || d.version == null) break
+      const rec = {
+        version: d.version,
+        taskId: d.taskId ?? null,
+        round: d.round ?? null,
+        baseline: d.baseline ?? null,
+        actual: d.actual ?? null,
+        realized: d.realized ?? null,
+        predicted: d.predicted ?? null,
+        verdict: d.verdict ?? null,
+        at: ev.t,
+      }
+      s.chain.measurements = (s.chain.measurements ?? []).concat(rec).slice(-10)
+      if (s.chain.pending && Number(s.chain.pending.version) === Number(d.version)) s.chain.pending = null
+      break
+    }
     case 'evalset.registered':
       s.evalset.tasks = d.tasks
       s.evalset.holdout = d.holdout || []
@@ -161,7 +210,7 @@ function apply(s, ev) {
         // `planMode`/`planTimedOut` travel too: `planMode: 'auto'` reads the
         // last two rounds' planTimedOut, so a projected state that dropped it
         // would make every round look like it had planned successfully.
-        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable']) {
+        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'scoreSource', 'chainVersion', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }

@@ -10,6 +10,7 @@ import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
+import { adoptFromCheckpoint } from '../chain/adopt.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
 import { runVerifier } from '../exec/verifier.js'
@@ -739,8 +740,11 @@ export function registerTools(ctx, { runtime, config }) {
         }
       }
 
-      if (args.decision === 'approve' && target.kind === 'chain' && target.payload?.chainVersion != null) {
-        runtime.append(view, 'chain.activated', { version: Number(target.payload.chainVersion) }, 'human')
+      // Approving a chain (or plateau) card adopts the proposed version. The
+      // panel door calls the same helper: one activation path, one prediction
+      // remembered by the reducer, so the tool and the button cannot diverge.
+      if (args.decision === 'approve') {
+        adoptFromCheckpoint({ runtime, view, checkpoint: target, actor: 'human' })
       }
       if (args.decision === 'approve' && target.kind === 'policy' && target.payload?.policy) {
         // The checkpoint asks a human to agree to a change, so the event must

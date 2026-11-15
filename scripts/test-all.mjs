@@ -88,6 +88,16 @@ const standing = [
   // the plugin must never be the reason a request cannot be sent: an unbounded
   // stdout tail once turned a session into an 18 MB payload no upstream accepts.
   'tests/self21/payload-budget.test.mjs',
+  // self22: L2 autonomy closed the loop. A plateau now arrives as a proposal
+  // card with a forecast, a risk and the exact diff; one approve adopts it and
+  // the next round measures whether the forecast materialised. A kill rate the
+  // verifier printed is the score of a live round, not just of a library call.
+  'tests/self22/predict.test.mjs',
+  'tests/self22/l2-card.test.mjs',
+  'tests/self22/l2-plateau.test.mjs',
+  'tests/self22/l2-adopt-measure.test.mjs',
+  'tests/self22/killrate-attempt.test.mjs',
+  'tests/self22/halving-round.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

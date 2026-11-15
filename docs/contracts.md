@@ -20,6 +20,11 @@
 - `src/chain/templates.js` — 内置 `code-fix` / `refactor` 两条种子链与 `templateFor(name)`，主 agent 复制一份后按任务改写。
 - `src/chain/evidence.js` — 把回合日志折成 (version, task) 配对分数表，并按任务数、增益、单任务回归三项给出链晋升判定。
 - `src/chain/mutate.js` — 四种小而可审的链变异（多加候选、最小改动、禁止改测试、声明不确定性），一次只改工作方式，不改验收标准。
+- `src/chain/predict.js` — 把历史回合折成一条可检验的预测：候选/引导类变异给出点估计与区间（分位数或 Wilson），平盘时退回“离满分还有多少”的先验，并给出回归风险等级与理由。
+- `src/chain/spec-diff.js` — 两版链规格的结构化差异（按节点 id 对齐，prompt 追加单独记成 append），供提案卡展示“这次到底改了什么”，而不是让人猜。
+- `src/chain/evidence-card.js` — 一张自足的 L2 提案卡：在链上的回合数、花费、晋升数、逐条变异的预测/风险/diff，以及本轮缺了哪项证据，面板与工具读同一份。
+- `src/chain/adopt.js` — 人一键采纳的落点：工具与面板两条门都经由它把 chain/plateau 检查点写成 `chain.activated`，并带上被采纳的预测供下一轮核对。
+- `src/chain/measure.js` — 采纳后的对账：把新链第一轮的分数与采纳前基线相减，按预测区间判 met/exceeded/missed，写进 `chain.measured`，让预测兑现与否可被追问。
 
 ### collab/
 

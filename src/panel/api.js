@@ -4,6 +4,7 @@ import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
+import { adoptFromCheckpoint } from '../chain/adopt.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { panelRoute } from './route.js'
@@ -381,6 +382,11 @@ export function panelAction({ runtime, config }, body) {
       const until = holdUntil(config)
       runtime.append(view, 'checkpoint.held', { checkpoint: target.id, until }, 'human:panel')
       return { ok: true, deferred: true, answered: target.id, until, campaigns: panelState({ runtime, config }).campaigns }
+    }
+    // Approving a chain card must change the chain here too. This used to be a
+    // tool-only behaviour, so the button closed the card without adopting.
+    if (decision === 'approve') {
+      adoptFromCheckpoint({ runtime, view, checkpoint: target, actor: 'human:panel' })
     }
     runtime.append(
       view,

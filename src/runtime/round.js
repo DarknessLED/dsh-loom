@@ -17,6 +17,11 @@ import {
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { DEFAULT_CONFIG } from '../core/config.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
+import { scoreOf } from '../gate/score.js'
+import { verifyMetrics } from '../gate/metrics.js'
+import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
+import { measurePrediction } from '../chain/measure.js'
+import { readDecisions } from '../loop/decisions.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
@@ -1720,12 +1725,19 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           )
         }
         const diff = await diffStat({ dir: wtPath }).catch(() => ({ files: 0, insertions: 0, deletions: 0, filesChanged: [] }))
-        const score = scoreAttempt({
-          attemptId,
-          taskScores: { [task.id]: gateOk ? 1 : 0 },
-          verifierOk: gateOk,
-          metrics: ver.metrics,
-        })
+        // A verifier that printed `KILLRATE=0.31` measured something finer than
+        // pass/fail, and the score should be that measurement. The reading is
+        // taken from the stdout the verifier already produced — no extra run —
+        // and `scoreSource` travels with the attempt so a later reader can tell
+        // a kill rate from a binary verdict. A failed verifier is still 0: a
+        // continuous reading does not rescue a patch that does not pass.
+        const measuredMetrics = {
+          ...(ver.metrics && typeof ver.metrics === 'object' ? ver.metrics : {}),
+          ...verifyMetrics({ stdout: ver.stdout ?? '', status: ver.exitCode }).metrics,
+        }
+        const reading = gateOk ? scoreOf({ verifierOk: true, metrics: measuredMetrics }) : { score: 0, source: 'binary' }
+        const score = reading.score
+        const scoreSource = reading.source
         // Price this attempt with the table of the model that actually ran: a
         // relay that charged 9x the default must not be billed at the default,
         // and the record keeps the key so a report can audit the choice.
@@ -1750,7 +1762,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           ...(cancelledBySibling ? { reason: SOLVED_BY_SIBLING } : {}),
           durationMs: Date.now() - startedAt,
           score,
-          metrics: ver.metrics,
+          scoreSource,
+          metrics: measuredMetrics,
           sessionId: runRes.sessionId,
           stopReason: runRes.stopReason,
           diff,
@@ -2083,6 +2096,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const ranked = rankAttempts(attempts.map((a) => ({ ...a, score: a.score || 0 })))
     best = ranked.best
     const score = best?.score ?? 0
+    // The round's number came from the winning attempt, so its measurement kind
+    // travels with it: a 0.6 kill rate and a binary 1 are both scores but not
+    // the same kind of evidence.
+    const scoreSource = best?.scoreSource ?? null
     const roundCost = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
     if (roundCost > 0) {
       runtime.append(view, 'budget.spent', { usd: roundCost, attempts: attempts.length }, 'system')
@@ -2476,7 +2493,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -2489,9 +2506,24 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       taskId: task.id,
       status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain',
       score,
+      scoreSource,
+      chainVersion: state.chain.activeVersion,
       promoted: promote === true,
       attempts,
     })
+
+    // If a chain was adopted on a forecast, this is the first round that can
+    // test it: compare the task's score to the best it had before adoption and
+    // write down whether the prediction materialised. One measurement closes
+    // the pending forecast; a round before adoption never counts.
+    const pendingForecast = view.state.chain?.pending ?? null
+    if (pendingForecast) {
+      const measured = measurePrediction({
+        pending: pendingForecast,
+        round: { n, taskId: task.id, chainVersion: state.chain.activeVersion, score, promoted: promote === true },
+      })
+      if (measured) runtime.append(view, 'chain.measured', measured, 'system')
+    }
 
     // Three rounds in a row whose patches changed while the verifier said exactly
     // the same thing is the signature of an unreachable gate, not of a hard task:
@@ -2535,21 +2567,62 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // checkpoint, not just open ones, so a fourth flat round stays quiet.
     const plateauOn = !Array.isArray(config.checkpoint?.on) || config.checkpoint.on.includes('plateau')
     if (plateauOn && oncePlateau(finished, { window: config.checkpoint?.window ?? 3 })) {
-      raise('plateau', {
-        message: `the last ${config.checkpoint?.window ?? 3} rounds promoted nothing; the loop is not making progress`,
-        window: config.checkpoint?.window ?? 3,
-        rounds: (finished.rounds || []).slice(-(config.checkpoint?.window ?? 3)).map((r) => r.n),
-      })
-      // A plateau is the loop's own stall signal, so do not let it stop at the
-      // human page: propose the mutations `rsi_chain auto` would have offered.
-      // Proposals are inert until an activation promotes one, so this cannot
-      // change behaviour on its own; it just makes the lever reachable.
+      // A plateau is the loop's own stall signal, so the loop answers it with a
+      // hypothesis rather than only a complaint. The proposals are inert until
+      // a person adopts one; what this block adds is the *evidence* the person
+      // needs to decide: the campaign's record, a forecast with a stated basis,
+      // the risk, and the exact diff — all on the checkpoint card.
+      const window = config.checkpoint?.window ?? 3
       const maxMutations = Number(config.chain?.maxMutations) || 3
-      const nextVersion =
-        state.chain.versions.reduce((max, v) => Math.max(max, Number(v.version) || 0), 0) + 1
-      for (const m of proposeMutations(chain, { fromVersion: nextVersion, max: maxMutations })) {
-        runtime.append(view, 'chain.proposed', { version: m.spec.version, spec: m.spec }, 'system')
+      const versions = finished.chain?.versions ?? state.chain.versions
+      const nextVersion = versions.reduce((max, v) => Math.max(max, Number(v.version) || 0), 0) + 1
+      const activeVersion = state.chain.activeVersion
+      const baseSpec = versions.find((v) => v.version === activeVersion)?.spec ?? chain
+      const rounds = (finished.rounds || []).map((r) => ({ ...r, attempts: r.attempts || [] }))
+      const tasks = view.state.evalset?.tasks ?? state.evalset?.tasks ?? []
+      const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
+      const decided = readDecisions(runtime.home ? join(runtime.home, 'decisions.json') : null)
+      const proposed = proposeMutations(baseSpec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable, rounds })
+      const card = buildProposalCard({ active: { version: activeVersion, spec: baseSpec }, proposals: proposed, rounds, config })
+      // Offer what is fresh first: `proposals[0]` is the one the card recommends,
+      // and that is the version the plateau checkpoint names.
+      const ordered = card.items.slice().sort((a, b) => (a.status === 'fresh' ? 0 : 1) - (b.status === 'fresh' ? 0 : 1))
+      const recommended = ordered.find((i) => i.status === 'fresh') ?? ordered[0] ?? null
+      for (const item of ordered) {
+        runtime.append(
+          view,
+          'chain.proposed',
+          {
+            version: item.version,
+            spec: item.spec,
+            prediction: item.prediction,
+            diff: item.diff,
+            evidence: item.evidence,
+          },
+          'system',
+        )
       }
+      raise('plateau', {
+        message:
+          `the last ${window} rounds promoted nothing; the loop is not making progress` +
+          (recommended ? ` — it proposes v${recommended.version} (${recommended.kind})` : ''),
+        window,
+        rounds: (finished.rounds || []).slice(-window).map((r) => r.n),
+        chainVersion: recommended?.version ?? null,
+        prediction: recommended?.prediction ?? null,
+        risk: recommended?.risk ?? null,
+        diff: recommended?.diff ?? [],
+        proposals: ordered.map((i) => ({
+          version: i.version,
+          kind: i.kind,
+          rationale: i.rationale,
+          status: i.status,
+          prediction: i.prediction,
+          risk: i.risk,
+          diff: i.diff,
+        })),
+        card: renderCard(card),
+      })
     }
   } catch (err) {
     runtime.append(
@@ -2804,6 +2877,8 @@ function projectRound(state, round) {
   Object.assign(r, {
     status: round.status,
     score: round.score ?? r.score ?? null,
+    ...(round.scoreSource != null ? { scoreSource: round.scoreSource } : {}),
+    ...(round.chainVersion != null ? { chainVersion: round.chainVersion } : {}),
     promoted: round.promoted === true,
     endedAt: Date.now(),
     ...(round.holdoutId != null ? { holdoutId: round.holdoutId } : {}),
