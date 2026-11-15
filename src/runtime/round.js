@@ -2439,7 +2439,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             raise('anomaly', {
               message: `autopilot applied round ${n} and then the guard failed; the workspace was rolled back`,
               guard,
-              detail: String(checked.stderr || checked.stdout || '').slice(-400),
+              detail: failureDigest(checked.stderr || checked.stdout || ''),
               patch: best.patch,
             })
           } else {

@@ -85,6 +85,9 @@ const standing = [
   // is pinned too, so a cheaper screen cannot quietly become a smaller sample.
   'tests/self20/chain-evidence.test.mjs',
   'tests/self20/halving.test.mjs',
+  // the plugin must never be the reason a request cannot be sent: an unbounded
+  // stdout tail once turned a session into an 18 MB payload no upstream accepts.
+  'tests/self21/payload-budget.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

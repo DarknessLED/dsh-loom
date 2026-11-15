@@ -5,6 +5,7 @@ import { Ledger } from '../core/ledger.js'
 import { reduce } from '../core/reduce.js'
 import { campaignDir, ensureDir, nowId } from '../core/paths.js'
 import { writeJsonAtomic } from '../core/atomic.js'
+import { clipSection } from '../core/limits.js'
 import { claimOwnership, heartbeat, holdsOwnership, ownerStatus } from '../core/lock.js'
 import { runRound } from './round.js'
 import { pickTask } from './selector.js'
@@ -353,7 +354,9 @@ export class Runtime {
     const head = sw.enabled
       ? 'Active RSI campaigns (managed by dsh-loom; the loop runs in child sessions while you are idle):'
       : `RSI loop is OFF${sw.at ? ` (switched ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')} by ${sw.by})` : ''} — nothing is dispatched until rsi_control {action:"enable"}; campaign history is untouched.`
-    return [head, ...rows.map((r) => `- ${r}`)].join('\n')
+    // Hard cap: this text goes into every request. A campaign list that grows
+    // without bound must not become the reason the next step cannot be sent.
+    return clipSection([head, ...rows.map((r) => `- ${r}`)].join('\n'))
   }
 
   /**

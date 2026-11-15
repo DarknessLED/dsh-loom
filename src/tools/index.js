@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { output } from './output.js'
 import { svc } from '../core/services.js'
+import { clipDeep, clipText, PAYLOAD } from '../core/limits.js'
 import { loomHome } from '../core/paths.js'
 import { writeJsonAtomic } from '../core/atomic.js'
 import { exportBundle } from '../report/export.js'
@@ -117,7 +118,13 @@ function compactNode(value) {
  * input untouched: the reduction is never the only copy of the data.
  */
 export function compactStatus(status, { detail } = {}) {
-  if (detail === 'full') return status
+  // Even the full record is bounded: a request the host cannot forward is a
+  // request that never reaches the model, and the ledger on disk keeps the
+  // untruncated copy.
+  if (detail === 'full') {
+    const clipped = clipDeep(status, { budget: PAYLOAD.toolResult })
+    return clipped.clipped ? { ...clipped.value, truncated: { bytes: clipped.bytes, fields: clipped.fields } } : status
+  }
   return compactNode(status)
 }
 
