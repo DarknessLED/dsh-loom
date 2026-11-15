@@ -586,17 +586,26 @@ export function registerTools(ctx, { runtime, config }) {
         const decided = readDecisions(join(loomHome(config), 'decisions.json'))
         const tasks = view.state.evalset?.tasks || []
         const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
-        const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable })
+        // The proposal card must show the campaign's own record: what it ran,
+        // what it promoted, what it rejected. Read it here, where the view is.
+        const rounds = view.state.rounds.map((r) => ({
+          n: r.n,
+          taskId: r.taskId,
+          status: r.status,
+          promoted: r.promoted,
+          score: r.score,
+        }))
+        const produced = proposeMutations(active.spec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable, rounds })
         const fresh = produced.filter((m) => m.status === 'fresh')
         for (const m of fresh) {
           runtime.append(view, 'chain.proposed', { version: m.spec.version, spec: m.spec }, 'system')
         }
         return {
           parent: active.version,
-          proposed: fresh.map((m) => ({ version: m.spec.version, kind: m.kind, rationale: m.rationale })),
+          proposed: fresh.map((m) => ({ version: m.spec.version, kind: m.kind, rationale: m.rationale, evidence: m.evidence })),
           blocked: produced
             .filter((m) => m.status !== 'fresh')
-            .map((m) => ({ kind: m.kind, status: m.status, note: m.note })),
+            .map((m) => ({ kind: m.kind, status: m.status, note: m.note, evidence: m.evidence })),
           note: 'each candidate needs paired rounds on the same tasks before promote will accept it',
         }
       }

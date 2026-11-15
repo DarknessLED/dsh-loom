@@ -339,13 +339,17 @@ coverage(rounds) -> [{ version, tasks }]
 
 // src/chain/mutate.js
 mutateChain(base, { kind, version, rationale }) -> { kind, spec } | null
-proposeMutations(base, { fromVersion, max = 3 }) -> [{ kind, spec }]
+proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false, rounds = [] })
+  -> [{ kind, spec, status, note, evidence }]
+evidenceFor({ rounds = [], decided = [] })
+  -> { rounds:n, promotions, rejections, lastVerdict, decided, basis:'rounds'|'decisions'|'none' }
 // kind ∈ candidates+1 | minimal-change | no-test-edits | state-your-uncertainty
 ```
 
 语义：**promote 是四选一，不是打分**——任务数不足、增益不够、任一任务回归，任一命中就不晋升，且 `ok === false`。
 `regressed-a-task` 排在 `gain-too-small` 之后判定：先看整体是否值得，再看有没有把某个任务做坏。
 `mutateChain` 不修改 `base`；返回 `null` 表示这类变异在当前链上不适用（没有 map 节点、候选数已达上限 4）。
+`evidenceFor` 把战役自己的回合账折成批准卡要说的一句话：`promotions`/`rejections` 只数真的跑过的回合（`interrupted`、`budget` 这种什么都没测的回合两边都不算），`basis` 说明数字来自哪本账——没有回合但有已记录的决策时是 `'decisions'`，两本都空时是 `'none'`（第一次提议就是猜测，卡片不许把它包装成证据）。`proposeMutations` 把同一份 `evidence` 快照挂到**每一条**返回的变异上，被挡下的那些也要带，因为「为什么不再提」本身就是卡片的一行。
 一次晋升只改**工作方式**，不改验收标准——验收标准属于 `evalset`，改它等于换考题。
 
 事件：`chain.proposed{version, spec, parent}` → `chain.proposed` + `checkpoint.raised{kind:"chain"}` → `chain.activated{version}`

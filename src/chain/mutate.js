@@ -23,12 +23,25 @@ function mapNodes(spec) {
   return (spec.nodes || []).filter((n) => n.type === 'map' && n.of)
 }
 
+/**
+ * Where an instruction belongs. Normally the prompt inside a map's `of` (the
+ * worker), but a chain may carry a single top-level agent instead of a map —
+ * the instruction is just as applicable there. Without this fallback a chain
+ * with one agent and no map has exactly one mutation in its menu, so guarding
+ * that one hides every hypothesis the loop could have tested.
+ */
+function guidanceTargets(spec) {
+  const maps = mapNodes(spec)
+  if (maps.length) return maps.map((n) => n.of)
+  return (spec.nodes || []).filter((n) => n.type === 'agent' && n.prompt != null)
+}
+
 function appendGuidance(spec, text) {
-  const targets = mapNodes(spec)
+  const targets = guidanceTargets(spec)
   if (!targets.length) return false
   for (const node of targets) {
-    const prompt = String(node.of.prompt || '').trim()
-    node.of.prompt = prompt ? `${prompt}\n\n${text}` : text
+    const prompt = String(node.prompt || '').trim()
+    node.prompt = prompt ? `${prompt}\n\n${text}` : text
   }
   return true
 }
@@ -86,21 +99,53 @@ function statusOf(kind, { decided = [], scopeEditable = false } = {}) {
   return { status: 'fresh', note: null }
 }
 
+/** Round statuses that mean "we looked and it did not work". */
+const REJECTED_STATUS = new Set(['no-gain', 'rejected', 'reject', 'failed', 'exhausted', 'no-improvement'])
+/** Round statuses that measured nothing: not a win, not a loss. */
+const UNMEASURED_STATUS = new Set(['interrupted', 'budget'])
+
+/**
+ * The campaign's own record, compressed into the sentence a proposal card needs.
+ *
+ * A human asked to approve a chain change should not have to open the ledger to
+ * find out whether the change was ever tried. `basis` says which record the
+ * numbers came from — and 'none' is a valid, honest answer: a first proposal on a
+ * fresh campaign is a guess, and the card must not dress it up as evidence.
+ */
+export function evidenceFor({ rounds = [], decided = [] } = {}) {
+  const list = (Array.isArray(rounds) ? rounds : []).filter((r) => r && typeof r === 'object')
+  const decisions = Array.isArray(decided) ? decided : []
+  const won = (r) => r?.promoted === true || r?.status === 'promoted'
+  const lost = (r) => !UNMEASURED_STATUS.has(r?.status) && (r?.promoted === false || REJECTED_STATUS.has(r?.status))
+  const last = list[list.length - 1] || null
+  const lastVerdict = last ? (last.status ?? (won(last) ? 'promoted' : lost(last) ? 'rejected' : null)) : null
+  return {
+    rounds: list.length,
+    promotions: list.filter(won).length,
+    rejections: list.filter((r) => !won(r) && lost(r)).length,
+    lastVerdict,
+    decided: decisions,
+    basis: list.length ? 'rounds' : decisions.length ? 'decisions' : 'none',
+  }
+}
+
 /**
  * All applicable mutations, each with a distinct version number and a status.
  *
  * Versions are assigned to every applicable mutation so the numbering does not
  * shift when a kind becomes blocked; `status` says whether the caller should offer
- * it again.
+ * it again. Every returned mutation — fresh or blocked — carries the same
+ * `evidence` snapshot, because the blocked ones are the card's "why not" line.
  */
-export function proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false } = {}) {
+export function proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false, rounds = [] } = {}) {
   const out = []
+  const evidence = evidenceFor({ rounds, decided })
   let version = Number(fromVersion) || (Number(base?.version) || 1) + 1
   for (const kind of MUTATION_KINDS) {
     const m = mutateChain(base, { kind, version })
     if (!m) continue
     const s = statusOf(kind, { decided, scopeEditable })
-    out.push({ ...m, ...s })
+    out.push({ ...m, ...s, evidence })
     version += 1
     if (out.filter((x) => x.status === 'fresh').length >= max) break
   }
