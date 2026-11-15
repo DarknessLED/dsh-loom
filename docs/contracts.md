@@ -74,6 +74,7 @@
 - `src/knowledge/cross.js` — 跨领域迁移：同家族/同任务/同标签是 `direct`（可当建议展示），不同领域但共享「困难形状」（signature）是 `analogy`（只当灵感假设，永不作为指令），两者都无则 `none`；`findAnalogies` 只返回跨域类比并按分数、id 稳定排序。
 - `src/knowledge/dream.js` — 离线巩固：按 claim 词集 Jaccard 合并同家族近似重复（保留合并来源与累计证据），按 TTL/非 active 退休，同 subject 上极性相反的两条 active 经验升级为一条 contradiction 问题；纯函数、确定性排序。
 - `src/knowledge/store.js` — 跨战役经验库：`readGlobalLessons(home)` 读 `<home>/knowledge.json`（数组或 `{lessons}`，坏文件先备份成 `.bad` 再返回空），`appendGlobalLesson(home, lesson)` 按 id 覆盖、只留最近 500 条、写失败不抛；存储是便利，不是事实来源——战役自己的 `state.lessons` 永远优先。
+- `src/knowledge/procedure.js` — 从重复的成功里归纳 procedure：同一 family+subject 至少 2 次独立晋升才生成一条，id 由（family, subject）稳定哈希得到；步骤取被改文件的频次序，同一 subject 的失败按 shape 变成 `notWhen` 与 pitfalls（`error`/`near-miss`），已有同 id 的不再重复归纳。
 
 ### lean/ — Lean 门
 

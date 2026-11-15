@@ -31,6 +31,7 @@ import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js
 import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson, shapeOf } from '../knowledge/impact.js'
 import { readGlobalLessons, appendGlobalLesson } from '../knowledge/store.js'
+import { induceProcedures } from '../knowledge/procedure.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
 import { adaptiveCandidateMode, secondCandidateGate } from './candidates.js'
 import { planCandidates } from '../loop/candidates.js'
@@ -1842,6 +1843,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           patchBytes: patch?.bytes ?? 0,
           report,
           reportError: parsed.ok ? null : parsed.error,
+          // Which family this attempt belonged to. Without it, induction can
+          // only group by the files a worker happened to name, and two
+          // campaigns working the same kind of problem never recognise it.
+          family: task.family ?? task.id ?? '*',
           notesShown: notes.length,
           lessons: lessons.map((l) => l.id),
           stdoutTail: (ver.stdout || '').split('\n').slice(-15).join('\n'),
@@ -2506,6 +2511,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // not see this ledger. The write is best-effort: a read-only home
           // costs the current campaign nothing.
           if (runtime.home) appendGlobalLesson(runtime.home, derived)
+        }
+        // A second verified promotion on the same subject is what turns a
+        // fact into a procedure. Induction runs on the campaign's own history
+        // and refuses anything already in either library, so re-running a round
+        // cannot duplicate a procedure.
+        try {
+          const history = (state.rounds || []).flatMap((r) => (Array.isArray(r.attempts) ? r.attempts : []))
+          const existing = (state.lessons || []).concat(runtime.home ? readGlobalLessons(runtime.home) : [])
+          for (const proc of induceProcedures(history.concat(attempts), { existing, round: n })) {
+            runtime.append(view, 'lesson.added', { lesson: proc }, 'system')
+            if (runtime.home) appendGlobalLesson(runtime.home, proc)
+          }
+        } catch (err) {
+          log('procedure induction failed:', err?.message ?? err)
         }
       } catch (err) {
         log('lesson derivation failed:', err?.message ?? err)

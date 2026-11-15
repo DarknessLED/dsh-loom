@@ -128,6 +128,9 @@ const standing = [
   // it warns about; a procedure that crossed domains is shown as a hypothesis
   // and logged; twenty showings decide keep or drop by paired wins, not opinion.
   'tests/self25/procedure-transfer.test.mjs',
+  // self26/procedure-induction: two verified promotions on one subject earn a
+  // procedure; one is an anecdote; a failure on that subject becomes a notWhen.
+  'tests/self26/procedure-induction.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

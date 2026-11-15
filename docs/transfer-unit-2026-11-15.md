@@ -115,7 +115,10 @@ procedure = {
 - 跨战役存储：`src/knowledge/store.js` 读写 `<home>/knowledge.json`，按 id 去重、最多 500 条、坏文件先备份；`round.js` 在采纳一条新经验时同时写全局库。
 - 每次尝试被归类成 shape（`error`/`no-patch`/`solved`/`near-miss`/`unsolved`），随 `round.finished` 落账；下一轮用它作为"现在卡在哪"的匹配条件。
 
-**仍然没有的生产者**：现在没有"把一次成功尝试归纳成 procedure"的生成器——procedure 记录目前只能由外部/手工写入或由未来 dream 的抽象层产生。所以这条线现在能测的是"已有 procedure 如何被展示、记账、淘汰"，不是"procedure 如何自己长出来"。第 3 步的 20 次展示决策要靠真实战役慢慢攒，不能在本轮伪造。
+**procedure 的生产者**：`src/knowledge/procedure.js` 从**同一 family+subject 的至少 2 次独立晋升**归纳一条 procedure（单次成功不算；id 由 family+subject 稳定哈希；步骤取被改文件频次序；同 subject 的失败按 shape 写成 `notWhen` 与 pitfalls）。`round.js` 在晋升后调用它，新 procedure 同时写本战役与全局库；已有同 id 的不重复归纳。所以这条线现在是闭环的：归纳 → 选择/展示 → `lesson.shown` 记账 → `lesson.impact` 记胜负 → 20 次后 keep/drop。
+
+**仍然没有的真实数据**：20 次展示的裁决要真实战役慢慢攒，不能在本轮伪造。`notWhen` 目前对任务文本做子串匹配（例如 'error' 会误伤提到 error 的任务），这是已知的过度抑制，等真实误伤出现再收紧成"只匹配 shape 标签"。
 
 诚实的边界：Trace2Skill 之外的四篇只读了摘要与部分章节；"抽象记忆迁移更好"只有一篇受控研究支持；我们的任务与那些基准是否共享 shape，仍是假设。
+
 
