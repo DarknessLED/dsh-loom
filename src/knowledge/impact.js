@@ -255,6 +255,27 @@ export function lessonConfidence(attempt) {
  * before that field existed; it is a mechanism paragraph, so it is cut to its
  * first sentence. Returns null when the attempt gives us nothing declarative.
  */
+/**
+ * The difficulty shape of an attempt, in a form a lesson can be matched on.
+ *
+ * A shape is deliberately coarse: "near-miss" is a question ("we keep getting
+ * close and losing on one case"), and a claim that has been useful on that
+ * question may be useful again -- in this family or another. It is not a
+ * verdict about the work, so it is never used for promotion.
+ */
+export function shapeOf(attempt) {
+  const a = attempt && typeof attempt === 'object' ? attempt : {}
+  if (a.error) return ['error']
+  // `changed` lives in the report on a real attempt and at the top level on a
+  // projected one; both mean the same thing: nothing was touched.
+  const changed = Array.isArray(a.changed) ? a.changed : a?.report?.changed
+  if (Array.isArray(changed) && changed.length === 0) return ['no-patch']
+  const progress = Number(a.progress)
+  if (a.verifierOk && Number.isFinite(progress) && progress >= 1) return ['solved']
+  if (!a.verifierOk && Number.isFinite(progress) && progress >= 0.75) return ['near-miss']
+  return ['unsolved']
+}
+
 export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
   // The stated claim first. It is the field the brief asks for and the only
   // one written to be read outside its own task; `why` explains a change and
@@ -289,6 +310,11 @@ export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
     // What the claim is *about*, for a claim whose files the worker did not
     // list. Without it the tree has one group holding most of the corpus.
     subject: lessonFiles(attempt)[0] ?? symbolInClaim(raw),
+    // What the attempt looked like when the claim was earned. This is the only
+    // field that lets one domain's lesson be recognised in another domain's
+    // failure, so it travels with the claim rather than being re-derived later
+    // from a ledger that no longer holds the attempt.
+    shape: shapeOf(attempt),
     // The worker stated its own confidence; a constant 0.5 threw that away and
     // left every claim ranked identically.
     confidence: lessonConfidence(attempt),

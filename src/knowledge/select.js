@@ -17,6 +17,7 @@
 // clamped to +/-1e9) and rounded to 6 decimals so ranking is reproducible.
 
 import { isNoWorkClaim } from './impact.js'
+import { transferRoute } from './cross.js'
 
 const DEFAULT_TTL = 12
 const DEFAULT_LIMIT = 3
@@ -129,6 +130,31 @@ function compareRanked(left, right) {
   return 0
 }
 
+// Everything a `notWhen` condition is checked against: the task's own words,
+// its family, tags and difficulty shape. A condition that matches any of them
+// means "this lesson has been wrong in this situation before", and the lesson
+// does not get a slot. Negative transfer is the most consistent warning in the
+// transfer literature; this is the one place that warning can be acted on.
+function haystackOf(task) {
+  const t = toObject(task)
+  const parts = []
+  for (const key of ['text', 'prompt', 'description', 'id', 'family']) {
+    if (typeof t[key] === 'string') parts.push(t[key])
+  }
+  for (const key of ['tags', 'shape', 'signature']) {
+    if (Array.isArray(t[key])) parts.push(...t[key].filter((x) => typeof x === 'string'))
+  }
+  return parts.join(' ').toLowerCase()
+}
+
+function blockedByNotWhen(lesson, haystack) {
+  const conditions = toObject(lesson).notWhen
+  if (!Array.isArray(conditions) || !haystack) return false
+  return conditions.some(
+    (c) => typeof c === 'string' && c.trim() && haystack.includes(c.trim().toLowerCase()),
+  )
+}
+
 /**
  * Pick at most `limit` active lessons for this round/task/phase.
  * Exploration never receives prior guidance, so it always returns [].
@@ -150,6 +176,14 @@ export function selectLessons(lessons, options) {
 
   const rawExcluded = optionValue(options, 'excludeFamilies', [])
   const excludedFamilies = new Set(Array.isArray(rawExcluded) ? rawExcluded : [])
+  // Cross-domain material is opt-in: a caller that has not thought about
+  // analogies must not start receiving them. Procedures are scarce for the same
+  // reason -- one SOP is a hypothesis, three in one brief are noise.
+  const allowAnalogies = optionValue(options, 'allowAnalogies', false) === true
+  const allowProcedures = optionValue(options, 'allowProcedures', false) === true
+  const procedureLimitRaw = Number(optionValue(options, 'procedureLimit', 1))
+  const procedureLimit = Number.isFinite(procedureLimitRaw) ? Math.max(0, Math.floor(procedureLimitRaw)) : 1
+  const haystack = haystackOf(task)
 
   const selected = []
   for (const lesson of lessons) {
@@ -157,16 +191,32 @@ export function selectLessons(lessons, options) {
     if (lesson.status !== 'active') continue
     if (isExpired(lesson, { round })) continue
     if (excludedFamilies.has(lesson.family)) continue
-    if (phase === 'repair' && lesson.kind === 'recipe') continue
-    if (matchReason(lesson, task) === null) continue
+    if (phase === 'repair' && (lesson.kind === 'recipe' || lesson.kind === 'procedure')) continue
+    if (lesson.kind === 'procedure' && !allowProcedures) continue
+    const route = transferRoute(lesson, task)
+    if (route.route === 'none') continue
+    // Inspiration never enters a repair brief: repairs need deterministic
+    // guidance, and an analogy is a question, not an instruction.
+    if (route.route === 'analogy' && (!allowAnalogies || phase === 'repair')) continue
+    if (blockedByNotWhen(lesson, haystack)) continue
     // A claim that announces "nothing was needed" teaches the next worker
     // nothing, and it occupies one of the few slots a brief has.
     if (isNoWorkClaim(lesson.claim)) continue
-    selected.push(copyLesson(lesson, round))
+    selected.push({ ...copyLesson(lesson, round), route: route.route, analogy: route.route === 'analogy' })
   }
 
   selected.sort(compareRanked)
-  return selected.slice(0, limit)
+  const out = []
+  let procedures = 0
+  for (const lesson of selected) {
+    if (out.length >= limit) break
+    if (lesson.kind === 'procedure') {
+      if (procedures >= procedureLimit) continue
+      procedures += 1
+    }
+    out.push(lesson)
+  }
+  return out
 }
 
 /**

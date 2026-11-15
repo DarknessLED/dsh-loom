@@ -29,6 +29,7 @@ import { campaignQuality, qualityLine } from '../runtime/quality.js'
 import { doctor } from '../runtime/doctor.js'
 import { reviewQueue } from '../runtime/review.js'
 import { consolidate } from '../knowledge/dream.js'
+import { trialVerdict } from '../knowledge/cross.js'
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -305,6 +306,16 @@ export function registerTools(ctx, { runtime, config }) {
       // claims retired, and contradictions surfaced as questions. The status
       // view is the one place a person looks, so that is where they appear.
       const dream = consolidate(state?.lessons ?? [], { round: state?.rounds?.length ?? 0 })
+      // Procedures are on trial until 20 showings say otherwise. The status view
+      // is where a person can see the count closing and the verdict forming.
+      const procedures = dream.lessons.filter((l) => l.kind === 'procedure')
+      const trial = { shown: 0, wins: 0, losses: 0, drop: 0 }
+      for (const p of procedures) {
+        trial.shown += Number(p.trials?.shown) || 0
+        trial.wins += Number(p.trials?.wins) || 0
+        trial.losses += Number(p.trials?.losses) || 0
+        if (trialVerdict(p) === 'drop') trial.drop += 1
+      }
       const out = compactStatus(
         {
           ...view,
@@ -313,6 +324,8 @@ export function registerTools(ctx, { runtime, config }) {
             merged: dream.merged.length,
             retired: dream.retired.length,
             questions: dream.questions.slice(0, 3),
+            procedures: procedures.length,
+            trial,
           },
           // How well the forecasts have held so far, in the same view as the
           // chain they came from. The graded records stay under chain.measurements.
@@ -330,6 +343,7 @@ export function registerTools(ctx, { runtime, config }) {
       if (out && typeof out.text === 'string') {
         const q = dream.questions[0]
         out.text += `\nknowledge: ${dream.lessons.length} lesson(s), ${dream.merged.length} merged, ${dream.retired.length} retired` +
+          (procedures.length ? `, ${procedures.length} procedure(s) shown ${trial.shown} time(s): ${trial.wins}W/${trial.losses}L (drop: ${trial.drop})` : '') +
           (q ? `, open question: ${q.question}` : '')
       }
       return out

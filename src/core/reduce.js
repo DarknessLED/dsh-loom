@@ -210,7 +210,7 @@ function apply(s, ev) {
         // `planMode`/`planTimedOut` travel too: `planMode: 'auto'` reads the
         // last two rounds' planTimedOut, so a projected state that dropped it
         // would make every round look like it had planned successfully.
-        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'scoreSource', 'progress', 'chainVersion', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable']) {
+        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'scoreSource', 'progress', 'shape', 'chainVersion', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }
@@ -384,6 +384,17 @@ function apply(s, ev) {
       s.lessons = s.lessons.filter((x) => x.id !== rec.id).concat(rec)
       break
     }
+    case 'lesson.shown': {
+      // The denominator of the trial. Shown is recorded when the lesson enters
+      // a brief, not when it was created: a lesson that never reaches a worker
+      // never earns a win or a loss, and must not be deleted for that.
+      const l = s.lessons.find((x) => x.id === d.id)
+      if (l) {
+        const t = l.trials && typeof l.trials === 'object' ? l.trials : { shown: 0, wins: 0, losses: 0 }
+        l.trials = { ...t, shown: (Number(t.shown) || 0) + 1 }
+      }
+      break
+    }
     case 'lesson.impact': {
       const l = s.lessons.find((x) => x.id === d.id)
       if (l) {
@@ -391,6 +402,13 @@ function apply(s, ev) {
         l.gainSum = round6((Number(l.gainSum) || 0) + (Number(d.delta) || 0))
         if (d.harm) l.harmCount = (Number(l.harmCount) || 0) + 1
         l.lastUsedRound = d.round ?? l.lastUsedRound ?? null
+        // A lesson that was shown and then credited has a win; one shown and
+        // blamed has a loss. Both are counted only once the showing is on the
+        // ledger, so the denominator is "times it was actually in the brief".
+        if (l.trials) {
+          if (Number(d.delta) > 0) l.trials.wins = (Number(l.trials.wins) || 0) + 1
+          if (d.harm) l.trials.losses = (Number(l.trials.losses) || 0) + 1
+        }
       }
       break
     }

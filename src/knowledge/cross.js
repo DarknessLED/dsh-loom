@@ -21,7 +21,11 @@ function list(value) {
 }
 
 function signatureOf(entity) {
-  return new Set(list(entity.signature).map((s) => s.toLowerCase()))
+  // `signature` is the older name for the same idea; `shape` is what an attempt
+  // is classified into now. Reading both means a lesson written either way can
+  // still be matched, without migrating the corpus.
+  const e = toObject(entity)
+  return new Set([...list(e.signature), ...list(e.shape)].map((s) => s.toLowerCase()))
 }
 
 function label(entity) {
@@ -94,3 +98,24 @@ export function findAnalogies(target, lessons, options = {}) {
   out.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return out.slice(0, limit)
 }
+
+/**
+ * Did a transferred lesson pay for itself?
+ *
+ * The rule is mechanical on purpose: a forecast or an analogy that has been
+ * shown twenty times and won less often than it lost is deleted, not defended.
+ * Below twenty showings there is not enough evidence to say anything, and the
+ * honest answer is "insufficient" rather than a coin flip.
+ */
+export const TRIAL_MIN = 20
+
+export function trialVerdict(lesson) {
+  const t = toObject(lesson).trials
+  if (!t || typeof t !== 'object') return 'insufficient'
+  const shown = Number(t.shown) || 0
+  const wins = Number(t.wins) || 0
+  const losses = Number(t.losses) || 0
+  if (shown < TRIAL_MIN) return 'insufficient'
+  return wins > losses ? 'keep' : 'drop'
+}
+

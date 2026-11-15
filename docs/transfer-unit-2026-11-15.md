@@ -103,3 +103,19 @@ procedure = {
 2. 把跨域 procedure 接进"探索轮 treated 候选"，打上 attempt 标记，复用 pairedImpacts。
 3. 攒 20 次展示，算配对胜率；零结果就撤掉 `cross.js` 这条线，别留死代码。
 4. 只有第 3 步为正，才讨论 SOP 归纳（dream 的抽象层）与跨战役存储。
+
+## 8. 已落地（2026-11-15 深夜，commit 见文末）
+
+第 1–3 步已接进生产路径，规格是 `tests/self25/procedure-transfer.test.mjs`：
+
+- `notWhen` 在 `selectLessons` 里真正被读：任务文本、家族、标签、shape 任一命中即不展示。
+- `procedure` 是稀缺类型：每份 brief 最多一条，`phase === 'repair'` 时一条也不给。
+- 跨域经验只能以 `analogy` 进入，且只在调用方显式 `allowAnalogies` 时；call site 只在探索/停滞时打开，repair 永不打开。
+- 展示即记账：选中一条 procedure/analogy 就写 `lesson.shown`，`lesson.impact` 再按配对增益记 win/loss；`trialVerdict` 在 20 次展示后给出 keep/drop，`rsi_status` 直接打印。
+- 跨战役存储：`src/knowledge/store.js` 读写 `<home>/knowledge.json`，按 id 去重、最多 500 条、坏文件先备份；`round.js` 在采纳一条新经验时同时写全局库。
+- 每次尝试被归类成 shape（`error`/`no-patch`/`solved`/`near-miss`/`unsolved`），随 `round.finished` 落账；下一轮用它作为"现在卡在哪"的匹配条件。
+
+**仍然没有的生产者**：现在没有"把一次成功尝试归纳成 procedure"的生成器——procedure 记录目前只能由外部/手工写入或由未来 dream 的抽象层产生。所以这条线现在能测的是"已有 procedure 如何被展示、记账、淘汰"，不是"procedure 如何自己长出来"。第 3 步的 20 次展示决策要靠真实战役慢慢攒，不能在本轮伪造。
+
+诚实的边界：Trace2Skill 之外的四篇只读了摘要与部分章节；"抽象记忆迁移更好"只有一篇受控研究支持；我们的任务与那些基准是否共享 shape，仍是假设。
+

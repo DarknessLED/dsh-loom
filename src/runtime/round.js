@@ -29,7 +29,8 @@ import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
 import { nodeExecutable, nodeOnPath, withNodeOnPath } from '../exec/node-bin.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
 import { selectLessons } from '../knowledge/select.js'
-import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson } from '../knowledge/impact.js'
+import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson, shapeOf } from '../knowledge/impact.js'
+import { readGlobalLessons, appendGlobalLesson } from '../knowledge/store.js'
 import { pickSurvivors, screenEnabled } from './halving.js'
 import { adaptiveCandidateMode, secondCandidateGate } from './candidates.js'
 import { planCandidates } from '../loop/candidates.js'
@@ -1503,15 +1504,38 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const base = await headCommit(workspace).catch(() => null)
         await createWorktree({ repo: workspace, dir: wtPath, branch })
         const notes = readNotes(board, { kinds: ['obstacle', 'finding'], limit: 5, excludeAttempt: attemptId })
+        // The pool is the campaign's own lessons plus the ones other campaigns
+        // have already paid for. A borrowed lesson still has to pass the same
+        // route and notWhen checks; being global is not a qualification.
+        const localLessons = state.lessons || []
+        const seenLessons = new Set(localLessons.map((l) => l.id))
+        const globalLessons = runtime.home
+          ? readGlobalLessons(runtime.home).filter((l) => !seenLessons.has(l.id))
+          : []
+        const lessonPool = localLessons.concat(globalLessons)
+        // The shape of the last completed round on this campaign: what kind of
+        // failure we are in *now*. Empty on the first round, which is why a
+        // shape match is never the only route into a brief.
+        const lastShape = [...(state.rounds || [])].reverse().find((r) => Array.isArray(r.shape))?.shape ?? []
         const lessons = treated && policy.knowledge && config.knowledge?.enabled
-          ? selectLessons(state.lessons || [], {
+          ? selectLessons(lessonPool, {
               round: n,
-              task,
+              task: { ...task, shape: lastShape },
               phase,
               limit: config.knowledge.maxShown,
               excludeFamilies: holdoutFamilies,
+              allowAnalogies: true,
+              allowProcedures: true,
             })
           : []
+        // A showing is the denominator of the trial. It is recorded here, not
+        // when the lesson was created, so a lesson that never reaches a worker
+        // is never blamed for a loss it could not have caused.
+        for (const lesson of lessons) {
+          if (lesson.analogy || lesson.kind === 'procedure') {
+            runtime.append(view, 'lesson.shown', { id: lesson.id, round: n, analogy: lesson.analogy === true }, 'system')
+          }
+        }
         // The deadline is decided before the brief so the brief can state it.
         // It is written on the lease and the `attempt.deadline` event below, so
         // an interrupted attempt leaves behind the minute it was owed to end by
@@ -2478,6 +2502,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const derived = checks.noop ? null : deriveLesson({ attempt: best, task, round: n })
         if (derived && !(state.lessons || []).some((l) => l.id === derived.id)) {
           runtime.append(view, 'lesson.added', { lesson: derived }, 'system')
+          // The same claim is worth the same to the next campaign, which will
+          // not see this ledger. The write is best-effort: a read-only home
+          // costs the current campaign nothing.
+          if (runtime.home) appendGlobalLesson(runtime.home, derived)
         }
       } catch (err) {
         log('lesson derivation failed:', err?.message ?? err)
@@ -2550,7 +2578,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, progress, chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, progress, ...(best ? { shape: shapeOf(best) } : {}), chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -2565,6 +2593,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       score,
       scoreSource,
       progress,
+      ...(best ? { shape: shapeOf(best) } : {}),
       chainVersion: state.chain.activeVersion,
       promoted: promote === true,
       attempts,
