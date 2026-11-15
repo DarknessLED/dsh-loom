@@ -799,20 +799,26 @@ export function abandonedVerdict(reason, cwd) {
  * sibling history beyond a handful of notes, no knowledge the round has not
  * earned yet.
  */
-function attemptBrief({ chain, state, task, verifyCmd, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars, budgetMs }) {
+function attemptBrief({ chain, state, task, verifyCmd, verifyHidden = false, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars, budgetMs }) {
   const mapNode = (chain.nodes || []).find((n) => n.type === 'map')
-  const rolePrompt = mapNode?.of?.prompt || 'Do the task in your worktree, then run the verification command.'
+  const rolePrompt =
+    mapNode?.of?.prompt ||
+    (verifyHidden
+      ? 'Do the task in your worktree. The verifier is hidden, so you cannot check your own work against it.'
+      : 'Do the task in your worktree, then run the verification command.')
   const constraints = state.constraints.filter((c) => c.active).map((c) => c.text)
   constraints.push(
     rolePrompt,
     `Work ONLY inside ${worktree}. Do not read or write outside it.`,
-    `The verifier will run: \`${verifyCmd}\` in that directory. Make it pass.`,
+    ...(verifyHidden
+      ? ['The verifier for this task is hidden: you cannot run it, and you will not see its output. Do the task from its prompt alone.']
+      : [`The verifier will run: \`${verifyCmd}\` in that directory. Make it pass.`]),
     'Do not edit the verifier command or tests to make them pass; fix the actual problem.',
     'If the task is impossible, say so explicitly and explain why; a clean failure is useful.',
   )
   return buildWorkerBrief({
     objective: state.objective,
-    task: { id: task.id, prompt: task.prompt, verify: task.verify },
+    task: { id: task.id, prompt: task.prompt, ...(verifyHidden ? { verify: { hidden: true } } : { verify: task.verify }) },
     chain: { name: chain.name, version: chain.version },
     attemptIndex: index,
     totalAttempts: total,
@@ -1557,6 +1563,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           state,
           task,
           verifyCmd,
+          verifyHidden: task.verify?.hidden === true,
           worktree: wtPath,
           attemptId,
           index: i,
@@ -1606,6 +1613,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             state,
             task,
             verifyCmd,
+            verifyHidden: task.verify?.hidden === true,
             worktree: wtPath,
             attemptId,
             index: i,

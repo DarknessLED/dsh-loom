@@ -146,6 +146,13 @@ const standing = [
   // self30/noop-needs-full-pass: T3 promoted an empty diff that exited 0 but
   // only half-passed; 'already satisfied' now needs the whole verifier.
   'tests/self30/noop-needs-full-pass.test.mjs',
+  // self31/verify-hidden: a task may hide its verifier command, so the brief
+  // stops naming the file a candidate could probe or edit.
+  'tests/self31/verify-hidden.test.mjs',
+  // self32/prune-trial: T3 lost its lesson at showing 5 because the old
+  // "never useful" rule fired mid-trial; an open trial is retired by its
+  // verdict, not by a rule written before trials existed.
+  'tests/self32/prune-trial.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

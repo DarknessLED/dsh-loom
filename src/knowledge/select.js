@@ -246,7 +246,13 @@ export function pruneLessons(lessons, options) {
     if (id === null) continue
     const useCount = Math.max(0, finiteNumber(lesson.useCount, 0))
     const gainSum = finiteNumber(lesson.gainSum, 0)
-    const neverUseful = useCount >= 5 && gainSum <= 0
+    // A lesson under an open trial has its own retirement rule: the trial's
+    // verdict. The old "used five times, never gained" rule would retire it
+    // exactly when it started accumulating evidence, at 5 of the 20 showings
+    // the verdict needs.
+    const verdict = lesson.trials && typeof lesson.trials === 'object' ? trialVerdict(lesson) : null
+    const neverUseful =
+      verdict === 'drop' || (verdict === null && useCount >= 5 && gainSum <= 0)
     // Retire claims that announce nothing was done. They were written by an
     // older producer; leaving them active means every brief keeps spending a
     // slot to say so.
