@@ -32,6 +32,13 @@ export const DEFAULT_CONFIG = {
      * costs nothing and makes the cadence adjustable on purpose.
      */
     window: 3,
+    /**
+     * Window spend (USD) at which a stall is reported as "burning budget"
+     * rather than merely flat. 0.12 is roughly two full attempts at the
+     * mid-size worker pricing; without a default the trigger existed but could
+     * never fire, so every expensive stall read as an ordinary one.
+     */
+    burnUsd: 0.12,
     /** "HH:MM-HH:MM" local quiet window; checkpoints are batched until it ends. */
     quietHours: null,
     batch: true,

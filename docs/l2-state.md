@@ -229,6 +229,8 @@ caveat) plus two the code was hiding. Commit `1c56c97`.
 | 24 | `candidates+1` read a single top-two gap as the value of one more draw | probability-weighted: P(second beats first) × median winning gap, Wilson interval | `tests/self23/estimator.test.mjs` |
 | 25 | A stall asked once per campaign and never again; burn/near-miss looked identical | the card asks once per *window*, names its trigger (burn / near-miss / flat), and a missed negative forecast raises `chain-revert` | `tests/self23/stall-signals.test.mjs`; live second card `cp-mwhu7q2300000r` on rounds 4–6 |
 | 26 | The revert card was inert: `adoptFromCheckpoint` accepted only chain/plateau | `chain-revert` is on the same one-click path | `tests/self22/l2-adopt-measure.test.mjs`; live approve activated v3 |
+| 27 | The forecast ledger was displayed but never read by the next card | a prior with a miss record is stated as risk; the card prints graded / missed / coverage / MAE | `tests/self23/card-calibration.test.mjs`; `d48f08c` |
+| 28 | The `burn` trigger shipped unreachable: `checkpoint.burnUsd` had no default | default 0.12 USD, `stallTrigger` extracted and tested; burn outranks near-miss, `0` disables it | `tests/self23/burn-default.test.mjs` |
 
 ### Live run (`l2live`, the instrument always prints `KILLRATE=0.000`)
 

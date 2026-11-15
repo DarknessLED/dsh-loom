@@ -38,6 +38,7 @@ import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { oncePlateau } from './plateau.js'
+import { stallTrigger } from './stall.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { topoOrder, runnableNodes, maxParallelOf } from '../chain/spec.js'
 import { nextCheckpointId } from './ids.js'
@@ -2693,13 +2694,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const windowRounds = rounds.slice(-window)
       const windowProgress = windowRounds.reduce((max, r) => Math.max(max, Number(r.progress) || 0), 0)
       const windowSpend = windowRounds.reduce((sum, r) => sum + (Number(r.costUsd) || 0), 0)
-      const burnUsd = Number(config.checkpoint?.burnUsd)
-      const trigger =
-        Number.isFinite(burnUsd) && burnUsd > 0 && windowSpend >= burnUsd
-          ? 'burn'
-          : windowProgress >= 0.5
-            ? 'near-miss'
-            : 'flat'
+      const trigger = stallTrigger({ progress: windowProgress, spendUsd: windowSpend, burnUsd: config.checkpoint?.burnUsd })
       // Offer what is fresh first: `proposals[0]` is the one the card recommends,
       // and that is the version the plateau checkpoint names.
       const ordered = card.items.slice().sort((a, b) => (a.status === 'fresh' ? 0 : 1) - (b.status === 'fresh' ? 0 : 1))
