@@ -123,6 +123,85 @@ Each script reads the campaign ledger under `~/.dsh/loom/campaigns/` and writes 
 next to itself. `decide.mjs` exits with the decision on stdout; it never edits a
 campaign.
 
+## 2026-11-15: the proposal now carries a forecast, and a live round settled it
+
+The card that reached a person on 2026-11-14 named what each proposal would
+replace, but not what it was expected to buy. Three modules close that gap
+(`f9fcd7e`):
+
+- `src/chain/predict.js` — `predictGain` gives a point estimate and an
+  interval from the rounds that actually ran on the chain (`candidates+1` reads
+  the measured gap between verified attempts; the prompt kinds read the win
+  rate × median win, Wilson-bounded). With no measured history it falls back to
+  a `prior` built from the headroom left over the per-task best, and says
+  `basis: "prior"` in the card. `regressionRisk` names the reasons (flat
+  window, cost of the extra candidate, too little history).
+- `src/chain/spec-diff.js` — the exact JSON-path diff between the active chain
+  and the proposal, including prompt appends, so the card shows what changes
+  rather than describing it.
+- `src/chain/evidence-card.js` — rounds on the chain, spend, promotions, then
+  per proposal: predicted gain with interval, risk with reasons, diff lines, and
+  a `missing:` list for what could not be produced.
+
+Adoption is one click on either door (`src/chain/adopt.js`, called from
+`rsi_decide` and the panel): approving a `chain` or `plateau` checkpoint appends
+`chain.activated` with the prediction, and `reduce.js` remembers a
+`chain.pending`. The next round finished on the new version appends
+`chain.measured` with `realized = actual − baseline` and `met | exceeded |
+missed`.
+
+### The live measurement
+
+Campaign `l2live` (workspace `C:/Projects/RSI-live/l2`, one task whose verifier
+prints `KILLRATE=0.000`). Three flat rounds raised the plateau checkpoint
+`cp-mwhsj21m00000q` on its own: it proposed v3 `minimal-change`, v4
+`no-test-edits`, v5 `state-your-uncertainty`, with v2 `candidates+1` blocked as
+`already-decided`. The card carried `$0.0862` spent, 3 rounds measured, 0
+promoted, prediction `0.25 (0 .. 1)`, basis `prior`, risk `high` with the reason
+"all 3 of the last rounds promoted nothing", and each spec diff. Approving it
+appended `chain.activated` v3; round 4 ran on v3 and
+`chain.measured` recorded `realized 0`, `predicted 0.25`, verdict `missed`.
+
+That is the honest result. The forecast was a prior because the chain had never
+measured a change of that kind; the card said so in its `missing:` line. A
+proposal whose `basis` is `rounds` is the case the interval is actually worth
+something — none exists in the corpus yet, and that is what the next campaign
+has to produce.
+
+## 2026-11-15: what halving saved, measured on both sides
+
+`loopPolicy.halving` was already wired; it is now billed correctly and
+measured. `6ee13d4` charges a survivor for the screen that bought it
+(`attemptCostUsd` + `screenCostUsd` = `costUsd`), because before that fix a
+halving round looked cheaper than it was: the screen was kept on the record but
+never added to the round. `tests/self22/halving-round.test.mjs` pins the split
+and pins that `halving:false` runs zero screens and all four candidates —
+the off path is unchanged.
+
+Two regimes, same instrument family (real failing suite, verifier prints
+`KILLRATE`), four candidates, one round per arm:
+
+| regime | halving on | halving off | score |
+|---|---|---|---|
+| solvable suite, sibling early stop (`halving-on5` / `off5`) | **$0.035567** | **$0.029309** | 1.0 vs 1.0 |
+| no candidate can win, so all four run (`halving-nw-on` / `off`) | **$0.040280** | **$0.064829** | 0 vs 0 |
+
+In the second regime halving saved **37.9%** with the same score: four screens
+plus two full attempts cost less than four full attempts. That is the regime it
+was designed for — a round where the suite stays red.
+
+In the first regime it cost **21% more**, and the reason is mechanical: a
+sibling that solves the task already stops the other attempts after ~30 s
+(`solved-by-sibling`), so the control arm pays for one and a bit attempts, not
+four; and one screen ignored "do not read files" and burned 42k tokens, roughly
+a full attempt by itself. An earlier constant-verifier pair
+(`halving-on3` / `off3`) showed the same sign: $0.051336 vs $0.046454.
+
+So the honest summary is not "halving saves money". It is: halving saves money
+when the round would otherwise search without a winner; it loses when a sibling
+wins early and when screens cost as much as attempts. Both numbers are in the
+campaign ledgers under `~/.dsh/loom/campaigns/halving-{on5,off5,nw-on,nw-off}`.
+
 ## What this does not claim
 
 - Kill rate is a property of a test suite and a mutation operator, not of the code
