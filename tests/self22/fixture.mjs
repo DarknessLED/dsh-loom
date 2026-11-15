@@ -57,9 +57,13 @@ export function makeRuntime({ repo, tasks, spec = chainSpec(), budget = {} } = {
     append(_view, type, data) {
       events.push({ type, data })
       // Fold just enough for the next predicate: plateau detection reads
-      // `finished.rounds`, and the card reads the rounds that finished.
+      // `finished.rounds` and the checkpoints it already raised (the second card
+      // must cover a new window, not the one it just asked about).
       return {
         rounds: events.filter((e) => e.type === 'round.finished').map((e) => ({ n: e.data.n, ...e.data })),
+        checkpoints: events
+          .filter((e) => e.type === 'checkpoint.raised')
+          .map((e) => ({ id: e.data.id, kind: e.data.kind, payload: e.data.payload, status: 'open' })),
       }
     },
     status() {

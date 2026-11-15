@@ -58,13 +58,16 @@ async function roundWith(halvingEnabled, policy = null) {
   const finish = runtime.events.find((e) => e.type === 'round.finished')?.data
   const attemptSum = (finish?.attempts ?? []).reduce((sum, a) => sum + (Number(a?.costUsd) || 0), 0)
   rmSync(dir, { recursive: true, force: true })
-  return { screens, full, screenedOut, screenedCost, survivors, allAttemptCost, finishCost: Number(finish?.costUsd) || 0, attemptSum }
+  return { screens, full, screenedOut, skipped: Number(finish?.skippedCandidates) || 0, screenedCost, survivors, allAttemptCost, finishCost: Number(finish?.costUsd) || 0, attemptSum }
 }
 
 const on = await roundWith(true)
 assert.equal(on.screens, 4, 'every candidate gets the cheap screen')
 assert.ok(on.full <= 2, `only the kept half gets a full attempt (got ${on.full})`)
-assert.equal(on.screenedOut, 4 - on.full, 'dropped candidates are recorded as screened out')
+// Screens drop the candidates that ranked worst; the kept survivors are bought
+// one at a time now, so a won round leaves the rest skipped rather than bought.
+assert.equal(on.screenedOut, 2, 'half the candidates are dropped by their screen')
+assert.equal(on.full + on.skipped + on.screenedOut, 4, 'every candidate is either bought, skipped after a win, or dropped by its screen')
 assert.ok(on.screenedCost >= 0 && Number.isFinite(on.screenedCost), 'a screen carries a billable cost')
 assert.ok(on.finishCost >= on.screenedCost - 1e-9, 'the round cost includes the screens it bought')
 assert.ok(on.survivors.length > 0, 'a survivor keeps a record of the screen it passed')

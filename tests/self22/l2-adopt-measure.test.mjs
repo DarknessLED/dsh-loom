@@ -64,7 +64,14 @@ assert.equal(out.activated, 2)
 assert.equal(appends[0].type, 'chain.activated')
 assert.equal(appends[0].data.prediction.point, 0.2)
 assert.equal(adoptFromCheckpoint({ runtime: fakeRuntime, view, checkpoint: { kind: 'gate', payload: { chainVersion: 2 } } }), null)
-ok('the adoption helper only acts on chain/plateau cards and keeps the prediction')
+const back = adoptFromCheckpoint({
+  runtime: fakeRuntime,
+  view,
+  checkpoint: { kind: 'chain-revert', payload: { chainVersion: 1 } },
+})
+assert.equal(back.activated, 1)
+assert.equal(appends[1].data.version, 1)
+ok('the adoption helper only acts on chain/plateau/revert cards and keeps the prediction')
 
 for (const file of ['src/tools/index.js', 'src/panel/api.js']) {
   const text = readFileSync(file, 'utf8')

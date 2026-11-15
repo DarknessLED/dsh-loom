@@ -78,19 +78,77 @@ function winSizes(rounds) {
   return out
 }
 
-/** The measured gap between the best and second-best verified attempt of a round. */
-function topTwoGaps(rounds) {
+/**
+ * What a round's two attempts say about buying a third.
+ *
+ * Two numbers matter and they are not the same. The gap between the best and
+ * the second-best attempt is the most the next draw could add, but the next
+ * draw does not reliably beat the incumbent: it only pays when it lands above
+ * the best of the two already bought. So the estimator keeps the per-round gap
+ * and also counts how often the later draw actually beat the earlier one; the
+ * forecast is the beat rate times the size of the wins it produced.
+ */
+function topTwoEvidence(rounds) {
   const gaps = []
+  const positiveGaps = []
+  let beats = 0
+  let pairs = 0
   for (const r of rounds) {
     const attempts = (Array.isArray(r.attempts) ? r.attempts : [])
       .filter((a) => a && a.screenedOut !== true && a.verifierOk === true && Number.isFinite(Number(a.score)))
       .map((a) => Number(a.score))
     if (attempts.length < 2) continue
+    const [first, second] = attempts
+    if (second > first) {
+      beats += 1
+      positiveGaps.push(second - first)
+    }
+    pairs += 1
     attempts.sort((a, b) => b - a)
     const gap = attempts[0] - attempts[1]
     if (gap > 0) gaps.push(gap)
   }
-  return gaps
+  return { gaps, positiveGaps, beats, pairs }
+}
+
+/**
+ * Grade forecasted gains against what adoption actually measured.
+ *
+ * `coverage` is the share of outcomes inside the stated interval; `mae` is the
+ * average distance to the point forecast. Both are reported because a narrow
+ * interval can win on error and still be wrong about how often it covers.
+ */
+export function summarizeCalibration(measurements = []) {
+  const list = (Array.isArray(measurements) ? measurements : []).filter(
+    (m) => m && Number.isFinite(Number(m.realized)) && Number.isFinite(Number(m.predicted?.point)),
+  )
+  let met = 0
+  let missed = 0
+  let exceeded = 0
+  let inside = 0
+  let absError = 0
+  for (const m of list) {
+    if (m.verdict === 'missed') missed += 1
+    else if (m.verdict === 'exceeded') exceeded += 1
+    else met += 1
+    const low = Number(m.predicted?.low)
+    const high = Number(m.predicted?.high)
+    const realized = Number(m.realized)
+    const covered = Number.isFinite(low) && Number.isFinite(high)
+      ? realized >= low && realized <= high
+      : m.verdict !== 'missed'
+    if (covered) inside += 1
+    absError += Math.abs(realized - Number(m.predicted.point))
+  }
+  const n = list.length
+  return {
+    n,
+    met,
+    missed,
+    exceeded,
+    coverage: n ? inside / n : 0,
+    mae: n ? absError / n : 0,
+  }
 }
 
 /**
@@ -102,7 +160,22 @@ function topTwoGaps(rounds) {
 export function predictGain({ kind, rounds = [], config = {}, candidates = null } = {}) {
   const list = measuredRounds(rounds)
   if (kind === 'candidates+1') {
-    const gaps = topTwoGaps(list)
+    const { gaps, positiveGaps, beats, pairs } = topTwoEvidence(list)
+    if (beats > 0) {
+      const rate = beats / pairs
+      const [pLo, pHi] = wilson(beats, pairs)
+      const point = clamp01(rate * median(positiveGaps))
+      const low = clamp01(pLo * percentile(positiveGaps, 0.25))
+      const high = clamp01(pHi * percentile(positiveGaps, 0.9))
+      return {
+        point: round4(point),
+        low: round4(Math.min(low, point)),
+        high: round4(Math.max(high, point)),
+        samples: pairs,
+        basis: 'rounds',
+        method: `P(second attempt beats first) ${rate.toFixed(2)} × median winning gap ${round4(median(positiveGaps))} (${beats} beat(s) in ${pairs} pair(s)), Wilson interval`,
+      }
+    }
     if (gaps.length) {
       const point = clamp01(median(gaps))
       const low = clamp01(percentile(gaps, 0.25))
@@ -113,7 +186,7 @@ export function predictGain({ kind, rounds = [], config = {}, candidates = null 
         high: round4(Math.max(high, point)),
         samples: gaps.length,
         basis: 'rounds',
-        method: `median gap between the best and the second-best attempt (${gaps.length} round(s)); an upper bound on one more draw`,
+        method: `median gap between the best and the second-best attempt (${gaps.length} round(s)); an upper bound on one more draw, since no second draw beat the first here`,
       }
     }
   } else {

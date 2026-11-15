@@ -21,7 +21,7 @@ import { scoreOf } from '../gate/score.js'
 import { verifyMetrics } from '../gate/metrics.js'
 import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
 import { measurePrediction } from '../chain/measure.js'
-import { readDecisions } from '../loop/decisions.js'
+import { readDecisions, appendDecision } from '../loop/decisions.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
@@ -847,6 +847,8 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
         `Work ONLY inside ${wtPath}. Do not read or write outside it.`,
         `The screening check runs: \`${task.screen.cmd}\``,
         'This is a screening step — cheap and fast — and it is not promoted on its own.',
+        'Spend at most 60 seconds and at most 3 tool calls. Then stop.',
+        'End with exactly one line: `VERDICT: likely` or `VERDICT: maybe` or `VERDICT: unlikely`, followed by one sentence naming the cause.',
       ],
       workspace: { branch, cwd: wtPath },
     })
@@ -855,7 +857,10 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       cwd: wtPath,
       timeoutMs,
       label: `loom:${workerId}:${attemptId}:screen`,
-      model: config.models.worker || null,
+      // A screen is a classification, not a solve: let the campaign name a
+      // cheaper model for it. Falling back to the worker keeps old campaigns
+      // byte-identical.
+      model: config.halving?.screenModel || config.models.worker || null,
       models,
     })
     const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
@@ -866,9 +871,16 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
     const screenPricing = pricingFor(config.models?.pricing, run.model)
     const screenSpend = usageOfSession(runtime.ctx, run.sessionId, screenPricing.table)
     const screenBilled = hasTokens(screenSpend.usage) ? screenSpend : fallbackSpend(brief, run.text, screenPricing.table)
+    // The verdict is the only part of a screen the round can act on; a screen
+    // that answers in prose still gets a rank, just a neutral one.
+    const verdictMatch = String(run.text ?? '').match(/VERDICT:\s*(likely|maybe|unlikely)/i)
+    const verdict = verdictMatch ? verdictMatch[1].toLowerCase() : null
+    const rank = verdict === 'likely' ? 2 : verdict === 'unlikely' ? 0 : 1
     Object.assign(out, {
       ok: Boolean(ver.ok),
       exitCode: ver.exitCode ?? null,
+      verdict,
+      rank,
       costUsd: screenBilled.usd ?? 0,
       tokens: tokensOf(screenSpend, brief, run.text),
       sessionId: run.sessionId ?? null,
@@ -1403,7 +1415,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       for (const p of plan) {
         const res = await screenCandidate({ runtime, view, state, config, dispatcher, task, attemptId: p.attemptId, workerId, models, log })
         screenInfo.set(p.attemptId, res)
-        results.push({ id: p.attemptId, ok: res.ok, score: res.ok ? 1 : 0 })
+        results.push({ id: p.attemptId, ok: res.ok, score: res.ok ? Number(res.rank) || 0 : -1 })
       }
       const picked = pickSurvivors(results, { keepRatio: config.halving.keepRatio })
       survivors = picked.survivors.length ? picked.survivors : [plan[0].attemptId]
@@ -1435,10 +1447,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // session.maxConcurrent; a cap of 1 keeps the old sequential behaviour, and
     // no configured cap means "run them all" rather than "never dispatch".
     const dispatchPlan = plan.filter((p) => survivors.includes(p.attemptId))
+    // The screen ranked the survivors; buy the one it liked best first. Ties keep
+    // plan order (V8 sort is stable), so a campaign without verdicts is unchanged.
+    if (screening) {
+      dispatchPlan.sort(
+        (a, b) => (screenInfo.get(b.attemptId)?.rank ?? 1) - (screenInfo.get(a.attemptId)?.rank ?? 1),
+      )
+    }
     // Cascade is serial by definition: the whole saving comes from deciding
-    // after one candidate rather than buying both at once. Parallel keeps the
-    // configured pool exactly as before.
-    const limit = candidateMode === 'cascade' ? 1 : dispatchLimit(config, dispatchPlan.length)
+    // after one candidate rather than buying both at once. A screened round is
+    // serial for the same reason: the next survivor is only worth buying if the
+    // best-ranked one failed, and at that point we know.
+    const limit = screening || candidateMode === 'cascade' ? 1 : dispatchLimit(config, dispatchPlan.length)
     const records = new Map()
     // The abort hooks the dispatcher hands each running attempt in `onStart`.
     // A candidate that satisfies the task outright uses them to stop its
@@ -1750,6 +1770,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         const reading = gateOk ? scoreOf({ verifierOk: true, metrics: measuredMetrics }) : { score: 0, source: 'binary' }
         const score = reading.score
         const scoreSource = reading.source
+        // Score answers "can this be promoted"; progress answers "how far did it
+        // get". They are different questions and a failed verifier currently
+        // answers both with 0, which hides a 0.9 kill rate behind a flat round.
+        const progress = Number.isFinite(Number(measuredMetrics.killRate))
+          ? Math.max(0, Math.min(1, Number(measuredMetrics.killRate)))
+          : score
         // Price this attempt with the table of the model that actually ran: a
         // relay that charged 9x the default must not be billed at the default,
         // and the record keeps the key so a report can audit the choice.
@@ -1781,6 +1807,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           durationMs: Date.now() - startedAt,
           score,
           scoreSource,
+          progress,
+          promotable: gateOk,
           metrics: measuredMetrics,
           sessionId: runRes.sessionId,
           stopReason: runRes.stopReason,
@@ -1904,6 +1932,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // The pool is serial in cascade mode, so every record here is final:
           // one perfect candidate ends the round instead of buying a second opinion.
           if (cascadeSatisfied()) return
+          // A screened round is serial: once the best-ranked survivor wins, the
+          // rest cannot change the gate's answer and are not bought.
+          if (screening && solvedBy) return
           const at = cursor
           cursor += 1
           if (at >= dispatchPlan.length) return
@@ -1930,7 +1961,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }),
     )
     // Planned minus dispatched is the whole saving; parallel never skips.
-    skippedCandidates = candidateMode === 'cascade' ? Math.max(0, dispatchPlan.length - dispatched) : 0
+    skippedCandidates = screening || candidateMode === 'cascade' ? Math.max(0, dispatchPlan.length - dispatched) : 0
     // Emit in plan order, not completion order: the round ledger keeps the
     // same shape it has always had regardless of which candidate finished first.
     for (const { attemptId } of plan) {
@@ -2122,6 +2153,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // travels with it: a 0.6 kill rate and a binary 1 are both scores but not
     // the same kind of evidence.
     const scoreSource = best?.scoreSource ?? null
+    // The round keeps its best progress next to its score: a no-gain round that
+    // got to 0.9 is a near miss, and the stall detectors below need to see it.
+    const progress = attempts.reduce((max, a) => Math.max(max, Number(a.progress) || 0), 0)
     const roundCost = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
     if (roundCost > 0) {
       runtime.append(view, 'budget.spent', { usd: roundCost, attempts: attempts.length }, 'system')
@@ -2515,7 +2549,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, progress, chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
       'system',
     )
 
@@ -2529,6 +2563,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain',
       score,
       scoreSource,
+      progress,
       chainVersion: state.chain.activeVersion,
       promoted: promote === true,
       attempts,
@@ -2544,7 +2579,47 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         pending: pendingForecast,
         round: { n, taskId: task.id, chainVersion: state.chain.activeVersion, score, promoted: promote === true },
       })
-      if (measured) runtime.append(view, 'chain.measured', measured, 'system')
+      if (measured) {
+        runtime.append(view, 'chain.measured', measured, 'system')
+        // A forecast is only useful if it is graded. Keep the pair next to the
+        // decisions this campaign already carries, so calibration is a query
+        // over the campaign's own record rather than a memory of one session.
+        try {
+          appendDecision(runtime.home ? join(runtime.home, 'decisions.json') : null, {
+            kind: 'prediction',
+            decision: `v${measured.version}-r${measured.round}`,
+            evidence: {
+              predicted: Number(measured.predicted?.point) || 0,
+              realized: Number(measured.realized) || 0,
+              verdict: measured.verdict,
+            },
+          })
+        } catch (err) {
+          log('prediction ledger append failed:', err?.message ?? err)
+        }
+        // A forecast that missed AND lost ground is the one case where the loop
+        // should propose undoing its own last adoption: the new chain is not
+        // merely unproven, it is worse than what it replaced.
+        const revertOn = config.checkpoint?.chainRevert !== false
+        const alreadyAsked = (view.state.checkpoints || []).some(
+          (c) => c?.kind === 'chain-revert' && Number(c?.payload?.chainVersion) === Number(pendingForecast.fromVersion),
+        )
+        if (
+          revertOn &&
+          measured.verdict === 'missed' &&
+          Number(measured.realized) <= 0 &&
+          pendingForecast.fromVersion != null &&
+          !alreadyAsked
+        ) {
+          raise('chain-revert', {
+            message: `chain v${measured.version} missed its forecast and lost ${Math.abs(Number(measured.realized)).toFixed(2)} against the best before it; propose going back to v${pendingForecast.fromVersion}`,
+            chainVersion: pendingForecast.fromVersion,
+            measurement: measured,
+            prediction: pendingForecast.prediction,
+            fromVersion: pendingForecast.fromVersion,
+          })
+        }
+      }
     }
 
     // Three rounds in a row whose patches changed while the verifier said exactly
@@ -2606,6 +2681,19 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const decided = readDecisions(runtime.home ? join(runtime.home, 'decisions.json') : null)
       const proposed = proposeMutations(baseSpec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable, rounds })
       const card = buildProposalCard({ active: { version: activeVersion, spec: baseSpec }, proposals: proposed, rounds, config })
+      // Why this card exists is part of the card. Three flat rounds are not the
+      // same stall when each one got to 90% (a gate/knob problem) as when each
+      // one was a dead end (an objective problem).
+      const windowRounds = rounds.slice(-window)
+      const windowProgress = windowRounds.reduce((max, r) => Math.max(max, Number(r.progress) || 0), 0)
+      const windowSpend = windowRounds.reduce((sum, r) => sum + (Number(r.costUsd) || 0), 0)
+      const burnUsd = Number(config.checkpoint?.burnUsd)
+      const trigger =
+        Number.isFinite(burnUsd) && burnUsd > 0 && windowSpend >= burnUsd
+          ? 'burn'
+          : windowProgress >= 0.5
+            ? 'near-miss'
+            : 'flat'
       // Offer what is fresh first: `proposals[0]` is the one the card recommends,
       // and that is the version the plateau checkpoint names.
       const ordered = card.items.slice().sort((a, b) => (a.status === 'fresh' ? 0 : 1) - (b.status === 'fresh' ? 0 : 1))
@@ -2629,6 +2717,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           `the last ${window} rounds promoted nothing; the loop is not making progress` +
           (recommended ? ` — it proposes v${recommended.version} (${recommended.kind})` : ''),
         window,
+        trigger,
+        progress: windowProgress,
+        spendUsd: Math.round(windowSpend * 1e6) / 1e6,
         rounds: (finished.rounds || []).slice(-window).map((r) => r.n),
         chainVersion: recommended?.version ?? null,
         prediction: recommended?.prediction ?? null,
@@ -2900,6 +2991,7 @@ function projectRound(state, round) {
     status: round.status,
     score: round.score ?? r.score ?? null,
     ...(round.scoreSource != null ? { scoreSource: round.scoreSource } : {}),
+    ...(round.progress != null ? { progress: round.progress } : {}),
     ...(round.chainVersion != null ? { chainVersion: round.chainVersion } : {}),
     promoted: round.promoted === true,
     endedAt: Date.now(),

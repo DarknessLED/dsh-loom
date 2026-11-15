@@ -98,6 +98,22 @@ const standing = [
   'tests/self22/l2-adopt-measure.test.mjs',
   'tests/self22/killrate-attempt.test.mjs',
   'tests/self22/halving-round.test.mjs',
+  // self23: the money and the arithmetic. A screen has a model budget and must
+  // answer with a verdict; only the best-ranked survivor is bought, serially, so
+  // an early win actually saves money. A failed verifier keeps its kill rate as
+  // progress without pretending to be promotable, every forecast is graded into
+  // the decisions ledger, the extra-candidate forecast is probability-weighted,
+  // and a stall checkpoint says which of burn / near-miss / flat caused it.
+  'tests/self23/screen-budget.test.mjs',
+  'tests/self23/sequential-screened.test.mjs',
+  'tests/self23/progress-split.test.mjs',
+  'tests/self23/calibration.test.mjs',
+  'tests/self23/estimator.test.mjs',
+  'tests/self23/stall-signals.test.mjs',
+  // self2/plateau: the predicate the stall card is built on. It lived outside the
+  // standing list (tests/self* is skipped by the directory scan) and drifted red;
+  // pinned now so "ask once per window" cannot rot unnoticed again.
+  'tests/self2/plateau.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

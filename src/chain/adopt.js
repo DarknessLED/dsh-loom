@@ -16,7 +16,10 @@
 export function adoptFromCheckpoint({ runtime, view, checkpoint, actor = 'human' } = {}) {
   if (!runtime || typeof runtime.append !== 'function' || !view) return null
   const kind = checkpoint?.kind
-  if (kind !== 'chain' && kind !== 'plateau') return null
+  // `chain-revert` is the same decision in the other direction: the loop's own
+  // forecast missed, so the card offers the version that was active before it.
+  // Leaving it inert would make the revert card a notification, not a choice.
+  if (kind !== 'chain' && kind !== 'plateau' && kind !== 'chain-revert') return null
   const payload = checkpoint?.payload
   if (!payload || payload.chainVersion == null) return null
   const version = Number(payload.chainVersion)
