@@ -297,12 +297,15 @@ export function registerTools(ctx, { runtime, config }) {
       // status view already carries the checkpoints, so no extra ledger read.
       const view = runtime.status(id)
       const pending = reviewQueue(view)
+      // `status()` is the cheap projection and deliberately omits the chain
+      // record; calibration needs it, so read the state the projection came from.
+      const state = runtime.get(id)?.state
       return compactStatus(
         {
           ...view,
           // How well the forecasts have held so far, in the same view as the
           // chain they came from. The graded records stay under chain.measurements.
-          calibration: summarizeCalibration(view?.chain?.measurements ?? []),
+          calibration: summarizeCalibration(state?.chain?.measurements ?? []),
           live: runtime.liveAttempts(),
           pendingReviews: pending,
           reviewLines: pending.map(
