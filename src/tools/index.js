@@ -11,6 +11,7 @@ import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { adoptFromCheckpoint } from '../chain/adopt.js'
+import { summarizeCalibration } from '../chain/predict.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
 import { runVerifier } from '../exec/verifier.js'
@@ -70,6 +71,7 @@ function readEvalSet(args) {
 }
 
 function brief(s) {
+  const calibration = summarizeCalibration(s.chain?.measurements ?? [])
   return {
     id: s.id,
     status: s.status,
@@ -78,6 +80,9 @@ function brief(s) {
     budget: s.budget,
     chainVersion: s.chain.activeVersion ?? null,
     openCheckpoints: s.checkpoints.filter((c) => c.status === 'open').length,
+    // Only when there is something to say: a campaign that never adopted a
+    // forecast should not carry a zero row that reads like a measurement.
+    ...(calibration.n ? { calibration } : {}),
   }
 }
 
@@ -290,10 +295,14 @@ export function registerTools(ctx, { runtime, config }) {
       const id = args.id ? String(args.id) : all[0]
       // Rank the open decisions so the most dangerous one is read first; the
       // status view already carries the checkpoints, so no extra ledger read.
-      const pending = reviewQueue(runtime.status(id))
+      const view = runtime.status(id)
+      const pending = reviewQueue(view)
       return compactStatus(
         {
-          ...runtime.status(id),
+          ...view,
+          // How well the forecasts have held so far, in the same view as the
+          // chain they came from. The graded records stay under chain.measurements.
+          calibration: summarizeCalibration(view?.chain?.measurements ?? []),
           live: runtime.liveAttempts(),
           pendingReviews: pending,
           reviewLines: pending.map(
