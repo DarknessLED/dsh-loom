@@ -15,6 +15,8 @@
  * policy is testable without a host.
  */
 
+import { trialVerdict } from './cross.js'
+
 /** Treat differences smaller than this as noise, not as evidence. */
 export const NOISE = 0.01
 
@@ -113,7 +115,14 @@ export function shouldQuarantine(lesson, { minHarm = 2 } = {}) {
   const harm = Number(lesson.harmCount) || 0
   const gain = Number(lesson.gainSum) || 0
   const uses = Number(lesson.useCount) || 0
+  // Explicit harm is evidence in its own right, trial or not.
   if (harm >= minHarm && gain <= 0) return true
+  // "Used five times, never paid" is a statement about a trial that has enough
+  // rounds to have concluded. While the trial is still open the count says
+  // nothing yet -- T3 showed a lesson quarantined at showing 5 of 20, which
+  // ended the very measurement that would have judged it. The trial verdict,
+  // not a rule written before trials existed, decides.
+  if (lesson.trials && trialVerdict(lesson) === 'insufficient') return false
   if (uses >= 5 && gain <= 0) return true
   return false
 }

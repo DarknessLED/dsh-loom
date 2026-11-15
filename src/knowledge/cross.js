@@ -120,11 +120,14 @@ export function trialVerdict(lesson) {
   const shown = Number(t.shown) || 0
   const wins = Number(t.wins) || 0
   const losses = Number(t.losses) || 0
+  const ties = Number(t.ties) || 0
   if (shown < TRIAL_MIN) return 'insufficient'
-  // A trial with no graded comparison never ran: shown twenty times, but no
-  // attempt was ever compared against a control. Calling that a loss would
-  // retire a procedure nobody judged, so it stays pending.
-  if (wins + losses === 0) return 'insufficient'
+  // A tie is a graded comparison that found no measurable effect, not a
+  // missing observation. A trial that reached its twenty showings, was
+  // compared every time, and never once helped does not pay for its slot.
+  // With no comparison at all (no wins, losses or ties) the lesson was never
+  // judged, so it stays pending rather than being retired on silence.
+  if (wins + losses + ties === 0) return 'insufficient'
   return wins > losses ? 'keep' : 'drop'
 }
 

@@ -388,7 +388,14 @@ function apply(s, ev) {
         ...(Array.isArray(l.shape) && l.shape.length ? { shape: l.shape.filter((x) => typeof x === 'string' && x) } : {}),
         ...(Array.isArray(l.steps) && l.steps.length ? { steps: l.steps.filter((x) => typeof x === 'string' && x) } : {}),
         ...(l.trials && typeof l.trials === 'object'
-          ? { trials: { shown: Number(l.trials.shown) || 0, wins: Number(l.trials.wins) || 0, losses: Number(l.trials.losses) || 0 } }
+          ? {
+              trials: {
+                shown: Number(l.trials.shown) || 0,
+                wins: Number(l.trials.wins) || 0,
+                losses: Number(l.trials.losses) || 0,
+                ties: Number(l.trials.ties) || 0,
+              },
+            }
           : {}),
         at: ev.t,
       }
@@ -404,6 +411,7 @@ function apply(s, ev) {
           shown: Math.max(Number(prior.trials.shown) || 0, rec.trials.shown),
           wins: Math.max(Number(prior.trials.wins) || 0, rec.trials.wins),
           losses: Math.max(Number(prior.trials.losses) || 0, rec.trials.losses),
+          ties: Math.max(Number(prior.trials.ties) || 0, rec.trials.ties),
         }
       }
       s.lessons = s.lessons.filter((x) => x.id !== rec.id).concat(rec)
@@ -415,7 +423,7 @@ function apply(s, ev) {
       // never earns a win or a loss, and must not be deleted for that.
       const l = s.lessons.find((x) => x.id === d.id)
       if (l) {
-        const t = l.trials && typeof l.trials === 'object' ? l.trials : { shown: 0, wins: 0, losses: 0 }
+        const t = l.trials && typeof l.trials === 'object' ? l.trials : { shown: 0, wins: 0, losses: 0, ties: 0 }
         l.trials = { ...t, shown: (Number(t.shown) || 0) + 1 }
       }
       break
@@ -432,7 +440,8 @@ function apply(s, ev) {
         // ledger, so the denominator is "times it was actually in the brief".
         if (l.trials) {
           if (Number(d.delta) > 0) l.trials.wins = (Number(l.trials.wins) || 0) + 1
-          if (d.harm) l.trials.losses = (Number(l.trials.losses) || 0) + 1
+          else if (d.harm) l.trials.losses = (Number(l.trials.losses) || 0) + 1
+          else l.trials.ties = (Number(l.trials.ties) || 0) + 1
         }
       }
       break

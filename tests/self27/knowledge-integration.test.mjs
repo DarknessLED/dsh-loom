@@ -223,5 +223,5 @@ test('re-borrowing a lesson does not reset the trial it already ran', () => {
   // three showings and one win; re-adding must not pretend they never happened.
   const state = reduce([ev(1, { shown: 3, wins: 1, losses: 1 }), ev(2, { shown: 0, wins: 0, losses: 0 })], 'c')
   const lesson = state.lessons.find((l) => l.id === 'lsn-reborrow')
-  assert.deepEqual(lesson.trials, { shown: 3, wins: 1, losses: 1 })
+  assert.deepEqual(lesson.trials, { shown: 3, wins: 1, losses: 1, ties: 0 })
 })

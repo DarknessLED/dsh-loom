@@ -2,12 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { pruneLessons } from '../../src/knowledge/select.js'
+import { shouldQuarantine } from '../../src/knowledge/impact.js'
 
 function lesson(extra = {}) {
   return {
     id: 'lsn-1',
     family: 'tiny',
     kind: 'procedure',
+    status: 'active',
     claim: '2 verified promotions on 2 task(s) began at README.md.',
     createdRound: 0,
     ttlRounds: 400,
@@ -32,4 +34,15 @@ test('a trial that reached its evidence and lost is retired', () => {
 test('a lesson with no trial still follows the old never-useful rule', () => {
   const { retired } = pruneLessons([lesson({})], { round: 6 })
   assert.deepEqual(retired, ['lsn-1'])
+})
+
+test('an open trial also survives the five-uses quarantine rule', () => {
+  // T3: quarantined at showing 5 of 20, which killed the measurement itself.
+  const open = lesson({ useCount: 5, gainSum: 0, trials: { shown: 5, wins: 0, losses: 0, ties: 5 } })
+  assert.equal(shouldQuarantine(open), false)
+})
+
+test('the same five uses do quarantine once the trial has concluded and lost', () => {
+  const lost = lesson({ useCount: 5, gainSum: 0, trials: { shown: 20, wins: 2, losses: 5, ties: 13 } })
+  assert.equal(shouldQuarantine(lost), true)
 })

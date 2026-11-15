@@ -97,22 +97,25 @@ test('shown and credited are counted, and 20 showings without a win is a drop', 
   const seed = [ev('lesson.added', { lesson })]
   let state = reduce(seed, 'c')
   state = reduce([...seed, ev('lesson.shown', { id: 'lsn-t', round: 3 })], 'c')
-  assert.deepEqual(state.lessons[0].trials, { shown: 1, wins: 0, losses: 0 })
+  assert.deepEqual(state.lessons[0].trials, { shown: 1, wins: 0, losses: 0, ties: 0 })
   state = reduce([...seed, ev('lesson.shown', { id: 'lsn-t', round: 3 }), ev('lesson.impact', { id: 'lsn-t', delta: 0.2, harm: false, round: 3 })], 'c')
-  assert.deepEqual(state.lessons[0].trials, { shown: 1, wins: 1, losses: 0 })
+  assert.deepEqual(state.lessons[0].trials, { shown: 1, wins: 1, losses: 0, ties: 0 })
+  state = reduce([...seed, ev('lesson.shown', { id: 'lsn-t', round: 3 }), ev('lesson.impact', { id: 'lsn-t', delta: 0, harm: false, round: 3 })], 'c')
+  assert.equal(state.lessons[0].trials.ties, 1, 'a tie is a graded comparison, not a missing one')
   assert.equal(trialVerdict(state.lessons[0]), 'insufficient')
-  const twenty = { ...state.lessons[0], trials: { shown: 20, wins: 3, losses: 9 } }
+  const twenty = { ...state.lessons[0], trials: { shown: 20, wins: 3, losses: 9, ties: 8 } }
   assert.equal(trialVerdict(twenty), 'drop')
-  const good = { ...twenty, trials: { shown: 20, wins: 11, losses: 3 } }
+  const good = { ...twenty, trials: { shown: 20, wins: 11, losses: 3, ties: 6 } }
   assert.equal(trialVerdict(good), 'keep')
 })
 
-test('twenty showings with no graded comparison is not a verdict', () => {
-  // T3's live run can show a procedure many times with no control attempt.
-  // Zero wins and zero losses is "the experiment never ran", not "it lost";
-  // treating it as a loss would retire a procedure nobody ever compared.
-  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 0 } }), 'insufficient')
-  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 1 } }), 'drop')
+test('twenty showings with no comparison at all is not a verdict', () => {
+  // Zero wins, zero losses and zero ties is "the experiment never ran", not
+  // "it lost"; retiring on silence would delete a procedure nobody judged.
+  // Twenty *ties* are different: the comparison ran and found nothing.
+  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 0, ties: 0 } }), 'insufficient')
+  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 0, ties: 20 } }), 'drop')
+  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 1, ties: 19 } }), 'drop')
 })
 
 test('an attempt is classified into a shape that can travel', () => {
