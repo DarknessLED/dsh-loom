@@ -13,6 +13,8 @@
  * could not be answered, not an answer of "no".
  */
 
+import { estimatedRoundCost } from '../runtime/triangle.js'
+
 /** A usable per-round price is a finite number strictly above zero. */
 function priceOf(x) {
   const n = Number(x)
@@ -51,4 +53,34 @@ export function fundingFor({ rounds, usdPerRound, measured, capUsd } = {}) {
   const funded = havePlan ? affordableRounds >= planned : null
 
   return { funded, affordableRounds, shortfallUsd, usdPerRound: price }
+}
+
+
+/**
+ * The budget as it should be read now, not as it was guessed at creation.
+ *
+ * `runtime.create` can only price a round from the config guess, so the stored
+ * `funding` object is a promise made before any round ran. Once the ledger has
+ * measured rounds, that guess is superseded: the honest answer to "how many
+ * rounds does this cap buy" is the cap over what rounds actually cost. Reading
+ * the stored verdict forever is how a campaign spending $0.005 a round showed
+ * "affordableRounds: 2" and a $2.72 shortfall.
+ *
+ * @param {object} state campaign state carrying `budget` and `rounds`
+ * @returns {object} budget with a recomputed `funding` and `usdPerRound`
+ */
+export function refreshFunding(state) {
+  const budget = state && typeof state.budget === 'object' && state.budget ? state.budget : {}
+  const measured = estimatedRoundCost(state?.rounds ?? [])
+  const price = Number.isFinite(measured) && measured > 0 ? measured : budget.usdPerRound
+  return {
+    ...budget,
+    usdPerRound: price ?? budget.usdPerRound ?? null,
+    funding: fundingFor({
+      rounds: budget.rounds,
+      usdPerRound: budget.usdPerRound,
+      measured,
+      capUsd: budget.usd,
+    }),
+  }
 }

@@ -73,10 +73,15 @@ assert.equal(back.activated, 1)
 assert.equal(appends[1].data.version, 1)
 ok('the adoption helper only acts on chain/plateau/revert cards and keeps the prediction')
 
+// The activation path is now one module, so neither door can drift by calling
+// adoptFromCheckpoint directly: both must go through it.
 for (const file of ['src/tools/index.js', 'src/panel/api.js']) {
   const text = readFileSync(file, 'utf8')
-  assert.match(text, /adoptFromCheckpoint/, `${file} must use the same activation path`)
+  assert.match(text, /applyApprovalEffects/, `${file} must use the shared approval table`)
+  assert.doesNotMatch(text, /adoptFromCheckpoint/, `${file} must not activate on its own`)
 }
+const effects = readFileSync('src/runtime/decision-effects.js', 'utf8')
+assert.match(effects, /adoptFromCheckpoint/, 'the table is where adoption happens')
 ok('the tool door and the panel door share the activation path')
 
 console.log(`\n${pass}/${pass} passed`)

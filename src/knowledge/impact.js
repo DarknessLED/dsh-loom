@@ -272,6 +272,27 @@ export function lessonConfidence(attempt) {
  * question may be useful again -- in this family or another. It is not a
  * verdict about the work, so it is never used for promotion.
  */
+/**
+ * What kinds of rounds a ledger actually contains.
+ *
+ * `shape` routes lessons (a near-miss is the only shape that may borrow a
+ * cross-domain analogy), so a shape that never appears means a route that has
+ * never been exercised. This is the read-only way to find out, before claiming
+ * the routing works.
+ */
+export function shapeStats(rounds = []) {
+  const list = Array.isArray(rounds) ? rounds : []
+  const byShape = {}
+  let labelled = 0
+  for (const r of list) {
+    const labels = Array.isArray(r?.shape) ? r.shape : []
+    if (!labels.length) continue
+    labelled += 1
+    for (const label of labels) byShape[String(label)] = (byShape[String(label)] ?? 0) + 1
+  }
+  return { rounds: list.length, labelled, byShape }
+}
+
 export function shapeOf(attempt) {
   const a = attempt && typeof attempt === 'object' ? attempt : {}
   if (a.error) return ['error']

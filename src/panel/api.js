@@ -4,7 +4,7 @@ import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
-import { adoptFromCheckpoint } from '../chain/adopt.js'
+import { applyApprovalEffects } from '../runtime/decision-effects.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { panelRoute } from './route.js'
@@ -383,10 +383,10 @@ export function panelAction({ runtime, config }, body) {
       runtime.append(view, 'checkpoint.held', { checkpoint: target.id, until }, 'human:panel')
       return { ok: true, deferred: true, answered: target.id, until, campaigns: panelState({ runtime, config }).campaigns }
     }
-    // Approving a chain card must change the chain here too. This used to be a
-    // tool-only behaviour, so the button closed the card without adopting.
+    // The button and the tool share one effect table, so approving a chain card
+    // adopts it and approving a policy card promotes it here too.
     if (decision === 'approve') {
-      adoptFromCheckpoint({ runtime, view, checkpoint: target, actor: 'human:panel' })
+      applyApprovalEffects({ runtime, view, target, config, actor: 'human:panel' })
     }
     runtime.append(
       view,

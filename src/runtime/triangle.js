@@ -108,6 +108,38 @@ export function recordedRoundTokens(rounds) {
 }
 
 /**
+ * What the ledger says has already been spent, in dollars.
+ *
+ * Read from the same rounds the preflight prices, so the crossing check and the
+ * projection cannot disagree about what counts as spend.
+ */
+export function recordedRoundCost(rounds) {
+  const list = Array.isArray(rounds) ? rounds : []
+  let sum = 0
+  for (const r of list) {
+    if (!r || typeof r !== 'object') continue
+    const cost = Number(r.costUsd)
+    if (Number.isFinite(cost)) sum += cost
+  }
+  return Math.round(sum * 1e6) / 1e6
+}
+
+/**
+ * How far past the cap a round actually landed. The preflight projects one round
+ * ahead and refuses when the projection crosses; it cannot prevent the round
+ * that crosses, because the price is only known after the work is bought. This
+ * names that crossing so it is a fact in the ledger instead of something a
+ * later tick infers.
+ */
+export function overshootOf(rounds, capUsd) {
+  const cap = Number(capUsd)
+  if (!Number.isFinite(cap)) return null
+  const spent = recordedRoundCost(rounds)
+  if (spent <= cap + 1e-9) return null
+  return { spentUsd: spent, capUsd: cap, overUsd: Math.round((spent - cap) * 1e6) / 1e6 }
+}
+
+/**
  * @param {Array<object>} rounds folded rounds (`durationMs`, `planMs`,
  *   `attemptMs`, `verifierMs`, `tokens`, `costUsd`, `status`, `promoted`)
  */

@@ -24,6 +24,7 @@
 - `src/chain/spec-diff.js` — 两版链规格的结构化差异（按节点 id 对齐，prompt 追加单独记成 append），供提案卡展示“这次到底改了什么”，而不是让人猜。
 - `src/chain/evidence-card.js` — 一张自足的 L2 提案卡：在链上的回合数、花费、晋升数、逐条变异的预测/风险/diff，以及本轮缺了哪项证据，面板与工具读同一份。
 - `src/chain/adopt.js` — 人一键采纳的落点：工具与面板两条门都经由它把 chain/plateau 检查点写成 `chain.activated`，并带上被采纳的预测供下一轮核对。
+- `src/runtime/decision-effects.js` — 采纳的唯一落点：两条门（工具、面板）都调它，chain/plateau/revert 走 `adoptFromCheckpoint`，policy 走 `policy.promoted` 并带 diff，避免按钮与命令行各记一笔。
 - `src/chain/measure.js` — 采纳后的对账：把新链第一轮的分数与采纳前基线相减，按预测区间判 met/exceeded/missed，写进 `chain.measured`，让预测兑现与否可被追问。
 
 ### collab/

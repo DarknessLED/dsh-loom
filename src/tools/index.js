@@ -10,7 +10,7 @@ import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
-import { adoptFromCheckpoint } from '../chain/adopt.js'
+import { applyApprovalEffects } from '../runtime/decision-effects.js'
 import { summarizeCalibration } from '../chain/predict.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
@@ -19,7 +19,8 @@ import { checkLemma } from '../lean/gate.js'
 import { probeLean } from '../lean/probe.js'
 import { buildImaginePrompt, extractClaims, screenClaims } from '../lean/imagine.js'
 import { readDecisions } from '../loop/decisions.js'
-import { diffPolicy, effectivePolicy, normalizePolicy } from '../loop/policy.js'
+import { effectivePolicy, normalizePolicy } from '../loop/policy.js'
+import { refreshFunding } from '../loop/funding.js'
 import { comparePolicies } from '../loop/replay.js'
 import { campaignUsage } from '../runtime/cost.js'
 import { holdUntil } from '../runtime/hold.js'
@@ -79,7 +80,7 @@ function brief(s) {
     status: s.status,
     objective: s.objective?.slice(0, 160) ?? '',
     rounds: s.rounds.length,
-    budget: s.budget,
+    budget: refreshFunding(s),
     chainVersion: s.chain.activeVersion ?? null,
     openCheckpoints: s.checkpoints.filter((c) => c.status === 'open').length,
     // Only when there is something to say: a campaign that never adopted a
@@ -785,29 +786,10 @@ export function registerTools(ctx, { runtime, config }) {
         }
       }
 
-      // Approving a chain (or plateau) card adopts the proposed version. The
-      // panel door calls the same helper: one activation path, one prediction
-      // remembered by the reducer, so the tool and the button cannot diverge.
+      // Approving a chain, plateau, revert or policy card has effects, and the
+      // panel button runs the same table: one word cannot mean two things.
       if (args.decision === 'approve') {
-        adoptFromCheckpoint({ runtime, view, checkpoint: target, actor: 'human' })
-      }
-      if (args.decision === 'approve' && target.kind === 'policy' && target.payload?.policy) {
-        // The checkpoint asks a human to agree to a change, so the event must
-        // say what the change is. Diff the effective policy in force against
-        // the effective policy the promotion would put in force — unset fields
-        // fall back to config, so comparing raw blobs would both invent changes
-        // and hide them.
-        const before = effectivePolicy({ state: view.state, config })
-        const after = effectivePolicy({
-          state: { ...view.state, policy: { ...(view.state.policy || {}), policy: target.payload.policy } },
-          config,
-        })
-        runtime.append(
-          view,
-          'policy.promoted',
-          { version: target.payload.policyVersion ?? null, policy: target.payload.policy, diff: diffPolicy(before, after) },
-          'human',
-        )
+        applyApprovalEffects({ runtime, view, target, config, actor: 'human' })
       }
 
       let applied = null

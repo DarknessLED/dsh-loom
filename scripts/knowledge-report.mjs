@@ -18,6 +18,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 
 import { induceProcedures } from '../src/knowledge/procedure.js'
+import { shapeStats } from '../src/knowledge/impact.js'
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`)
@@ -66,6 +67,12 @@ function replay(dir) {
     if (ev.type === 'artifact.promoted' && ev.data?.attemptId) promoted.add(ev.data.attemptId)
   }
 
+  const shapes = shapeStats(
+    events.filter((ev) => ev.type === 'round.finished').map((ev) => ({ shape: ev.data?.shape })),
+  )
+  let analogies = 0
+  for (const ev of events) if (ev.type === 'lesson.shown' && ev.data?.analogy === true) analogies += 1
+
   const attempts = []
   for (const ev of events) {
     if (ev.type !== 'attempt.finished') continue
@@ -96,6 +103,8 @@ function replay(dir) {
     tasks: tasks.length,
     procedures: procs,
     rejects,
+    shapes,
+    analogies,
     // What a procedure would have reached: tasks in the same family that the
     // campaign actually ran. An upper bound on showings, not a prediction.
     reach: (proc) =>
@@ -133,6 +142,11 @@ if (asJson) {
     campaignsWithProcedures: withProcs.length,
     procedures: all.length,
     byFamily: [...new Set(all.map((p) => p.family))].sort(),
+    shapes: reports.reduce((acc, r) => {
+      for (const [k, n] of Object.entries(r.shapes.byShape)) acc[k] = (acc[k] ?? 0) + n
+      return acc
+    }, {}),
+    analogies: reports.reduce((n, r) => n + r.analogies, 0),
     items: all.map((p) => ({
       campaign: p.campaign, id: p.id, family: p.family, subject: p.subject,
       support: p.support.length, steps: p.steps, notWhen: p.notWhen, reach: p.reach,
@@ -141,7 +155,17 @@ if (asJson) {
 } else {
   console.log(`# knowledge replay — ${reports.length} campaign(s) under ${home}`)
   console.log(`campaigns with >=1 inducible procedure: ${withProcs.length}`)
-  console.log(`procedures induced: ${all.length}\n`)
+  console.log(`procedures induced: ${all.length}`)
+  const shapes = {}
+  let labelled = 0
+  let analogies = 0
+  for (const r of reports) {
+    analogies += r.analogies
+    labelled += r.shapes.labelled
+    for (const [k, n] of Object.entries(r.shapes.byShape)) shapes[k] = (shapes[k] ?? 0) + n
+  }
+  console.log(`round shapes seen: ${Object.entries(shapes).map(([k, n]) => `${k}=${n}`).join(' ') || '(none recorded)'}`)
+  console.log(`analogy showings: ${analogies} (of ${labelled} labelled rounds)\n`)
   const byFamily = new Map()
   for (const p of all) byFamily.set(p.family, (byFamily.get(p.family) ?? 0) + 1)
   for (const [family, n] of [...byFamily].sort((a, b) => b[1] - a[1])) console.log(`  ${family}: ${n}`)

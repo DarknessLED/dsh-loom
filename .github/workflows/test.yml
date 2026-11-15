@@ -1,0 +1,19 @@
+name: test
+
+# Advisory: this repo has only ever been verified on Windows. The job exists so a
+# Linux-only assumption shows up as a red run instead of a user report. It does
+# not gate merges until a Linux run has actually been made green.
+on:
+  push:
+  pull_request:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/test-all.mjs

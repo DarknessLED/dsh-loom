@@ -19,7 +19,7 @@ import { readSettings, roundConfigWithSettings, writeSettings } from '../core/se
 import { Dispatcher } from '../dispatch/session.js'
 import { svc } from '../core/services.js'
 import { validatePolicyOverride } from '../loop/policy.js'
-import { fundingFor } from '../loop/funding.js'
+import { fundingFor, refreshFunding } from '../loop/funding.js'
 import { DEFAULT_CONFIG } from '../core/config.js'
 
 const STATUSES = ['draft', 'planning', 'running', 'paused', 'converged', 'plateaued', 'done', 'stopped']
@@ -253,7 +253,7 @@ export class Runtime {
       objective: s.objective,
       workspace: s.workspace,
       rounds: s.rounds.length,
-      budget: s.budget,
+      budget: refreshFunding(s),
       chainVersion: s.chain.activeVersion,
       incumbent: s.incumbent,
       lastRound: s.rounds.length ? s.rounds[s.rounds.length - 1] : null,

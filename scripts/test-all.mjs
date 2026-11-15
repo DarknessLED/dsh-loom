@@ -157,6 +157,50 @@ const standing = [
   // earned it, or every new campaign borrows a fresh 0/20 and the measurement
   // never concludes. T3 spent two budgets discovering that.
   'tests/self33/trial-persist.test.mjs',
+  // The hardening pass: verifier closure, one approval path for both doors, a
+  // gate matrix, an atomic store, a named cap crossing, measured funding, and
+  // the three specs that keep unrun self specs from rotting unnoticed.
+  'tests/self34/verifier-closure.test.mjs',
+  'tests/self34/decision-parity.test.mjs',
+  'tests/self34/gate-matrix.test.mjs',
+  'tests/self35/ledger-money.test.mjs',
+  'tests/self36/calibration-basis.test.mjs',
+  'tests/self36/shape-stats.test.mjs',
+  'tests/self37/spec-index.test.mjs',
+  'tests/self37/portable-paths.test.mjs',
+  'tests/self37/reduce-perf.test.mjs',
+  'tests/self/lessons-preview.test.mjs',
+  'tests/self/quiet-hours.test.mjs',
+  'tests/self/report-lessons.test.mjs',
+  // Legacy self specs: green but never listed, so no run would have told
+  // anyone if they stopped passing. The five that are red are named in
+  // tests/self37/spec-index.test.mjs with a reason instead of being hidden.
+  'tests/self10/quality-dashboard.test.mjs',
+  'tests/self10/quality-report.test.mjs',
+  'tests/self12/export-bundle.test.mjs',
+  'tests/self13/digest.test.mjs',
+  'tests/self13/panel-reviews.test.mjs',
+  'tests/self14/parallel-candidates.test.mjs',
+  'tests/self2/deferred.test.mjs',
+  'tests/self2/sampling.test.mjs',
+  'tests/self20/model-fallback.test.mjs',
+  'tests/self20/panel-models.test.mjs',
+  'tests/self20/second-candidate.test.mjs',
+  'tests/self3/exposure.test.mjs',
+  'tests/self3/policydiff.test.mjs',
+  'tests/self3/roundtable.test.mjs',
+  'tests/self3/spend.test.mjs',
+  'tests/self4/auto-finish.test.mjs',
+  'tests/self4/deferred-delivery.test.mjs',
+  'tests/self4/plateau-checkpoint.test.mjs',
+  'tests/self5/checkpoint-ids.test.mjs',
+  'tests/self6/attention-batch.test.mjs',
+  'tests/self6/meter-usage.test.mjs',
+  'tests/self6/usd-budget.test.mjs',
+  'tests/self7/chain-nodes.test.mjs',
+  'tests/self8/verifier-node.test.mjs',
+  'tests/self9/committer-guard.test.mjs',
+  'tests/self9/plateau-mutation.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

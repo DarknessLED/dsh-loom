@@ -122,33 +122,39 @@ export function summarizeCalibration(measurements = []) {
   const list = (Array.isArray(measurements) ? measurements : []).filter(
     (m) => m && Number.isFinite(Number(m.realized)) && Number.isFinite(Number(m.predicted?.point)),
   )
-  let met = 0
-  let missed = 0
-  let exceeded = 0
-  let inside = 0
-  let absError = 0
+  const tally = (rows) => {
+    let met = 0
+    let missed = 0
+    let exceeded = 0
+    let inside = 0
+    let absError = 0
+    for (const m of rows) {
+      if (m.verdict === 'missed') missed += 1
+      else if (m.verdict === 'exceeded') exceeded += 1
+      else met += 1
+      const low = Number(m.predicted?.low)
+      const high = Number(m.predicted?.high)
+      const realized = Number(m.realized)
+      const covered = Number.isFinite(low) && Number.isFinite(high)
+        ? realized >= low && realized <= high
+        : m.verdict !== 'missed'
+      if (covered) inside += 1
+      absError += Math.abs(realized - Number(m.predicted.point))
+    }
+    const n = rows.length
+    return { n, met, missed, exceeded, coverage: n ? inside / n : 0, mae: n ? absError / n : 0 }
+  }
+  const groups = {}
   for (const m of list) {
-    if (m.verdict === 'missed') missed += 1
-    else if (m.verdict === 'exceeded') exceeded += 1
-    else met += 1
-    const low = Number(m.predicted?.low)
-    const high = Number(m.predicted?.high)
-    const realized = Number(m.realized)
-    const covered = Number.isFinite(low) && Number.isFinite(high)
-      ? realized >= low && realized <= high
-      : m.verdict !== 'missed'
-    if (covered) inside += 1
-    absError += Math.abs(realized - Number(m.predicted.point))
+    const key = typeof m.predicted?.basis === 'string' && m.predicted.basis ? m.predicted.basis : 'unknown'
+    ;(groups[key] ||= []).push(m)
   }
-  const n = list.length
-  return {
-    n,
-    met,
-    missed,
-    exceeded,
-    coverage: n ? inside / n : 0,
-    mae: n ? absError / n : 0,
-  }
+  // Coverage is only meaningful per basis: a prior `[0, 1]` covers almost
+  // anything, so pooling it with measured intervals would flatter the number
+  // that is supposed to say whether forecasts hold.
+  const byBasis = {}
+  for (const [key, rows] of Object.entries(groups)) byBasis[key] = tally(rows)
+  return { ...tally(list), byBasis }
 }
 
 /**

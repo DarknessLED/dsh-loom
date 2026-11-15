@@ -47,12 +47,12 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
-import { oracleClean, oracleScripts, oracleCandidates, patchPaths } from '../gate/oracle.js'
+import { oracleClean, oraclePathsFor, oracleNamedPaths, oracleEnforcedPaths, oracleCandidates, patchPaths } from '../gate/oracle.js'
 import { parseScope, scopeVerdict } from '../gate/scope.js'
 import { cardEvidence } from './review-card.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
-import { estimatedRoundCost, estimatedRoundTokens, recordedRoundTokens } from './triangle.js'
+import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
 import { demoteChain } from './model-health.js'
 
@@ -2243,7 +2243,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // instrument is `check.mjs` at the repo root, and a candidate that rewrote it
     // promoted. Resolving against the workspace (not the worktree) is what makes
     // the paths the same vocabulary as the patch's.
-    const oraclePaths = oracleScripts(acceptanceSpec, { cwd: state.workspace })
+    const oracleClosure = oraclePathsFor(acceptanceSpec, { cwd: state.workspace })
+    // Enforce the named apparatus plus support modules that live in the harness
+    // directories. The full closure is still reported, because editing a module
+    // the verifier imports is a real signal even when it is also the code under
+    // test (in which case refusing it would refuse the fix).
+    const oraclePaths = [...new Set([...oracleNamedPaths(acceptanceSpec, { cwd: state.workspace }), ...oracleEnforcedPaths(oracleClosure)])]
     // oracleClean says the candidate did not *edit* the file its verifier runs.
     // It cannot say the file was there when the base was measured. If the oracle
     // did not exist at base, the base run did not fail because the task was
@@ -2322,6 +2327,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Name the files the command runs whenever they exist, so a refusal can say
     // which one was edited instead of only that the round lost.
     if (oraclePaths.length > 0) checks.oracleFiles = oraclePaths
+    if (oracleClosure.length > oraclePaths.length) checks.oracleClosure = oracleClosure
     // A win salvaged from a stopped attempt is still a win, but it is not the
     // same claim as one the child reported: the gate says which it was, so a
     // reader (and the efficiency leg) can tell "the loop solved this" from "the
@@ -2665,6 +2671,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       promoted: promote === true,
       attempts,
     })
+
+    // The preflight refuses a round whose *projection* crosses the cap; it
+    // cannot stop the round that actually crosses, because the price is known
+    // only after the work is bought. Name the crossing here, and stop now: the
+    // next tick would notice, but the ledger would not say the cap was already
+    // overrun in this round.
+    const crossed = overshootOf(view.state.rounds, view.state.budget?.usd)
+    if (crossed) {
+      runtime.append(view, 'budget.overshot', { ...crossed, round: n }, 'system')
+      runtime.append(view, 'campaign.status', { status: 'converged', reason: 'cost budget overshot' }, 'system')
+    }
 
     // If a chain was adopted on a forecast, this is the first round that can
     // test it: compare the task's score to the best it had before adoption and

@@ -230,4 +230,130 @@ export function oracleClean(input) {
   return true
 }
 
+// A verifier is rarely one file. `node scripts/check.mjs` imports the rule it
+// enforces, and a candidate that edits that module changes the verdict without
+// touching the script the command names. `oracleScripts` sees only the command,
+// so the closure is what makes "the verifier" mean the code the verifier runs.
+//
+// Only relative specifiers are followed: a package under `node_modules` is not
+// something a task patch should be editing anyway, and following it would pin
+// half of npm. Extensions are resolved in the order a bundler would try them.
+const IMPORT_RE =
+  /(?:^|[^\w$])(?:import|export)\s+(?:[^'"]*?\sfrom\s*)?['"]([^'"]+)['"]|(?:^|[^\w$])require\s*\(\s*['"]([^'"]+)['"]\s*\)|(?:^|[^\w$])import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+
+const SCRIPT_EXT = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.mts', '.cts']
+
+function resolveSpecifier(spec, fromFile, root) {
+  if (typeof spec !== 'string' || !spec) return null
+  if (!spec.startsWith('.') && !isAbsolute(spec)) return null // bare package
+  const base = isAbsolute(spec) ? spec : resolve(fromFile, '..', spec)
+  const tries = [base, ...SCRIPT_EXT.map((ext) => `${base}${ext}`)]
+  for (const ext of SCRIPT_EXT) tries.push(join(base, `index${ext}`))
+  for (const candidate of tries) {
+    try {
+      if (existsSync(candidate) && statSync(candidate).isFile()) {
+        const rel = withinRoot(root, candidate)
+        return rel || null
+      }
+    } catch {
+      /* a broken path is simply not a dependency */
+    }
+  }
+  return null
+}
+
+/**
+ * The verifier's own code, transitively: the scripts the command names, any
+ * relative import they reach, and every path the task explicitly pins.
+ *
+ * The closure is bounded (depth 8, 200 files) because a dependency cycle must
+ * terminate and a malicious tree must not turn one gate check into a walk of the
+ * whole repository.
+ *
+ * @param {{cmd?: string, cwd?: string, pin?: string[]}|string|null} spec
+ * @param {{cwd: string}} opts workspace root
+ * @returns {string[]} workspace-relative POSIX paths
+ */
+/**
+ * The files the command names itself: its scripts and any `pin` entries.
+ *
+ * These are the apparatus by declaration. The import closure below is evidence
+ * of what the apparatus reads, but it cannot be enforced wholesale: a verifier
+ * that imports the code under test (the ordinary case for a graded fixture) would
+ * make every real fix look like an edit to the instrument.
+ */
+export function oracleNamedPaths(spec, opts) {
+  const root = typeof opts?.cwd === 'string' && opts.cwd.trim() !== '' ? resolve(opts.cwd) : null
+  if (!root) return []
+  const out = []
+  const seen = new Set()
+  const add = (rel) => {
+    if (!rel || seen.has(rel)) return false
+    seen.add(rel)
+    out.push(rel)
+    return true
+  }
+  for (const p of oracleScripts(spec, opts)) add(p)
+  for (const p of Array.isArray(spec?.pin) ? spec.pin : []) {
+    if (typeof p !== 'string' || !p.trim()) continue
+    const abs = isAbsolute(p) ? resolve(p) : resolve(root, p)
+    const rel = withinRoot(root, abs)
+    if (rel) add(rel)
+  }
+  return out
+}
+
+/**
+ * Which of the closure files the gate will actually refuse. A support module that
+ * lives under `tests/` or `scripts/` is apparatus; a module next to the code under
+ * test is probably the code under test.
+ */
+export function oracleEnforcedPaths(closure) {
+  return (Array.isArray(closure) ? closure : []).filter(
+    (rel) => rel.startsWith('tests/') || rel.startsWith('scripts/'),
+  )
+}
+
+export function oraclePathsFor(spec, opts) {
+  const root = typeof opts?.cwd === 'string' && opts.cwd.trim() !== '' ? resolve(opts.cwd) : null
+  if (!root) return []
+  const pinned = Array.isArray(spec?.pin) ? spec.pin : []
+  const out = []
+  const seen = new Set()
+  const add = (rel) => {
+    if (!rel || seen.has(rel)) return false
+    seen.add(rel)
+    out.push(rel)
+    return true
+  }
+  for (const p of oracleScripts(spec, opts)) add(p)
+  for (const p of pinned) {
+    if (typeof p !== 'string' || !p.trim()) continue
+    const abs = isAbsolute(p) ? resolve(p) : resolve(root, p)
+    const rel = withinRoot(root, abs)
+    if (rel) add(rel)
+  }
+  let frontier = out.slice()
+  for (let depth = 0; depth < 8 && frontier.length > 0 && out.length < 200; depth += 1) {
+    const next = []
+    for (const rel of frontier) {
+      let text
+      try {
+        text = readFileSync(resolve(root, rel), 'utf8')
+      } catch {
+        continue
+      }
+      IMPORT_RE.lastIndex = 0
+      let m
+      while ((m = IMPORT_RE.exec(text)) !== null) {
+        const specifier = m[1] || m[2] || m[3]
+        const dep = resolveSpecifier(specifier, resolve(root, rel), root)
+        if (dep && add(dep)) next.push(dep)
+      }
+    }
+    frontier = next
+  }
+  return out
+}
+
 export const _internal = { INTERPRETER, TAKES_VALUE, withinRoot, join, sep }

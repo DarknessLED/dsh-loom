@@ -107,10 +107,16 @@ export function nodeBinDirs(options = {}) {
   for (const dir of runtimeNodeDirs(dshHome(env))) push(dir)
 
   if ((options.platform ?? process.platform) === 'win32') {
-    const programFiles = env.ProgramFiles || 'C:\\Program Files'
-    push(join(programFiles, 'nodejs'))
-    push(join(env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs'))
-    push(join(env.LOCALAPPDATA || '', 'Programs', 'nodejs'))
+    // Ask the environment where Program Files is; do not assume the drive.
+    // A missing variable means this install does not have that location, not
+    // that "C:" is the right guess.
+    for (const key of ['ProgramFiles', 'ProgramFiles(x86)']) {
+      const dir = env[key]
+      if (typeof dir === 'string' && dir !== '') push(join(dir, 'nodejs'))
+    }
+    if (typeof env.LOCALAPPDATA === 'string' && env.LOCALAPPDATA !== '') {
+      push(join(env.LOCALAPPDATA, 'Programs', 'nodejs'))
+    }
   } else {
     push('/usr/local/bin')
     push('/usr/bin')
