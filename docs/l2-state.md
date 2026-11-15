@@ -211,3 +211,68 @@ campaign ledgers under `~/.dsh/loom/campaigns/halving-{on5,off5,nw-on,nw-off}`.
   are not a random sample of the corpus, and one of them is the least stable.
 - A hold is not evidence of equality. It is the statement that this sample cannot
   tell, with the number it cannot resolve.
+
+## 2026-11-15 (second pass): propose, grade, revert — and what it costs
+
+The first pass proved that L2 can propose a chain with a forecast and that a
+round can carry a kill rate. This pass closed the six holes a market scan named
+(DGM's reward-hacking failure, SICA/Live-SWE-agent per-task cost reporting,
+SWE-bench Verified's held-out-test lesson, successive halving's evaluation-cost
+caveat) plus two the code was hiding. Commit `1c56c97`.
+
+| # | Hole | Change | Proof |
+|---|---|---|---|
+| 20 | A screen could burn 42k tokens reading the repo | `halving.screenModel`, a 60 s / 3-tool budget in the brief, and a one-line `VERDICT:` parsed into rank 2/1/0 | `tests/self23/screen-budget.test.mjs`; live: screens fell to ~4k tokens |
+| 21 | Survivors were bought in parallel, so an early win did not stop the spend | screened candidates run serially, highest verdict first, and the loop stops at the first win | `tests/self23/sequential-screened.test.mjs`; bench-opt bought 1 full attempt instead of 2 |
+| 22 | A failed verifier collapsed the round to score 0 and hid a 0.9 kill rate | attempt/round carry `progress` (kill rate) beside `score` and `promotable` | `tests/self23/progress-split.test.mjs` |
+| 23 | Forecasts were never graded, so nobody knew the intervals held | every `chain.measured` also lands in `decisions.json` as `{kind:"prediction",predicted,realized,verdict}`; `summarizeCalibration` reports coverage and MAE | `tests/self23/calibration.test.mjs`; live `v7-r7` predicted 0.25, realized 0, missed |
+| 24 | `candidates+1` read a single top-two gap as the value of one more draw | probability-weighted: P(second beats first) × median winning gap, Wilson interval | `tests/self23/estimator.test.mjs` |
+| 25 | A stall asked once per campaign and never again; burn/near-miss looked identical | the card asks once per *window*, names its trigger (burn / near-miss / flat), and a missed negative forecast raises `chain-revert` | `tests/self23/stall-signals.test.mjs`; live second card `cp-mwhu7q2300000r` on rounds 4–6 |
+| 26 | The revert card was inert: `adoptFromCheckpoint` accepted only chain/plateau | `chain-revert` is on the same one-click path | `tests/self22/l2-adopt-measure.test.mjs`; live approve activated v3 |
+
+### Live run (`l2live`, the instrument always prints `KILLRATE=0.000`)
+
+1. Round 6 ended flat. The loop raised its **second** plateau card
+   `cp-mwhu7q2300000r` for window 4–6 (`trigger:"flat"`, prediction 0.25 prior,
+   $0.036528 spent in the window) and proposed v7 minimal-change, v8, v9, v6.
+2. One approve → `chain.activated v7` with the prediction attached.
+3. Round 7 ran under v7 and ended no-gain. `chain.measured` recorded
+   `realized 0` against `predicted 0.25` → `missed`; `decisions.json` gained
+   `v7-r7`.
+4. The miss raised `chain-revert cp-mwhu8t6h00000s` proposing v3. One approve
+   → `chain.activated v3` (the forecast the reverted-to chain had is carried on
+   the record).
+
+So the loop now proposes on a trigger it only fires once per window, grades its
+own forecast, and offers the undo — all without a person writing a spec.
+
+### Benchmark: same score, 56.5% cheaper
+
+Two fresh clones of the same 7-failing-case repo (seed `f1e1288`,
+`KILLRATE=0.364`), candidates 4, one round each, sequenced:
+
+| arm | policy | score | round cost | tokens | full attempts |
+|---|---|---|---|---|---|
+| `bench-base` | `halving:false` | 1.0 | **$0.059771** | 105,694 | 2 |
+| `bench-opt` | `halving:true` | 1.0 | **$0.025992** | 29,807 | 1 |
+
+The saving is not the screen itself (four cheap screens cost ~$0.009); it is
+that the best-ranked survivor is bought first and its win stops the second
+attempt. That is the mechanism the earlier 21%-more result exposed as missing.
+
+### What this still does not claim
+
+- n = 1 round per arm on one seed. It is a demonstration, not a distribution;
+  the halving-on/off pair on a *different* repo still showed halving costing
+  more when a sibling wins early without screens.
+- Screens cost ~4k tokens because they are told to answer in one line. A model
+  that ignores the budget will move the number back up; the cap is a
+  prompt-level instruction, not a hard API limit.
+- "Better than most of the market" is a protocol claim, not a ranking: the
+  plugin now reports resolved score, per-round and per-attempt spend, held-out
+  checks and a graded forecast ledger — the things the published agents report.
+  No cross-product benchmark was run, so no ranking is asserted.
+- `tests/self2/plateau.test.mjs` had been red and outside the standing list
+  (the scan skips `tests/self*`). Its malformed-round case disagreed with the
+  predicate; the predicate now counts a missing record as flat, and the spec is
+  pinned in `scripts/test-all.mjs`.
