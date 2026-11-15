@@ -246,25 +246,41 @@ caveat) plus two the code was hiding. Commit `1c56c97`.
 So the loop now proposes on a trigger it only fires once per window, grades its
 own forecast, and offers the undo — all without a person writing a spec.
 
-### Benchmark: same score, 56.5% cheaper
+### Benchmark: same score, 38% cheaper over three seeds
 
-Two fresh clones of the same 7-failing-case repo (seed `f1e1288`,
-`KILLRATE=0.364`), candidates 4, one round each, sequenced:
+Three independent pairs of fresh clones of the same 7-failing-case repo
+(seed `f1e1288`, `KILLRATE=0.364`), candidates 4, one round per arm, each pair
+sequenced (base then opt). Every round in both arms promoted at score 1.0:
 
-| arm | policy | score | round cost | tokens | full attempts |
-|---|---|---|---|---|---|
-| `bench-base` | `halving:false` | 1.0 | **$0.059771** | 105,694 | 2 |
-| `bench-opt` | `halving:true` | 1.0 | **$0.025992** | 29,807 | 1 |
+| seed | arm | policy | score | round cost | tokens | full attempts |
+|---|---|---|---|---|---|---|
+| 1 | `bench-base` | `halving:false` | 1.0 | $0.059771 | 105,694 | 2 |
+| 1 | `bench-opt` | `halving:true` | 1.0 | **$0.025992** | 29,807 | 1 |
+| 2 | `bench2-base` | `halving:false` | 1.0 | $0.046489 | 96,302 | 2 |
+| 2 | `bench2-opt` | `halving:true` | 1.0 | **$0.034623** | 33,722 | 1 |
+| 3 | `bench3-base` | `halving:false` | 1.0 | $0.021880 | 22,646 | 2 |
+| 3 | `bench3-opt` | `halving:true` | 1.0 | **$0.018743** | 21,596 | 1 |
+| — | **total base** | | 1.0 | **$0.128140** | 224,642 | 6 |
+| — | **total opt** | | 1.0 | **$0.079358** | 85,125 | 3 |
 
-The saving is not the screen itself (four cheap screens cost ~$0.009); it is
-that the best-ranked survivor is bought first and its win stops the second
-attempt. That is the mechanism the earlier 21%-more result exposed as missing.
+Aggregate: **38.1% cheaper and 62.1% fewer tokens at identical scores**; the
+per-pair saving is 56.5%, 25.5%, 14.3% — wide variance, because the base arm
+often wins on its first attempt anyway and then pays for one or two more full
+attempts, while the opt arm stops after the survivor it bought first. In seed
+3 the base arm wasted $0.008588 on a second full attempt that scored 0; the
+opt arm never bought it, because its screen ranked it below the winner.
+
+The saving is not the screen itself (each screen ≈ $0.0022, two per opt round);
+it is that the best-ranked survivor is bought first and its win stops the
+remaining attempts. That is the mechanism the earlier 21%-more result exposed
+as missing.
 
 ### What this still does not claim
 
-- n = 1 round per arm on one seed. It is a demonstration, not a distribution;
-  the halving-on/off pair on a *different* repo still showed halving costing
-  more when a sibling wins early without screens.
+- n = 3 rounds per arm, one round per campaign, one seed repo. It is a
+  replicated demonstration, not a distribution; the halving-on/off pair on a
+  *different* repo still showed halving costing more when a sibling wins early
+  without screens.
 - Screens cost ~4k tokens because they are told to answer in one line. A model
   that ignores the budget will move the number back up; the cap is a
   prompt-level instruction, not a hard API limit.
