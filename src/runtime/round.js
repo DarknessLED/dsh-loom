@@ -859,9 +859,18 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       models,
     })
     const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
+    // A screen is a model call too. Billing it only when a full attempt runs
+    // makes halving look cheaper than it is: the saving has to be measured net
+    // of the passes that bought it, or a policy that screens everything reads
+    // as free. Same pricing path as a full attempt, so a relay's table applies.
+    const screenPricing = pricingFor(config.models?.pricing, run.model)
+    const screenSpend = usageOfSession(runtime.ctx, run.sessionId, screenPricing.table)
+    const screenBilled = hasTokens(screenSpend.usage) ? screenSpend : fallbackSpend(brief, run.text, screenPricing.table)
     Object.assign(out, {
       ok: Boolean(ver.ok),
       exitCode: ver.exitCode ?? null,
+      costUsd: screenBilled.usd ?? 0,
+      tokens: tokensOf(screenSpend, brief, run.text),
       sessionId: run.sessionId ?? null,
       stopReason: run.stopReason ?? null,
       error: run.error ?? null,
@@ -1409,6 +1418,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           score: 0,
           screenedOut: true,
           screen: screenInfo.get(id),
+          // The screen paid for this candidate, so the round's cost carries it.
+          costUsd: Number(screenInfo.get(id)?.costUsd) || 0,
+          tokens: screenInfo.get(id)?.tokens ?? null,
           error: 'screened out before the real attempt',
           durationMs: 0,
         }
@@ -1749,6 +1761,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // no usage at all, `tokensOf` still counts the brief and the answer —
         // bill that same fallback, or the record shows tokens with $0.00.
         const billed = hasTokens(spend.usage) ? spend : fallbackSpend(brief, runRes.text, attemptPricing.table)
+        // A survivor paid for its screen too. Counting only the full attempt
+        // would leave the screening pass invisible in every round that kept a
+        // candidate — exactly the rounds halving is supposed to save on, so the
+        // round would look cheaper than it was.
+        const screenSpent = screening ? Number(screenInfo.get(attemptId)?.costUsd) || 0 : 0
+        const screenTokensUsed = screening ? Number(screenInfo.get(attemptId)?.tokens) || 0 : 0
         record = {
           ...record,
           // The tree this attempt was cut against: salvage re-verifies against it.
@@ -1777,10 +1795,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           agentTail: (runRes.text || '').split('\n').slice(-12).join('\n'),
           usage: billed.usage,
           usageEstimated: billed.estimated === true,
-          costUsd: billed.usd,
+          // costUsd is what this candidate cost the round: the full attempt
+          // plus, when it survived a screen, that screen. attemptCostUsd keeps
+          // the split so a report can still price the expensive half alone.
+          costUsd: Math.round((billed.usd + screenSpent) * 1e6) / 1e6,
+          ...(screenSpent > 0 ? { attemptCostUsd: billed.usd, screenCostUsd: screenSpent } : {}),
           priceSource: attemptPricing.source,
           priceKey: attemptPricing.source.startsWith('model:') ? attemptPricing.source.slice('model:'.length) : null,
-          tokens: tokensOf(billed, brief, runRes.text),
+          tokens: tokensOf(billed, brief, runRes.text) + screenTokensUsed,
           textChars: (runRes.text || '').length,
           error: runRes.error,
           failureKind: outcomeKind,
