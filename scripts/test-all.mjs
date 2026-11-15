@@ -81,6 +81,10 @@ const standing = [
   'tests/self20/budget-funding.test.mjs',
   'tests/self20/killrate-score.test.mjs',
   'tests/self20/guard-env.test.mjs',
+  // L2 proposes with evidence now; the halving schedule that spends the money
+  // is pinned too, so a cheaper screen cannot quietly become a smaller sample.
+  'tests/self20/chain-evidence.test.mjs',
+  'tests/self20/halving.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',
