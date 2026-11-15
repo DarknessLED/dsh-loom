@@ -379,7 +379,32 @@ function apply(s, ev) {
         gainSum: Number(l.gainSum) || 0,
         harmCount: Number(l.harmCount) || 0,
         lastUsedRound: l.lastUsedRound ?? null,
+        // A borrow keeps the conditions it was learned under: `notWhen` is the
+        // filter that stops it being handed out in the situation it already
+        // failed, and `trials` is the denominator/verdict it arrived with. A
+        // fold that dropped either would launder a lesson that had already lost
+        // its trial into a fresh one.
+        ...(Array.isArray(l.notWhen) && l.notWhen.length ? { notWhen: l.notWhen.filter((x) => typeof x === 'string' && x) } : {}),
+        ...(Array.isArray(l.shape) && l.shape.length ? { shape: l.shape.filter((x) => typeof x === 'string' && x) } : {}),
+        ...(Array.isArray(l.steps) && l.steps.length ? { steps: l.steps.filter((x) => typeof x === 'string' && x) } : {}),
+        ...(l.trials && typeof l.trials === 'object'
+          ? { trials: { shown: Number(l.trials.shown) || 0, wins: Number(l.trials.wins) || 0, losses: Number(l.trials.losses) || 0 } }
+          : {}),
         at: ev.t,
+      }
+      // Re-borrowing must not reset a trial. A lesson can be folded in again
+      // after the campaign pruned its local copy, and the global record it is
+      // borrowed from still carries the counters it had when it was written.
+      // Counting from those stale zeros would hide every showing this
+      // campaign already paid for, and the 20-showing verdict could never be
+      // reached. Keep the larger count on each axis.
+      const prior = s.lessons.find((x) => x.id === rec.id)
+      if (prior && prior.trials && rec.trials) {
+        rec.trials = {
+          shown: Math.max(Number(prior.trials.shown) || 0, rec.trials.shown),
+          wins: Math.max(Number(prior.trials.wins) || 0, rec.trials.wins),
+          losses: Math.max(Number(prior.trials.losses) || 0, rec.trials.losses),
+        }
       }
       s.lessons = s.lessons.filter((x) => x.id !== rec.id).concat(rec)
       break

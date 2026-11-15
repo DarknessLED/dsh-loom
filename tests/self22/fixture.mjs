@@ -63,6 +63,21 @@ export function makeRuntime({ repo, tasks, spec = chainSpec(), budget = {} } = {
       if (type === 'lesson.added' && data?.lesson && Array.isArray(view?.state?.lessons)) {
         if (!view.state.lessons.some((l) => l.id === data.lesson.id)) view.state.lessons.push(data.lesson)
       }
+      // The real reduce counts a showing on the lesson it names and credits a
+      // later win/loss to the same record. Mirroring it here is what makes a
+      // trial observable across rounds at all: without it a borrowed procedure
+      // is shown forever and judged never.
+      if ((type === 'lesson.shown' || type === 'lesson.impact') && data?.id && Array.isArray(view?.state?.lessons)) {
+        const lesson = view.state.lessons.find((l) => l.id === data.id)
+        if (lesson) {
+          const t = lesson.trials && typeof lesson.trials === 'object' ? lesson.trials : { shown: 0, wins: 0, losses: 0 }
+          lesson.trials = {
+            shown: (Number(t.shown) || 0) + (type === 'lesson.shown' ? 1 : 0),
+            wins: (Number(t.wins) || 0) + (type === 'lesson.impact' && Number(data.delta) > 0 ? 1 : 0),
+            losses: (Number(t.losses) || 0) + (type === 'lesson.impact' && data.harm ? 1 : 0),
+          }
+        }
+      }
       // Fold just enough for the next predicate: plateau detection reads
       // `finished.rounds` and the checkpoints it already raised (the second card
       // must cover a new window, not the one it just asked about).

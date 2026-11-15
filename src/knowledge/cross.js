@@ -43,7 +43,12 @@ export function transferRoute(lesson, target) {
   const reasons = []
   let direct = false
 
-  if (l.family === t.family && typeof l.family === 'string') {
+  // An eval-set task that declares no family is filed under its own id, which
+  // is exactly what the attempt record does (`task.family ?? task.id`). Both
+  // sides must agree on that or a family lesson can never reach the worker.
+  const targetFamily =
+    typeof t.family === 'string' && t.family ? t.family : typeof t.id === 'string' ? t.id : undefined
+  if (l.family === targetFamily && typeof l.family === 'string') {
     direct = true
     reasons.push(`same family: ${l.family}`)
   }
@@ -116,6 +121,10 @@ export function trialVerdict(lesson) {
   const wins = Number(t.wins) || 0
   const losses = Number(t.losses) || 0
   if (shown < TRIAL_MIN) return 'insufficient'
+  // A trial with no graded comparison never ran: shown twenty times, but no
+  // attempt was ever compared against a control. Calling that a loss would
+  // retire a procedure nobody judged, so it stays pending.
+  if (wins + losses === 0) return 'insufficient'
   return wins > losses ? 'keep' : 'drop'
 }
 

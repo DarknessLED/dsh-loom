@@ -137,6 +137,15 @@ const standing = [
   // self28/procedure-tightening: after the T2 replay cut 57 -> 2, the rule is
   // pinned where it got stricter: independent tasks, at least two steps.
   'tests/self28/procedure-tightening.test.mjs',
+  // self28/family-fallback: the eval set never names a family, so an id-
+  // addressed task still routes the lesson its global record calls family=tiny.
+  'tests/self28/family-fallback.test.mjs',
+  // self29/second-candidate-policy: T3 needed to buy a control candidate on
+  // purpose; the preference is now a validated campaign policy, not config-only.
+  'tests/self29/second-candidate-policy.test.mjs',
+  // self30/noop-needs-full-pass: T3 promoted an empty diff that exited 0 but
+  // only half-passed; 'already satisfied' now needs the whole verifier.
+  'tests/self30/noop-needs-full-pass.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.
   'tests/self20/hedge-wiring.test.mjs',

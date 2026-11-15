@@ -107,6 +107,14 @@ test('shown and credited are counted, and 20 showings without a win is a drop', 
   assert.equal(trialVerdict(good), 'keep')
 })
 
+test('twenty showings with no graded comparison is not a verdict', () => {
+  // T3's live run can show a procedure many times with no control attempt.
+  // Zero wins and zero losses is "the experiment never ran", not "it lost";
+  // treating it as a loss would retire a procedure nobody ever compared.
+  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 0 } }), 'insufficient')
+  assert.equal(trialVerdict({ trials: { shown: 20, wins: 0, losses: 1 } }), 'drop')
+})
+
 test('an attempt is classified into a shape that can travel', () => {
   assert.deepEqual(shapeOf({ error: 'timeout' }), ['error'])
   assert.deepEqual(shapeOf({ verifierOk: false, progress: 0.9 }), ['near-miss'])

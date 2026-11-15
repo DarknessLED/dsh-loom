@@ -178,3 +178,34 @@ T2 指出的两个结构问题直接改在规则上，不是调阈值。`induceP
 **这带来的新问题，必须说清楚**：procedure 现在非常稀有（2/114 战役），`lesson.shown` 的真实样本会比以前更少，"20 次展示后裁决"在现有战役规模下可能长期停在 `insufficient`。这不是缺陷，是收紧的代价——要么接受 procedure 是低频高置信单元，要么用 T3 的小预算战役专门攒展示次数。在你决定 T3 之前，我不会为了让数字好看再放宽规则。
 
 新规格：`tests/self28/procedure-tightening.test.mjs`（5 条）；旧规格 `tests/self26`、`tests/self27` 按新规则改写（不是放宽断言：T1 的 fixture 现在写两个文件，因为单文件编辑已不再产生 procedure）。
+
+## 11. T3：用 ¥0.5 真实战役买展示次数（2026-11-16 凌晨）
+
+T2 的结论是"规则收紧后 procedure 是低频单元"，T3 的任务是拿真钱测试它的试次台账能否在真实轮次里累加、并按预算诚实地停下。
+
+**设置。** 战役 `t3-trial2`，工作区 `C:/Projects/RSI-live/t3`（seed `eed38fb`），验证器是一个恒返回 `KILLRATE=0.000` 并 `exit 1` 的 `check.cjs`，任务提示只有一句"Reply with exactly READY … Do not modify any file."。procedure 由 `~/.dsh/loom/knowledge.json` 直接种入（`proc-t3-trial`，family `tiny`），因为归纳本身已由 T1 用真实轮次证明；T3 要测的是展示→记账→裁决这一段。预算 **¥0.5 ≈ $0.07**。
+
+**为什么不顺手多买两个候选。** 第 2 轮起循环把候选数强制压到 1（`candidateModeSource:"evidence"`）：`secondCandidateGate` 用前几轮算出的 p≈1/3、轮时长 9.9s、尾部差 3.1s，得出"第二个候选的期望节省 < 它的尾部成本"，于是拒绝购买。这个判断在数据上是对的，但它使 T3 无法在一轮里同时留下"看到 lesson 的"和"没看到 lesson 的"两个尝试，而配对 credit 正需要这一对。原来 `secondCandidate` 只存在于安装级 config，战役无法覆盖 —— 这是 T3 暴露的第二个洞，已补成战役 policy 字段（见下）。
+
+**花的钱与买到的展示：**
+
+| 轮 | 候选 | 花费 USD | 展示 | 备注 |
+|---|---|---|---|---|
+| 1 | 2 | 0.025290 | 0（账本有，计数器未记） | 跑的是补丁前的旧进程，借入的 lesson 没有先落账 |
+| 2 | 1 | 0.002721 | 0 | 网关拒绝第二个候选，无配对 |
+| 3 | 2 | 0.004680 | 1 | 借入先落账 + `lesson.shown` + 一条 `lesson.impact` |
+| 4 | 2 | 0.025615 | 1 | 同上；本轮候选重新读了仓库，成本回到冷启动水平 |
+
+合计 **$0.058 / ¥0.41**，账本里 **3 条 `lesson.shown`**，而 `state.lessons[0].trials.shown` 读到 **2** —— 差的 1 条是第 1 轮（旧进程）那次，它发生在借入落账之前，按"展示是分母、信用是分子"的规则无法回填。这不是账本错，是补丁生效前的那一轮没有留下可计数的记录；如实记在这里，没有修改历史事件。
+
+**T3 暴露并修掉的三个洞：**
+
+1. **半个通过的空补丁也能晋升**：`t3-trial` 第 1 轮 4 个尝试都 `hasPatch:false`、`noop:true`，网关仍以 `earnedReason:"base-unmeasured"` 晋升了 r1a1 —— 而验证器只过了 50%。修复是把 no-op 的定义收紧：`checks.noop` 现在要求 `score >= 1`，"整棵树已满足验证器"是关于整个任务的断言，半个分不能借用它。规格 `tests/self30/noop-needs-full-pass.test.mjs`（1 条），先红后绿；`tests/noop-landing.test.mjs` 与 `tests/balance/holdout-noop.test.mjs` 仍绿。
+2. **`secondCandidate` 无法按战役覆盖**：它只在 `config.loopPolicy` 里；现已进 `POLICY_FIELDS`，取值 `always|auto|null`（null = 继续让网关定价），并有 `tests/self29/second-candidate-policy.test.mjs` 钉住校验与优先级。
+3. **借入即清零**：全局 lesson 每次被借入都 `lesson.added`，`reduce` 整条替换记录，把已经攒下的 `trials` 冲成 0。现在 `reduce` 对同 id 的再借入取 `max`（shown/wins/losses），规格在 `tests/self27/knowledge-integration.test.mjs`（6 条）。
+
+另外补了一条口径：`trialVerdict` 在 `shown>=20` 但 `wins+losses===0` 时返回 `insufficient` 而不是 `drop` —— 没有配对判决的试次不该以"没人赢"为由退役一条 procedure。
+
+**诚实的结论：T3 只完成了一半。** 它证明了展示能在真实轮次里累加、成本可归因、配对 credit 能落账；它没有完成"20 次展示后的裁决"，因为 20 次展示需要约 20 个双候选轮：按热轮 $0.0047 算约 **$0.09（¥0.65）**，按冷轮 $0.0256 算约 **$0.51（¥3.6）** —— 无论哪种都超过 ¥0.5。所以样本停在 3 次展示（计数器 2 次），`trialVerdict` 仍是 `insufficient`。要让"20 次展示"可负担，得先让单轮更便宜（缓存/更短提示/固定 screen），或者把 T3 的预算提高到 ¥1–4 一次跑完；这两条都需要你定，而不是我悄悄放宽规则。
+
+规格：`tests/self27/knowledge-integration.test.mjs` 6 条、`tests/self28/family-fallback.test.mjs` 3 条、`tests/self29/second-candidate-policy.test.mjs` 2 条，均已进 standing 列表。

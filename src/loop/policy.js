@@ -8,7 +8,7 @@
  * re-decided under a different policy without calling a model.
  */
 
-export const POLICY_FIELDS = ['minGain', 'candidates', 'knowledge', 'halving', 'holdoutSlack', 'planMode']
+export const POLICY_FIELDS = ['minGain', 'candidates', 'knowledge', 'halving', 'holdoutSlack', 'planMode', 'secondCandidate']
 
 /** The only modes a planner can run in; anything else is not a mode. */
 const PLAN_MODES = ['off', 'full', 'auto']
@@ -22,6 +22,8 @@ export const POLICY_DEFAULTS = {
   holdoutSlack: 0.02,
   /** 'off' | 'full' | 'auto' — see `planModeFor` in runtime/round.js. */
   planMode: 'full',
+  /** null = price the second candidate; 'always' = an instruction not to. */
+  secondCandidate: null,
 }
 
 function num(x, fallback) {
@@ -45,6 +47,7 @@ const OVERRIDE_RULES = {
   candidates: { valid: (v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 4, why: 'integer in [1, 4]' },
   knowledge: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
   halving: { valid: (v) => typeof v === 'boolean', why: 'boolean' },
+  secondCandidate: { valid: (v) => v === 'always' || v === 'auto', why: 'always | auto' },
   infraPauseAfter: {
     valid: (v) => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 20,
     why: 'integer in [1, 20]',
@@ -111,6 +114,8 @@ export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
     halving: typeof p.halving === 'boolean' ? p.halving : base.halving,
     holdoutSlack: Math.max(0, Math.min(1, num(p.holdoutSlack, base.holdoutSlack))),
     planMode: PLAN_MODES.includes(p.planMode) ? p.planMode : base.planMode,
+    secondCandidate:
+      p.secondCandidate === 'always' || p.secondCandidate === 'auto' ? p.secondCandidate : base.secondCandidate ?? null,
   }
   return out
 }
@@ -128,6 +133,7 @@ export function effectivePolicy({ state, config } = {}) {
       halving: config?.halving?.enabled,
       holdoutSlack: config?.gate?.holdoutSlack,
       planMode: config?.loopPolicy?.planMode,
+      secondCandidate: config?.loopPolicy?.secondCandidate ?? null,
     },
     POLICY_DEFAULTS,
   )

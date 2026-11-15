@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { reduce } from '../../src/core/reduce.js'
 import { tmpdir } from 'node:os'
 
 import { runRound } from '../../src/runtime/round.js'
@@ -138,6 +139,38 @@ test('a lesson whose notWhen condition holds is not handed out', async () => {
   assert.equal(seen, false, 'a lesson that warns about this situation stays out of the brief')
 })
 
+test('a lesson borrowed from the global store enters this campaign ledger, so its trial advances', async () => {
+  const ctx = setup({ tasks: [{ id: 't6', family: 'parser', prompt: 'fix parser six', verify: { cmd: VERIFY } }] })
+  ctx.dispatcher = dispatcher([])
+  const borrowed = {
+    id: 'lsn-global',
+    family: 'parser',
+    kind: 'procedure',
+    subject: 'fixed.txt',
+    steps: ['1. create fixed.txt'],
+    claim: 'two promotions began at fixed.txt',
+    status: 'active',
+    ttlRounds: 12,
+    confidence: 0.9,
+    createdRound: 0,
+    useCount: 0,
+    gainSum: 0,
+    harmCount: 0,
+    trials: { shown: 0, wins: 0, losses: 0 },
+  }
+  // The store is the cross-campaign library; the campaign starts with no lesson
+  // of its own, so only the borrow can explain anything that happens next.
+  writeFileSync(join(ctx.runtime.home, 'knowledge.json'), JSON.stringify([borrowed]))
+
+  await round(1, ctx)
+
+  const shown = ctx.runtime.events.filter((e) => e.type === 'lesson.shown' && e.data?.id === 'lsn-global')
+  assert.ok(shown.length >= 1, 'the borrowed lesson was shown')
+  const inState = (ctx.view.state.lessons || []).find((l) => l.id === 'lsn-global')
+  assert.ok(inState, 'a borrowed lesson is folded into the campaign ledger it acted on')
+  assert.ok(inState.trials.shown >= 1, 'its trial denominator advanced with the showing')
+})
+
 test('a lesson that lost its trial is not handed out again', async () => {
   const ctx = setup({ tasks: [{ id: 't5', family: 'parser', prompt: 'fix parser five', verify: { cmd: VERIFY } }] })
   ctx.dispatcher = dispatcher([])
@@ -161,4 +194,34 @@ test('a lesson that lost its trial is not handed out again', async () => {
     .filter((e) => e.type === 'attempt.finished')
     .some((e) => (e.data?.lessons || []).includes('lsn-loser'))
   assert.equal(seen, false, 'twenty showings without a win is a verdict, not a shrug')
+})
+
+
+test('re-borrowing a lesson does not reset the trial it already ran', () => {
+  const base = {
+    id: 'lsn-reborrow',
+    family: 'parser',
+    kind: 'procedure',
+    claim: 'start at the entry file',
+    status: 'active',
+    ttlRounds: 12,
+    confidence: 0.8,
+    createdRound: 0,
+    useCount: 0,
+    gainSum: 0,
+    harmCount: 0,
+  }
+  const ev = (seq, trials) => ({
+    seq,
+    t: seq,
+    type: 'lesson.added',
+    actor: 'system',
+    data: { lesson: { ...base, trials } },
+  })
+  // The campaign pruned its local copy, so the borrow is folded in again from
+  // the global record, which still says zero. The campaign already paid for
+  // three showings and one win; re-adding must not pretend they never happened.
+  const state = reduce([ev(1, { shown: 3, wins: 1, losses: 1 }), ev(2, { shown: 0, wins: 0, losses: 0 })], 'c')
+  const lesson = state.lessons.find((l) => l.id === 'lsn-reborrow')
+  assert.deepEqual(lesson.trials, { shown: 3, wins: 1, losses: 1 })
 })

@@ -1271,7 +1271,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // overruled by statistics; a record that cannot price the hedge leaves the
   // configured count untouched. `cascade` already buys the next opinion only
   // when the first leaves room, so pricing it again would double-charge.
-  const secondCandidatePreference = config.loopPolicy?.secondCandidate
+  const secondCandidatePreference = policy.secondCandidate ?? config.loopPolicy?.secondCandidate
   let secondCandidate = null
   if (candidateMode === 'parallel' && secondCandidatePreference !== 'always') {
     const priced = secondCandidateGate(state.rounds)
@@ -1532,8 +1532,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // A showing is the denominator of the trial. It is recorded here, not
         // when the lesson was created, so a lesson that never reaches a worker
         // is never blamed for a loss it could not have caused.
+        //
+        // A *borrowed* lesson was never folded into this campaign's ledger, so a
+        // showing for it would increment nothing: the trial would read zero
+        // forever even while the lesson steered every round. Fold the borrow in
+        // first, under the same id, so the denominator and the later win/loss
+        // credits land on the record this campaign can actually report.
         for (const lesson of lessons) {
           if (lesson.analogy || lesson.kind === 'procedure') {
+            if (!seenLessons.has(lesson.id)) {
+              runtime.append(view, 'lesson.added', { lesson, fromGlobal: true }, 'system')
+              seenLessons.add(lesson.id)
+            }
             runtime.append(view, 'lesson.shown', { id: lesson.id, round: n, analogy: lesson.analogy === true }, 'system')
           }
         }
@@ -2289,7 +2299,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // an empty patch fails in git apply, so record it as a no-op landing instead.
     // Decided before the holdout gate: a tree that has not changed since the
     // verifier passed has nothing new for a second opinion to check.
-    checks.noop = checks.verifierOk && !checks.hasPatch && score > 0 && checks.beatsIncumbent
+    // "Already satisfied" is a claim about the whole task, so a partial score
+    // cannot borrow it: T3 promoted an empty diff that exited 0 while passing
+    // half the cases, which recorded a landing for work nobody did.
+    checks.noop = checks.verifierOk && !checks.hasPatch && score >= 1 && checks.beatsIncumbent
     // A verdict on a spec that was already green is not evidence of work. The
     // candidate was verified inside a worktree cut from this very tree, so the
     // question "did this command fail before the patch?" is answerable with one
