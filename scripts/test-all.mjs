@@ -110,6 +110,9 @@ const standing = [
   'tests/self23/calibration.test.mjs',
   'tests/self23/estimator.test.mjs',
   'tests/self23/stall-signals.test.mjs',
+  // self23/card-calibration: a prior-based forecast must carry the record of
+  // the priors before it, or the interval reads as knowledge it has not earned.
+  'tests/self23/card-calibration.test.mjs',
   // self2/plateau: the predicate the stall card is built on. It lived outside the
   // standing list (tests/self* is skipped by the directory scan) and drifted red;
   // pinned now so "ask once per window" cannot rot unnoticed again.

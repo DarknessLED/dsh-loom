@@ -7,7 +7,7 @@
 // the form a reviewer can read in ten seconds. When the record is too thin to
 // forecast from, `missing` says so instead of the card pretending otherwise.
 
-import { predictGain, regressionRisk, measuredRounds } from './predict.js'
+import { predictGain, regressionRisk, measuredRounds, summarizeCalibration } from './predict.js'
 import { diffSpec, renderDiff } from './spec-diff.js'
 
 const round4 = (n) => Math.round(Number(n) * 1e4) / 1e4 + 0
@@ -22,10 +22,12 @@ function proposalSpec(p) {
  *   active: {version:number, spec:object},
  *   proposals: Array<object>,
  *   rounds?: Array<object>,
+ *   measurements?: Array<object>,
  *   config?: object
  * }} input
  */
-export function buildProposalCard({ active, proposals = [], rounds = [], config = {} } = {}) {
+export function buildProposalCard({ active, proposals = [], rounds = [], config = {}, measurements = [] } = {}) {
+  const calibration = summarizeCalibration(measurements)
   const activeVersion = active?.version != null ? Number(active.version) : null
   const measured = measuredRounds(rounds)
   const onChain = activeVersion == null ? measured : measured.filter((r) => Number(r.chainVersion) === activeVersion)
@@ -38,7 +40,22 @@ export function buildProposalCard({ active, proposals = [], rounds = [], config 
     const spec = proposalSpec(p)
     const kind = p?.kind ?? spec?.meta?.kind ?? null
     const prediction = p?.prediction ?? predictGain({ kind, rounds: onChain, config, candidates: current })
-    const risk = p?.risk ?? regressionRisk({ rounds: onChain, window, kind, candidates: current })
+    const baseRisk = p?.risk ?? regressionRisk({ rounds: onChain, window, kind, candidates: current })
+    // A prior is the loop guessing from a shape, not from a measured change.
+    // If the priors before this one have mostly missed, the card says so —
+    // otherwise the interval reads as knowledge when it is a placeholder.
+    const weakPrior =
+      prediction?.basis === 'prior' &&
+      calibration.missed > calibration.met + calibration.exceeded
+    const risk = weakPrior
+      ? {
+          ...baseRisk,
+          reasons: [
+            ...(Array.isArray(baseRisk?.reasons) ? baseRisk.reasons : []),
+            `prior forecasts: ${calibration.missed} of ${calibration.n} graded so far missed — treat this interval as weak`,
+          ],
+        }
+      : baseRisk
     const diff = p?.diff ?? diffSpec(active?.spec, spec)
     return {
       version: Number(spec?.version ?? p?.version),
@@ -69,6 +86,7 @@ export function buildProposalCard({ active, proposals = [], rounds = [], config 
     spendUsd,
     items,
     proposals: items,
+    calibration,
     recommendedVersion: recommended?.version ?? null,
     missing,
   }
@@ -86,6 +104,12 @@ export function renderCard(card) {
   lines.push(
     `chain ${version}: ${r.onChain} round(s) measured on it (${r.measured} in total), ${r.promotions} promoted, $${card?.spendUsd ?? 0} spent`,
   )
+  const graded = card?.calibration?.n ?? 0
+  if (graded > 0) {
+    lines.push(
+      `past forecasts: ${graded} graded, ${card.calibration.missed} missed, coverage ${pct(card.calibration.coverage)}, MAE ${card.calibration.mae}`,
+    )
+  }
   for (const item of card?.items ?? []) {
     const p = item.prediction
     const risk = item.risk

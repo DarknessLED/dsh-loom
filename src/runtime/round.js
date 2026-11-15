@@ -2680,7 +2680,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
       const decided = readDecisions(runtime.home ? join(runtime.home, 'decisions.json') : null)
       const proposed = proposeMutations(baseSpec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable, rounds })
-      const card = buildProposalCard({ active: { version: activeVersion, spec: baseSpec }, proposals: proposed, rounds, config })
+      const card = buildProposalCard({
+        active: { version: activeVersion, spec: baseSpec },
+        proposals: proposed,
+        rounds,
+        config,
+        measurements: state.chain.measurements ?? finished.chain?.measurements ?? [],
+      })
       // Why this card exists is part of the card. Three flat rounds are not the
       // same stall when each one got to 90% (a gate/knob problem) as when each
       // one was a dead end (an objective problem).

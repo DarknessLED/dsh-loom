@@ -246,6 +246,12 @@ caveat) plus two the code was hiding. Commit `1c56c97`.
 So the loop now proposes on a trigger it only fires once per window, grades its
 own forecast, and offers the undo — all without a person writing a spec.
 
+The ledger is not decoration: the next card reads it. When the proposal's
+forecast is a `prior`, the card prints `past forecasts: N graded, M missed,
+coverage C, MAE E`, and if more priors missed than held, the risk line says so
+("treat this interval as weak"). A loop that has been wrong about its own
+guesses says that on the card it is asking a person to trust.
+
 ### Benchmark: same score, 38% cheaper over three seeds
 
 Three independent pairs of fresh clones of the same 7-failing-case repo
