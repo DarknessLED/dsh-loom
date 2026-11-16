@@ -169,6 +169,9 @@ const standing = [
   'tests/self37/spec-index.test.mjs',
   'tests/self37/portable-paths.test.mjs',
   'tests/self37/reduce-perf.test.mjs',
+  // self38/trial-summary: T3's 5 showings were 4 ties, but the status view
+  // counted only wins and losses. One shared summary now names the verdict.
+  'tests/self38/trial-summary.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

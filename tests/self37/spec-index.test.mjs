@@ -35,7 +35,6 @@ const KNOWN_RED = {
   'tests/self5/no-test-edits.test.mjs': 'promotion now requires the base to fail',
   'tests/self8/human-node.test.mjs': 'chain human-node payload moved',
   'tests/self9/holdout-report.test.mjs': 'holdout fixture no longer fails',
-  'tests/self38/trial-summary.test.mjs': 'red on purpose: src/knowledge/trials.js does not exist yet; trial-summary-live is buying it',
 }
 
 const missing = files.filter((file) => !listed.has(file) && !KNOWN_RED[file])
