@@ -55,6 +55,7 @@ import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
 import { demoteChain } from './model-health.js'
+import { failureDigest } from '../core/limits.js'
 
 /**
  * A verify command is written by the task, not by the harness, so it may say
