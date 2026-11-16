@@ -161,3 +161,52 @@ F2P 用例由 benchmark 提供，我这侧只提供 grader。两次运行，两�
 
 盲跑失败一轮约 $0.27，与公开基线 mini-swe-agent + `deepseek-v4-flash[max]` 的
 $0.46/task、53% ±4 是同一量级；但 n=1，不能拿单轮失败去推成功率。
+
+## 2026-11-17 凌晨：修复轮——守卫先把我自己的脏东西当成了"改测试"
+
+上一节的结论是"44 条新行为全做出来了，但打坏 34 条旧用例"，也就是这一轮拿到的是**部分正确**，不是零。于是又开了两场一轮制战役，专门测"告诉它哪里坏了，它能不能修好"。
+
+### 第一场：修对了，被拒了（`$0.059737`）
+
+`adaptix-fix-regressions`，1 候选 1 轮，任务描述里写明"aliases 已实现，36 个 `name_layout` 旧用例失败"。
+
+- 结果：`P2P=2734/2734 F2P=44/44 REWARD=1`，`killRate 1.0`，9 个文件全在 `src/`，**修好了**。
+- 但 gate 判 `promoted:false`，理由是 `testsClean:false`——它认为这一轮改了 `tests/`。
+
+`testsClean` 是从补丁路径算的，而补丁里确实有 `test.sh` 和 `tests/integration/morphing/test_aliases.py`。问题不在模型：是我的 grader 把 held-out 测试文件写进工作区后没有收干净，loom 自己 diff 时把它们算进了"这一轮改了什么"。**验证器污染了被测对象，守卫又忠实地报告了污染。**
+
+修了两处：grader 在每条退出路径（apply 失败、无 suite、环境坏、正常结束）都把 held-out 文件与 `test.sh` 还原／删除；并且在 `checkout --detach` 之后补了 `reset --hard`，因为**已暂存的新文件**既不被 checkout 还原也不被 clean 删除，prepare 于是报 "already exists in working directory"。
+
+### 第二场：同样的活，$0.117918，晋升（commit `53acaa10`）
+
+同样的工作区、同样的任务描述，grader 修好之后重跑一轮：
+
+| 项 | 值 |
+| --- | --- |
+| 花费 | `$0.117918` |
+| tokens | 78,904 |
+| 用时 | 416 s |
+| 结果 | `P2P=2734/2734 F2P=44/44 REWARD=1` |
+| gate | `promoted:true`，`testsClean/oracleClean/verifierOk/beatsIncumbent/baseFailed` 全真，`earnedReason:"red-to-green"` |
+| 工作区残留 | 8 个 `src/` 文件，无 `tests/` 垃圾 |
+
+也就是说：**这个 DeepSWE 任务最终被做完了，代价是 $0.118**（比盲跑一轮的 $0.138 还便宜，因为修比从零写省）。整个 adaptix 家族五场战役合计 `$0.843953`，其中 `$0.396` 花在我自己的错误上（第一次把答案递到它手里 $0.276、一轮只写冒烟脚本 $0.120）。
+
+### 新发现的缺陷：行尾翻新
+
+晋升的补丁名义上是 `2957 insertions / 2765 deletions`，忽略空白后只有 `207 / 15`——**模型把 8 个 LF 文件整份改写成了 CRLF**，测试照样全绿。对人类 review 来说这种补丁会被直接打回（每一行都变了）。可以加一条不阻塞的 gate 信号：`git diff --numstat` 与 `--ignore-all-space --numstat` 的行数差超过阈值时，在 `checks` 里记 `lineEndingChurn:true`。**尚未实现**，先记在这里。
+
+### grader 现在会点名坏在哪
+
+`P2P=2700/2734` 对下一轮的工人没有信息量。现在 `REWARD != 1` 时会多打印：
+
+```
+REGRESSED:
+  tests/unit/morphing/name_layout/test_provider.py::test_as_list
+  ...
+UNIMPLEMENTED: 0 of 44 acceptance cases
+```
+
+在退回 `215ee865`（坏状态）实测：12 条 id 按 pytest 自己的写法打印出来。这样 loom 的 `previousFailure` 尾巴里带的就是"哪些用例坏了"，而不是一个分数。
+
+但要说清楚：**这一轮晋升时，那份回归清单是我手写进任务描述的**，等于替循环模拟了"第二轮会看到什么"。grader 的输出现在能自动提供同样的信息，但"由循环自己的反馈把一轮修好"还没有在真实战役里跑过一次。
