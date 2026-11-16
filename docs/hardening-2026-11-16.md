@@ -61,3 +61,25 @@ T3 的两次试次（¥0.5、¥2）暴露的问题不只是"展示次数贵"，�
      断言两条门都走 `applyApprovalEffects`，且门自己不直接采纳。
 - `tri9/early-abort` 的 6s 上限在本机负载下擦边（夹具本身已 5.7s），改为 9.5s；
   兄弟仍是 12s，断言“提前结束而不是等完”没有被放宽。
+
+## 2026-11-16 晚：五个点名红规格清零
+
+上一轮在 `tests/self37/spec-index.test.mjs` 里点名了五个红的旧规格。这一轮把它们
+全部改成描述今天的语义，不是放宽断言：
+
+| 规格 | 旧失败原因 | 修法 |
+|---|---|---|
+| `tests/self12/review-queue.test.mjs` | 假 runtime 没有 `get()`，而 `rsi_status` 现在要读投影背后的 state 才能取到校准台账 | 给假 runtime 补 `get: () => ({ state })`，断言不变 |
+| `tests/self5/no-test-edits.test.mjs` | 基座 `exit 0` 本来就绿，晋升被“基座未失败”拒绝 | 夹具加 `verify.mjs`：`keep.txt` 未改时退出 1，改了才 0 |
+| `tests/self5/holdout-gate.test.mjs` | 同上，留出闸到不了 | 三个用例的可视任务都改成基座红、补丁后绿 |
+| `tests/self9/holdout-report.test.mjs` | 同上，`holdout-failed` 分支不再被触达 | 可视任务改成 `new.txt` 存在才通过 |
+| `tests/self8/human-node.test.mjs` | 同上，human 节点在晋升之前就被基座检查挡掉 | 可视任务改成 `new.txt` 存在才通过 |
+
+`KNOWN_RED` 现在为空，但机制保留：以后任何新红规格必须写理由，不能只从列表里消失。
+元规格现在报 `103 self specs are pinned, 0 named red`。
+
+顺带量化了一件此前只有轶事证据的事：扫描 119 个战役账本，
+`solved-by-sibling` 作废的候选人共 **23 次、$0.538608、725,572 tokens、35.5 分钟**，
+集中在 `p6-route`、`trial-summary-live` 与 halving 仪器战役；单次中位数约 $0.03。
+这个量级不足以证明该新造调度机制，串行（cascade）本来就存在，缺的是默认值与取舍
+说明——先记在案，不改默认。

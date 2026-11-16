@@ -28,6 +28,14 @@ function repo() {
   mkdir(join(dir, 'tests'))
   writeFileSync(join(dir, 'tests', 'check.test.mjs'), 'export const ok = true\n')
   writeFileSync(join(dir, 'keep.txt'), 'keep\n')
+  // Promotion now requires the base to fail: a verifier that already passes
+  // proves nothing about the patch, so the seed starts red and turns green only
+  // when keep.txt actually changes.
+  writeFileSync(join(dir, 'verify.mjs'), [
+    "import { readFileSync } from 'node:fs'",
+    "process.exit(readFileSync('keep.txt', 'utf8').trim() === 'changed' ? 0 : 1)",
+    '',
+  ].join('\n'))
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'base')
   return dir
@@ -65,7 +73,7 @@ function viewFor(dir) {
       autopilot: { enabled: true, guard: null },
       lessons: [],
       budget: { rounds: 10, roundsUsed: 0, usd: 5, spentUsd: 0 },
-      evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } }], holdout: [] },
+      evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'node verify.mjs' } }], holdout: [] },
       chain: {
         activeVersion: 1,
         versions: [{ version: 1, spec: { name: 't', version: 1, nodes: [] }, params: { candidates: 1 } }],

@@ -28,6 +28,13 @@ function repo() {
   git(dir, 'config', 'user.name', 'loom')
   git(dir, 'config', 'core.autocrlf', 'false')
   writeFileSync(join(dir, 'keep.txt'), 'keep\n')
+  // The visible task starts red and turns green only when new.txt appears,
+  // so the holdout is actually reached during promotion.
+  writeFileSync(join(dir, 'verify.mjs'), [
+    "import { existsSync } from 'node:fs'",
+    "process.exit(existsSync('new.txt') ? 0 : 1)",
+    '',
+  ].join('\n'))
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'base')
   return dir
@@ -67,7 +74,7 @@ function fixture(dir) {
       budget: { rounds: 10, roundsUsed: 0, usd: 5, spentUsd: 0 },
       evalset: {
         tasks: [
-          { id: 't1', family: 'f', prompt: 'write new.txt', verify: { cmd: 'exit 0' } },
+          { id: 't1', family: 'f', prompt: 'write new.txt', verify: { cmd: 'node verify.mjs' } },
           { id: 'hold', family: 'h', prompt: 'the whole suite', verify: { cmd: 'echo "regressed: checkout is broken" && exit 1' } },
         ],
         holdout: ['hold'],
@@ -82,7 +89,7 @@ function fixture(dir) {
               version: 1,
               nodes: [
                 { id: 'attempts', type: 'map', over: 'candidates', of: { id: 'work', type: 'agent', role: 'worker', prompt: 'WORKER' } },
-                { id: 'verify', type: 'verifier', cmd: 'exit 0', cwd: '.' },
+                { id: 'verify', type: 'verifier', cmd: 'node verify.mjs', cwd: '.' },
               ],
             },
             params: { candidates: 1 },

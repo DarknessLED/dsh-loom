@@ -26,6 +26,13 @@ function repo() {
   git(dir, 'config', 'user.name', 'loom')
   git(dir, 'config', 'core.autocrlf', 'false')
   writeFileSync(join(dir, 'keep.txt'), 'keep\n')
+  // A verifier that already passes proves nothing, and the gate now refuses
+  // such a promotion before the human node is even consulted. Start red.
+  writeFileSync(join(dir, 'verify.mjs'), [
+    "import { existsSync } from 'node:fs'",
+    "process.exit(existsSync('new.txt') ? 0 : 1)",
+    '',
+  ].join('\n'))
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'base')
   return dir
@@ -68,7 +75,7 @@ function viewFor(dir, humanNode) {
       checkpoints: [],
       autopilot: { enabled: true, guard: null },
       budget: { rounds: 10, roundsUsed: 0, usd: 5, spentUsd: 0 },
-      evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'write new.txt', verify: { cmd: 'exit 0' } }], holdout: [] },
+      evalset: { tasks: [{ id: 't1', family: 'f', prompt: 'write new.txt', verify: { cmd: 'node verify.mjs' } }], holdout: [] },
       chain: {
         activeVersion: 1,
         versions: [
@@ -79,7 +86,7 @@ function viewFor(dir, humanNode) {
               version: 1,
               nodes: [
                 { id: 'attempts', type: 'map', over: 'candidates', of: { id: 'work', type: 'agent', role: 'worker', prompt: 'WORKER: write new.txt' } },
-                { id: 'verify', type: 'verifier', cmd: 'exit 0', cwd: '.' },
+                { id: 'verify', type: 'verifier', cmd: 'node verify.mjs', cwd: '.' },
                 humanNode,
               ],
             },

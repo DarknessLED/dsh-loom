@@ -99,6 +99,9 @@ test('rsi_status renders the ranked queue', async () => {
       spendUsd: 0,
       openCheckpoints: state.openCheckpoints,
     }),
+    // The status tool reads the state behind its cheap projection to reach
+    // calibration; the fake runtime has to model that door, not just status().
+    get: () => ({ state }),
     liveAttempts: () => [],
     ensureOwner: () => true,
   };

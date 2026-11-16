@@ -176,11 +176,13 @@ const standing = [
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
   // Legacy self specs: green but never listed, so no run would have told
-  // anyone if they stopped passing. The five that are red are named in
-  // tests/self37/spec-index.test.mjs with a reason instead of being hidden.
+  // anyone if they stopped passing. All are listed now; the five that were
+  // red against today's gate semantics were rewritten to start from a base
+  // that actually fails, which is what promotion now requires.
   'tests/self10/quality-dashboard.test.mjs',
   'tests/self10/quality-report.test.mjs',
   'tests/self12/export-bundle.test.mjs',
+  'tests/self12/review-queue.test.mjs',
   'tests/self13/digest.test.mjs',
   'tests/self13/panel-reviews.test.mjs',
   'tests/self14/parallel-candidates.test.mjs',
@@ -197,12 +199,16 @@ const standing = [
   'tests/self4/deferred-delivery.test.mjs',
   'tests/self4/plateau-checkpoint.test.mjs',
   'tests/self5/checkpoint-ids.test.mjs',
+  'tests/self5/holdout-gate.test.mjs',
+  'tests/self5/no-test-edits.test.mjs',
   'tests/self6/attention-batch.test.mjs',
   'tests/self6/meter-usage.test.mjs',
   'tests/self6/usd-budget.test.mjs',
   'tests/self7/chain-nodes.test.mjs',
+  'tests/self8/human-node.test.mjs',
   'tests/self8/verifier-node.test.mjs',
   'tests/self9/committer-guard.test.mjs',
+  'tests/self9/holdout-report.test.mjs',
   'tests/self9/plateau-mutation.test.mjs',
   // self20/p5: the three decisions p4 wrote are now called by the planner, the
   // dispatcher and the verifier -- a library function nobody calls is a comment.

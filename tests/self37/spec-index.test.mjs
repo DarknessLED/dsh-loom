@@ -24,18 +24,12 @@ const walk = (dir) => {
 }
 walk('tests')
 
-// Five legacy specs are red against today's semantics and are visible here on
-// purpose. They are not "fine": they describe the pre-2026-11 holdout and
-// promotion rules (promotion now requires the base to fail, and a holdout
-// rejection records `holdout-failed`, which their fixtures no longer reach).
-// Naming them keeps them from rotting silently while their rewrite is pending.
-const KNOWN_RED = {
-  'tests/self12/review-queue.test.mjs': 'fake runtime predates runtime.get()',
-  'tests/self5/holdout-gate.test.mjs': 'holdout fixture no longer reaches holdout-failed',
-  'tests/self5/no-test-edits.test.mjs': 'promotion now requires the base to fail',
-  'tests/self8/human-node.test.mjs': 'chain human-node payload moved',
-  'tests/self9/holdout-report.test.mjs': 'holdout fixture no longer fails',
-}
+// No spec is known-red any more. The five that were listed here described the
+// pre-2026-11 promotion rule (a verifier that already passed at base), so their
+// fixtures were rewritten to start from a genuinely failing base. The list
+// stays because the mechanism is what keeps a future red spec from rotting
+// silently: a new red spec must be named with a reason, never merely omitted.
+const KNOWN_RED = {}
 
 const missing = files.filter((file) => !listed.has(file) && !KNOWN_RED[file])
 const knownRed = Object.keys(KNOWN_RED)

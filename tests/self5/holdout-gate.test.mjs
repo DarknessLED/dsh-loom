@@ -27,6 +27,13 @@ function repo() {
   git(dir, 'config', 'user.name', 'loom')
   git(dir, 'config', 'core.autocrlf', 'false')
   writeFileSync(join(dir, 'keep.txt'), 'keep\n')
+  // The visible task starts red so the gate has something to earn; it turns
+  // green only when the patch actually changes keep.txt.
+  writeFileSync(join(dir, 'verify.mjs'), [
+    "import { readFileSync } from 'node:fs'",
+    "process.exit(readFileSync('keep.txt', 'utf8').trim() === 'changed' ? 0 : 1)",
+    '',
+  ].join('\n'))
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'base')
   return dir
@@ -97,7 +104,7 @@ const patchDispatcher = {
   const rt = fakeRuntime(dir)
   const view = viewFor(dir, {
     tasks: [
-      { id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } },
+      { id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'node verify.mjs' } },
       { id: 'h1', family: 'h', prompt: 'hidden', verify: { cmd: 'exit 1' } },
     ],
     holdout: ['h1'],
@@ -121,7 +128,7 @@ const patchDispatcher = {
   const rt = fakeRuntime(dir)
   const view = viewFor(dir, {
     tasks: [
-      { id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } },
+      { id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'node verify.mjs' } },
       { id: 'h1', family: 'h', prompt: 'hidden', verify: { cmd: 'exit 0' } },
     ],
     holdout: ['h1'],
@@ -141,7 +148,7 @@ const patchDispatcher = {
 {
   const dir = repo()
   const rt = fakeRuntime(dir)
-  const view = viewFor(dir, { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'exit 0' } }], holdout: [] })
+  const view = viewFor(dir, { tasks: [{ id: 't1', family: 'f', prompt: 'do it', verify: { cmd: 'node verify.mjs' } }], holdout: [] })
   mkdirSync(view.dir, { recursive: true })
   await runRound({ runtime: rt, view, config, dispatcher: patchDispatcher, log: () => {}, notify: () => {} })
   const gate = rt.events.find((e) => e.type === 'gate.evaluated')
