@@ -83,3 +83,11 @@ T3 的两次试次（¥0.5、¥2）暴露的问题不只是"展示次数贵"，�
 集中在 `p6-route`、`trial-summary-live` 与 halving 仪器战役；单次中位数约 $0.03。
 这个量级不足以证明该新造调度机制，串行（cascade）本来就存在，缺的是默认值与取舍
 说明——先记在案，不改默认。
+
+## 2026-11-17 凌晨：两处"记下来但不拦"的硬化
+
+1. **`src/gate/churn.js`**：`lineEndingChurn(patch)` 认出"把 LF 文件整份改写成 CRLF"的补丁（新增行 ≥20、新增行 ≥80% 带 CR、被替换行 ≥80% 不带 CR、删除量 ≥80% 新增量），返回涉及的文件与行数。只写进 `checks.lineEndingChurn`，**不参与晋升**——测试是真的全绿，这是 review 事实不是裁决。真实数据上已经开火过两次。
+2. **`failureDigest` 认识更多方言**：`FAILURE_LINE` 原来只认 node 的 `FAIL …`；现在也认 `REGRESSED:`、`UNIMPLEMENTED:`、pytest 的 `path::test_name`、以及 `P2P=`/`KILLRATE=`/`REWARD=`。上一轮的失败摘要因此能带上全部 12 条坏用例 id，而不是像 300 字符尾巴那样只带 4 条。
+3. **`lastFailure` 的预算**：从 `tailOf(detail, 300)` 换成 `failureDigest(detail)`（24 行 / 1600 字符），回退到 300 字符尾巴只在摘要为空时发生。
+
+三条都由 `tests/self39/churn-digest.test.mjs` 钉住（含"没有任何地方对 churn 做 if 判断"这一条）。

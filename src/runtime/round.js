@@ -56,6 +56,7 @@ import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTok
 import { planBudgetMs } from './plan-budget.js'
 import { demoteChain } from './model-health.js'
 import { failureDigest } from '../core/limits.js'
+import { lineEndingChurn } from '../gate/churn.js'
 
 /**
  * A verify command is written by the task, not by the harness, so it may say
@@ -763,7 +764,10 @@ function lastFailure(state) {
   const detail = worst.reportError || worst.error || worst.stdoutTail || worst.agentTail || ''
   return {
     reason: worst.abandoned ? `attempt was written off (${worst.reason ?? worst.abandoned})` : 'verifier failed in the previous round',
-    detail: tailOf(detail, 300),
+    // A tail of 300 chars is enough for "REWARD=0", not for the twelve
+    // node ids a grader prints under it. The digest keeps the lines that
+    // name the breakage, which is the part the next worker can act on.
+    detail: failureDigest(detail) || tailOf(detail, 300),
   }
 }
 
@@ -2298,6 +2302,16 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // Recorded only when a bar was measured, so a campaign without a
     // repeatability measurement keeps the legacy checks shape.
     if (incumbentDelta !== null && noiseBar !== null) checks.noise = beatsNoise
+    // Recorded, never gated on: a line-ending rewrite passes every test and is
+    // still unreadable as a diff, which is a review fact, not a verdict.
+    if (best?.patch) {
+      let patchText = null
+      try {
+        patchText = readFileSync(best.patch, 'utf8')
+      } catch {}
+      const churn = lineEndingChurn(patchText)
+      if (churn) checks.lineEndingChurn = churn
+    }
     // The existence filter in `oracleScripts` is the right answer to "which file
     // does this command run" and the wrong one for "did that file exist when the
     // base was measured": a candidate that creates the instrument makes the first

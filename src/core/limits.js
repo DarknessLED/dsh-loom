@@ -88,7 +88,11 @@ export function payloadBytes(value) {
   }
 }
 
-const FAILURE_LINE = /^(FAIL|not ok|\s*✖|\s*AssertionError|\s*Error:|Error:|\s*at .*\.test\.mjs)/
+// Verifiers name the breakage in more than one dialect: node's runner says
+// FAIL, pytest says `path::test_name` under a REGRESSED: header, and mine
+// prints the P2P/REWARD numbers. A digest that keeps only the first dialect
+// hands the next round a score instead of a task.
+const FAILURE_LINE = /^(FAIL|not ok|\s*✖|\s*AssertionError|\s*Error:|Error:|\s*at .*\.test\.mjs|REGRESSED:|UNIMPLEMENTED:|\s*\S+\.(?:py|mjs|cjs|js|ts|tsx)::|P2P=|KILLRATE=|REWARD=)/
 
 /**
  * The part of a verifier log that says what failed.

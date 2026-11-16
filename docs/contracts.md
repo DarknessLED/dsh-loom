@@ -63,6 +63,7 @@
 
 - `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；`noopDecision` 在阈值之前拒绝空补丁（否则把没干的活记成晋升）；对畸形输入不抛异常。
 - `src/gate/score.js` — 纯函数「一次尝试该记几分、分从哪来」：`scoreOf(attempt)` 在 `metrics.killRate` 是有限数时返回该连续读数（`0` 是实测值，`source:'killRate'`），否则回落到 `verifierOk ? 1 : 0`（`source:'binary'`）。返回 `source` 不是装饰：杀死率与二值判定是两种度量，调用方必须先决定混合比较的语义，而不是直接相减。存在的理由：验证器只答 1/0，勉强通过和大有余量同分，而 kill-rate harness 已经打印了连续读数。
+- `src/gate/churn.js` — `lineEndingChurn(patch)`：补丁把 LF 文件整份改写成 CRLF 时返回参与翻新的文件与行数，只记在 `checks.lineEndingChurn` 上，不参与晋升判断（review 事实，不是裁决）。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/metrics.js` — 纯函数「验证器输出里的度量」：`parseMetrics(stdout)` 只认整行 `KILLRATE=<0..1>` / `MUTANTS=<非负整数>`，缺失、被别的文字包住或不是十进制数一律 `null`（绝不回落 0，否则「没测到」会被读成「0 杀死率」），`verifyMetrics({stdout,status})` 只把真正读到的度量交给调用方。存在的理由：变异杀死率 harness 一直打印 `KILLRATE=0.3114`，但没有任何回合读过它，判据只剩下二值退出码 —— 杀掉 31% 变异体的补丁和一个也没杀掉的补丁得分相同。
