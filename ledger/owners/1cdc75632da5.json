@@ -2,7 +2,7 @@
   "identity": {"uuid": "fa764655-5be5-4150-b971-a4bc9079027d"},
   "tasks": {
     "20261115-1715-966f-知识试次写回全局库": {"category": "缺陷修复", "created": "2026-11-15 17:15:17", "creator": "fa764655-5be5-4150-b971-a4bc9079027d", "creator_name": "Darkness丶", "finished": null, "owner": "fa764655-5be5-4150-b971-a4bc9079027d", "owner_name": "Darkness丶", "started": "2026-11-15 17:15:17", "status": "doing", "tags": ["知识共享", "试次", "全局库"], "title": "知识试次写回全局库", "updated": "2026-11-15 17:21:27", "worklog": "worklog/202611/15-1715-966f-知识试次写回全局库.md"},
-    "20261116-1518-83ad-清掉五个点名红规格": {"category": "缺陷修复", "created": "2026-11-16 15:18:21", "creator": "fa764655-5be5-4150-b971-a4bc9079027d", "creator_name": "Darkness丶", "finished": null, "owner": "fa764655-5be5-4150-b971-a4bc9079027d", "owner_name": "Darkness丶", "started": "2026-11-16 15:18:21", "status": "doing", "tags": ["规格", "硬化", "晋升语义"], "title": "清掉五个点名红规格", "updated": "2026-11-16 15:18:21", "worklog": "worklog/202611/16-1518-83ad-清掉五个点名红规格.md"}
+    "20261116-1518-83ad-清掉五个点名红规格": {"category": "缺陷修复", "created": "2026-11-16 15:18:21", "creator": "fa764655-5be5-4150-b971-a4bc9079027d", "creator_name": "Darkness丶", "finished": null, "owner": "fa764655-5be5-4150-b971-a4bc9079027d", "owner_name": "Darkness丶", "started": "2026-11-16 15:18:21", "status": "doing", "tags": ["规格", "硬化", "晋升语义"], "title": "清掉五个点名红规格", "updated": "2026-11-16 15:18:51", "worklog": "worklog/202611/16-1518-83ad-清掉五个点名红规格.md"}
   },
   "version": "20261022000000"
 }
