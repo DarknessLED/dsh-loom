@@ -76,6 +76,7 @@
 - `src/knowledge/dream.js` — 离线巩固：按 claim 词集 Jaccard 合并同家族近似重复（保留合并来源与累计证据），按 TTL/非 active 退休，同 subject 上极性相反的两条 active 经验升级为一条 contradiction 问题；纯函数、确定性排序。
 - `src/knowledge/store.js` — 跨战役经验库：`readGlobalLessons(home)` 读 `<home>/knowledge.json`（数组或 `{lessons}`，坏文件先备份成 `.bad` 再返回空），`appendGlobalLesson(home, lesson)` 按 id 覆盖、只留最近 500 条、写失败不抛；存储是便利，不是事实来源——战役自己的 `state.lessons` 永远优先。
 - `src/knowledge/procedure.js` — 从重复的成功里归纳 procedure：同一 family+subject 至少 2 次独立晋升才生成一条，id 由（family, subject）稳定哈希得到；步骤取被改文件的频次序，同一 subject 的失败按 shape 变成 `notWhen` 与 pitfalls（`error`/`near-miss`），已有同 id 的不再重复归纳。
+- `src/knowledge/trials.js` — 试验台账的唯一汇总口：`summarizeTrials(lessons)` 只统计 `kind === 'procedure'` 的经验，把 shown/wins/losses/**ties** 累加成总账，用 `cross.js` 的 `trialVerdict` 逐条判 keep/drop/insufficient（`TRIAL_FLOOR` 即 `TRIAL_MIN`，20 次展示之前一律 insufficient），最后给出总判词：无 procedure 为 `none`，全部 insufficient 为 `insufficient`，否则 wins > losses 为 `keep`、反之为 `drop`；`rsi_status` 的结构化 `knowledge.trial` 与文本行都读它，不再各算一套。
 
 ### lean/ — Lean 门
 
