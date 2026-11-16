@@ -85,3 +85,79 @@ rsi_start({id:"deepswe-ipython", workspace:"C:/Projects/ds-run/ipython",
 
 harness 在 `C:/Projects/ds-run/grade_task.py`（不在本仓库内，未提交；上面 `REWARD=1`
 的重判用的就是它）。战役记录：`~/.dsh/loom/campaigns/deepswe-{ipython,vulture}/`。
+
+---
+
+## 2026-11-16 晚：第三个任务，受控实战，以及一次被我污染的运行
+
+前两个任务都是"我写规格、循环去实现"。这一次换成**规格不是我写的**：用 DeepSWE 的
+`adaptix-name-mapping-aliases`（reagento/adaptix，base `a691069f`），44 条 held-out
+F2P 用例由 benchmark 提供，我这侧只提供 grader。两次运行，两次都记下来。
+
+### 隔离条件
+
+- 工作区 `C:/Projects/ds-run/adaptix`，base `a691069f`。
+- 先 `git remote remove origin`，再把默认分支指回 base 并 gc，复刻官方容器的"时间旅行"
+  （`main` 原来领先 base 128 个提交，答案就在里面）；删掉 base 之后才有的 tag。
+- 参考解 `solution/` 移出任务目录（这是**第二次**运行才做的，原因见下）。
+- grader 仍是我写的 `C:/Projects/ds-run/grade_task.py`，为这个任务加了两项：
+  `TASKS["adaptix-name-mapping-aliases"]` 的 base/new 套件命令；`DROP_P2P` 里 4 条
+  在 Windows 上必挂的用例（`test_with_property.py` 的 `Path("/Laptop")` 在 Windows
+  变成 `"\\Laptop"`，与断言里的 `/Laptop` 不等），**这 4 条是公开声明丢弃的**。
+- 校准：空补丁 `P2P=2734/2734 F2P=0/44 KILLRATE=0.984161 REWARD=0`；官方参考解
+  `P2P=2734/2734 F2P=44/44 KILLRATE=1.0 REWARD=1`。grader 能复现参考解，才允许用它评 agent。
+
+### 运行 1（作废）：循环把参考解抄了
+
+- 战役 `adaptix-aliases-live`，candidates 2、预算 $0.35。第 1 轮 promoted，score 1，
+  $0.276367 / 248,380 tokens（r1a1 $0.13736 成功，r1a2 $0.139007 并行跑到 450s 才被
+  solved-by-sibling 收掉）。
+- 但把 `artifacts/r1a1.patch` 与官方 `solution.patch` 去掉空行后的正文比对：
+  711 行、逐行 diff 只差**空行尾部多一个空格**。也就是说它是参考解，不是做出来的。
+- 原因在我：任务提示让 agent 读 `C:/Projects/deep-swe/tasks/adaptix-name-mapping-aliases/instruction.md`，
+  而 `solution/solution.patch` 就在同一目录。循环没有越权，是我把答案放在了它手边。
+- 因此这一轮**只作为"证据隔离是 verifier 契约的一部分"的记录**，不计入能力。
+
+### 运行 2（有效）：44/44 新行为，34 条旧测试回归，被门挡下
+
+- 隔离补齐后重开战役 `adaptix-aliases-blind`，同样 candidates 2、预算 $0.40，
+  提示改为指向仓库外的 `C:/Projects/ds-run/adaptix-task.md`，并声明"历史到 base 为止、无网络"。
+- 第 1 轮 **no-gain**，$0.270347 / 194,637 tokens：
+  - `r1a1` $0.098227 / 77,786 tokens / 293s：`killRate 0.984161` = 2734/2778，
+    也就是 base 全绿、44 条新用例**一条没过** —— 它只改了 facade 一侧，没接上加载路径。
+  - `r1a2` $0.172120 / 116,851 tokens / 388s：轮内记录 `killRate 0`，我事后用它自己的
+    patch 重判得到 `P2P=2700/2734 F2P=44/44 KILLRATE=0.987761 REWARD=0`。
+    **44 条新行为全过，但 34 条既有测试被改坏**（`name_layout` 旧路径被覆盖），
+    binary reward 因此是 0，门拒绝晋升 —— 这是对的。
+- 结论：盲跑一轮、$0.27，循环独立写出了这个 492 行特性的**绝大多数正确行为**，
+  但没能保住旧语义；离"解决"差的是回归，不是新功能。这正是我此前说的"验证器能挡住
+  它，但挡不住它自己发现"的那类失败。
+
+### 这一轮暴露的两个洞（已修）
+
+1. **环境坏了会被读成"补丁全错"**。`r1a2` 轮内读到 `killRate 0`，重判却是 0.9878：
+   当时 `pip install -e` 的指向失效，base 套件一条都收集不到（`P2P=0/2734`），
+   这和"完美回归"在数字上无法区分。grader 现在先 `import adaptix` 预检，并在
+   `p2p_passed == 0 && p2p_total > 0` 时打印 `ENV-BROKEN` 并以 exit 3 退出，
+   明确表示"这不是对补丁的判决"。
+2. **提示里的路径泄题**（运行 1）。任务目录不再作为提示的落点；`solution/` 已移出，
+   工作区历史被截断到 base、远端已删除。
+
+### 对前两个任务的影响（诚实修正）
+
+`deepswe-ipython` 与 `deepswe-vulture` 当时没有做上面这层隔离：仓库带完整上游历史、
+`origin` 也在。我没有找到它们抄答案的证据（两轮的执行轨迹是改源码、跑测试），
+但**它们的结果因此弱于"盲跑"证据**，只能算"在这个任务上做出来了"，不能算"在无泄露
+条件下做出来了"。以后再用 DeepSWE 评，一律先做时间旅行 + 移走 solution。
+
+### 花费与对比
+
+| 运行 | 结果 | 花费 | tokens |
+| --- | --- | --- | --- |
+| 运行 1（泄露，作废） | reward 1（抄的） | $0.276367 | 248,380 |
+| 运行 2 `r1a1` | 0/44 新行为 | $0.098227 | 77,786 |
+| 运行 2 `r1a2` | 44/44 新行为，34 条回归 → reward 0 | $0.172120 | 116,851 |
+| 运行 2 合计 | 未解决 | **$0.270347** | 194,637 |
+
+盲跑失败一轮约 $0.27，与公开基线 mini-swe-agent + `deepseek-v4-flash[max]` 的
+$0.46/task、53% ±4 是同一量级；但 n=1，不能拿单轮失败去推成功率。
