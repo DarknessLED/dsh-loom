@@ -1352,7 +1352,16 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     }
   }
 
-  runtime.append(view, 'round.started', { n, taskId: task.id, chainVersion: state.chain.activeVersion }, 'system')
+  // Whether this round was handed the previous one's breakage is a fact a
+  // ledger should be able to state, not something a reader reconstructs from
+  // the worker's session file. `live-report.mjs` checks it.
+  const handedFailure = lastFailure(state)
+  runtime.append(view, 'round.started', {
+    n,
+    taskId: task.id,
+    chainVersion: state.chain.activeVersion,
+    previousFailure: handedFailure ? { reason: handedFailure.reason, chars: String(handedFailure.detail ?? '').length } : null,
+  }, 'system')
   log(`round ${n} starting on task ${task.id}, ${candidates} candidate(s)`)
   const roundStartedAt = Date.now()
   let verifierRuns = 0

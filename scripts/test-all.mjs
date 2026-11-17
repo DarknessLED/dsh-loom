@@ -178,6 +178,8 @@ const standing = [
   // The channel from a failed round to the next brief, pinned end to end:
   // a digest that keeps the wrong lines fails silently and costs a round.
   'tests/self40/failure-channel.test.mjs',
+    // The checker the protocol points at: a session that reports without running it is guessing.
+    'tests/self41/live-report.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

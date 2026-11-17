@@ -356,7 +356,11 @@ export class Runtime {
       : `RSI loop is OFF${sw.at ? ` (switched ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')} by ${sw.by})` : ''} — nothing is dispatched until rsi_control {action:"enable"}; campaign history is untouched.`
     // Hard cap: this text goes into every request. A campaign list that grows
     // without bound must not become the reason the next step cannot be sent.
-    return clipSection([head, ...rows.map((r) => `- ${r}`)].join('\n'))
+    // One line, on every request that has campaigns: the protocol exists so a
+    // session in another project does not have to rediscover it.
+    const protocol =
+      'protocol: docs/rsi-experiment-protocol.md — after each round run `node scripts/live-report.mjs <id>`; a finding is an issue, not a note.'
+    return clipSection([head, ...rows.map((r) => `- ${r}`), protocol].join('\n'))
   }
 
   /**
