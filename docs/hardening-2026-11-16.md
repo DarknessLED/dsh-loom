@@ -91,3 +91,40 @@ T3 的两次试次（¥0.5、¥2）暴露的问题不只是"展示次数贵"，�
 3. **`lastFailure` 的预算**：从 `tailOf(detail, 300)` 换成 `failureDigest(detail)`（24 行 / 1600 字符），回退到 300 字符尾巴只在摘要为空时发生。
 
 三条都由 `tests/self39/churn-digest.test.mjs` 钉住（含"没有任何地方对 churn 做 if 判断"这一条）。
+
+## 2026-11-17 夜：失败摘要真的到了下一轮（一次构造出来的活证据）
+
+前面只说"单元规格覆盖了"，因为两次盲跑都第一轮就解决了。要看见这条通道，得让
+第一轮**没法**自己验证：验收套件放在仓库外面（worker 跑不到），里面有一条本仓库
+自己的约定（`+` 要拼成 `plus`），命名与 SPEC 都推不出来。
+
+仪器：`C:/Projects/RSI-live/feedback3`（绿可见测试 + 仓库外
+`C:/Projects/RSI-live/check-feedback3.mjs`，失败行打印 expected/got）。
+战役 `feedback3-round2`，1 候选、2 轮、预算 $0.1。
+
+| 轮 | 结果 | 花费 | tokens | 值 |
+|---|---|---|---|---|
+| 1 | no-gain，score 0 | $0.037836 | 46,859 | 猜不出 `+` 的约定，还把 `flatten` 弄浅了一层 |
+| 2 | promoted，score 1 | $0.019786 | 22,543 | 两条失败都修好，`KILLRATE=1.000` |
+
+第二轮 brief 里（从 worker 自己的会话记录抄出来，不是我拼的）：
+
+```
+## Last attempt failed
+Reason: verifier failed in the previous round
+Detail: FAIL slugify-spells-plus: expected "a-plus-b", got "a-b"
+FAIL flatten-is-deep: expected [1,2], got [1,[2]]
+KILLRATE=0.778
+```
+
+这就是 `lastFailure` → `failureDigest` → `buildWorkerBrief` 三段在真实轮次里接通：
+失败行带着 expected/got 进了下一轮的提示，而不是只进去一个 `REWARD=0`。
+
+同一晚的**反例**要一起记：同一件事在能自查的任务上几乎不会发生。
+`adaptix-round2-feedback` 用的是真 DeepSWE 任务（44 条隐藏验收用例、答案分支已从
+仓库里清掉），1 个候选、盲跑，**第一轮就 promoted**（$0.06255 / 66,627 tokens /
+286s，checks 全真）。所以这条通道是兜底，不是主力：worker 能跑验证器时它会自己收敛，
+摘要只在"验证器跑不到但输出具体"的情况下才起作用。
+
+两轮合计 $0.057622。构造的仪器要说清楚：它是通道的证明，不是能力的证明——第二轮的
+修复是照着 expected 值做的，不是从约定推出来的。

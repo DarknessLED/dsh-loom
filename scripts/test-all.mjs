@@ -175,6 +175,9 @@ const standing = [
   // A patch that rewrites a file without changing it is a review fact, and a
   // 300-char tail is not wide enough to carry the node ids a grader prints.
   'tests/self39/churn-digest.test.mjs',
+  // The channel from a failed round to the next brief, pinned end to end:
+  // a digest that keeps the wrong lines fails silently and costs a round.
+  'tests/self40/failure-channel.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

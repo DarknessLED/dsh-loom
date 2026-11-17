@@ -753,7 +753,14 @@ async function runPreMapNodes({ runtime, view, state, config, dispatcher, task, 
   return { findings, planTimedOut }
 }
 
-function lastFailure(state) {
+/**
+ * What the next round is told about the last one.
+ *
+ * Exported so a spec can hold the whole channel — a failed attempt's log,
+ * the digest that keeps the lines naming the breakage, and the brief that
+ * carries it — without spending a round to see it.
+ */
+export function lastFailure(state) {
   const prev = state.rounds[state.rounds.length - 1]
   if (!prev) return null
   // A summary entry may carry the attempt count rather than the attempts, so
