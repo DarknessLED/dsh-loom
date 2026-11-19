@@ -386,7 +386,20 @@ export async function commitWorkspace(repo, message, { paths } = {}) {
     }
     // A pathspec commit leaves anything staged outside the promotion alone: the
     // reviewer's own work in progress must not ride along with a loop commit.
-    const commitArgs = ['commit', '-m', String(message || 'loom: promotion')]
+    //
+    // The identity is stated per invocation rather than written into the
+    // repository: three fin-strategy campaigns were run in plain `git init` repos
+    // with no `user.name`/`user.email`, so every promotion they bought died in
+    // `git commit` ("Author identity unknown"), was recorded as
+    // `{commit:null, committed:false}`, and was withdrawn on the next boot as an
+    // unlanded round — $0.55 and three promotions lost silently. `-c` overrides
+    // the config for this one command, so a repository that deliberately drives
+    // auto-detection (user.useConfigOnly) keeps doing exactly that.
+    const commitArgs = [
+      '-c', 'user.name=dsh-loom',
+      '-c', 'user.email=loom@local',
+      'commit', '-m', String(message || 'loom: promotion'),
+    ]
     if (scoped) commitArgs.push('--', ...only)
     const committed = await runGit(repo, commitArgs)
     if (committed.code !== 0) {

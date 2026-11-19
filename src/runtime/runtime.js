@@ -533,7 +533,7 @@ export class Runtime {
       // it so the task is retried instead of looking solved forever.
       for (const entry of plan.unproven) {
         try {
-          this.append(view, 'round.unlanded', { round: entry.round, reason: entry.reason }, 'system')
+          this.append(view, 'round.unlanded', { round: entry.round, reason: entry.reason, ...(entry.detail ? { detail: entry.detail } : {}) }, 'system')
           report.unlanded.push(`${id}/r${entry.round}`)
         } catch (err) {
           this.log(`recover: cannot withdraw landing for round ${entry.round}:`, err?.message ?? err)

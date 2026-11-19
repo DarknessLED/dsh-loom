@@ -2652,7 +2652,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             // Commit the promotion immediately: the next round branches off HEAD,
             // and leaving it dirty is what makes the following apply conflict.
             const landed = await commitWorkspace(workspace, `loom ${state.id} round ${n}: promote ${best.id} (score ${score})`, { paths: best.diff?.filesChanged })
-            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard: reusedGuard ? 'reused-verifier' : guard, commit: landed.sha, committed: landed.committed === true, ...(landed.committed === false && landed.clean === true && applied.reason !== 'empty-patch' ? { note: 'the applied patch was already in HEAD when the commit ran: a concurrent commit absorbed it, so this promotion has no commit of its own' } : {}), at: Date.now() }, 'system')
+            // A commit that failed has to say why here. `{commit:null,
+            // committed:false}` is unreadable on its own: it is what three
+            // fin-strategy campaigns recorded for a missing git identity, and the
+            // only trace left was a withdrawal on the next boot.
+            runtime.append(view, 'autopilot.applied', { round: n, patch: best.patch, guard: reusedGuard ? 'reused-verifier' : guard, commit: landed.sha, committed: landed.committed === true, ...(landed.committed === false && landed.clean === true && applied.reason !== 'empty-patch' ? { note: 'the applied patch was already in HEAD when the commit ran: a concurrent commit absorbed it, so this promotion has no commit of its own' } : {}), ...(landed.ok === false ? { detail: String(landed.detail ?? 'commit failed').slice(0, 600) } : {}), at: Date.now() }, 'system')
           }
         }
       } else {

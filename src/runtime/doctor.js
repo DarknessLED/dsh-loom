@@ -154,6 +154,59 @@ function checkWorkspaceClean(workspace) {
   return { ok: true, detail: 'git status --porcelain is empty' }
 }
 
+/**
+ * Can a commit be made here at all?
+ *
+ * A promotion the loop cannot commit is not a promotion: the workspace keeps the
+ * patch, the next boot's recovery finds no commit and withdraws the landing, and
+ * the round is paid for twice. Three fin-strategy campaigns discovered this one
+ * paid round at a time ("Author identity unknown" in a plain `git init` repo), so
+ * the question is worth asking before the first round instead of after the bill.
+ *
+ * The probe is `git var GIT_AUTHOR_IDENT`, which resolves the identity git would
+ * use for a commit and fails with the same message `git commit` would. It is
+ * asked twice: once as the repository is, and once with the identity loom itself
+ * supplies on its own commits. A repository with no configured user is therefore
+ * not a failure — it only becomes one when the override cannot help, which means
+ * git itself is misconfigured.
+ */
+function checkCommitIdentity(workspace) {
+  const repo = runGit(workspace, ['rev-parse', '--is-inside-work-tree'])
+  if (!repo.ok || repo.stdout.trim() !== 'true') {
+    return { ok: false, detail: 'cannot inspect the commit identity: not a git work tree', fix: 'git init' }
+  }
+  const own = runGit(workspace, ['var', 'GIT_AUTHOR_IDENT'])
+  if (own.ok && own.stdout.trim() !== '') {
+    return { ok: true, detail: `a commit would be authored as ${own.stdout.trim()}` }
+  }
+  const override = execFileSyncProbe(workspace)
+  if (override.ok) {
+    return {
+      ok: true,
+      detail: 'the repository has no user.name/user.email; loom signs its own commits as dsh-loom <loom@local>',
+    }
+  }
+  return {
+    ok: false,
+    detail: `no commit identity is available: ${override.detail || 'git var GIT_AUTHOR_IDENT failed'}`,
+    fix: 'git config user.name "…" && git config user.email "…" (or fix the git installation)',
+  }
+}
+
+/** `git var GIT_AUTHOR_IDENT` with loom's own identity forced, as a commit would run it. */
+function execFileSyncProbe(workspace) {
+  try {
+    const stdout = execFileSync(
+      'git',
+      ['-C', workspace, '-c', 'user.name=dsh-loom', '-c', 'user.email=loom@local', 'var', 'GIT_AUTHOR_IDENT'],
+      { encoding: 'utf8', timeout: GIT_TIMEOUT_MS, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+    return { ok: true, detail: String(stdout ?? '').trim() }
+  } catch (error) {
+    return { ok: false, detail: String(error?.stderr ?? '').trim() || errorText(error) }
+  }
+}
+
 function checkNode() {
   const version = String(process.version ?? '')
   const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version)
@@ -233,6 +286,7 @@ export function doctor({ workspace, home, runtime, config, now } = {}) {
   const stamp = Number.isFinite(Number(now)) ? Number(now) : Date.now()
   const checks = [
     check('git-repo', () => checkGitRepo(workspace)),
+    check('git-identity', () => checkCommitIdentity(workspace)),
     check('workspace-clean', () => checkWorkspaceClean(workspace)),
     check('node', () => checkNode()),
     check('home-writable', () => checkHomeWritable(home, stamp)),

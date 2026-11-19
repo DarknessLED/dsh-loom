@@ -180,6 +180,15 @@ const standing = [
   'tests/self40/failure-channel.test.mjs',
     // The checker the protocol points at: a session that reports without running it is guessing.
     'tests/self41/live-report.test.mjs',
+  // A promotion that swapped the subject for a better-scoring one passed every
+  // threshold and the checker said "ok": the landing is judged against the scope
+  // the task declared, and an undeclared scope is said out loud instead of
+  // hidden behind protocol: ok.
+  'tests/self42/subject-scope.test.mjs',
+  // A promotion the loop cannot commit is not a promotion: three fin-strategy
+  // campaigns lost every landing to a missing git identity and the ledger said
+  // only `{commit:null}`. loom now signs its own commits and says why when one fails.
+  'tests/self43/commit-identity.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

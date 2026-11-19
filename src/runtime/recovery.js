@@ -69,7 +69,11 @@ export function unprovenLandings(events = []) {
     }
     const committed = ev.data?.committed === true || (typeof ev.data?.commit === 'string' && ev.data.commit.length > 0)
     if (committed) proven.add(round)
-    else pending.set(round, { round, patch: ev.data?.patch ?? null, reason: 'uncommitted' })
+    // Carry the commit's own complaint through: "uncommitted" says what happened,
+    // and only the detail says whether it was a bad patch or an environment that
+    // cannot commit (a missing git identity cost three campaigns their every
+    // landing, and the withdrawal was the only trace).
+    else pending.set(round, { round, patch: ev.data?.patch ?? null, reason: 'uncommitted', detail: ev.data?.detail ?? null })
   }
   const out = []
   for (const [round, entry] of pending) {
@@ -187,7 +191,7 @@ export async function recoverCampaign({
   // below is derived from the same evidence, so it can be repeated safely.
   for (const entry of plan.unproven) {
     try {
-      append('round.unlanded', { round: entry.round, reason: entry.reason })
+      append('round.unlanded', { round: entry.round, reason: entry.reason, ...(entry.detail ? { detail: entry.detail } : {}) })
       report.unlanded.push(entry.round)
     } catch (err) {
       log(`recover: cannot withdraw landing for round ${entry.round}: ${err?.message ?? err}`)

@@ -116,6 +116,68 @@ function checkScore(rounds) {
   return findings
 }
 
+// What a landing was allowed to touch, read from the task's own declaration and
+// checked against the patch's file list — not read from `checks.scope`, because
+// the whole point of the check is that the gate's claim can be wrong.
+//
+// Fin-strategy round 1 is why this exists: a patch that deleted two A-share legs
+// and two bond legs and added a second Nasdaq tracker next to the first passed
+// every threshold, and nothing in the ledger distinguished "the mechanism got
+// better" from "this is a different portfolio now". The verifier had no lock on
+// the subject, so the ledger cannot report the swap as a violation — but it can
+// report that no scope was declared, which is the missing precondition.
+function withinScope(file, editable) {
+  const path = String(file ?? '').replace(/\\/g, '/')
+  return editable.some((prefix) => {
+    const p = String(prefix ?? '').replace(/\\/g, '/').replace(/\/+$/, '')
+    if (!p) return false
+    return path === p || path.startsWith(`${p}/`)
+  })
+}
+
+function checkSubject(rounds, state, events) {
+  const findings = []
+  const notes = []
+  const promotedAttempt = new Map()
+  for (const e of events) {
+    if (typeOf(e) !== 'artifact.promoted') continue
+    const d = dataOf(e)
+    if (Number.isFinite(Number(d.round)) && d.attemptId) promotedAttempt.set(Number(d.round), String(d.attemptId))
+  }
+  const tasks = Array.isArray(state?.evalset?.tasks) ? state.evalset.tasks : []
+  const scopes = tasks.map((t) => ({
+    id: t?.id ?? null,
+    editable: Array.isArray(t?.verify?.scope?.editable) ? t.verify.scope.editable.filter((p) => typeof p === 'string' && p.trim()) : null,
+  }))
+  const declared = scopes.filter((s) => s.editable && s.editable.length > 0)
+  for (const r of rounds) {
+    if (!r.finished?.promoted) continue
+    const winnerId = r.finished?.promotedAttemptId ?? promotedAttempt.get(Number(r.n)) ?? null
+    const winner = winnerId ? r.attempts.find((a) => a.id === winnerId) : r.attempts.find((a) => a.verifierOk === true)
+    const changed = Array.isArray(winner?.diff?.filesChanged) ? winner.diff.filesChanged : null
+    if (!changed) continue
+    const scope = declared.find((s) => s.id === r.finished?.taskId) ?? (declared.length === 1 ? declared[0] : null)
+    if (!scope) continue
+    const outside = changed.filter((f) => !withinScope(f, scope.editable))
+    if (outside.length > 0) {
+      findings.push({
+        round: r.n,
+        problem: 'the promoted patch wrote outside the declared scope',
+        detail: `${outside.slice(0, 6).join(', ')}${outside.length > 6 ? ` (+${outside.length - 6})` : ''} not under ${scope.editable.join(', ')}`,
+      })
+    }
+  }
+  // An experiment with no declared scope has not answered "did the subject stay
+  // the same", so the report must not imply it did.
+  const promoted = rounds.filter((r) => r.finished?.promoted)
+  if (promoted.length > 0 && declared.length === 0) {
+    notes.push(
+      'no edit scope declared: this campaign cannot tell a mechanism change from a change of subject — a leg set, a benchmark or a goal can be swapped and the gate will call it a promotion',
+    )
+  }
+  return { findings, notes }
+}
+
 function checkGate(rounds, events) {
   const findings = []
   const promoted = events.filter((e) => typeOf(e) === 'artifact.promoted').map(dataOf)
@@ -236,12 +298,14 @@ export function report({ dir, home = loomHome(), trialFloor = 20, trials } = {})
   const rounds = roundsOf(events)
   const state = readState(dir)
   const overshoot = checkOvershoot(rounds, events, state)
+  const subject = checkSubject(rounds, state, events)
   const findings = [
     ...checkCost(rounds),
     ...checkScore(rounds),
     ...checkGate(rounds, events),
     ...checkFailureChannel(rounds, channelIsRecorded(rounds)),
     ...overshoot.findings,
+    ...subject.findings,
   ]
   const procedureTrials = trials ?? readTrials(home)
   const unproven = procedureTrials.filter((t) => t.status === 'active' && t.shown < trialFloor)
@@ -260,6 +324,7 @@ export function report({ dir, home = loomHome(), trialFloor = 20, trials } = {})
     spentUsd: Number(overshoot.spent.toFixed(6)),
     capUsd: overshoot.cap,
     findings,
+    notes: subject.notes,
     trials: { floor: trialFloor, procedures: procedureTrials, unproven: unproven.length },
     ok: findings.length === 0,
   }
@@ -280,6 +345,7 @@ export function renderLines(result) {
     lines.push(`protocol: ${result.findings.length} finding(s)`)
     for (const f of result.findings) lines.push(`  FAIL ${f.round == null ? '-' : `r${f.round}`} ${f.problem} — ${f.detail}`)
   }
+  for (const n of result.notes ?? []) lines.push(`  note: ${n}`)
   lines.push(
     `trials: ${result.trials.procedures.length} procedure(s), ${result.trials.unproven} still under ${result.trials.floor} showing(s)`,
   )
