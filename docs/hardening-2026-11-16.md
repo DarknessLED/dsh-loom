@@ -128,3 +128,78 @@ KILLRATE=0.778
 
 两轮合计 $0.057622。构造的仪器要说清楚：它是通道的证明，不是能力的证明——第二轮的
 修复是照着 expected 值做的，不是从约定推出来的。
+
+---
+
+## 2026-11-21 凌晨：等自己的命令不是卡死（fin-oneyear1 的 $0.1626）
+
+### 账本
+
+`fin-oneyear1`（workspace 是一年期冲刺的实验室）4 轮、5 个 attempt，**全部**
+`abandoned:"stalled"`，`verifierRuns:0`，`score 0`，总花费 $0.162552 / 279,636 tokens。
+心跳证据一致得可疑——每一次都恰好卡在 300 s 窗口外面一点：
+
+| attempt | idleMs | lastSeq | 当时在干什么 |
+|---|---|---|---|
+| r1a1 | 304,275 | 106 | `job/registered`「Scan futures gates」 |
+| r1a2 | 302,780 | 61 | 「Run ETF parameter grid search」 |
+| r2a1 | 304,587 | 113 | 「Scan futures params on best ETF base」 |
+| r3a1 | 304,767 | 75 | 「Futures-parameter sweep with fixed ETF」 |
+| r4a1 | 302,077 | 78 | 「Stage1 grid futures off, fine lb」 |
+
+五个 attempt 的 diff 都真实存在（r1a1 三个文件 +127/−4，改了 `params.json`、
+`search.py`、`search2.py`；r2a1 三个文件 +228），也就是说**活是干了的**，只是被
+`abandonedVerdict` 判成"写了也白写"，连验证器都没跑（`src/runtime/round.js:1745`）。
+
+### 根因
+
+子会话在 `ops_bash` 里跑前台长命令时，日志上只有一条 `tool/call`，命令返回前不再
+append；而看护的存活判据只有事件水位（`src/runtime/watchdog.js` 的 `checkOne`）。
+"水位不动"于是同时覆盖了两种完全相反的状态：**卡死**和**在等自己刚发出的那条命令**。
+四个子会话的 `session.v4.jsonl.zstd` 尾部同构，可以当证据看：
+
+```
+02:25:51 tool/call        ops_bash（扫期货闸门）
+02:25:51 job/registered   bash-b5360a28f53b4227
+02:31:12 job/settled      status:"killed"      ← 看护拔的刀
+02:31:12 tool/result      Error:
+02:31:12 turn/end         {"kind":"aborted","reason":{"kind":"parent"}}
+```
+
+`job/settled` 的 `killed` 和 `turn/end` 的 `parent` 是同一件事：父进程把它杀了。
+
+### 改了什么
+
+1. **`src/runtime/activity.js`（新）**：`tailActivity(events)` 只从尾部往回找**状态
+   事件**（`tool/call`、`tool/result`、`job/registered`、`job/settled`、`step/*`、
+   `turn/*`，最多 60 条），未闭合的工具调用或未 settle 的作业判为
+   `{waiting:true, tool, jobId, sinceSeq}`，其余 `{waiting:false}`。空/坏输入一律
+   回答"不在等"而不是抛——它跑在 tick 里。
+2. **`src/runtime/watchdog.js`**：`seqOf` 现在可以返回 `{seq, waiting, tool}`；
+   等待期间把 `lastAdvanceAt` 往前推（窗口不累积），**deadline 仍然优先**；写掉时
+   记录里多一个 `waiting` 字段，让后来人能分清"等命令时死的"和"空转死的"。
+   裸数字探针保持老语义。
+3. **`src/runtime/runtime.js`**：probe 改成读会话尾部（`snapshotEvents().slice(-60)`）
+   + 水位，一起交给看护。
+4. **`src/dispatch/brief.js`**：加一条规则——可能超过两分钟的命令必须放后台轮询。
+   这条不是因为看护会杀它（现在不会了），而是墙钟并不会因为命令在跑就暂停：第 9 分钟
+   起的扫描在第 14 分钟结束，仍然等于没写报告。
+
+### 规格（`tests/self44/`，先红后绿）
+
+- `watchdog-waiting.test.mjs`：24 条断言。先红在
+  `ERR_MODULE_NOT_FOUND: src/runtime/activity.js`，这是正确原因（模块不存在），不是
+  断言写错。覆盖：未闭合 call 判 waiting、result/step-end/turn-end 闭合、孤儿 call
+  不算等、空/坏输入不抛、6 分钟与 30 分钟的等待都不写死且仍 tracked、等待结束后 idle
+  从那一刻重启、deadline 优先、普通 stall 记 `waiting:false`、数字探针向后兼容、
+  以及源码检查 `runtime.js` 真的接上了 `tailActivity`（防止模块写完没人用）。
+- `brief-long-command.test.mjs`：7 条断言，`budgetMs` 存在时规则出现、无预算时不出现、
+  2600 字上限内仍放得下任务正文。
+- 全量 `scripts/test-all.mjs`：290/290（上一轮基线 288，多的两条就是这里）。
+
+### 还没证明的
+
+这条修复在**真实战役**里还没复跑过。能证明的证据现在是：账本里的五条心跳记录与五份
+子会话尾部（说明描述准确）、24 条断言（说明逻辑按写的那样工作）。要证明"下次真的不
+会误杀"，得再跑一场会发长命令的战役，看 `attempt.finished` 里 `heartbeat.waiting`
+是否出现、`verifierRuns` 是否不再是 0——这一步没做，就不该说它已经修好。

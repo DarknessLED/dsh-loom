@@ -11,6 +11,7 @@ import { runRound } from './round.js'
 import { pickTask } from './selector.js'
 import { flushDeferred, notifyCheckpoint } from './notify.js'
 import { Watchdog } from './watchdog.js'
+import { tailActivity } from './activity.js'
 import { probeLean } from '../lean/probe.js'
 import { sweepLeases } from './lease.js'
 import { noWorkLessons, planRecovery, repairWorkspace } from './recovery.js'
@@ -57,10 +58,15 @@ export class Runtime {
         try {
           const session = svc(this.ctx, 'sessions')?.get?.(sessionId)
           if (!session) return null
-          const seq = Number(session.seq)
-          if (Number.isFinite(seq)) return seq
           const events = typeof session.snapshotEvents === 'function' ? session.snapshotEvents() : null
-          return Array.isArray(events) ? events.length : null
+          const seq = Number(session.seq)
+          // The watermark says whether the agent appended anything; the tail
+          // says whether it is blocked on its own tool call. A six-minute
+          // foreground command moves neither the log nor the watermark, and
+          // reading that as death is what killed five fin-oneyear1 attempts.
+          const activity = tailActivity(Array.isArray(events) ? events.slice(-60) : null)
+          const watermark = Number.isFinite(seq) ? seq : Array.isArray(events) ? events.length : null
+          return { seq: watermark, waiting: activity.waiting === true, tool: activity.tool ?? null }
         } catch {
           return null
         }

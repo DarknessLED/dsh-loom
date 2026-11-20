@@ -189,6 +189,15 @@ const standing = [
   // campaigns lost every landing to a missing git identity and the ledger said
   // only `{commit:null}`. loom now signs its own commits and says why when one fails.
   'tests/self43/commit-identity.test.mjs',
+  // fin-oneyear1 lost five attempts and $0.16 because a session waiting on
+  // its own six-minute command looks exactly like a wedged one: same frozen
+  // event watermark. Liveness now reads the tool call too, and the brief says
+  // to run a long command in the background while the wall clock still runs.
+  'tests/self44/watchdog-waiting.test.mjs',
+  'tests/self44/brief-long-command.test.mjs',
+  // A research note is evidence only if it says how deeply it was read and
+  // where every claim sits: the 3DGS paper-reader's five rules, made checkable.
+  'tests/self45/research-note.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

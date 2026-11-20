@@ -116,12 +116,31 @@ export class Watchdog {
   }
 
   checkOne(entry, now) {
-    const seq = this.seqOf(entry.sessionId)
+    const probe = this.seqOf(entry.sessionId)
+    // Two facts, not one. `seq` is the watermark; `waiting` says the child is
+    // blocked on its own tool call (a long foreground command appends nothing
+    // until it returns). A frozen watermark while waiting is health, not death:
+    // fin-oneyear1 lost five attempts and $0.16 to the difference.
+    const seq = typeof probe === 'object' && probe !== null ? probe.seq : probe
+    const probeIsObject = typeof probe === 'object' && probe !== null
+    const waiting = probeIsObject ? probe.waiting === true : false
+    const waitingTool = probeIsObject && typeof probe.tool === 'string' ? probe.tool : null
     if (Number.isFinite(seq)) {
       if (entry.lastSeq === null || seq > entry.lastSeq) {
         entry.lastSeq = seq
         entry.lastAdvanceAt = now
       }
+    }
+    if (waiting) {
+      // Keep the window rolling while the command runs, so a six-minute sweep
+      // is not mistaken for a wedged session once it finally returns. The
+      // deadline below is unaffected and still bounds the attempt.
+      entry.lastAdvanceAt = now
+      entry.waiting = waitingTool ?? true
+    } else {
+      // `false` is a fact (the probe looked and found nothing in flight);
+      // `null` is its absence (a bare watermark, no tail to read).
+      entry.waiting = probeIsObject ? false : null
     }
 
     const idleMs = now - entry.lastAdvanceAt
@@ -150,6 +169,9 @@ export class Watchdog {
       lastSeq: entry.lastSeq,
       advanced: entry.lastSeq !== null,
       sessionId: entry.sessionId,
+      // Was a tool in flight at the last observation? A death while waiting and
+      // a death while idle are different failures and need different repairs.
+      waiting: entry.waiting ?? null,
     }
   }
 

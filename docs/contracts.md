@@ -79,6 +79,10 @@
 - `src/knowledge/procedure.js` — 从重复的成功里归纳 procedure：同一 family+subject 至少 2 次独立晋升才生成一条，id 由（family, subject）稳定哈希得到；步骤取被改文件的频次序，同一 subject 的失败按 shape 变成 `notWhen` 与 pitfalls（`error`/`near-miss`），已有同 id 的不再重复归纳。
 - `src/knowledge/trials.js` — 试验台账的唯一汇总口：`summarizeTrials(lessons)` 只统计 `kind === 'procedure'` 的经验，把 shown/wins/losses/**ties** 累加成总账，用 `cross.js` 的 `trialVerdict` 逐条判 keep/drop/insufficient（`TRIAL_FLOOR` 即 `TRIAL_MIN`，20 次展示之前一律 insufficient），最后给出总判词：无 procedure 为 `none`，全部 insufficient 为 `insufficient`，否则 wins > losses 为 `keep`、反之为 `drop`；`rsi_status` 的结构化 `knowledge.trial` 与文本行都读它，不再各算一套。
 
+### research/ — 调研笔记
+
+- `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
+
 ### lean/ — Lean 门
 
 - `src/lean/scan.js` — Lean 门的廉价半边：剥注释后扫描 `sorry`、新公理、`native_decide` 等违规与 import 白名单，纯函数不碰磁盘。
@@ -142,7 +146,8 @@
 - `src/runtime/triangle.js` — 效率/质量/成本三角的聚合定义：把回合记录折成每秒轮、并行度、验证器占比、晋升率与 token 成本，面板、报告与 `scripts/loom-metrics.mjs` 共用同一套口径。
 - `src/runtime/verifier-reuse.js` — 验证器复用：按补丁字节（sha1）加验证命令缓存裁决，同一战役里补丁完全相同的后到候选项继承前一次的 ok/exitCode/输出并把 durationMs 记 0，只对真正启动的验证器计入 verifierRuns；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
 - `src/runtime/switch.js` — 循环总开关：`~/.dsh/loom/switch.json` 存 enabled/at/by，另开 `switch.jsonl` 审计；翻转绝不写 campaign 日志，所以 seq 不偏移、恢复时也无需重新汇总。
-- `src/runtime/watchdog.js` — 看护运行中的尝试：以子会话事件水位而非 pid 判断存活，租约到期或 `stallMs` 无事件即写掉。
+- `src/runtime/watchdog.js` — 看护运行中的尝试：以子会话事件水位而非 pid 判断存活，租约到期或 `stallMs` 无事件即写掉；水位冻结但会话尾部有未闭合的工具调用（`waiting`）时不算停滞——否则一条跑六分钟的前台命令会被当成卡死。
+- `src/runtime/activity.js` — 判断子会话尾部是否在等自己的命令：往回扫最近的状态事件，未闭合的 `tool/call`（或未 settle 的 `job/registered`）判为 `waiting`，并带上是哪个工具/作业；看护据此区分“等命令”和“卡死”。
 
 ## 1. `src/exec/verifier.js`
 

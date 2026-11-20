@@ -115,6 +115,27 @@ function budgetRule(raw) {
     seconds >= 120 ? `${seconds} s (about ${Math.round(seconds / 60)} minutes)` : `${seconds} s`
   return `You have ${readable} of wall clock, enforced by the runner: it stops you the moment that runs out and nothing you found reaches the next agent. Work outwards from what the task actually needs, and when the budget gets short, write up what you already know instead of starting another investigation.`
 }
+
+/**
+ * A long foreground command is a silence the runner has to interpret.
+ *
+ * The watchdog used to read that silence as death and kill the attempt mid
+ * command; it now reads the open tool call instead (src/runtime/activity.js).
+ * The advice stays worth giving anyway, and for a different reason: the wall
+ * clock is not paused while a command runs, so a sweep that starts at minute
+ * nine and finishes at minute fourteen was never going to reach a report. A
+ * background job plus a poll keeps the partial output in hand when the budget
+ * lands.
+ *
+ * @param {number|undefined} rawMs attempt wall clock, to decide whether the
+ *   advice can matter at all (a 60 s attempt needs no command runner)
+ * @returns {string}
+ */
+function longCommandRule(rawMs) {
+  const ms = Number(rawMs)
+  if (!Number.isFinite(ms) || ms <= 0) return ''
+  return 'A command that may take longer than a couple of minutes must be started as a background job and polled, not left in the foreground: the session log goes quiet while it runs and the wall clock keeps burning, so a blocking sweep can eat the whole attempt without producing a report. Keep the sweep small enough that its output fits, and write down what it found before starting another.'
+}
 /**
  * Compile the bounded brief handed to one fresh attempt.
  *
@@ -229,6 +250,11 @@ export function buildWorkerBrief(input) {
   // otherwise pay to discover.
   const shell = shellRule(source)
   if (shell) rulesBody = rulesBody + String.fromCharCode(10) + shell
+  // The runner now survives a long command, but the wall clock does not: an
+  // attempt that spends its last minutes inside a blocking sweep still ends
+  // with nothing to report.
+  const longCommand = longCommandRule(source.budgetMs)
+  if (longCommand) rulesBody = rulesBody + String.fromCharCode(10) + longCommand
 
   const failureBody = (detail) =>
     detail ? `Reason: ${failureReason}\nDetail: ${detail}` : `Reason: ${failureReason}`
