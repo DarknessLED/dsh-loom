@@ -137,6 +137,11 @@ export class Runtime {
       lastSeq: e.lastSeq,
       idleMs: now - e.lastAdvanceAt,
       deadlineInMs: e.deadline === null ? null : e.deadline - now,
+      // Two attempts can show the same idleMs and mean different things:
+      // one is wedged, the other is waiting for the command it launched.
+      // The distinction is the whole point of the waiting probe, so it
+      // travels out to the status line instead of staying in memory.
+      waiting: e.waiting === undefined ? null : e.waiting,
     }))
   }
 

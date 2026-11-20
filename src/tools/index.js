@@ -1123,7 +1123,10 @@ export function registerTools(ctx, { runtime, config }) {
           `| ${r.id} | ${r.status} | ${r.rounds} | $${r.spend} | ${r.best ?? '-'} | ${r.open} | ${r.lessons}${r.quarantined ? ` (+${r.quarantined}q)` : ''} | ${r.policy} | ${r.objective} |`,
         )
       }
-      if (live.length) lines.push('', `live attempts: ${live.map((a) => `${a.attemptId} (idle ${Math.round(a.idleMs / 1000)}s)`).join(', ')}`)
+      // An idle attempt that is waiting on its own command is not a sick one,
+      // so the line says which it is instead of leaving the reader to guess from
+      // a number that looks alarming either way.
+      if (live.length) lines.push('', `live attempts: ${live.map((a) => `${a.attemptId} (idle ${Math.round(a.idleMs / 1000)}s${a.waiting ? `, waiting on ${a.waiting === true ? 'a tool' : `\`${a.waiting}\``}` : ''})`).join(', ')}`)
       // The switch is the first thing a reader needs: "nothing is moving" has two
       // very different causes (no running campaign, or the loop is off by hand).
       const head = sw.enabled ? 'loop: on' : `loop: OFF (by ${sw.by}${sw.at ? ` at ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')}` : ''}) — nothing is dispatched`

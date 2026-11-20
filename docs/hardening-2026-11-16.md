@@ -197,9 +197,48 @@ append；而看护的存活判据只有事件水位（`src/runtime/watchdog.js` 
   2600 字上限内仍放得下任务正文。
 - 全量 `scripts/test-all.mjs`：290/290（上一轮基线 288，多的两条就是这里）。
 
-### 还没证明的
+### 真实战役里的复跑（2026-11-21 凌晨）
 
-这条修复在**真实战役**里还没复跑过。能证明的证据现在是：账本里的五条心跳记录与五份
-子会话尾部（说明描述准确）、24 条断言（说明逻辑按写的那样工作）。要证明"下次真的不
-会误杀"，得再跑一场会发长命令的战役，看 `attempt.finished` 里 `heartbeat.waiting`
-是否出现、`verifierRuns` 是否不再是 0——这一步没做，就不该说它已经修好。
+上一版这里写的是「还没证明」。现在做了，而且第一次做的两次**什么都没证明**——两轮都
+是在总开关关着的时候跑的，而 `tick()` 在 `if (!this.enabled()) return` 那一行就把看护
+跳过了。那两轮真正验证的是另一件事：*attempt 自己的* 380 秒静默前台命令本来就不会被
+杀，因为 abort 只从 tick 里来。所以"能跑完"不等于"看护没误杀"，这个区别值得单独记一笔。
+
+证明用的仪器是 `C:/Projects/RSI-live/slow2`（判据 `soak.mjs` 先睡 380 秒再一次性报
+七个用例；`share(1,4)` 该是 25 而不是 2.5，`share(1,0)` 该抛而不是返回 Infinity），
+三个克隆各自独立、`origin` 已删、`reflog` 已清、`gc` 过，都在种子 `f1ff999` 上且
+`git status` 干净。
+
+| 场 | 开关 | attempt | 静默窗口 | 结果 |
+| --- | --- | --- | --- | --- |
+| `slowsoak-live` | 关 | r1a1 / r1a2 | 380.4 s | 两条都 `verifierOk:true`、`score 1`、`scoreSource killRate`；round 因**我种子写错**（原 `chunk` 本来就保留余数）判 no-gain |
+| `slowsoak-fix` | 关 | r1a1 | 380.1 s | promoted，$0.0129 / 12,226 tok，commit `872bf7f` |
+| `slowsoak-live2` | **开** | r1a1 | 380.2 s | promoted，$0.0103 / 8,174 tok，commit `4da7d0e` |
+| `slowsoak-watch` | **开** | r1a1 | 380.2 s | promoted，$0.0138 / 10,436 tok，commit `7063798` |
+
+`slowsoak-watch` 那一轮是**直接观察**到的，不只是事后读账本：在子会话最后一个
+`job/registered`（"Run soak verifier in foreground (~6.4 min)"）之后静默到第 328 秒时
+查 `rsi_status`，live 行是
+
+```json
+{ "attemptId": "r1a1", "lastSeq": 59, "idleMs": 1831, "deadlineInMs": 438414, "waiting": "ops_bash" }
+```
+
+`idleMs` 1.8 秒、`waiting: "ops_bash"`，而同一时刻水位 `lastSeq` 已经 328 秒没动。
+老判据只看水位，这一刻正在它写掉的区间里（> 300 s）；新判据把它算作"在等自己的命令"。
+整轮结束时 `verifierRuns: 1`、`abandoned: null`、`heartbeat` 字段不存在（没被写掉）。
+
+### 顺手补的一处
+
+`liveAttempts()` 原本不把 `waiting` 送出来，于是「等命令」和「卡死」在 `rsi_status`
+与面板上长得一模一样——修好的东西看不见，等于没修。现在 live 行带 `waiting`（`null`
+表示探针只能拿到裸水位、看不到尾部），状态行在等待时打印 `waiting on ops_bash`。
+规格 `tests/self44/watchdog-waiting.test.mjs` 从 24 条扩到 27 条，新增三条钉住
+"liveAttempts 透出 waiting""状态行会说在等什么""裸水位记 null 而不是 false"。
+
+### 仍然没证明的
+
+只有**一次**真实战役，而且是构造出来的仪器。它证明的是"静默 380 秒的前台命令不会再被
+看护写掉"，不是"任何形态的长任务都不会"。真实战役里 agent 若把命令放后台，事件会继续
+流动，那是另一条路径（本来就活着）；若命令在后台跑而 agent 自己发呆，现在仍然会被写
+掉——这是对的，因为那时没有未闭合的工具调用。

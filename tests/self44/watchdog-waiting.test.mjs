@@ -145,5 +145,27 @@ const ev = (type, data = {}, time = 0) => ({ type, data, time })
   ok('and the runtime records waiting on the heartbeat', /waiting/.test(src), 'runtime.js never mentions waiting')
 }
 
+// 11. The distinction has to reach a human. `liveAttempts()` is what
+// rsi_status and the panel render, and two attempts showing the same idleMs
+// mean opposite things — one wedged, one waiting on its own six-minute
+// command. Leaving the flag in memory makes the fix invisible exactly when
+// someone is deciding whether to kill the run.
+{
+  const src = readFileSync(new URL('../../src/runtime/runtime.js', import.meta.url), 'utf8')
+  ok('liveAttempts exposes the waiting flag', /waiting: e\.waiting/.test(src), 'liveAttempts drops e.waiting')
+  const tools = readFileSync(new URL('../../src/tools/index.js', import.meta.url), 'utf8')
+  ok('rsi_status says which it is', /waiting on/.test(tools), 'the status line never prints waiting')
+}
+
+// 12. And the flag is honest about a probe that could not look: `null` means
+// "a bare watermark, no tail to read", which is different from `false`.
+{
+  const wd = new Watchdog({ seqOf: () => 42, stallMs: 1000, graceMs: 0 })
+  wd.track({ attemptId: 'w6', sessionId: 's6' })
+  wd.check(Date.now())
+  const row = wd.list()[0]
+  ok('a numeric probe records waiting:null, not false', row.waiting === null, JSON.stringify(row.waiting))
+}
+
 console.log(`# passed ${passed}, failed ${failed}`)
 process.exit(failed === 0 ? 0 : 1)
