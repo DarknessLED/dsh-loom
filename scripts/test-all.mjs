@@ -213,6 +213,7 @@ const standing = [
   'tests/self47/research-sink.test.mjs',
   'tests/self47/research-run.test.mjs',
   'tests/self47/research-tool.test.mjs',
+  'tests/self47/research-replay.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
