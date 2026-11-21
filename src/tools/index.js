@@ -1356,13 +1356,14 @@ export function registerTools(ctx, { runtime, config }) {
             quotes: claim?.quotes,
           })
           const verdict = verifyClaim(home, { ...stored, quotes: claim?.quotes ?? stored.quotes })
-          registered.push({ id: stored.id, text: stored.text, status: verdict.status })
+          registered.push({ id: stored.id, text: stored.text, status: verdict.status, note: verdict.note })
           if (verdict.status !== 'verified') verdicts.push({ id: stored.id, status: verdict.status, note: verdict.note })
         }
         const sealed = sealReport(home, {
           topic: args.topic,
           title: args.title,
           sections: args.sections,
+          claims: registered,
           evidenceIds: Array.isArray(args.evidenceIds) ? args.evidenceIds : [...new Set(claims.flatMap((c) => (Array.isArray(c?.evidenceIds) ? c.evidenceIds : [])))],
         })
         const checked = verifySeal(sealed.dir)

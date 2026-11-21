@@ -144,6 +144,32 @@ ok('a claim is verified only when it quotes bytes the snapshot actually contains
 }
 ok('a seal pins the report and every snapshot it cites')
 
+// --- the sealed text says which claims survived verification ---------------
+// A seal that covers only the prose leaves a reader unable to tell a verified
+// sentence from an assertion. The verdicts are already in the ledger, so the
+// report carries them; the manifest pins the verdict list too.
+{
+  const ev = addEvidence(home, { origin: 'https://example.test/e', content: 'the audit found 323 of 1968 tasks were hackable' })
+  const good = addClaim(home, { text: '323 of 1968 tasks were hackable', evidenceIds: [ev.id], quotes: ['323 of 1968 tasks were hackable'] })
+  const bad = addClaim(home, { text: 'a sentence nobody can check', evidenceIds: [ev.id], quotes: ['this phrase is not in the page'] })
+  const records = [good, bad].map((c) => ({ id: c.id, text: c.text, ...verifyClaim(home, c) }))
+  const seal = sealReport(home, {
+    topic: 'claim table',
+    title: 'Claim table',
+    sections: [{ heading: 'Body', paragraphs: [{ text: 'Two claims were registered.' }] }],
+    evidenceIds: [ev.id],
+    claims: records,
+  })
+  const body = readFileSync(join(seal.dir, 'report.md'), 'utf8')
+  assert.match(body, /## Claims/, 'the sealed text lists the claims')
+  assert.match(body, /verified/, 'and their verdicts')
+  assert.match(body, /unverifiable|contradicted/, 'an unverifiable claim is visible in the text')
+  const manifest = JSON.parse(readFileSync(join(seal.dir, 'manifest.json'), 'utf8'))
+  assert.equal(manifest.claims.length, 2, 'the manifest pins the verdict list')
+  assert.equal(verifySeal(seal.dir).ok, true)
+}
+ok('a sealed report carries the verdict table for its claims')
+
 // --- junk in, no crash out ----------------------------------------------
 
 {

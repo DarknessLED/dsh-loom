@@ -167,6 +167,25 @@ ok('a page that matched nothing is "read, contributed nothing", not silence')
 }
 ok('the run produces a markdown report that cites its sources')
 
+// --- a report with a real passage renders the passage -------------------
+// Found live: the report renderer read `passage.text` while the extractor
+// returns `{passage, matchedTerms, score}`, so every run that actually found a
+// span threw `Cannot read properties of undefined (reading 'replace')`. The
+// earlier block survived only because its fixture matched no term.
+{
+  const q = 'verifier reward hacking'
+  const search = async () => ({ sources: [{ url: 'https://hit.test/p', title: 'Hit' }], truncated: false })
+  const fetchPage = fetchOf({ 'https://hit.test/p': { content: `<p>${PAGE}</p>` } })
+  const result = await runResearch({ question: q, depth: 'quick', fetchTop: 1 }, { search, fetchPage })
+  assert.equal(result.ok, true)
+  assert.equal(result.authority.passages > 0, true, 'the fixture must actually find a passage')
+  const item = result.evidence[0]
+  assert.ok(typeof item.passages[0].text === 'string', 'a passage exposes the span as `text`')
+  assert.match(result.report, /verifier/i, 'the passage text reaches the report')
+  assert.ok(!/undefined/.test(result.report), 'the report never prints `undefined`')
+}
+ok('a report that found a passage renders it, instead of crashing')
+
 // --- nothing found is a named failure, not an empty success -------------
 
 {

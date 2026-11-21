@@ -214,7 +214,15 @@ export async function runResearch(input, deps = {}) {
       if (!passages.length) {
         gaps.push(clip(`read ${target.url} (${text.length} chars) but found no span matching the question`, MAX_GAP_CHARS))
       }
-      if (passages.length) evidence.push({ url: target.url, title: source.title ?? null, passages })
+      if (passages.length) {
+        // The extractor returns {passage, matchedTerms, score}; evidence callers
+        // (and the report renderer) read the span as `text`. One shape, here.
+        evidence.push({
+          url: target.url,
+          title: source.title ?? null,
+          passages: passages.map((p) => ({ text: p.passage, matchedTerms: p.matchedTerms, score: p.score })),
+        })
+      }
     } catch (err) {
       source.fetchStatus = 'failed'
       source.fetchError = messageOf(err)

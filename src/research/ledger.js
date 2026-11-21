@@ -240,7 +240,7 @@ export function verifyClaim(home, claim) {
 // sealing
 // ---------------------------------------------------------------------------
 
-function renderReport({ title, topic, sections }) {
+function renderReport({ title, topic, sections, claims }) {
   const lines = [`# ${cleanText(title) || `Research report: ${cleanText(topic) || 'untitled'}`}`, '']
   if (cleanText(topic)) lines.push(`**Topic.** ${cleanText(topic)}`, '')
   for (const section of Array.isArray(sections) ? sections : []) {
@@ -250,6 +250,24 @@ function renderReport({ title, topic, sections }) {
       const text = typeof paragraph === 'string' ? paragraph : cleanText(paragraph?.text)
       if (text) lines.push(text, '')
     }
+  }
+
+  // The prose is written by whoever wrote the report; the verdicts are decided
+  // by re-hashing stored bytes. Printing them in the sealed text is what lets a
+  // reader tell a checked sentence from an assertion without opening the ledger.
+  const rows = Array.isArray(claims) ? claims : []
+  if (rows.length) {
+    lines.push('## Claims', '')
+    lines.push('| verdict | claim | note |', '| --- | --- | --- |')
+    for (const claim of rows) {
+      const verdict = cleanText(claim?.status) || 'unknown'
+      const text = cleanText(claim?.text).replace(/\|/g, '\\|')
+      const note = cleanText(claim?.note).replace(/\|/g, '\\|')
+      lines.push(`| ${verdict} | ${text} | ${note} |`)
+    }
+    lines.push('')
+    const checked = rows.filter((c) => cleanText(c?.status) === 'verified').length
+    lines.push(`${checked} of ${rows.length} claim(s) rest on a literal found in the stored bytes.`, '')
   }
   return `${lines.join('\n').trimEnd()}\n`
 }
@@ -262,8 +280,8 @@ function renderReport({ title, topic, sections }) {
  * `verifySeal` re-derives everything it checks, and neither the prose nor a
  * source can change without the seal changing.
  */
-export function sealReport(home, { topic, title, sections, evidenceIds } = {}) {
-  const body = renderReport({ title, topic, sections })
+export function sealReport(home, { topic, title, sections, evidenceIds, claims } = {}) {
+  const body = renderReport({ title, topic, sections, claims })
   const dir = join(ledgerDir(home), 'reports', `${cleanText(topic) ? cleanText(topic).replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 60) : 'report'}-${Date.now()}`)
   ensure(dir)
 
@@ -274,12 +292,20 @@ export function sealReport(home, { topic, title, sections, evidenceIds } = {}) {
     cited.push({ id: ev.id, hash: ev.hash, origin: ev.origin, bytes: ev.bytes, tampered: ev.tampered === true })
   }
 
+  const pinned = (Array.isArray(claims) ? claims : []).map((claim) => ({
+    id: cleanText(claim?.id),
+    status: cleanText(claim?.status) || 'unknown',
+    text: cleanText(claim?.text),
+    note: cleanText(claim?.note),
+  }))
+
   const manifest = {
     topic: cleanText(topic),
     title: cleanText(title) || `Research report: ${cleanText(topic)}`,
     createdAt: Date.now(),
     files: { 'report.md': sha256(body) },
     evidence: cited,
+    ...(pinned.length ? { claims: pinned } : {}),
   }
   const seal = sha256(JSON.stringify(manifest))
 
