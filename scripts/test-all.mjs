@@ -198,6 +198,11 @@ const standing = [
   // A research note is evidence only if it says how deeply it was read and
   // where every claim sits: the 3DGS paper-reader's five rules, made checkable.
   'tests/self45/research-note.test.mjs',
+  // The ledger's timestamps are numbers; a Date.parse() of a number is NaN, which
+  // silently disabled the candidate pricer, the panel's age field and the
+  // duration fallback. These two pin the clock and the pricer that now reads it.
+  'tests/self46/clock-units.test.mjs',
+  'tests/self46/hedge-clock.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

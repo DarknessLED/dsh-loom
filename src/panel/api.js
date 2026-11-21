@@ -1,4 +1,5 @@
 import { svc } from '../core/services.js'
+import { toMs } from '../core/clock.js'
 import { campaignQuality } from '../runtime/quality.js'
 import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
@@ -106,6 +107,19 @@ export function nodesFor(state, opts = {}) {
     }))
     .sort((a, b) => (b.round ?? -Infinity) - (a.round ?? -Infinity))
     .slice(0, limit)
+}
+
+/**
+ * How long ago a moment was, in milliseconds, or `null`.
+ *
+ * `updatedAt` is `ev.t`: a number. `Date.parse` of a number is NaN, and a NaN
+ * age renders as a nonsense string in the panel instead of an age -- the same
+ * family of bug as the round's budget clock.
+ */
+function ageOf(moment, now) {
+  const then = toMs(moment)
+  if (then === null) return null
+  return Math.max(0, now - then)
 }
 
 function campaignRow(view, now, campaignId, config) {
@@ -258,7 +272,10 @@ function campaignRow(view, now, campaignId, config) {
     // *and* that 160 of them were the planner, instead of only the first half.
     nodes: nodesFor(s),
     updatedAt: s.updatedAt ?? null,
-    ageMs: s.updatedAt ? Math.max(0, now - Date.parse(s.updatedAt)) : null,
+    // Same trap as the round's budget clock: `updatedAt` is a number, so
+    // `Date.parse` gave NaN and the panel could not say how long a campaign had
+    // been idle.
+    ageMs: ageOf(s.updatedAt, now),
   }
 }
 

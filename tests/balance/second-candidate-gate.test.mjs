@@ -7,7 +7,15 @@
 // score advantage in 3 of 3 rounds).
 //
 // So the gate has to be wired: when the record says the second opinion is not
-// worth its tail, the round plans one candidate - and says so.
+// worth its tail, the round changes *when* it buys that opinion - and says so.
+//
+// Wave 46 revisited the direction. The first wiring zeroed the count, which is a
+// stronger claim than the price supports: it says the second candidate can never
+// help. On the whole record (464 rounds, $10.2552 of attempt spend) that zeroing
+// would have saved $1.6054 and lost 17 promotions worth $0.7954 of verified
+// work; buying the same candidate after the first one falls short saved $0.7912
+// and lost none. A refusal is about eagerness, so it now sets `cascade` and
+// leaves the count alone.
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -119,12 +127,13 @@ const ok = (name) => {
   const started = Date.now()
   await runRound({ runtime, view, config: config(), dispatcher, log: () => {} })
   const finished = runtime.events.filter((e) => e.type === 'round.finished').map((e) => e.data)[0]
-  assert.equal(finished.candidatesPlanned, 1, 'the record says the second opinion is not worth its tail')
-  assert.equal(finished.attemptCount, 1, 'so only one candidate runs')
-  assert.equal(finished.candidateModeSource, 'evidence', 'and the round says why it planned fewer')
+  assert.equal(finished.candidatesPlanned, 2, 'the count is the campaign\'s, not the hedge\'s to zero')
+  assert.equal(finished.candidateMode, 'cascade', 'the record says the second opinion is not worth paying for up front')
+  assert.equal(finished.candidateModeSource, 'evidence', 'and the round says the record decided that')
   assert.equal(finished.secondCandidate?.admit, false, 'the refusal is on the record, not just the decision')
   assert.equal(typeof finished.secondCandidate?.reason, 'string', 'and so is why it refused')
-  ok('a perfect record stops paying for a second opinion')
+  assert.equal(finished.attemptCount, 1, 'a first candidate that already scores 1.0 ends the round')
+  ok('a perfect record stops paying for a second opinion up front')
   rmSync(root, { recursive: true, force: true })
   void started
 }
@@ -152,9 +161,10 @@ const ok = (name) => {
   await runRound({ runtime, view, config: config(), dispatcher, log: () => {} })
   const finished = runtime.events.filter((e) => e.type === 'round.finished').map((e) => e.data)[0]
   assert.equal(finished.secondCandidate?.tailMs > 0, true, 'the tail is measured, not assumed zero')
-  assert.equal(finished.candidatesPlanned, 1, 'three failed rounds do not make a second opinion worth buying')
+  assert.equal(finished.candidatesPlanned, 2, 'the count stays; only the timing changes')
+  assert.equal(finished.candidateMode, 'cascade', 'three failed rounds do not make a second opinion worth buying up front')
   assert.equal(finished.candidateModeSource, 'evidence', 'and the round names the evidence')
-  ok('a losing record with measured attempt durations refuses the hedge')
+  ok('a losing record with measured attempt durations buys late instead')
   rmSync(root, { recursive: true, force: true })
 }
 

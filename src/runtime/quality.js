@@ -11,6 +11,8 @@
  * answer. Everything here is derived from materialized state.
  */
 
+import { toMs } from '../core/clock.js'
+
 /** Rounds inspected when deciding whether the loop has stalled. */
 const STALL_WINDOW = 3
 
@@ -43,9 +45,11 @@ function roundMs(round) {
   if (Number.isFinite(modern) && modern >= 0) return modern
   const ms = round?.ms
   if (Number.isFinite(ms) && ms >= 0) return ms
-  const started = typeof round?.at === 'string' ? Date.parse(round.at) : NaN
-  const ended = typeof round?.endedAt === 'string' ? Date.parse(round.endedAt) : NaN
-  if (Number.isFinite(started) && Number.isFinite(ended) && ended >= started) return ended - started
+  // `at` and `endedAt` are `ev.t` values, i.e. milliseconds as a number. Only
+  // string ledgers were ever read here, so the fallback never fired.
+  const started = toMs(round?.at)
+  const ended = toMs(round?.endedAt)
+  if (started !== null && ended !== null && ended >= started) return ended - started
   return null
 }
 

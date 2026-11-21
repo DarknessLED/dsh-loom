@@ -168,6 +168,14 @@ export function hedgeDecision(input = {}) {
  * cannot have a second one bought back by the arithmetic. It defaults to 2 (the
  * historical count), and the result is never below 1.
  *
+ * A refusal is a statement about *when*, not *whether*. Measured on the whole
+ * record (464 rounds, $10.2552 of attempt spend): refusing the hedge outright
+ * would have saved $1.6054 but lost 17 promotions ($0.7954 of verified work),
+ * while buying the same candidate later instead saves $0.7912 and loses none.
+ * So the count stays at the configured number and the *mode* becomes `cascade`:
+ * the second candidate is bought only if the first leaves room for it. The mode
+ * is the caller's business — this function says which one the price implies.
+ *
  * @param {{
  *   pSolve?: number|string,
  *   gainIfSolved?: number|string,
@@ -178,9 +186,10 @@ export function hedgeDecision(input = {}) {
  * }} [input]
  *   Same price as `hedgeDecision`, plus `max` — the most candidates the round
  *   may plan (the campaign's configured count).
- * @returns {{count: number, reason: 'expected-value'|'negative-ev'|'no-tail-room'}}
- *   `count` is 1 when the hedge refuses, otherwise `max`; `reason` names the
- *   constraint that decided it.
+ * @returns {{count: number, buy: boolean, mode: 'cascade'|'parallel', reason: 'expected-value'|'negative-ev'|'no-tail-room'}}
+ *   `count` is the configured ceiling (`max`) either way; `buy` says whether the
+ *   candidates are bought up front, `mode` is where they should be bought, and
+ *   `reason` names the constraint that decided it.
  */
 export function planCandidates(input = {}) {
   const args = input && typeof input === 'object' ? input : {}
@@ -189,11 +198,17 @@ export function planCandidates(input = {}) {
   // ceiling must not silently mean "one": clamp into the range a round can use.
   const max = rawMax === null ? 2 : Math.max(1, Math.floor(rawMax))
   const decision = hedgeDecision(args)
+  // `no-tail-room` is the one refusal that is about the clock rather than the
+  // price: the round cannot finish a late purchase either, so it keeps its one
+  // candidate. Every other refusal is a statement about eagerness, and the
+  // candidate is bought on demand instead of up front.
   if (!decision.buy) {
     return {
-      count: 1,
+      count: max,
+      buy: false,
+      mode: decision.reason === 'no-tail-room' ? 'parallel' : 'cascade',
       reason: decision.reason === 'no-tail-room' ? 'no-tail-room' : 'negative-ev',
     }
   }
-  return { count: max, reason: 'expected-value' }
+  return { count: max, buy: true, mode: 'parallel', reason: 'expected-value' }
 }

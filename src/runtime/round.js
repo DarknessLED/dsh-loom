@@ -16,6 +16,7 @@ import {
 } from '../exec/worktree.js'
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { DEFAULT_CONFIG } from '../core/config.js'
+import { toMs } from '../core/clock.js'
 import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { scoreOf } from '../gate/score.js'
 import { verifyMetrics } from '../gate/metrics.js'
@@ -1019,8 +1020,12 @@ function taskSolveRate(rounds, taskId, beforeRound) {
  */
 function budgetLeftMsOf(state) {
   const minutes = Number(state?.budget?.minutes)
-  const startedAt = Date.parse(state?.createdAt)
-  if (!Number.isFinite(minutes) || !Number.isFinite(startedAt)) return null
+  // `createdAt` is `ev.t`, a number of milliseconds. `Date.parse` of that is
+  // always NaN, so this function used to return null forever -- and the caller
+  // reads null as "the ledger cannot say", a legitimate answer, so the priced
+  // hedge was never asked in 464 rounds of record.
+  const startedAt = toMs(state?.createdAt)
+  if (!Number.isFinite(minutes) || startedAt === null) return null
   return Math.max(0, minutes * 60_000 - (Date.now() - startedAt))
 }
 
@@ -1277,28 +1282,34 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       : config.loopPolicy?.autoCandidateMode === true
         ? 'auto'
         : 'default'
-  const candidateMode =
+  let candidateMode =
     candidateModeSource === 'config'
       ? configuredMode
       : candidateModeSource === 'auto'
         ? adaptiveCandidateMode(state.rounds)
         : 'parallel'
+  // A priced refusal moves *when* the second candidate is bought, never whether
+  // it may be. Refusing outright saved $1.6054 on the record and lost 17
+  // promotions ($0.7954 of verified work); buying the same opinion on demand
+  // saved $0.7912 and lost none. So the count stands and the mode becomes
+  // `cascade`, with the evidence named on the round.
+  const buyLate = () => {
+    if (candidateMode === 'cascade') return
+    candidateMode = 'cascade'
+    candidateModeSource = 'evidence'
+  }
   // A priced hedge, not a habit: when the campaign's own record says a second
-  // opinion is not worth its tail, plan one candidate and name the evidence that
-  // decided it. `secondCandidate: 'always'` is an instruction and is never
-  // overruled by statistics; a record that cannot price the hedge leaves the
-  // configured count untouched. `cascade` already buys the next opinion only
-  // when the first leaves room, so pricing it again would double-charge.
+  // opinion is not worth buying up front, buy it late instead and name the
+  // evidence that decided it. `secondCandidate: 'always'` is an instruction and
+  // is never overruled by statistics; a record that cannot price the hedge
+  // leaves the configured count and mode untouched.
   const secondCandidatePreference = policy.secondCandidate ?? config.loopPolicy?.secondCandidate
   let secondCandidate = null
-  if (candidateMode === 'parallel' && secondCandidatePreference !== 'always') {
+  if (secondCandidatePreference !== 'always') {
     const priced = secondCandidateGate(state.rounds)
     if (priced) {
       secondCandidate = priced
-      if (!priced.admit) {
-        candidates = 1
-        candidateModeSource = 'evidence'
-      }
+      if (!priced.admit) buyLate()
     }
   }
   // The hedge that prices the second candidate is in dollars and score, so the
@@ -1311,12 +1322,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   let candidatePlan = null
   const priorSolveRate = taskSolveRate(state.rounds, task.id, n)
   const budgetLeftMs = budgetLeftMsOf(state)
-  if (
-    candidateMode === 'parallel' &&
-    secondCandidatePreference !== 'always' &&
-    priorSolveRate !== null &&
-    budgetLeftMs !== null
-  ) {
+  if (secondCandidatePreference !== 'always' && priorSolveRate !== null && budgetLeftMs !== null) {
     candidatePlan = planCandidates({
       pSolve: priorSolveRate,
       // A solve is worth at least the round's promotion threshold: below it the
@@ -1327,10 +1333,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       budgetLeftMs,
       max: candidates,
     })
-    if (candidatePlan.count < candidates) {
-      candidates = candidatePlan.count
-      candidateModeSource = 'evidence'
-    }
+    // The plan answers when to buy, not how many: a refusal is bought late.
+    if (candidatePlan.mode === 'cascade') buyLate()
   }
   // Which attempt gets the lessons rotates with the round, so the control is
   // not always a1 (see src/runtime/exposure.js).

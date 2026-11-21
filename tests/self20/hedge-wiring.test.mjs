@@ -14,7 +14,14 @@ import { planCandidates } from '../../src/loop/candidates.js'
 const here = dirname(fileURLToPath(import.meta.url))
 const roundSrc = readFileSync(join(here, '..', '..', 'src', 'runtime', 'round.js'), 'utf8')
 
-test('a task that usually solves plans one candidate', () => {
+// Wave 46: the refusal changed from "plan one candidate" to "plan the same
+// number, buy them late". Refusing outright was measured on the whole record
+// (464 rounds, $10.2552 of attempt spend): it saved $1.6054 and lost 17
+// promotions ($0.7954 of verified work). Buying the same opinion on demand from
+// the first candidate's result saved $0.7912 and lost none. The hedge question
+// was never "is a second candidate ever useful" — it is "is it worth paying for
+// before we know".
+test('a task that usually solves does not pay for the opinion up front', () => {
   const out = planCandidates({
     pSolve: 0.95,
     gainIfSolved: 1,
@@ -23,7 +30,9 @@ test('a task that usually solves plans one candidate', () => {
     budgetLeftMs: 1_200_000,
     max: 2,
   })
-  assert.equal(out.count, 1)
+  assert.equal(out.buy, false)
+  assert.equal(out.mode, 'cascade', 'the candidate is bought only if the first leaves room')
+  assert.equal(out.count, 2, 'and the campaign keeps the count it asked for')
   assert.equal(out.reason, 'negative-ev')
 })
 
