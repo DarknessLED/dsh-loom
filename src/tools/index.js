@@ -31,6 +31,52 @@ import { doctor } from '../runtime/doctor.js'
 import { reviewQueue } from '../runtime/review.js'
 import { consolidate } from '../knowledge/dream.js'
 import { summarizeTrials } from '../knowledge/trials.js'
+import { planQueries, resolveLimits } from '../research/plan.js'
+import { runResearch } from '../research/run.js'
+import { addClaim, addEvidence, readClaims, readEvidence, readVerdicts, sealReport, verifyClaim, verifySeal } from '../research/ledger.js'
+import { addQuestion, closeQuestion, openQuestions, parkQuestion, researchQuestions, renderQuestionLine } from '../research/questions.js'
+import { gradeNote, renderNote } from '../research/note.js'
+import { renderSinkLine, sinkFindings } from '../research/sink.js'
+import { appendGlobalLesson, readGlobalLessons } from '../knowledge/store.js'
+
+/**
+ * The research side, reduced to one line and a few counts.
+ *
+ * Read from the ledgers, never cached: a stale count would make "3 open
+ * questions" a decoration rather than a to-do list.
+ */
+function researchDigest(home) {
+  if (!home) return { questions: 0, open: [], evidence: 0, claims: 0, verified: 0, contradicted: 0, text: 'research: no loom home' }
+  const open = openQuestions(home)
+  const claims = readClaims(home)
+  const latest = new Map()
+  for (const verdict of readVerdicts(home)) latest.set(verdict.claimId, verdict)
+  let verified = 0
+  let contradicted = 0
+  for (const claim of claims) {
+    const status = latest.get(claim.id)?.status
+    if (status === 'verified') verified += 1
+    else if (status === 'contradicted') contradicted += 1
+  }
+  const evidence = readEvidence(home).length
+  return {
+    questions: open.length,
+    open: open.slice(0, 3).map((q) => ({ id: q.id, question: q.question, ageDays: q.ageDays, scope: q.scope })),
+    evidence,
+    claims: claims.length,
+    verified,
+    contradicted,
+    text: [
+      renderQuestionLine(open),
+      `research ledger: ${evidence} snapshot(s), ${claims.length} claim(s), ${verified} verified, ${contradicted} contradicted`,
+    ].join(' — '),
+  }
+}
+
+/** Local string cleaner: tools receive model-written values, never typed ones. */
+function clean(value) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+}
 
 const ID = { type: 'string', description: 'Campaign id (omit when only one campaign exists).' }
 
@@ -311,6 +357,10 @@ export function registerTools(ctx, { runtime, config }) {
       // is where a person can see the count closing and the verdict forming.
       const procedures = dream.lessons.filter((l) => l.kind === 'procedure')
       const trial = summarizeTrials(procedures)
+      // Research is only useful if it is visible where a person already looks.
+      // The open questions are the part that would otherwise be lost, so they
+      // get a line of their own next to the lessons.
+      const research = researchDigest(runtime.home)
       const out = compactStatus(
         {
           ...view,
@@ -325,6 +375,7 @@ export function registerTools(ctx, { runtime, config }) {
           // How well the forecasts have held so far, in the same view as the
           // chain they came from. The graded records stay under chain.measurements.
           calibration: summarizeCalibration(state?.chain?.measurements ?? []),
+          research,
           live: runtime.liveAttempts(),
           pendingReviews: pending,
           reviewLines: pending.map(
@@ -340,6 +391,7 @@ export function registerTools(ctx, { runtime, config }) {
         out.text += `\nknowledge: ${dream.lessons.length} lesson(s), ${dream.merged.length} merged, ${dream.retired.length} retired` +
           (procedures.length ? `, ${procedures.length} procedure(s) shown ${trial.shown} time(s): ${trial.wins}W/${trial.losses}L/${trial.ties}T (keep: ${trial.keep}, drop: ${trial.drop}, insufficient: ${trial.insufficient}, verdict: ${trial.verdict})` : '') +
           (q ? `, open question: ${q.question}` : '')
+        out.text += `\n${research.text}`
       }
       return out
     },
@@ -1131,6 +1183,303 @@ export function registerTools(ctx, { runtime, config }) {
       // very different causes (no running campaign, or the loop is off by hand).
       const head = sw.enabled ? 'loop: on' : `loop: OFF (by ${sw.by}${sw.at ? ` at ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')}` : ''}) — nothing is dispatched`
       return { campaigns: rows, live, rsi: { enabled: sw.enabled, at: sw.at, by: sw.by }, text: [head, ...lines].join(String.fromCharCode(10)) }
+    },
+  })
+
+  defs.push({
+    name: 'rsi_research',
+    description:
+      'Research a question and keep what it found: plan the queries, read the sources, snapshot the bytes, ' +
+      'check every claim against those bytes, and seal a report whose hashes can be re-derived later. ' +
+      'Seven actions — `plan` (queries only, no network), `run` (search, read, extract verbatim passages), ' +
+      '`note` (grade a reading note for depth and locatability), `seal` (verify claims, write report+manifest), ' +
+      '`sink` (fold verified claims into the lesson store, or turn a contradiction into a proposal), ' +
+      '`questions` (the open-question ledger) and `open` (what is still unanswered). ' +
+      'A claim that does not quote bytes from a stored snapshot is marked unverified, never silently passed.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['plan', 'run', 'note', 'seal', 'sink', 'questions', 'open'],
+          description: 'What to do. Defaults to `plan`.',
+        },
+        question: { type: 'string', description: 'The research question (≤300 chars).' },
+        subquestions: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional sub-questions; when given they are searched instead of the auto-expansions.',
+        },
+        depth: { type: 'string', enum: ['quick', 'standard', 'deep'], description: 'How much to buy. Defaults to standard.' },
+        fetchTop: { type: 'integer', description: 'How many sources to read in full. Unset uses the depth preset.' },
+        save: { type: 'boolean', description: 'Store a snapshot of every source that yielded a passage. Defaults to true.' },
+        note: { type: 'object', description: 'For action `note`: the reading note to grade.' },
+        topic: { type: 'string', description: 'For action `seal`: the report topic (also names the directory).' },
+        title: { type: 'string', description: 'For action `seal`: the report title.' },
+        sections: {
+          type: 'array',
+          description: 'For action `seal`: [{heading, paragraphs:[{text, claimIds?}]}].',
+          items: { type: 'object', additionalProperties: true },
+        },
+        claims: {
+          type: 'array',
+          description:
+            'For action `seal`: [{text, evidenceIds, quotes, section?, locator?}]. Each claim is verified against ' +
+            'the stored snapshot before it is allowed into the report.',
+          items: { type: 'object', additionalProperties: true },
+        },
+        evidenceIds: { type: 'array', items: { type: 'string' }, description: 'Evidence ids to cite in the sealed report.' },
+        family: { type: 'string', description: 'For action `sink`: which part of the loop the lesson belongs to (e.g. gate, loop).' },
+        notWhen: {
+          description: 'For action `sink`: the boundary of the claim (string or array). Required for a fact lesson.',
+          oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+        },
+        claimIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'For action `sink`: which registered claims to fold in. Defaults to every claim in the ledger.',
+        },
+        op: {
+          type: 'string',
+          enum: ['add', 'close', 'park', 'list'],
+          description: 'For action `questions`: what to do with the question ledger.',
+        },
+        id: { type: 'string', description: 'For action `questions` op close/park: the question id.' },
+        closedBy: { type: 'string', description: 'For op `add`: what would close this question. Required.' },
+        answer: { type: 'string', description: 'For op `close`: the answer, and what it rests on.' },
+        reason: { type: 'string', description: 'For op `park`: why it is parked.' },
+        scope: { type: 'string', description: 'For op `add`: the direction or area it belongs to (e.g. R1).' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'For op `add`: free-form tags.' },
+      },
+      additionalProperties: false,
+    },
+    output: output(),
+    isConcurrencySafe: () => true,
+    timeoutMs: 120_000,
+    async execute(args = {}) {
+      const home = runtime.home
+      const action = clean(args.action) || 'plan'
+
+      if (action === 'plan') {
+        const question = clean(args.question)
+        if (!question) throw new Error('a research plan needs a question')
+        const limits = resolveLimits(args)
+        const plan = planQueries(question, { ...args, limits })
+        const depth = plan.limits?.depth ?? limits.depth
+        return {
+          action,
+          question,
+          depth,
+          limits,
+          queries: plan.queries,
+          text: [`research plan (${depth}, ${plan.queries.length} quer${plan.queries.length === 1 ? 'y' : 'ies'})`, ...plan.queries.map((q, i) => `  ${i + 1}. ${q}`)].join('\n'),
+        }
+      }
+
+      if (action === 'run') {
+        const question = clean(args.question)
+        if (!question) throw new Error('a research run needs a question')
+        const web = svc(ctx, 'web')
+        const canSearch = web && typeof web.search === 'function'
+        if (!canSearch) {
+          const limits = resolveLimits(args)
+          const plan = planQueries(question, { ...args, limits })
+          return {
+            action,
+            ok: false,
+            code: 'web-unavailable',
+            hint: 'no web provider is configured on this host; the plan is still usable and nothing was read',
+            depth: plan.limits?.depth ?? limits.depth,
+            queries: plan.queries,
+          }
+        }
+        const result = await runResearch(args, {
+          search: (query, opts) => web.search({ query, maxResults: Math.max(1, Number(opts?.maxResults) || 8) }),
+          fetchPage: (url) => web.fetch({ url }),
+        })
+
+        // Snapshot every page that actually contributed a passage. A source that
+        // was read but matched nothing is not evidence, so it is not stored.
+        const ledger = []
+        if (result.ok && args.save !== false) {
+          const byUrl = new Map((result.sources ?? []).map((s) => [s.url, s]))
+          for (const item of result.evidence ?? []) {
+            const source = byUrl.get(item.url)
+            const body = typeof source?.text === 'string' ? source.text : ''
+            if (!body.trim()) continue
+            const stored = addEvidence(home, { origin: item.url, title: item.title ?? item.url, content: body })
+            ledger.push({ url: item.url, id: stored.id, bytes: stored.bytes, duplicate: stored.duplicate })
+          }
+        }
+
+        const compact = (result.sources ?? []).map((s) => ({
+          url: s.url,
+          title: s.title ?? null,
+          fetchStatus: s.fetchStatus,
+          ...(s.fetchError ? { fetchError: s.fetchError } : {}),
+          contentChars: s.contentChars ?? 0,
+          passages: (s.passages ?? []).length,
+        }))
+
+        return {
+          action,
+          ok: result.ok,
+          code: result.code,
+          ...(result.hint ? { hint: result.hint } : {}),
+          depth: result.plan?.limits?.depth ?? null,
+          authority: result.authority,
+          queries: (result.queries ?? []).map((q) => ({ query: q.query, status: q.status, ...(q.error ? { error: q.error } : {}), sources: q.sources ?? 0 })),
+          sources: compact,
+          evidence: (result.evidence ?? []).map((e) => ({ url: e.url, passages: e.passages.length })),
+          gaps: result.gaps ?? [],
+          warnings: result.warnings ?? [],
+          ledger,
+          report: clipText(result.report ?? '', PAYLOAD.toolResult - 4_000).text,
+        }
+      }
+
+      if (action === 'note') {
+        const note = args.note && typeof args.note === 'object' ? args.note : null
+        if (!note) throw new Error('action `note` needs the note object to grade')
+        const result = gradeNote(note)
+        return { action, ok: result.ok, findings: result.findings, counts: result.counts, text: renderNote(result).join('\n') }
+      }
+
+      if (action === 'seal') {
+        const claims = Array.isArray(args.claims) ? args.claims : []
+        const registered = []
+        const verdicts = []
+        for (const claim of claims) {
+          const stored = addClaim(home, {
+            text: claim?.text,
+            evidenceIds: claim?.evidenceIds,
+            quotes: claim?.quotes,
+          })
+          const verdict = verifyClaim(home, { ...stored, quotes: claim?.quotes ?? stored.quotes })
+          registered.push({ id: stored.id, text: stored.text, status: verdict.status })
+          if (verdict.status !== 'verified') verdicts.push({ id: stored.id, status: verdict.status, note: verdict.note })
+        }
+        const sealed = sealReport(home, {
+          topic: args.topic,
+          title: args.title,
+          sections: args.sections,
+          evidenceIds: Array.isArray(args.evidenceIds) ? args.evidenceIds : [...new Set(claims.flatMap((c) => (Array.isArray(c?.evidenceIds) ? c.evidenceIds : [])))],
+        })
+        const checked = verifySeal(sealed.dir)
+        return {
+          action,
+          ok: checked.ok === true,
+          dir: sealed.dir,
+          seal: sealed.seal,
+          claims: registered,
+          unverified: verdicts,
+          evidence: sealed.manifest.evidence,
+          text: [
+            `sealed ${sealed.dir}`,
+            `seal ${sealed.seal}`,
+            `${registered.length - verdicts.length}/${registered.length || 0} claim(s) verified against stored bytes`,
+            ...verdicts.map((v) => `  [${v.status}] ${v.id}: ${v.note}`),
+          ].join('\n'),
+        }
+      }
+
+      if (action === 'sink') {
+        const wanted = new Set((Array.isArray(args.claimIds) ? args.claimIds : []).map((x) => clean(x)).filter(Boolean))
+        const latest = new Map()
+        for (const verdict of readVerdicts(home)) latest.set(verdict.claimId, verdict)
+        const claims = readClaims(home)
+          .filter((c) => (wanted.size ? wanted.has(c.id) : true))
+          .map((c) => ({ ...c, verdict: latest.get(c.id) ?? null }))
+
+        const activeLessons = runtime.home ? readGlobalLessons(runtime.home).filter((l) => !l.status || l.status === 'active') : []
+        const folded = sinkFindings(home, {
+          claims,
+          activeLessons,
+          family: clean(args.family),
+          notWhen: args.notWhen,
+        })
+
+        // Writing is opt-in: `sandbox` lets a caller see what would change
+        // without touching the store every later round reads.
+        const write = args.write !== false
+        const written = []
+        if (write) {
+          for (const lesson of folded.lessons) written.push(appendGlobalLesson(runtime.home, lesson))
+        }
+        return {
+          action,
+          ok: true,
+          wrote: write,
+          lessons: folded.lessons,
+          proposals: folded.proposals,
+          skipped: folded.skipped,
+          lessonsInStore: readGlobalLessons(runtime.home).length,
+          text: renderSinkLine({
+            lessons: folded.lessons.length,
+            proposals: folded.proposals.length,
+            questions: openQuestions(home).length,
+          }),
+        }
+      }
+
+      if (action === 'questions') {
+        const op = clean(args.op) || 'list'
+        if (op === 'add') {
+          const q = addQuestion(home, {
+            question: args.question,
+            closedBy: args.closedBy,
+            scope: args.scope,
+            tags: args.tags,
+          })
+          const open = openQuestions(home)
+          return { action, op, question: q, open, ...(q.duplicate ? { duplicate: true } : {}), text: renderQuestionLine(open) }
+        }
+        // Return the open list with every mutation: a caller that has to ask a
+        // second time to see the effect will eventually not ask.
+        if (op === 'close') {
+          const q = closeQuestion(home, { id: args.id, answer: args.answer, evidenceIds: args.evidenceIds, by: 'research' })
+          const open = openQuestions(home)
+          return { action, op, question: q, open, text: renderQuestionLine(open) }
+        }
+        if (op === 'park') {
+          const q = parkQuestion(home, { id: args.id, reason: args.reason })
+          const open = openQuestions(home)
+          return { action, op, question: q, open, text: renderQuestionLine(open) }
+        }
+        const open = openQuestions(home)
+        return {
+          action,
+          op,
+          open,
+          all: researchQuestions(home).length,
+          text: renderQuestionLine(open),
+        }
+      }
+
+      // action === 'open': what is still unanswered, and how much evidence exists.
+      const open = openQuestions(home)
+      const claims = readClaims(home)
+      const verdicts = readVerdicts(home)
+      const latest = new Map()
+      for (const verdict of verdicts) latest.set(verdict.claimId, verdict)
+      let verified = 0
+      let contradicted = 0
+      for (const claim of claims) {
+        const verdict = latest.get(claim.id)
+        if (verdict?.status === 'verified') verified++
+        else if (verdict?.status === 'contradicted') contradicted++
+      }
+      const evidence = readEvidence(home)
+      return {
+        action,
+        open,
+        questions: { open: open.length, total: researchQuestions(home).length },
+        ledger: { evidence: evidence.length, claims: claims.length, verified, contradicted },
+        text: [
+          renderQuestionLine(open),
+          `ledger: ${evidence.length} snapshot(s), ${claims.length} claim(s), ${verified} verified, ${contradicted} contradicted`,
+        ].join('\n'),
+      }
     },
   })
 

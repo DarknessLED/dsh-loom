@@ -80,7 +80,15 @@
 - `src/knowledge/procedure.js` — 从重复的成功里归纳 procedure：同一 family+subject 至少 2 次独立晋升才生成一条，id 由（family, subject）稳定哈希得到；步骤取被改文件的频次序，同一 subject 的失败按 shape 变成 `notWhen` 与 pitfalls（`error`/`near-miss`），已有同 id 的不再重复归纳。
 - `src/knowledge/trials.js` — 试验台账的唯一汇总口：`summarizeTrials(lessons)` 只统计 `kind === 'procedure'` 的经验，把 shown/wins/losses/**ties** 累加成总账，用 `cross.js` 的 `trialVerdict` 逐条判 keep/drop/insufficient（`TRIAL_FLOOR` 即 `TRIAL_MIN`，20 次展示之前一律 insufficient），最后给出总判词：无 procedure 为 `none`，全部 insufficient 为 `insufficient`，否则 wins > losses 为 `keep`、反之为 `drop`；`rsi_status` 的结构化 `knowledge.trial` 与文本行都读它，不再各算一套。
 
-### research/ — 调研笔记
+### research/ — 调研（自有实现）
+
+- `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
+- `src/research/plan.js` — 调研的查询计划：`quick/standard/deep` 三档预设（quick 的 `fetchTop` 必须是 0，即只出计划不抓页），子问题优先于自动扩展，`maxQueries` 可被调用方收紧但 `rounds` 不可被覆盖（否则「快速」会被悄悄买成「深度」）；纯函数，不碰网络。
+- `src/research/fetch.js` — 只做「找到」与「读成文本」：URL 身份按 scheme/host/去追踪参数归一（解析失败走字符串回退，绝不抛），多查询结果按 rank 轮转合并去重，抓取目标按 host 限流，HTML 转文本去脚本样式注释，词项按语言抽（拉丁去停用词、CJK 二字滑窗），段摘必须是原文逐字span（40 字以下丢、600 字截断），第二轮查询只问「两个独立来源都出现的词」。算法移植自 dsh-deep-research（MIT），署名见 THIRD_PARTY_NOTICES.md。
+- `src/research/ledger.js` — 调研的事实底座：快照按自身字节做内容寻址（`ev-` + sha256 前 12 位），claim 必须带引文，判定顺序是 `unbound`（没引证据）→ `unverified`（证据缺失/被改/没引文）→ `contradicted`（引文不在快照里，这是更强也更用的信息）→ `verified`（引文逐字命中）；`sealReport` 写 report.md + manifest.json，seal 覆盖 manifest 与每份被引快照的哈希，`verifySeal` 全部重算。
+- `src/research/questions.js` — 问题台账（append-only JSONL）：每个问题必须写 `closedBy`（什么能关掉它），关闭必须带 `answer`，`park` 是「暂时没有预算」而不是删除；id 由问题文本（忽略标点大小写）哈希得到，同一问题问两次只有一条；`openQuestions` 带 `ageDays`，`renderQuestionLine` 一行说明有几条开着、最老的那条等了多久。
+- `src/research/sink.js` — 研究结论唯一允许进入循环的口：只有 `verified` 的 claim 能变成 lesson，lesson 带证据 id 与 locator，`fact` 必须带 `notWhen` 边界；与现有 active lesson 冲突时不自动应用，而是生成一张两侧都引原文的提案卡交给人；未通过核验的 claim 进 `skipped` 并写明原因，绝不静默丢弃。
+- `src/research/run.js` — 一轮调研的编排：搜索失败是命名的 gap 且其余查询继续，抓取失败/二进制不进证据，读到但没匹配到 span 记作「读了没贡献」而不是沉默，`authority` 只数真正读到的页，没有 web 服务时返回 `web-unavailable` 并仍给计划；search/fetch 由依赖注入，所以离线可测。
 
 - `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
 

@@ -19,6 +19,7 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "RELEASE-0.2.1.md"
   ],
   "dsh": {

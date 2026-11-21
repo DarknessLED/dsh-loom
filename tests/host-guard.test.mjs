@@ -106,8 +106,9 @@ try {
   toolErr = err
 }
 ok(toolErr === null, 'registerTools survives a guarded context', toolErr?.message)
-ok(registered.tools.length === 13, 'every tool registered', registered.tools.length)
+ok(registered.tools.length === 14, 'every tool registered', registered.tools.length)
 ok(registered.tools.includes('rsi_start'), 'rsi_start is among them')
+ok(registered.tools.includes('rsi_research'), 'rsi_research is among them')
 
 let panelErr = null
 try {

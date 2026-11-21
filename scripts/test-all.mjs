@@ -203,6 +203,16 @@ const standing = [
   // duration fallback. These two pin the clock and the pricer that now reads it.
   'tests/self46/clock-units.test.mjs',
   'tests/self46/hedge-clock.test.mjs',
+  // Research moved inside the plugin: plan, read, snapshot, check, seal, and
+  // the question ledger that outlives the conversation. The tool is the door,
+  // so it has its own spec as well as the modules behind it.
+  'tests/self47/research-plan.test.mjs',
+  'tests/self47/research-fetch.test.mjs',
+  'tests/self47/research-ledger.test.mjs',
+  'tests/self47/research-questions.test.mjs',
+  'tests/self47/research-sink.test.mjs',
+  'tests/self47/research-run.test.mjs',
+  'tests/self47/research-tool.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
