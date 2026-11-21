@@ -1224,8 +1224,9 @@ export function registerTools(ctx, { runtime, config }) {
         claims: {
           type: 'array',
           description:
-            'For action `seal`: [{text, evidenceIds, quotes, section?, locator?}]. Each claim is verified against ' +
-            'the stored snapshot before it is allowed into the report.',
+            'For action `seal`: [{text, evidenceIds, quotes, locator?, contradicts?}]. Each claim is verified ' +
+            'against the stored snapshot before it is allowed into the report. `contradicts` names an existing ' +
+            'lesson id this claim argues with — a dispute is declared, never inferred from shared words.',
           items: { type: 'object', additionalProperties: true },
         },
         evidenceIds: { type: 'array', items: { type: 'string' }, description: 'Evidence ids to cite in the sealed report.' },
@@ -1239,6 +1240,8 @@ export function registerTools(ctx, { runtime, config }) {
           items: { type: 'string' },
           description: 'For action `sink`: which registered claims to fold in. Defaults to every claim in the ledger.',
         },
+        chainVersion: { type: 'integer', description: 'For action `sink`: the chain version a contradiction was measured on.' },
+        rounds: { type: 'integer', description: 'For action `sink`: how many rounds the contradiction rests on.' },
         op: {
           type: 'string',
           enum: ['add', 'close', 'park', 'list'],
@@ -1354,6 +1357,7 @@ export function registerTools(ctx, { runtime, config }) {
             text: claim?.text,
             evidenceIds: claim?.evidenceIds,
             quotes: claim?.quotes,
+            contradicts: claim?.contradicts,
           })
           const verdict = verifyClaim(home, { ...stored, quotes: claim?.quotes ?? stored.quotes })
           registered.push({ id: stored.id, text: stored.text, status: verdict.status, note: verdict.note })
@@ -1398,6 +1402,8 @@ export function registerTools(ctx, { runtime, config }) {
           activeLessons,
           family: clean(args.family),
           notWhen: args.notWhen,
+          chainVersion: Number.isFinite(args.chainVersion) ? Number(args.chainVersion) : null,
+          rounds: Number.isFinite(args.rounds) ? Number(args.rounds) : null,
         })
 
         // Writing is opt-in: `sandbox` lets a caller see what would change

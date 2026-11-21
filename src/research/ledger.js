@@ -155,9 +155,16 @@ export function readEvidence(home, id) {
 // ---------------------------------------------------------------------------
 
 /** Register a claim: text, the snapshots it rests on, and optional quotes. */
-export function addClaim(home, { text, evidenceIds, quotes } = {}) {
+export function addClaim(home, { text, evidenceIds, quotes, contradicts } = {}) {
   const body = cleanText(text)
   if (!body) throw new Error('a claim needs text')
+
+  // A dispute is declared by whoever read both texts, never inferred later from
+  // shared vocabulary (see `declaredTensions` in sink.js for the two runs that
+  // made that rule necessary).
+  const disputes = (Array.isArray(contradicts) ? contradicts : [contradicts])
+    .map((x) => cleanText(x))
+    .filter(Boolean)
 
   const ids = (Array.isArray(evidenceIds) ? evidenceIds : [])
     .map((x) => cleanText(x))
@@ -173,6 +180,7 @@ export function addClaim(home, { text, evidenceIds, quotes } = {}) {
   if (existing) return { ...existing, duplicate: true }
 
   const record = { id, text: body, evidenceIds: ids, quotes: literalQuotes, registeredAt: Date.now() }
+  if (disputes.length) record.contradicts = disputes
   appendJsonl(join(dir, 'claims.jsonl'), record)
   return record
 }

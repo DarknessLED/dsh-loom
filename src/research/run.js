@@ -35,6 +35,18 @@ import { collapseWhitespace, planQueries, resolveLimits } from './plan.js'
 const MAX_REPORT_CHARS = 60_000
 const MAX_SOURCE_TEXT_CHARS = 1_500_000
 const MAX_REPORT_EVIDENCE = 12
+// How many reads one success may cost before the run stops trying.
+const FETCH_ATTEMPTS_FACTOR = 3
+// A small budget cannot afford a pure factor: with fetchTop 1 a factor of three
+// rounds down to three tries, which a cluster of dead links eats. The additive
+// floor keeps one success reachable below four failures.
+const FETCH_ATTEMPTS_FLOOR = 4
+
+function readAttemptsFor(fetchTop) {
+  const want = Math.max(0, Number.isFinite(fetchTop) ? Math.floor(fetchTop) : 0)
+  if (want === 0) return 0
+  return Math.max(want * FETCH_ATTEMPTS_FACTOR, want + FETCH_ATTEMPTS_FLOOR)
+}
 const MAX_GAP_CHARS = 240
 const MAX_ERROR_CHARS = 240
 
@@ -153,7 +165,14 @@ export async function runResearch(input, deps = {}) {
   }
 
   // --- read what was selected ---------------------------------------------
-  const targets = selectFetchTargets(sources, { fetchTop: limits.fetchTop, maxPerHost: 2 })
+  // A failed fetch releases its slot to the next candidate. Found live on R2: the
+  // four best-scored sources were a paywalled PDF, two huggingface paper pages and
+  // a dataset diff, all answered with HTTP 404; the run spent its whole budget on
+  // them and reported "0 read, 4 failed" while a readable arxiv HTML page sat one
+  // position below the cut. Searching is cheap, reading is the expensive step, so
+  // the queue is longer than the budget and each failure promotes the next source.
+  const attemptsBudget = readAttemptsFor(limits.fetchTop)
+  const queue = selectFetchTargets(sources, { fetchTop: attemptsBudget, maxPerHost: 2 })
   const terms = extractTerms(question)
   const byUrl = new Map(sources.map((s) => [s.url, s]))
   const evidence = []
@@ -162,14 +181,18 @@ export async function runResearch(input, deps = {}) {
   let skipped = 0
   let passageCount = 0
 
-  if (targets.length && typeof fetchPage !== 'function') {
+  if (queue.length && typeof fetchPage !== 'function') {
     warnings.push('sources were found but this host cannot fetch pages; nothing was read')
     gaps.push('no fetch capability: sources are listed but unread')
   }
 
-  for (const target of targets) {
+  let attempts = 0
+  for (const target of queue) {
+    if (fetched >= limits.fetchTop) break
+    if (attempts >= attemptsBudget) break
     const source = byUrl.get(target.url)
     if (!source) continue
+    attempts++
     if (typeof fetchPage !== 'function') {
       source.fetchStatus = 'skipped'
       source.fetchError = 'no fetch capability'
@@ -241,7 +264,7 @@ export async function runResearch(input, deps = {}) {
     }
   }
 
-  const authority = { fetched, failed, skipped, passages: passageCount }
+  const authority = { fetched, failed, skipped, attempts, passages: passageCount }
   const report = renderReport({ question, plan, sources, evidence, gaps, authority, warnings })
 
   return {
@@ -264,7 +287,9 @@ function renderReport({ question, plan, sources, evidence, gaps, authority, warn
   lines.push(
     `**Depth.** ${plan.limits?.depth ?? 'standard'} · ${plan.queries.length} query(ies) · ${sources.length} source(s) · ` +
       `${authority.fetched} read · ${authority.failed} failed · ${authority.skipped} skipped · ` +
-      `${authority.passages} passage(s).`,
+      `${authority.passages} passage(s)` +
+      (Number(authority.attempts) > Number(authority.fetched) ? ` · ${authority.attempts} read attempt(s)` : '') +
+      '.',
     '',
   )
 

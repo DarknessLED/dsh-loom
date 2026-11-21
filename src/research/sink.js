@@ -30,13 +30,32 @@ const STOPWORDS = new Set([
   'when', 'where', 'while', 'because', 'so', 'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up',
   'it', 'its', 'their', 'there', 'they', 'them', 'we', 'our', 'you', 'your',
   'also', 'very', 'much', 'many', 'some', 'any', 'all', 'did', 'does', 'can', 'could', 'would',
-  'should', 'may',
+  'should', 'may', 'rather',
 ])
+// 'rather' is a connective ("rather than a mean"), and leaving it in made two
+// texts about completely different things look like they shared subject matter.
 // Polarity words are deliberately *not* stopwords: "more candidates help" and
 // "additional candidates did not help" share almost no other vocabulary, so if
 // these were filtered the contradiction would be invisible.
 
-const NEGATION_RE = /\b(?:not|never|no|none|nothing|cannot|can't|didn't|doesn't|without|fails? to)\b/i
+// A negator only flips a claim when it is *about* the shared subject. Found
+// live: a note saying self-modification "adds failure modes that plain training
+// does not have" was matched against a lesson about seeded one-line defects,
+// because both contain "failure" and one side contains "not". The negation here
+// is about what training has, not about the failure modes, so the two texts do
+// not disagree.
+const NEGATOR_WORDS = new Set([
+  'not', 'never', 'no', 'none', 'nothing', 'cannot', "can't", "didn't", "doesn't", "isn't",
+  "aren't", "wasn't", "weren't", 'without', 'fails', 'fail', 'failed',
+])
+// A negator has to sit *on* the shared word, not merely near it. At a window of
+// three, "self-modification adds failure modes that plain training does not
+// have: reward hacking, ..." was read as contradicting a lesson about reward
+// hacking, and a lesson containing "harness updating is not the same as harness
+// benefit" was read as contradicting an acceptance rule that shares the words
+// harness/delta/held-out. Both pairs agree; one negator two words away from a
+// shared noun is the normal shape of a sentence, not of a disagreement.
+const NEGATION_WINDOW = 1
 const OPPOSITE_PAIRS = [
   ['more', 'fewer'], ['more', 'less'], ['always', 'never'], ['help', 'hurt'], ['help', 'harm'],
   ['increase', 'decrease'], ['raise', 'lower'], ['faster', 'slower'], ['cheaper', 'costlier'],
@@ -64,6 +83,26 @@ function contentTerms(text) {
 // (more/fewer, help/hurt...). A pair that shares only one of these is a
 // dispute; a pair that shares only a common noun is not.
 const POLARITY_WORDS = new Set(OPPOSITE_PAIRS.flat())
+
+function wordsOf(text) {
+  return String(text ?? '').toLowerCase().match(/[a-z][a-z0-9']*/g) ?? []
+}
+
+/** Is a negator within a few words of one of the shared terms? */
+function negationNear(text, terms) {
+  const wanted = new Set(terms)
+  if (!wanted.size) return false
+  const words = wordsOf(text)
+  for (let i = 0; i < words.length; i += 1) {
+    if (!NEGATOR_WORDS.has(words[i])) continue
+    for (let d = -NEGATION_WINDOW; d <= NEGATION_WINDOW; d += 1) {
+      const at = i + d
+      if (at < 0 || at >= words.length) continue
+      if (wanted.has(words[at]) || wanted.has(words[at].replace(/s$/, ''))) return true
+    }
+  }
+  return false
+}
 
 function lessonId(claimId, family) {
   return `lsn-${createHash('sha256').update(`${claimId ?? ''}\n${family ?? ''}`).digest('hex').slice(0, 12)}`
@@ -125,7 +164,6 @@ export function tensionsWith(finding, activeLessons) {
   if (!text) return []
   const findingTerms = contentTerms(text)
   if (!findingTerms.size) return []
-  const findingNegated = NEGATION_RE.test(text)
   const findingLower = text.toLowerCase()
 
   const out = []
@@ -150,10 +188,10 @@ export function tensionsWith(finding, activeLessons) {
     // mean the two texts are about the same claim.
     if (shared.length < 2 && !shared.some((t) => POLARITY_WORDS.has(t))) continue
 
-    const lessonNegated = NEGATION_RE.test(lessonText)
     const lessonLower = lessonText.toLowerCase()
 
-    let flipped = findingNegated !== lessonNegated
+    // Only a negation that sits on the shared subject counts as a flip.
+    let flipped = negationNear(text, shared) !== negationNear(lessonText, shared)
     if (!flipped) {
       for (const [a, b] of OPPOSITE_PAIRS) {
         const aInFinding = findingLower.includes(a)
@@ -208,13 +246,41 @@ export function proposalFromFinding(finding, { against, chainVersion, rounds } =
 }
 
 /**
+ * Active lessons a claim says it contradicts.
+ *
+ * The vocabulary rule above is advisory only, and this is why: sinking two real
+ * notes produced 7 and then 7 more "contradictions" against lessons that agreed
+ * with them — a budget claim against a soak-verifier timing note, a noise-floor
+ * claim against a monograph count. Both pairs shared two content words and one
+ * side happened to contain a negator, which is the shape of ordinary English,
+ * not of a disagreement. A card that cries contradiction on shared nouns
+ * teaches the reader to skip the card, which is worse than no card.
+ *
+ * So a claim has to *name* the lesson it argues with (`contradicts: "lsn-..."`),
+ * and that judgement is made where the text is in hand. The sink never invents
+ * a dispute from vocabulary overlap.
+ */
+export function declaredTensions(claim, activeLessons) {
+  const wanted = new Set(
+    [claim?.contradicts]
+      .flat()
+      .map((x) => (typeof x === 'string' ? x.trim() : ''))
+      .filter(Boolean),
+  )
+  if (!wanted.size) return []
+  return (Array.isArray(activeLessons) ? activeLessons : []).filter(
+    (l) => l && typeof l === 'object' && wanted.has(l.id) && (!l.status || l.status === 'active'),
+  )
+}
+
+/**
  * Fold a set of claims into what the loop would write.
  *
  * Unverified claims are reported as `skipped` with their verdict — never dropped
  * silently, because "the report had five findings and only one was checkable" is
  * information a person needs.
  */
-export function sinkFindings(home, { claims, activeLessons, family, notWhen } = {}) {
+export function sinkFindings(home, { claims, activeLessons, family, notWhen, chainVersion, rounds } = {}) {
   const lessons = []
   const proposals = []
   const skipped = []
@@ -234,8 +300,10 @@ export function sinkFindings(home, { claims, activeLessons, family, notWhen } = 
       continue
     }
     lessons.push(lesson)
-    for (const tension of tensionsWith({ text: claim.text, evidenceIds: claim.evidenceIds }, activeLessons)) {
-      proposals.push(proposalFromFinding({ text: claim.text, evidenceIds: claim.evidenceIds }, { against: tension }))
+    for (const tension of declaredTensions(claim, activeLessons)) {
+      proposals.push(
+        proposalFromFinding({ text: claim.text, evidenceIds: claim.evidenceIds }, { against: tension, chainVersion, rounds }),
+      )
     }
   }
 

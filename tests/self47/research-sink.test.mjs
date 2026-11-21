@@ -22,7 +22,14 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { lessonFromClaim, proposalFromFinding, renderSinkLine, sinkFindings, tensionsWith } from '../../src/research/sink.js'
+import {
+  declaredTensions,
+  lessonFromClaim,
+  proposalFromFinding,
+  renderSinkLine,
+  sinkFindings,
+  tensionsWith,
+} from '../../src/research/sink.js'
 
 let passed = 0
 let failed = 0
@@ -107,6 +114,44 @@ ok('a re-run of the same research updates one lesson instead of adding a second'
 }
 ok('a finding that contradicts an active lesson becomes a proposal with both sides')
 
+// --- vocabulary overlap never becomes a card on its own -----------------
+// Third live failure, and the one that changed the policy. Sinking two real
+// notes produced 7 then 7 more "contradictions" between texts that agreed with
+// each other: a budget claim against a soak-verifier timing note, a noise-floor
+// claim against a monograph count, an agent-selection claim against another
+// research lesson. Every pair shared two content words and one side contained a
+// negator, which is the shape of ordinary English. A card that cries
+// contradiction on shared nouns teaches the reader to skip the card, so a
+// dispute must now be *named* (`contradicts: 'lsn-...'`) by whoever read both
+// texts, and the vocabulary rule stays as an advisory helper only.
+{
+  const active = [
+    { id: 'lsn-agree', kind: 'fact', status: 'active', family: 'gate', claim: 'A reliable agent evaluation needs several runs per agent, with the metric estimated across them.' },
+    { id: 'lsn-timing', kind: 'fact', status: 'active', family: 'loop', claim: 'The soak verifier sleeps 380s before printing, so one foreground run costs 6.3 minutes of the 13 minutes of budget.' },
+  ]
+  const agreeing = {
+    id: 'c-agree',
+    verdict: { status: 'verified' },
+    text: 'Over 58,197 run-task records, 27 of 35 steps along the accuracy-cost Pareto frontiers were statistically unresolved.',
+    evidenceIds: ['ev-b9ed75fed4b7'],
+  }
+  const result = sinkFindings(home(), { claims: [agreeing], activeLessons: active, family: 'loop', notWhen: 'x' })
+  assert.equal(result.lessons.length, 1, 'the lesson is still written')
+  assert.equal(result.proposals.length, 0, 'shared vocabulary alone never raises a card')
+
+  const named = { ...agreeing, contradicts: 'lsn-agree' }
+  const declared = declaredTensions(named, active)
+  assert.equal(declared.length, 1, 'a named dispute is honoured')
+  assert.equal(declared[0].id, 'lsn-agree')
+  assert.deepEqual(declaredTensions(agreeing, active), [], 'an unnamed claim disputes nothing')
+  assert.deepEqual(declaredTensions({ ...named, contradicts: 'lsn-missing' }, active), [], 'a stale id resolves to nothing')
+
+  const withCard = sinkFindings(home(), { claims: [named], activeLessons: active, family: 'loop', notWhen: 'x' })
+  assert.equal(withCard.proposals.length, 1, 'a named dispute becomes exactly one card')
+  assert.match(withCard.proposals[0].detail, /several runs per agent/, 'the lesson is quoted')
+}
+ok('a contradiction must be named, not inferred from shared words')
+
 // --- a quiet finding changes nothing and says so -------------------------
 
 {
@@ -143,6 +188,27 @@ ok('a finding with nothing to contradict writes one lesson and no proposal')
     evidenceIds: ['ev-f35ed0e9976a'],
   }
   assert.deepEqual(tensionsWith(finding, active), [], 'one shared noun and a stray negation is not a contradiction')
+
+  // Second live failure, same rule: a negator two words away from a shared
+  // noun is the normal shape of a sentence. "adds failure modes that plain
+  // training does not have: reward hacking, ..." agrees with the reward-hacking
+  // lesson; "harness updating is not the same as harness benefit" agrees with
+  // the acceptance rule that also says harness/delta/held-out. Both pairs were
+  // reported as contradictions before the negator had to sit on the shared word.
+  const agreeing = [
+    { id: 'lsn-hack', kind: 'fact', status: 'active', family: 'gate', claim: 'Reward hacking is a special case of verification false positives: the patch passes the suite without solving the task.' },
+    { id: 'lsn-accept', kind: 'fact', status: 'active', family: 'chain', claim: 'A loop that edits a harness should accept a proposal only when the held-in delta is non-negative, the held-out delta is non-negative, and at least one of them is positive.' },
+  ]
+  assert.deepEqual(
+    tensionsWith({ text: 'Self-modification adds failure modes that plain training does not have: reward hacking, diversity collapse, catastrophic forgetting, silent drift and over-optimism.' }, agreeing),
+    [],
+    'a negator about training, two words from "reward", does not contradict a reward-hacking lesson',
+  )
+  assert.deepEqual(
+    tensionsWith({ text: 'Harness updating is not the same as harness benefit: reported gains largely vanish on evaluators the system did not optimize against.' }, agreeing),
+    [],
+    'sharing harness/delta/held-out with an acceptance rule is agreement, not a dispute',
+  )
 
   // The pair the rule exists for still has to fire.
   const real = [{ id: 'lsn-old', kind: 'fact', status: 'active', family: 'gate', claim: 'More candidates always help because they cover more of the search space.' }]

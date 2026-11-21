@@ -186,6 +186,36 @@ ok('the run produces a markdown report that cites its sources')
 }
 ok('a report that found a passage renders it, instead of crashing')
 
+// --- a failed fetch does not spend the whole budget ---------------------
+// Found live on R2: the four highest-scored sources were a Paywalled PDF, two
+// huggingface paper pages and a dataset diff, all of which the fetch capability
+// answered with HTTP 404. The run spent its entire read budget on them and
+// reported "0 read, 4 failed" while a readable arxiv HTML page sat one position
+// below the cut. A search is cheap and a fetch is the expensive step, so a
+// failure has to release its slot to the next candidate instead of consuming it.
+{
+  const search = async () => ({
+    sources: [
+      { url: 'https://p1.test/a', title: 'pdf one' },
+      { url: 'https://p2.test/a', title: 'pdf two' },
+      { url: 'https://p3.test/a', title: 'pdf three' },
+      { url: 'https://p4.test/a', title: 'pdf four' },
+      { url: 'https://readable.test/html', title: 'readable' },
+    ],
+    truncated: false,
+  })
+  const fetchPage = fetchOf({ 'https://readable.test/html': { content: `<p>${PAGE}</p>` } })
+  const result = await runResearch({ question: 'verifier reward hacking', depth: 'quick', fetchTop: 1 }, { search, fetchPage })
+  assert.equal(result.ok, true)
+  assert.equal(result.authority.fetched, 1, 'the readable source is found below four failures')
+  assert.ok(result.authority.attempts >= 3, 'and the report says how many fetches were spent finding it')
+  assert.ok(result.authority.attempts > result.authority.fetched, 'attempts are counted apart from successes')
+  assert.equal(result.evidence.length, 1, 'the readable page contributes evidence')
+  assert.equal(result.evidence[0].url, 'https://readable.test/html')
+  assert.ok(!/0 read/.test(result.report), 'the report does not claim nothing was read')
+}
+ok('a failed fetch releases its slot to the next candidate')
+
 // --- nothing found is a named failure, not an empty success -------------
 
 {
