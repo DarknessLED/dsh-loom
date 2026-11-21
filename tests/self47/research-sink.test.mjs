@@ -126,6 +126,31 @@ ok('a finding that contradicts an active lesson becomes a proposal with both sid
 }
 ok('a finding with nothing to contradict writes one lesson and no proposal')
 
+// --- a negation is not by itself a disagreement --------------------------
+// Found live: sinking one research note produced 7 "contradictions" against
+// lessons that had nothing to do with it — a lesson about README edits, one
+// about editable installs, one about node on PATH. Every pairing shared a
+// single common noun ("task", "file", "run") and the finding happened to
+// contain "without", which the rule read as a polarity flip. One shared word
+// plus any negation anywhere in a sentence is a coincidence, not a dispute.
+{
+  const active = [
+    { id: 'lsn-readme', kind: 'fact', status: 'active', family: 'gate', claim: '2 verified promotions on 2 task(s) began at README.md; together they also changed 1 other file(s).' },
+    { id: 'lsn-node', kind: 'fact', status: 'active', family: 'gate', claim: 'node is not on PATH in this shell; run the verifier with the bundled runtime node.' },
+  ]
+  const finding = {
+    text: 'Reward hacking is a special case of verification false positives: the patch passes the suite without solving the task.',
+    evidenceIds: ['ev-f35ed0e9976a'],
+  }
+  assert.deepEqual(tensionsWith(finding, active), [], 'one shared noun and a stray negation is not a contradiction')
+
+  // The pair the rule exists for still has to fire.
+  const real = [{ id: 'lsn-old', kind: 'fact', status: 'active', family: 'gate', claim: 'More candidates always help because they cover more of the search space.' }]
+  const against = { text: 'Additional candidates did not help when the first candidate solved the task; the sibling was abandoned unsolved.' }
+  assert.equal(tensionsWith(against, real).length, 1, 'a real polarity flip on shared subject matter still fires')
+}
+ok('a shared noun plus a negation is not a contradiction')
+
 // --- the sink refuses to launder, and reports it ------------------------
 
 {

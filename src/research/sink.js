@@ -60,6 +60,11 @@ function contentTerms(text) {
   return out
 }
 
+// Words whose presence on opposite sides is itself the disagreement
+// (more/fewer, help/hurt...). A pair that shares only one of these is a
+// dispute; a pair that shares only a common noun is not.
+const POLARITY_WORDS = new Set(OPPOSITE_PAIRS.flat())
+
 function lessonId(claimId, family) {
   return `lsn-${createHash('sha256').update(`${claimId ?? ''}\n${family ?? ''}`).digest('hex').slice(0, 12)}`
 }
@@ -137,6 +142,13 @@ export function tensionsWith(finding, activeLessons) {
     // silently missed exactly this pair.
     const shared = [...findingTerms].filter((t) => lessonTerms.has(t))
     if (shared.length < 1) continue
+    // One shared noun is not shared subject matter. Found live: a note about
+    // reward hacking "shared" the noun `task` with lessons about README edits,
+    // editable installs and node on PATH, and because the note contained
+    // "without", all seven were reported as contradictions. Two content words,
+    // or one that is itself a polarity word, is the weakest pairing that can
+    // mean the two texts are about the same claim.
+    if (shared.length < 2 && !shared.some((t) => POLARITY_WORDS.has(t))) continue
 
     const lessonNegated = NEGATION_RE.test(lessonText)
     const lessonLower = lessonText.toLowerCase()
