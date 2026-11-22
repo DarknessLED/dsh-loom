@@ -222,6 +222,13 @@ const standing = [
   // turns its counts into a page a person reads. Both are scrapers/generators,
   // so both need a spec that fails when the output stops matching the input.
   'tests/self48/research-doc.test.mjs',
+  // Reading a paper's own bibliography is the mirror of following citations
+  // outward, and it broke in six different ways while it was being written:
+  // initials mistaken for entry starts, entries without ids eating their
+  // neighbours, a month-and-year ending a proceedings entry, publisher
+  // tailers heading the next entry, LaTeX-escaped titles, and two works
+  // sharing a surname and year. Each one is asserted here.
+  'tests/self49/cites.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

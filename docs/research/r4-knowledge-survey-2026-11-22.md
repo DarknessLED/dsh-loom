@@ -99,7 +99,7 @@
 
 **一、记忆方向的基石几乎全是"上下文管理"，而不是"学习"。** MemGPT（19 篇引）、A-MEM（17）、Mem0（15）、MemoryBank（13）、Generative Agents（13）——它们解决的是"上下文装不下时怎么办"，机制是分页、摘要、检索。反思（Reflexion，16）、技能库（Voyager，16）才是"把经验变成能力"的那一类。我们插件里 `src/knowledge/store.js` 存的是 lesson（claim + notWhen），属于后者；`src/knowledge/dream.js` 的合并与退休属于前者。**这两件事在大方向上不是一回事，但我们都叫它"知识"**，这是概念混乱的来源。
 
-**二、"检索到的记忆会挤掉当前任务的检查"这条（R4 上一轮读到的 2606.17645）在这里找到了同伴。** gap 表里 Expel（10 篇引，"LLM agents are experiential learners"）与 Agent Workflow Memory（10）都在讲同一件事：**经验复用是有代价的，代价是注意力和当前任务的判断**。我们的 dream 合并只按内容相似度并，从不问"这条经验在什么情况下不该被拿出来"——而这正是 `notWhen` 字段存在的理由。**我查了：47 条 lesson 里只有 24 条带 `notWhen`，23 条没有**，而且一条 `procedure` 和 46 条 `fact` 之间只有前者被 `src/research/sink.js:129` 强制要求边界（`'a fact lesson needs a notWhen boundary; without one it is an over-general rule'`）。也就是说 research 进来的 fact 有边界，loop 自己归纳出来的 fact 没有。
+**二、"检索到的记忆会挤掉当前任务的检查"这条（R4 上一轮读到的 2606.17645）在这里找到了同伴。** gap 表里 Expel（10 篇引，"LLM agents are experiential learners"）与 Agent Workflow Memory（10）都在讲同一件事：**经验复用是有代价的，代价是注意力和当前任务的判断**。我们的 dream 合并只按内容相似度并，从不问"这条经验在什么情况下不该被拿出来"——而这正是 `notWhen` 字段存在的理由。**我查了：当时 47 条 lesson 里只有 24 条带 `notWhen`，23 条没有（11-23 追加 16 条带边界的之后是 63 条里 40 条有、23 条没有）**，而且一条 `procedure` 和 46 条 `fact` 之间只有前者被 `src/research/sink.js:129` 强制要求边界（`'a fact lesson needs a notWhen boundary; without one it is an over-general rule'`）。也就是说 research 进来的 fact 有边界，loop 自己归纳出来的 fact 没有。
 
 **三、forgetting / stability 只有 13 篇，其中 9 篇是"克服灾难性遗忘"（2017 EWC 那一线）。** 也就是说，文献里"如何不忘记"是成熟问题，"如何主动忘掉错误的经验"几乎没人做。我们的 `retire` 只在 ttl 或 harm 计数触发时执行——这不是"主动忘掉"，是"过期清理"。
 

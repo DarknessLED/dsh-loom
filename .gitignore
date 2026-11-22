@@ -12,6 +12,10 @@ research/out/.cache/
 # reader opens, and docs/research/<slug>-survey-<date>.md is the generated page.
 research/out/*.survey.json
 
+# A citation table is re-derived from the paper's own bibliography; the page a
+# reader opens is docs/research/<slug>-<date>.md, which is checked in.
+research/out/*.refs.json
+
 # research scratch: the graph store is a build artifact, the sources are JSON
 research/kg/store.sqlite
 research/kg/store.sqlite-*

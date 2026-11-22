@@ -47,7 +47,7 @@ arXiv 搜索页的 `order` 参数只接受 `-announced_date_first`；写 `order=
 1. **R1：这一方向的高频被引者里有一半是"工具"而不是"思想"。** DeepSeekMath 被 31 篇引，是因为做 RL-for-reasoning 都要拿它当配方；真正的概念源头是 Concrete Problems in AI Safety（2016，15 篇）、Defining and characterizing reward gaming（2022，14）、Scaling Laws for Reward Model Overoptimization（2023，22）。**读表要把"工具型高频"和"概念型被引"分开**。
 2. **R1：我把一处门禁的方向读反了，纠正后仍然是一处真缺陷。** 我起初写的是"agent 自述改了文件就能跳过 holdout"，依据是 `src/runtime/round.js:2440` 的 `skipHoldout = checks.noop && !claimedWork`。错了：声称改文件会让 `!claimedWork` 为假、holdout **照跑**，这个标记让门禁更严。方向读反比没读更糟，现在由 `tests/balance/holdout-claim.test.mjs` 钉住。纠正之后剩下的真问题在另一侧：真正被信任的是 agent 的**沉默**。883 次尝试里 403 次报告没通过校验、其中 188 次零字节改动——"没回答"被当成"什么都没改"，于是跳过唯一独立检查。已改为只有合法且明确为空的报告才跳过（`tests/balance/holdout-silent.test.mjs`，2/2）。
 3. **R3：我们造了 successive halving，却没接到它有淘汰空间的地方。** 基石前十全是超参搜索（Hyperband 26 篇、Non-stochastic BAI 23、BOHB 20）。Hyperband 的核心是"同一预算刻度上比较、逐档淘汰"；我们的 screening 是一次只读 prompt 的 agent 调用，与完整尝试**不在同一刻度**。账本证据：470 个 round 只有 9 个做过 screening、总支出 $0.0750（0.7%），因为多数任务没有 `screen.cmd`。
-4. **R4：`notWhen` 的覆盖是分裂的。** 47 条 lesson 里 24 条有边界、23 条没有；24 条 research 来的 fact **全部**有边界（`src/research/sink.js:129` 强制），23 条 loop 自己归纳的**全都没有**。同一条纪律只对一条管道生效。
+4. **R4：`notWhen` 的覆盖是分裂的。** 写这份文档时 47 条 lesson 里 24 条有边界、23 条没有；24 条 research 来的 fact **全部**有边界（`src/research/sink.js:129` 强制），23 条 loop 自己归纳的**全都没有**。11-23 又从综述调研里 sink 了 16 条（全部带边界），现在是 **63 条里 40 条有边界、23 条没有**——没有的那 23 条仍然全是 loop 自己归纳的。同一条纪律只对一条管道生效，这一点没变。
 5. **R2：连续评分在文献里仍是边缘做法。** partial credit 只有 1 篇（2026-08），run-to-run 方差 38 篇。我们上一轮把 killRate 接进每轮，在方法上走在前面，代价是**没有现成规范可抄**——killRate 0.6 与 0.9 的差是否可加，没人给过答案。
 
 ## 四件这一轮没做到的事
@@ -68,3 +68,34 @@ node scripts/research-doc.mjs          # 重新生成 docs/research/*-survey-*.m
 缓存命中不重新请求网络（`research/out/.cache/`，97MB，已 gitignore）；换机器从头抓，数字会变——arXiv 的搜索结果本身随时间变。
 
 规格：`tests/self48/citegraph.test.mjs`（书目解析、引用计数、标题合并）、`tests/self48/survey-parse.test.mjs`（搜索页解析、空页、书目截断）、`tests/self48/research-doc.test.mjs`（计数来自 survey 文件、缺结论段要显式标注、gap 不等于"没读"）。三条都已 pin 进 `scripts/test-all.mjs`。
+
+## 第二种看法：从一篇论文往内看（2026-11-23 追加）
+
+上面八份 survey 都是"给一个主题，往外搜，再顺着别人的参考文献往前扩大"。它回答"这个方向有什么"。
+但它回答不了另一个问题：**手里这一篇论文本身是由什么构成的**——它引了 113 篇，正文里反复拿来对照的是哪几篇，哪些条目列在参考文献里却一次都没在正文出现。
+
+那需要反方向的工具，所以有了 `scripts/research-cites.mjs`：输入一篇论文的文本（PDF 抽出的正文或 HTML 全文）与它的 arXiv 摘要页，输出书目条目、正文括号引用次数、年份/主题分布、以及"撞车无法归属"的清单。第一篇用它读的是综述
+《When, Where, and How Experience Becomes Structure: Mechanisms for Recursive Self-Improvement in LLM Agents》（预印本 2026-11-04，138,090 字节，sha256 `16f93ca4d878dbeeed4038bc5dcf4c9b9f93eea852fabfc252b579a36a3c0113`），结果在 `docs/research/r9-rsi-survey-2026-11-23.md`。
+
+### 为什么不能只按作者块切参考文献
+
+这件事写坏了六次，每一次都是一个会静默给出错误数字的坑。它们现在都钉在 `tests/self49/cites.test.mjs` 里：
+
+1. **条目边界是年份，不是下一个作者。** 按 `Given Surname,` 切，会把 `P. Chhikara,` 这种首字母缩写当成一个新条目的开头，于是**把下一条的 arXiv id 给了上一条**——实测错配 15 条，而且没有任何报错。
+2. **会议条目以"月份 + 年份"收尾**，写作 `Miami, Florida, US, November 2024.`，没有逗号。只认 `, 2024.` 会把 ACL 的整条吞进下一条（实测 `2406.11695` 被算到了 TPTU-v2 头上）。
+3. **出版社尾缀会冒充作者。** `Springer Nature Singapore.` 长得就像一个姓 + 首字母。
+4. **没有 id 的条目会吃掉下一条。** 四种尾部形态要依次吃掉：`URL <url>.`、`doi: 10.xxx.`、`arXiv preprint arXiv:ID.`、`Available at <url>.`。
+5. **折行会落在 id 中间。** `arxiv.org/abs/2607.` + `07663` 要在两处都接回。
+6. **同名同年无法归属。** `Xu 2026` 与 `Li 2026` 在书目里各有多个候选（`Li 2026` 有六个，含本地未发表稿与两个会议条目）。这样的 key 既不能算给任何一行，也不能说它没被引用——它单独列在文档的"撞车"段，归属留给读过的人。
+
+### 一条必须记下来的更正
+
+我在这轮开始时写过"综述的参考文献有约 12 条 id 与标题错配，例如 `2502.12110` 被标成 Welcome to the Era of Experience 而实际是 A-MEM"。**这个结论是错的**，它是我从 PDF 抽参考行时的产物：抽取把相邻条目的标题与 id 拼到了一起。用 arXiv 摘要页的 `citation_title` 对 93 条 id 做全量比对，**mismatch = 0**。`2502.12110` 的摘要页标题确实是 "A-MEM: Agentic Memory for LLM Agents"。剩下三条标题不一致是排版差异（上标 ² 丢失、变音符被写成引号、数学斜体），不是错配。
+
+这条记在这里，是因为它示范了那六条坑的同一种失败：**解析器给出的错误数字看起来完全正常**。数字能复算，才谈得上可以引用；不能复算的结论，写下来就是别人的负债。
+
+### 这篇综述最值得带走的一条
+
+它把 19 篇工作、20 条更新循环拆成同一张七阶段表（采集 / 评定 / 诊断 / 抽象 / 更新 / 验证 / 保留），未做的列写 NR。一旦按这个粒度看，**"某系统会自我改进"这句话就没有信息量了**：A-MEM 与 ReasoningBank 的评定、诊断、验证三列全是 NR，而 Self-Harness 与 AHE 的七列是填满的。这解释了上一轮 R4 里"memory 类工作效果不稳定"——不是记忆机制的问题，是这些循环里没有独立的验证阶段。
+
+对我们最直接的三条差距写在 `docs/research/r9-rsi-survey-2026-11-23.md` 的结论段：被回退的提案从来没有被测量、holdout 池参与晋升所以它是选择集不是测试集、每个战役缺少同预算的 test-time scaling 对照臂。
