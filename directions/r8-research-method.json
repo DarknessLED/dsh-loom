@@ -1,0 +1,125 @@
+{
+  "slug": "r8-research-method",
+  "name": "R8 调研方法本身：文献饱和、系统综述自动化、证据质量与可复算",
+  "queries": [
+    {
+      "q": "\"systematic review\" AND \"automation\" AND \"large language model\"",
+      "max": 60
+    },
+    {
+      "q": "\"literature review\" AND \"agent\" AND \"LLM\"",
+      "max": 60
+    },
+    {
+      "q": "\"saturation\" AND \"qualitative\" AND \"sample size\"",
+      "max": 40
+    },
+    {
+      "q": "\"snowball\" AND \"citation\" AND \"systematic\"",
+      "max": 40
+    },
+    {
+      "q": "\"citation graph\" AND \"recommendation\"",
+      "max": 50
+    },
+    {
+      "q": "\"scientific discovery\" AND \"agent\"",
+      "max": 60
+    },
+    {
+      "q": "\"evidence\" AND \"grounded\" AND \"attribution\"",
+      "max": 50
+    },
+    {
+      "q": "\"hallucination\" AND \"citation\"",
+      "max": 60
+    },
+    {
+      "q": "\"fact verification\" AND \"retrieval\"",
+      "max": 50
+    },
+    {
+      "q": "\"reproducibility\" AND \"research\" AND \"artifact\"",
+      "max": 50
+    },
+    {
+      "q": "\"meta-analysis\" AND \"automation\"",
+      "max": 40
+    },
+    {
+      "q": "\"research question\" AND \"generation\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"depth\" AND \"breadth\" AND \"exploration\" AND \"search\"",
+      "max": 40
+    },
+    {
+      "q": "\"evidence\" AND \"chain\" AND \"citation\" AND \"verif\"",
+      "max": 50
+    },
+    {
+      "q": "\"research agent\" AND \"benchmark\"",
+      "max": 50
+    },
+    {
+      "q": "\"survey\" AND \"automatic\" AND \"generation\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"retrieval\" AND \"evaluation\" AND \"recall\" AND \"corpus\"",
+      "max": 40
+    }
+  ],
+  "seeds": [
+    "Coverage and Saturation",
+    "Systematic Review Automation",
+    "Snowball Sampling",
+    "OpenScholar",
+    "PaperQA",
+    "STORM",
+    "QASA",
+    "SciAgents",
+    "Citation Hallucination",
+    "Attributed Question Answering",
+    "ResearchBench",
+    "Deep Research Bench"
+  ],
+  "clusters": {
+    "review automation": [
+      "systematic review",
+      "literature review",
+      "screen",
+      "extraction",
+      "meta-analysis"
+    ],
+    "coverage & saturation": [
+      "saturation",
+      "coverage",
+      "sample size",
+      "stop when",
+      "diminishing"
+    ],
+    "citation graph mining": [
+      "citation graph",
+      "snowball",
+      "backward",
+      "forward",
+      "co-citation"
+    ],
+    "evidence grounding": [
+      "attribution",
+      "grounded",
+      "citation",
+      "verif",
+      "provenance"
+    ],
+    "research agent evaluation": [
+      "benchmark",
+      "research agent",
+      "deep research",
+      "report quality"
+    ]
+  }
+}

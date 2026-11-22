@@ -1,0 +1,131 @@
+{
+  "slug": "r3-budget-stop",
+  "name": "R3 预算与停止：评估预算、计算最优分配、何时停手",
+  "queries": [
+    {
+      "q": "\"compute-optimal\" AND \"allocation\"",
+      "max": 60
+    },
+    {
+      "q": "\"inference-time\" AND \"scaling\" AND \"budget\"",
+      "max": 60
+    },
+    {
+      "q": "\"test-time compute\" AND \"scaling law\"",
+      "max": 60
+    },
+    {
+      "q": "\"best-of-n\" AND \"compute budget\"",
+      "max": 50
+    },
+    {
+      "q": "\"early stopping\" AND \"hyperparameter\" AND \"multi-fidelity\"",
+      "max": 50
+    },
+    {
+      "q": "\"successive halving\"",
+      "max": 40
+    },
+    {
+      "q": "\"hyperband\"",
+      "max": 40
+    },
+    {
+      "q": "\"multi-armed bandit\" AND \"cost\" AND \"budget\"",
+      "max": 60
+    },
+    {
+      "q": "\"sequential decision\" AND \"sampling budget\"",
+      "max": 40
+    },
+    {
+      "q": "\"Gittins index\" AND \"cost\"",
+      "max": 30
+    },
+    {
+      "q": "\"experiment allocation\" AND \"A/B test\" AND \"cost\"",
+      "max": 50
+    },
+    {
+      "q": "\"Bayesian optimization\" AND \"cost-aware\"",
+      "max": 50
+    },
+    {
+      "q": "\"Pareto\" AND \"accuracy\" AND \"cost\" AND \"LLM\"",
+      "max": 50
+    },
+    {
+      "q": "\"agent\" AND \"budget\" AND \"cost\" AND \"termination\"",
+      "max": 50
+    },
+    {
+      "q": "\"value of information\" AND \"evaluation\"",
+      "max": 30
+    },
+    {
+      "q": "\"evaluation budget\" AND \"model selection\"",
+      "max": 50
+    },
+    {
+      "q": "\"scaling\" AND \"evaluation\" AND \"cost\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"token budget\" AND \"reasoning\" AND \"accuracy tradeoff\"",
+      "max": 40
+    }
+  ],
+  "seeds": [
+    "Beyond Leaderboard Ranks",
+    "Scaling LLM Test-Time Compute Optimally",
+    "Hyperband",
+    "Successive Halving",
+    "Cost-Coupled Gittins",
+    "Bayesian Optimization with Cost",
+    "Chain-of-Thought Prompting Elicits Reasoning",
+    "Large Language Monkeys",
+    "ReAct",
+    "Tree of Thoughts"
+  ],
+  "clusters": {
+    "compute-optimal allocation": [
+      "compute-optimal",
+      "allocation",
+      "budget allocation",
+      "tradeoff",
+      "scaling law",
+      "test-time compute"
+    ],
+    "early stopping / scheduling": [
+      "early stopping",
+      "successive halving",
+      "hyperband",
+      "multi-fidelity",
+      "fidelity",
+      "scheduling"
+    ],
+    "bandits with cost": [
+      "bandit",
+      "gittins",
+      "cost-aware",
+      "sampling budget",
+      "regret",
+      "exploration"
+    ],
+    "accuracy-cost Pareto": [
+      "pareto",
+      "accuracy-cost",
+      "cost-effectiveness",
+      "efficiency frontier",
+      "price of"
+    ],
+    "stopping criteria for agents": [
+      "termination",
+      "stopping",
+      "when to stop",
+      "give up",
+      "budget exhausted"
+    ]
+  }
+}

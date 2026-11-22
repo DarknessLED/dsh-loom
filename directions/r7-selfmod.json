@@ -1,0 +1,141 @@
+{
+  "slug": "r7-selfmod",
+  "name": "R7 自我修改与循环：自改 agent、元进化、多样性崩塌与漂移",
+  "queries": [
+    {
+      "q": "\"self-improving\" AND \"agent\"",
+      "max": 70
+    },
+    {
+      "q": "\"self-modif\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"self-referential\" AND \"improver\"",
+      "max": 40
+    },
+    {
+      "q": "\"meta-evolution\" OR \"meta-learning\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"open-ended\" AND \"evolution\" AND \"agent\"",
+      "max": 60
+    },
+    {
+      "q": "\"quality-diversity\" AND \"archive\"",
+      "max": 50
+    },
+    {
+      "q": "\"diversity\" AND \"collapse\" AND \"evolution\"",
+      "max": 40
+    },
+    {
+      "q": "\"program synthesis\" AND \"search\" AND \"LLM\"",
+      "max": 50
+    },
+    {
+      "q": "\"genetic programming\" AND \"large language model\"",
+      "max": 50
+    },
+    {
+      "q": "\"evolutionary\" AND \"prompt\" OR \"workflow\" AND \"search\"",
+      "max": 60
+    },
+    {
+      "q": "\"agent\" AND \"harness\" AND \"scaffold\"",
+      "max": 50
+    },
+    {
+      "q": "\"self-play\" AND \"code\" AND \"improve\"",
+      "max": 40
+    },
+    {
+      "q": "\"overfitting\" AND \"evaluator\" AND \"optimization\"",
+      "max": 40
+    },
+    {
+      "q": "\"model collapse\" AND \"self-consuming\"",
+      "max": 40
+    },
+    {
+      "q": "\"complexity\" AND \"penalty\" AND \"program search\"",
+      "max": 30
+    },
+    {
+      "q": "\"self-improving\" AND \"code\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"curriculum\" AND \"self-generated\" AND \"task\"",
+      "max": 40
+    },
+    {
+      "q": "\"reward\" AND \"evolution\" AND \"agent\" AND \"open-ended\"",
+      "max": 40
+    }
+  ],
+  "seeds": [
+    "Darwin Godel Machine",
+    "Red Queen Godel Machine",
+    "Huxley-Godel Machine",
+    "Godel Machines",
+    "AI-GAs",
+    "Automated Design of Agentic Systems",
+    "AFlow",
+    "AlphaEvolve",
+    "FunSearch",
+    "Quality-Diversity",
+    "Group-Evolving Agents",
+    "SICA",
+    "AI Scientist",
+    "Model Collapse",
+    "MAP-Elites"
+  ],
+  "clusters": {
+    "self-modification": [
+      "self-modif",
+      "self-referential",
+      "rewrite itself",
+      "own code",
+      "harness"
+    ],
+    "evolutionary search over agents": [
+      "evolution",
+      "genetic",
+      "mutation",
+      "crossover",
+      "population",
+      "archive"
+    ],
+    "open-endedness": [
+      "open-ended",
+      "novelty",
+      "curriculum",
+      "autotelic",
+      "unbounded"
+    ],
+    "diversity & collapse": [
+      "diversity",
+      "collapse",
+      "homogen",
+      "mode collapse",
+      "quality-diversity"
+    ],
+    "evaluator overfitting": [
+      "overfit",
+      "evaluator",
+      "benchmark",
+      "held-out",
+      "generaliz"
+    ],
+    "complexity control": [
+      "complexity",
+      "bloat",
+      "parsimony",
+      "occam",
+      "minimal"
+    ]
+  }
+}

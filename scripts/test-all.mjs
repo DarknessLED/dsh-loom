@@ -214,6 +214,14 @@ const standing = [
   'tests/self47/research-run.test.mjs',
   'tests/self47/research-tool.test.mjs',
   'tests/self47/research-replay.test.mjs',
+  // L2 surveys a direction by following citations, not only search ranks: the
+  // bibliography parses, and the search page keeps its authors and dates.
+  'tests/self48/citegraph.test.mjs',
+  'tests/self48/survey-parse.test.mjs',
+  // The survey driver reads arXiv's two HTML shapes; the doc generator is what
+  // turns its counts into a page a person reads. Both are scrapers/generators,
+  // so both need a spec that fails when the output stops matching the input.
+  'tests/self48/research-doc.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

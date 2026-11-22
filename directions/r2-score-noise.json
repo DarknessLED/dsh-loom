@@ -1,0 +1,136 @@
+{
+  "slug": "r2-score-noise",
+  "name": "R2 评分与噪声：连续评分、评估方差、统计功效、噪声闸门",
+  "queries": [
+    {
+      "q": "\"benchmark\" AND \"variance\" AND \"language model\"",
+      "max": 60
+    },
+    {
+      "q": "\"evaluation\" AND \"noise\" AND \"LLM\"",
+      "max": 60
+    },
+    {
+      "q": "\"reproducib\" AND \"benchmark\" AND \"LLM\"",
+      "max": 50
+    },
+    {
+      "q": "\"statistical significance\" AND \"evaluation\" AND \"language model\"",
+      "max": 50
+    },
+    {
+      "q": "\"confidence interval\" AND \"benchmark\" AND \"model comparison\"",
+      "max": 40
+    },
+    {
+      "q": "\"pass@k\" AND \"estimator\"",
+      "max": 40
+    },
+    {
+      "q": "\"sampling temperature\" AND \"evaluation\" AND \"LLM\"",
+      "max": 40
+    },
+    {
+      "q": "\"self-consistency\" AND \"majority voting\" AND \"sampling\"",
+      "max": 50
+    },
+    {
+      "q": "\"run-to-run\" AND \"variab\"",
+      "max": 40
+    },
+    {
+      "q": "\"effect size\" AND \"minimal detectable\"",
+      "max": 30
+    },
+    {
+      "q": "\"power analysis\" AND \"machine learning\" AND \"evaluation\"",
+      "max": 40
+    },
+    {
+      "q": "\"leaderboard\" AND \"instability\" OR \"churn\"",
+      "max": 40
+    },
+    {
+      "q": "\"partial credit\" AND \"code generation\"",
+      "max": 40
+    },
+    {
+      "q": "\"graded\" AND \"benchmark\" AND \"continuous score\"",
+      "max": 40
+    },
+    {
+      "q": "\"win rate\" AND \"pairwise\" AND \"bootstrap\"",
+      "max": 40
+    },
+    {
+      "q": "\"variance reduction\" AND \"evaluation\" AND \"LLM\"",
+      "max": 40
+    },
+    {
+      "q": "\"test flakiness\" AND \"measurement\"",
+      "max": 40
+    },
+    {
+      "q": "\"evaluation\" AND \"benchmark\" AND \"variance\"",
+      "sort": "recent",
+      "max": 60
+    }
+  ],
+  "seeds": [
+    "On Randomness in Agentic Evals",
+    "Adding Error Bars to Evals",
+    "BetterBench",
+    "Chatbot Arena",
+    "Judging LLM-as-a-Judge with MT-Bench",
+    "Estimating the Number of Trials",
+    "Statistical Significance in NLP",
+    "Show Your Work",
+    "Pass@k",
+    "SWE-bench Verified"
+  ],
+  "clusters": {
+    "run-to-run variance": [
+      "variance",
+      "run-to-run",
+      "randomness",
+      "non-determinism",
+      "stochastic",
+      "seed"
+    ],
+    "statistics of evaluation": [
+      "confidence interval",
+      "error bar",
+      "bootstrap",
+      "significance",
+      "power analysis",
+      "effect size"
+    ],
+    "partial credit / graded scoring": [
+      "partial credit",
+      "graded",
+      "continuous score",
+      "partial success",
+      "test pass rate"
+    ],
+    "judge / win-rate reliability": [
+      "win rate",
+      "pairwise",
+      "judge",
+      "arena",
+      "preference"
+    ],
+    "benchmark instability": [
+      "leaderboard",
+      "instability",
+      "churn",
+      "saturation",
+      "contamination"
+    ],
+    "flaky measurement": [
+      "flaky",
+      "flakiness",
+      "test reliability",
+      "retry"
+    ]
+  }
+}

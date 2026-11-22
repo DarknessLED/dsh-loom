@@ -4,6 +4,14 @@ research/open-dream-rsi/
 node_modules/
 *.log
 
+# The survey cache is a build artifact: 97MB of search pages and paper HTML that
+# a rerun re-fetches. What a survey *concluded* is checked in next to it.
+research/out/.cache/
+
+# The survey JSON is 16MB of parsed pages; the markdown next to it is the part a
+# reader opens, and docs/research/<slug>-survey-<date>.md is the generated page.
+research/out/*.survey.json
+
 # research scratch: the graph store is a build artifact, the sources are JSON
 research/kg/store.sqlite
 research/kg/store.sqlite-*

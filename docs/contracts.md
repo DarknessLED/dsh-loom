@@ -83,6 +83,7 @@
 ### research/ — 调研（自有实现）
 
 - `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
+- `src/research/citegraph.js` — 从一篇论文的参考文献往回走：解析 arXiv HTML5 的 `ltx_bibitem` 条目取作者/标题/年份/venue/arXiv id（年份必须在剔除 arXiv id 之后取，否则 `1905.10985` 会被读成 1905 年），正文里的 `href="#bib.N"` 锚点决定这篇论文真正倚重哪几条引用（计数在参考文献处截断），单篇内被多次引用的是它反复对比的基线，被本语料多篇引用的是这个方向的基石；`followupQueriesFrom` 把"标题 + 年份"变成下一轮查询。纯函数，不碰网络；它只知道**本语料内**的引用，不是全领域引用数。
 - `src/research/plan.js` — 调研的查询计划：`quick/standard/deep` 三档预设（quick 的 `fetchTop` 必须是 0，即只出计划不抓页），子问题优先于自动扩展，`maxQueries` 可被调用方收紧但 `rounds` 不可被覆盖（否则「快速」会被悄悄买成「深度」）；纯函数，不碰网络。
 - `src/research/fetch.js` — 只做「找到」与「读成文本」：URL 身份按 scheme/host/去追踪参数归一（解析失败走字符串回退，绝不抛），多查询结果按 rank 轮转合并去重，抓取目标按 host 限流，HTML 转文本去脚本样式注释，词项按语言抽（拉丁去停用词、CJK 二字滑窗），段摘必须是原文逐字span（40 字以下丢、600 字截断），第二轮查询只问「两个独立来源都出现的词」。算法移植自 dsh-deep-research（MIT），署名见 THIRD_PARTY_NOTICES.md。
 - `src/research/ledger.js` — 调研的事实底座：快照按自身字节做内容寻址（`ev-` + sha256 前 12 位），claim 必须带引文，判定顺序是 `unbound`（没引证据）→ `unverified`（证据缺失/被改/没引文）→ `contradicted`（引文不在快照里，这是更强也更用的信息）→ `verified`（引文逐字命中）；`sealReport` 写 report.md + manifest.json，seal 覆盖 manifest 与每份被引快照的哈希，`verifySeal` 全部重算。

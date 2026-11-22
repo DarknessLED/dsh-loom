@@ -1,0 +1,131 @@
+{
+  "slug": "r6-containment",
+  "name": "R6 遏制与安全：沙箱逃逸、权限边界、供应链与提示注入",
+  "queries": [
+    {
+      "q": "\"sandbox\" AND \"escape\" AND \"LLM\"",
+      "max": 60
+    },
+    {
+      "q": "\"prompt injection\"",
+      "max": 70
+    },
+    {
+      "q": "\"indirect prompt injection\"",
+      "max": 50
+    },
+    {
+      "q": "\"supply chain\" AND \"attack\" AND \"package\"",
+      "max": 60
+    },
+    {
+      "q": "\"typosquatting\" OR \"dependency confusion\"",
+      "max": 40
+    },
+    {
+      "q": "\"privilege escalation\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"least privilege\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"container\" AND \"isolation\" AND \"kernel\"",
+      "max": 50
+    },
+    {
+      "q": "\"microVM\" OR \"gVisor\" OR \"seccomp\"",
+      "max": 40
+    },
+    {
+      "q": "\"exfiltration\" AND \"LLM\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"tool use\" AND \"security\" AND \"agent\"",
+      "max": 60
+    },
+    {
+      "q": "\"red teaming\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"backdoor\" AND \"coding assistant\"",
+      "max": 40
+    },
+    {
+      "q": "\"malicious code\" AND \"generation\" AND \"model\"",
+      "max": 50
+    },
+    {
+      "q": "\"credential\" AND \"leak\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"prompt injection\" AND \"defense\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"agent\" AND \"security\" AND \"benchmark\"",
+      "max": 50
+    },
+    {
+      "q": "\"evaluation\" AND \"sandbox\" AND \"reproducibility\"",
+      "max": 30
+    }
+  ],
+  "seeds": [
+    "Not what you've signed up for",
+    "Ignore Previous Prompt",
+    "Prompt Injection attack against LLM-integrated Applications",
+    "Names Are Not Objects",
+    "Container Security",
+    "Dependency Confusion",
+    "AgentDojo",
+    "InjecAgent",
+    "HouYi",
+    "The Verification Horizon"
+  ],
+  "clusters": {
+    "prompt injection": [
+      "prompt injection",
+      "injected instruction",
+      "indirect injection",
+      "jailbreak",
+      "instruction hierarchy"
+    ],
+    "sandbox / isolation": [
+      "sandbox",
+      "isolation",
+      "container",
+      "microvm",
+      "gvisor",
+      "seccomp",
+      "namespace"
+    ],
+    "supply chain": [
+      "supply chain",
+      "typosquat",
+      "dependency confusion",
+      "package manager",
+      "provenance",
+      "sbom"
+    ],
+    "credential / exfiltration": [
+      "credential",
+      "secret",
+      "exfiltration",
+      "leak",
+      "token theft"
+    ],
+    "agent red teaming": [
+      "red team",
+      "attack",
+      "adversarial",
+      "exploit",
+      "vulnerability"
+    ]
+  }
+}

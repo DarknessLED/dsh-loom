@@ -1,0 +1,123 @@
+{
+  "slug": "r5-human",
+  "name": "R5 编排与人机：审批闸门、自主度、监督与责任",
+  "queries": [
+    {
+      "q": "\"human-in-the-loop\" AND \"agent\" AND \"approval\"",
+      "max": 60
+    },
+    {
+      "q": "\"human oversight\" AND \"AI\" AND \"automation\"",
+      "max": 60
+    },
+    {
+      "q": "\"levels of autonomy\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"meaningful human control\"",
+      "max": 40
+    },
+    {
+      "q": "\"automation bias\"",
+      "max": 50
+    },
+    {
+      "q": "\"rubber stamp\" OR \"complacency\" AND \"automation\"",
+      "max": 40
+    },
+    {
+      "q": "\"algorithmic aversion\" AND \"advice\"",
+      "max": 40
+    },
+    {
+      "q": "\"deference\" AND \"AI advice\"",
+      "max": 40
+    },
+    {
+      "q": "\"approval\" AND \"workflow\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"escalation\" AND \"decision\" AND \"uncertainty\"",
+      "max": 40
+    },
+    {
+      "q": "\"guardrail\" AND \"agent\" AND \"policy\"",
+      "max": 50
+    },
+    {
+      "q": "\"authority\" AND \"delegation\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"trust calibration\" AND \"automation\"",
+      "max": 40
+    },
+    {
+      "q": "\"accountability\" AND \"autonomous\" AND \"system\"",
+      "max": 40
+    },
+    {
+      "q": "\"safety\" AND \"agent\" AND \"human approval\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"supervision\" AND \"scalable oversight\"",
+      "max": 50
+    },
+    {
+      "q": "\"undo\" OR \"reversibility\" AND \"agent\"",
+      "max": 30
+    }
+  ],
+  "seeds": [
+    "Scalable Oversight",
+    "AI Safety via Debate",
+    "Automation bias",
+    "Levels of Autonomy for AI Agents",
+    "Meaningful Human Control",
+    "Concrete Problems in AI Safety",
+    "Anthropic Constitutional AI",
+    "Trust in Automation"
+  ],
+  "clusters": {
+    "approval gates & oversight": [
+      "human-in-the-loop",
+      "approval",
+      "oversight",
+      "review",
+      "gate",
+      "sign-off"
+    ],
+    "autonomy levels": [
+      "levels of autonomy",
+      "autonomy",
+      "delegation",
+      "authority",
+      "trust"
+    ],
+    "automation bias / complacency": [
+      "automation bias",
+      "complacency",
+      "rubber stamp",
+      "over-reliance",
+      "deference"
+    ],
+    "escalation & uncertainty": [
+      "escalation",
+      "uncertainty",
+      "abstain",
+      "handoff",
+      "ask for help"
+    ],
+    "accountability & policy": [
+      "accountability",
+      "policy",
+      "guardrail",
+      "compliance",
+      "audit"
+    ]
+  }
+}
