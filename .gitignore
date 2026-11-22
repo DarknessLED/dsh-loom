@@ -16,6 +16,11 @@ research/out/*.survey.json
 # reader opens is docs/research/<slug>-<date>.md, which is checked in.
 research/out/*.refs.json
 
+# A deep read is re-derived from the paper's HTML; the body snapshots and the
+# locator-carrying claims live in the ledger, and the page a reader opens is
+# docs/research/deep-<slug>-<date>.md, which is checked in.
+research/out/deep-*.json
+
 # research scratch: the graph store is a build artifact, the sources are JSON
 research/kg/store.sqlite
 research/kg/store.sqlite-*

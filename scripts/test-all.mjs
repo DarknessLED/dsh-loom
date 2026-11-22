@@ -229,6 +229,12 @@ const standing = [
   // tailers heading the next entry, LaTeX-escaped titles, and two works
   // sharing a surname and year. Each one is asserted here.
   'tests/self49/cites.test.mjs',
+  // Reading the body, not the abstract, is what the depth checker demands:
+  // every claim gets a locator, a passage comes back verbatim, and a paper
+  // with no body is reported as unread rather than as a paper that said
+  // nothing. The script spec pins the judgements made around it.
+  'tests/self50/deepread.test.mjs',
+  'tests/self50/deepread-script.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

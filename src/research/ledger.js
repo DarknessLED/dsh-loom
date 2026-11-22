@@ -155,7 +155,7 @@ export function readEvidence(home, id) {
 // ---------------------------------------------------------------------------
 
 /** Register a claim: text, the snapshots it rests on, and optional quotes. */
-export function addClaim(home, { text, evidenceIds, quotes, contradicts } = {}) {
+export function addClaim(home, { text, evidenceIds, quotes, contradicts, locator, anchor } = {}) {
   const body = cleanText(text)
   if (!body) throw new Error('a claim needs text')
 
@@ -180,6 +180,11 @@ export function addClaim(home, { text, evidenceIds, quotes, contradicts } = {}) 
   if (existing) return { ...existing, duplicate: true }
 
   const record = { id, text: body, evidenceIds: ids, quotes: literalQuotes, registeredAt: Date.now() }
+  // Where in the page the quote sits. A claim whose quote can be found but not
+  // placed is still unverifiable by a human in the time it takes to read it, so
+  // the locator is stored whenever the reader has one.
+  if (cleanText(locator)) record.locator = cleanText(locator)
+  if (cleanText(anchor)) record.anchor = cleanText(anchor)
   if (disputes.length) record.contradicts = disputes
   appendJsonl(join(dir, 'claims.jsonl'), record)
   return record
