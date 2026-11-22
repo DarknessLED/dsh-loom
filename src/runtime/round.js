@@ -2436,8 +2436,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // is a capture problem, not a completed no-op: the bytes it meant to change
     // are unproven, so the holdout still applies. Only a candidate that reports
     // no work at all has nothing left for a second opinion to check.
-    const claimedWork = Array.isArray(best?.report?.changed) && best.report.changed.length > 0
-    const skipHoldout = checks.noop && !claimedWork
+    //
+    // "Reports no work" has to be a statement the worker actually made. A missing
+    // or unparsable report is silence, not a claim that nothing moved: 403 of the
+    // 883 attempts in this ledger carry a report that failed validation, 188 of
+    // those with zero bytes changed, and reading silence as innocence would let a
+    // worker that never answers skip the only independent check on its patch. So
+    // the gate is skipped only when the report is both valid and explicitly empty.
+    const statedNoWork = Boolean(best?.report) && Array.isArray(best.report.changed) && best.report.changed.length === 0
+    const skipHoldout = checks.noop && statedNoWork
     // `round.finished` names the task that actually ran: the status alone would
     // say `holdout-failed` without saying which pool entry caught the patch.
     // A skipped no-op names nothing because nothing ran.

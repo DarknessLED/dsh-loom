@@ -10,7 +10,7 @@
 
 ## 三条我会改的
 
-1. **gate 的输入要区分"agent 自述"与"机器观测"。** 现在 `attempt.finished.report` 与 `verifier` 输出混在一份记录里，而且已经有一处**自述改变门禁**：`src/runtime/round.js:2439` 的 `claimedWork = Array.isArray(best?.report?.changed) && best.report.changed.length > 0`，只有 `checks.noop && !claimedWork` 才跳过 holdout——也就是说 agent 在报告里列一个文件名，就能让一个本该被 holdout 复查的空补丁跳过复查。这不是理论风险，是读代码就能指出的路径。把 report 标成 `selfReported: true`，并让任何"通过了"的判断只落在机器观测上——这是第二代奖励黑客文献的直接推论，成本很低。
+1. **gate 的输入要区分"agent 自述"与"机器观测"。** `attempt.finished.report` 与 `verifier` 输出混在一份记录里，人在 check 卡上看到的是 agent 的叙述。我一开始把 `src/runtime/round.js:2440` 的 `skipHoldout = checks.noop && !claimedWork` 读成了"自述能跳过复查"——方向正好相反：agent 声称改了文件，`claimedWork` 为真，**holdout 照跑**，这个标记让门禁更严而不是更松，它是采集失败时的逃生口。**我把方向写反了，这是比没读更糟的错误**，现在由 `tests/balance/holdout-claim.test.mjs` 钉住。真正被信任的是 agent 的**沉默**：改动了 0 字节且报告为空才跳过复查。这条规则本身可辩护（没有新字节可查），但"报告为空"必须由 agent **说出来**：883 次尝试里 403 次的报告没通过校验、其中 188 次零字节改动，把"没回答"当成"什么都没改"就会让一个从不回话的 worker 绕过唯一独立检查。已改成只有**合法且明确为空**的报告才跳过（`tests/balance/holdout-silent.test.mjs`）。
 2. **给 gate 加一条"被观察"提示的对照**：同一任务、同一模型，在 brief 里显式说"你的报告会被逐字核对"和不说，各跑一次，看分数是否变化。这是 ImpossibleBench 的做法，我们可以在自己的仪器上复现，只需要两轮的钱。
 3. **把 benchmark validity 当成一个正式的检查维度**：不只问"这个 patch 通过了吗"，还问"这套验证器最近有没有变得更容易通过"——`docs/` 里其实已经有 `live-report` 的 `noop` 检查，可以扩成"同一任务的通过率随时间漂移"。
 

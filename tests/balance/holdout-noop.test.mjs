@@ -47,7 +47,11 @@ function fakeRuntime(dir) {
   }
 }
 
-const REPORT = JSON.stringify({ changed: [], why: 'already satisfied', evidence: 'the check passes on a clean tree', openQuestions: [], confidence: 0.9, nextHint: '' })
+// `evidence` is an array in the report contract: written as a string this
+// fixture never validated, so it was silent rather than empty - and a silent
+// candidate is now (correctly) not allowed to skip the gate. Keep the fixture
+// saying what this spec means it to say.
+const REPORT = JSON.stringify({ changed: [], why: 'already satisfied', evidence: ['the check passes on a clean tree'], openQuestions: [], confidence: 0.9, nextHint: '' })
 
 function stateFor(workspace, holdoutCmd) {
   return {

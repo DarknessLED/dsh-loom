@@ -428,6 +428,15 @@ const standing = [
   'tests/setup/one-call-start.test.mjs',
   'tests/preflight/doctor.test.mjs',
   'tests/balance/holdout-noop.test.mjs',
+  // the no-op holdout gate has a third case: a candidate that verified with no
+  // captured diff but reports it changed files still gets the second opinion -
+  // claiming work makes the gate stricter, and the direction was pinned after a
+  // reading of mine had it backwards:
+  'tests/balance/holdout-claim.test.mjs',
+  // silence is not a statement: a worker that emits no parsable report must not
+  // get the holdout gate skipped for it, and the legacy no-op fixture turns out to
+  // have been exercising exactly that path (its report never validated):
+  'tests/balance/holdout-silent.test.mjs',
   'tests/defaults/opinionated.test.mjs',
   'tests/dag2/deadline.test.mjs',
   'tests/balance/late-success.test.mjs',

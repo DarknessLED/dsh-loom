@@ -32,6 +32,19 @@ function readIf(path) {
   return existsSync(path) ? readFileSync(path, 'utf8') : null
 }
 
+// The direction file is optional input: a survey can exist for a direction
+// whose config was renamed. Missing or malformed means "no hand-written
+// queries to compare against", not a crash in the middle of rendering.
+function readJson(path) {
+  const text = readIf(path)
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 function table(rows, header) {
   if (!rows.length) return '_（本次语料里没有达到门槛的条目）_'
   return [header, '| --- | --- | --- | --- | --- |', ...rows].join('\n')
@@ -105,8 +118,20 @@ for (const slug of files) {
   const comparedCount = (cls.compared ?? []).length
   const allWorks = r.agg?.works ?? []
   const gapCount = allWorks.filter((w) => !w.inCorpus && w.citedByPapers >= 2).length
-  const queries = (r.b?.runs ?? []).filter((x) => x.status === 'ok').length
-  const emptyQueries = (r.b?.runs ?? []).filter((x) => x.status === 'ok' && x.returned === 0).length
+  // Runs include the --gaps second pass, whose queries are gap titles rather
+  // than hand-written ones. Counting only the direction file would hide the
+  // pass that found the most, so the table names both numbers - but only when
+  // the direction file is still there to compare against. Without it every run
+  // would look like a backfill, which is a claim the file cannot support.
+  const directionFile = readJson(join(ROOT, 'directions', `${slug}.json`))
+  const askedSet = directionFile
+    ? new Set((directionFile.queries ?? []).map((q) => (typeof q === 'string' ? q : q.q)))
+    : null
+  const allRuns = r.b?.runs ?? []
+  const asked = askedSet ? allRuns.filter((x) => askedSet.has(x.query)).length : 0
+  const backfilled = askedSet ? allRuns.filter((x) => !askedSet.has(x.query)).length : 0
+  const queries = allRuns.filter((x) => x.status === 'ok').length
+  const emptyQueries = allRuns.filter((x) => x.status === 'ok' && x.returned === 0).length
 
   const lines = []
   lines.push(`# ${r.direction?.name ?? slug}`)
@@ -117,7 +142,8 @@ for (const slug of files) {
   lines.push('')
   lines.push('| 项 | 数量 |')
   lines.push('| --- | --- |')
-  lines.push(`| 成功查询 | ${queries} 条（其中 ${emptyQueries} 条返回 0 结果）|`)
+  const split = askedSet ? `${asked} 条手写 + ${backfilled} 条回填；` : '方向文件不在，分不出手写与回填；'
+  lines.push(`| 成功查询 | ${queries} 条（${split}其中 ${emptyQueries} 条返回 0 结果）|`)
   lines.push(`| 不同候选 | ${r.b?.candidates ?? '—'} |`)
   lines.push(`| 保留候选 | ${(r.b?.papers ?? []).length} |`)
   lines.push(`| 读通全文 | ${traced} 篇${unreadable ? `（${unreadable} 篇无可用 HTML）` : ''} |`)

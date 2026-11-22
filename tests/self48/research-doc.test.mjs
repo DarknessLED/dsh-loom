@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -93,4 +93,17 @@ test('no survey file is a named failure, not an empty page', () => {
   }
   assert.ok(failed, 'the generator exits non-zero when there is nothing to write')
   assert.ok(!existsSync(join(root, 'docs/absent-survey-' + new Date().toISOString().slice(0, 10) + '.md')))
+})
+
+test('without the direction file the split is not invented, only omitted', () => {
+  // A survey outlives the direction config that produced it. If the file is
+  // gone, "18 hand-written + 8 backfilled" becomes a guess - every run would
+  // look like a backfill. Say the split is unavailable instead of guessing.
+  const root = fixtureDir(survey(), 'x\n')
+  rmSync(join(root, 'directions'), { recursive: true, force: true })
+  const out = join(root, 'docs/research')
+  execFileSync(process.execPath, [SCRIPT, 'fixture', '--root', root, '--out', out], { stdio: 'pipe' })
+  const page = readFileSync(join(out, `fixture-survey-${new Date().toISOString().slice(0, 10)}.md`), 'utf8')
+  assert.match(page, /分不出手写与回填/)
+  assert.doesNotMatch(page, /条回填；/)
 })

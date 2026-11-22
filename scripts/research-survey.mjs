@@ -546,9 +546,14 @@ function renderMarkdown(state) {
   const traced = traces.length
   const references = (state.referenceCount ?? 0) || traces.reduce((n, t) => n + (t.entries?.length ?? 0), 0)
   const works = agg.works
+  // A second pass appends runs that did not come from the direction file, so
+  // counting `direction.queries` would report the first pass as if it were the
+  // whole search. Name both, because "10 titles found 123 papers" is the point.
+  const asked = new Set((direction.queries ?? []).map((q) => (typeof q === 'string' ? q : q.q)))
+  const backfilled = (b.runs ?? []).filter((r) => !asked.has(r.query)).length
   const lines = [`# ${direction.name}`, '']
   lines.push(
-    `- 检索：${(direction.queries ?? []).length} 条查询（每条最多 ${state.pages} 页 × 50）→ ${b.candidates} 个不同候选，保留 ${b.papers.length}`,
+    `- 检索：${asked.size} 条查询${backfilled ? ` + ${backfilled} 条回填查询（取自 gap 的标题）` : ''}（每条最多 ${state.pages} 页 × 50）→ ${b.candidates} 个不同候选，保留 ${b.papers.length}`,
     `- 回溯：读通 ${traced} 篇全文的参考文献，共 ${references} 条引用（${failures.length} 篇无可用 HTML）`,
     `- 语料内被引：${works.filter((w) => w.citedByPapers >= 2).length} 个工作被本语料至少两篇论文引用；被引最多的是 ${works[0]?.citedByPapers ?? 0} 篇`,
     `- 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。`,
