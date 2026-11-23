@@ -10,7 +10,7 @@ import { validateChainSpec } from '../chain/spec.js'
 import { templateFor, TEMPLATES } from '../chain/templates.js'
 import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
-import { applyApprovalEffects } from '../runtime/decision-effects.js'
+import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { summarizeCalibration } from '../chain/predict.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
@@ -837,6 +837,10 @@ export function registerTools(ctx, { runtime, config }) {
       if (args.decision === 'approve') {
         applyApprovalEffects({ runtime, view, target, config, actor: 'human' })
       }
+      // Refusing a chain card is a decision about a forecast, and the forecast
+      // outlives the refusal: the reducer keeps it so the next round -- which
+      // still runs on the chain that stayed in force -- can grade it.
+      const refused = args.decision === 'reject' ? applyRejectionEffects({ runtime, view, target, actor: 'human', note: args.note || null }) : null
 
       let applied = null
       let landed = null
@@ -915,6 +919,7 @@ export function registerTools(ctx, { runtime, config }) {
         applied: applied?.ok ?? false,
         landed: landed ? { round: landed.round, committed: landed.commit?.committed === true, commit: landed.commit?.sha ?? null } : null,
         reverted: reverted?.ok ?? null,
+        declined: refused?.declined ?? null,
         status: view.state.status,
       }
     },

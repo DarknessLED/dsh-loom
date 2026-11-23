@@ -15,7 +15,7 @@ export function emptyState(id = null) {
      * its first measured round under the adopted chain, and `measurements` is
      * the small permanent record of forecasts that were checked.
      */
-    chain: { activeVersion: null, versions: [], pending: null, measurements: [] },
+    chain: { activeVersion: null, versions: [], pending: null, declined: null, measurements: [] },
     evalset: { tasks: [], holdout: [] },
     /**
      * Which holdout partition actually ran, and from which pool. A holdout
@@ -135,6 +135,29 @@ function apply(s, ev) {
       }
       break
     }
+    case 'chain.declined': {
+      // A refused forecast is still a forecast. Keeping it here (rather than in
+      // the checkpoint, which the person closes) is what lets the next round
+      // grade it against the chain that stayed in force.
+      if (!d || d.version == null) break
+      const record = s.chain.versions.find((v) => Number(v.version) === Number(d.version))
+      const baseline = {}
+      for (const r of s.rounds) {
+        if (!r || !Number.isFinite(Number(r.score))) continue
+        const task = r.taskId ?? '_'
+        if (!(task in baseline) || Number(r.score) > baseline[task]) baseline[task] = Number(r.score)
+      }
+      s.chain.declined = {
+        version: Number(d.version),
+        prediction: record?.prediction ?? d.prediction ?? null,
+        baseline,
+        atRound: s.rounds.length ? s.rounds[s.rounds.length - 1].n : null,
+        note: d.note ?? null,
+        at: ev.t,
+      }
+      if (record && record.status === 'candidate') record.status = 'declined'
+      break
+    }
     case 'chain.measured': {
       if (!d || d.version == null) break
       const rec = {
@@ -146,10 +169,14 @@ function apply(s, ev) {
         realized: d.realized ?? null,
         predicted: d.predicted ?? null,
         verdict: d.verdict ?? null,
+        // `false` marks a counterfactual: the change was refused, so this is
+        // what the unchanged chain then did. Absent means it was applied.
+        applied: d.applied === false ? false : null,
         at: ev.t,
       }
       s.chain.measurements = (s.chain.measurements ?? []).concat(rec).slice(-10)
       if (s.chain.pending && Number(s.chain.pending.version) === Number(d.version)) s.chain.pending = null
+      if (d.applied === false && s.chain.declined && Number(s.chain.declined.version) === Number(d.version)) s.chain.declined = null
       break
     }
     case 'evalset.registered':

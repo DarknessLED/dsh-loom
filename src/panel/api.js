@@ -5,7 +5,7 @@ import { campaignTriangle } from '../runtime/triangle.js'
 import { reviewQueue } from '../runtime/review.js'
 import { holdUntil } from '../runtime/hold.js'
 import { activeChain, policyFor } from '../runtime/round.js'
-import { applyApprovalEffects } from '../runtime/decision-effects.js'
+import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { panelRoute } from './route.js'
@@ -404,6 +404,11 @@ export function panelAction({ runtime, config }, body) {
     // adopts it and approving a policy card promotes it here too.
     if (decision === 'approve') {
       applyApprovalEffects({ runtime, view, target, config, actor: 'human:panel' })
+    }
+    // A reject from the panel means the same thing it means from the tool: the
+    // forecast is refused, and the next round grades what refusing it cost.
+    if (decision === 'reject') {
+      applyRejectionEffects({ runtime, view, target, actor: 'human:panel' })
     }
     runtime.append(
       view,

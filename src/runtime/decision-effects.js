@@ -56,3 +56,34 @@ export function applyApprovalEffects({ runtime, view, target, config, actor = 'h
   }
   return out
 }
+
+/**
+ * Apply the effects of *refusing* one checkpoint.
+ *
+ * Refusing a chain, plateau or revert card is a decision about a forecast, and
+ * the forecast does not expire because a person said no. Recording the decline
+ * is what makes the next round able to grade it: the chain in force did not
+ * change, so that round's delta is what happened without the change.
+ *
+ * This is deliberately separate from approving. The two doors (tool, panel)
+ * both call it, so a panel reject cannot be a notification that leaves the
+ * ledger prettier than the decision was.
+ *
+ * @param {object} input
+ * @param {object} input.runtime
+ * @param {object} input.view
+ * @param {object} input.target  open checkpoint being refused
+ * @param {string} [input.actor]
+ * @param {string} [input.note]
+ * @returns {null | {declined:number}}
+ */
+export function applyRejectionEffects({ runtime, view, target, actor = 'human', note = null } = {}) {
+  if (!target || !runtime || !view) return null
+  if (target.kind !== 'chain' && target.kind !== 'plateau' && target.kind !== 'chain-revert') return null
+  const payload = target.payload
+  if (!payload || payload.chainVersion == null) return null
+  const version = Number(payload.chainVersion)
+  if (!Number.isFinite(version)) return null
+  runtime.append(view, 'chain.declined', { version, note: note || null }, actor)
+  return { declined: version }
+}

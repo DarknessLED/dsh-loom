@@ -154,7 +154,18 @@ export function summarizeCalibration(measurements = []) {
   // that is supposed to say whether forecasts hold.
   const byBasis = {}
   for (const [key, rows] of Object.entries(groups)) byBasis[key] = tally(rows)
-  return { ...tally(list), byBasis }
+  // A counterfactual is graded the same way but is not the same claim: "the
+  // chain I adopted moved the score this much" and "the chain I refused would
+  // have moved it this much" answer different questions, and pooling them would
+  // let declined forecasts quietly improve the calibration of adopted ones.
+  const appliedRows = list.filter((m) => m.applied !== false)
+  const declinedRows = list.filter((m) => m.applied === false)
+  return {
+    ...tally(list),
+    byBasis,
+    applied: tally(appliedRows),
+    declined: tally(declinedRows),
+  }
 }
 
 /**

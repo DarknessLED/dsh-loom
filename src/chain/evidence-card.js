@@ -106,9 +106,18 @@ export function renderCard(card) {
   )
   const graded = card?.calibration?.n ?? 0
   if (graded > 0) {
+    const declined = card.calibration.declined?.n ?? 0
+    // Adopted and refused forecasts are counted apart: a refusal that turned out
+    // to cost nothing is not evidence that the next forecast can be trusted.
+    const split = declined > 0 ? ` (${graded - declined} adopted, ${declined} refused)` : ''
     lines.push(
-      `past forecasts: ${graded} graded, ${card.calibration.missed} missed, coverage ${pct(card.calibration.coverage)}, MAE ${card.calibration.mae}`,
+      `past forecasts: ${graded} graded${split}, ${card.calibration.missed} missed, coverage ${pct(card.calibration.coverage)}, MAE ${card.calibration.mae}`,
     )
+    if (declined > 0) {
+      lines.push(
+        `  refused forecasts: ${card.calibration.declined.met + card.calibration.declined.exceeded} of ${declined} would have paid — that gain was left on the table`,
+      )
+    }
   }
   for (const item of card?.items ?? []) {
     const p = item.prediction

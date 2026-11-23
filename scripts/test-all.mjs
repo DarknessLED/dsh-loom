@@ -235,6 +235,10 @@ const standing = [
   // nothing. The script spec pins the judgements made around it.
   'tests/self50/deepread.test.mjs',
   'tests/self50/deepread-script.test.mjs',
+  // A forecast that was refused is still a forecast: the decline is recorded
+  // with its baseline, the next round grades it against the chain that stayed
+  // in force, and adopted/refused forecasts are counted apart.
+  'tests/self51/declined-forecast.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

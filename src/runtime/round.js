@@ -21,7 +21,7 @@ import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { scoreOf } from '../gate/score.js'
 import { verifyMetrics } from '../gate/metrics.js'
 import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
-import { measurePrediction } from '../chain/measure.js'
+import { measureDeclined, measurePrediction } from '../chain/measure.js'
 import { readDecisions, appendDecision } from '../loop/decisions.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
@@ -2780,6 +2780,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           })
         }
       }
+    }
+
+    // A forecast that was refused still owns a number. The chain in force did
+    // not change, so this round's score against the pre-decline baseline is the
+    // counterfactual: `missed` means refusing it kept the money, `met` means the
+    // person left the predicted gain on the table. Grading it is not second-
+    // guessing the decision; it is the only way a forecast ever earns trust.
+    const declinedForecast = view.state.chain?.declined ?? null
+    if (declinedForecast) {
+      const counterfactual = measureDeclined({
+        declined: declinedForecast,
+        round: { n, taskId: task.id, chainVersion: state.chain.activeVersion, score },
+      })
+      if (counterfactual) runtime.append(view, 'chain.measured', counterfactual, 'system')
     }
 
     // Three rounds in a row whose patches changed while the verifier said exactly
