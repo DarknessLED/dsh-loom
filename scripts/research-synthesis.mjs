@@ -38,7 +38,7 @@ export function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i]
     const next = argv[i + 1]
-    if (flag === '--out-dir') { out.dir = next; i += 1 }
+    if (flag === '--out-dir') { out.outDir = next; i += 1 }
     else if (flag === '--doc') { out.doc = next; i += 1 }
     else if (flag === '--reading') { out.reading = next; i += 1 }
     else if (flag === '--home') { out.home = next; i += 1 }

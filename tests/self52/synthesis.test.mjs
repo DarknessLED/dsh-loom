@@ -7,10 +7,13 @@ import assert from 'node:assert/strict'
 import {
   bridges,
   crossDirection,
+  eraProfile,
   pairMatrix,
   readingCoverage,
   renderSynthesis,
+  similarityMatrix,
   splitShared,
+  truncationEffect,
   workIndex,
 } from '../../src/research/synthesis.js'
 
@@ -149,4 +152,71 @@ test('a benchmark everyone runs on counts as infrastructure too', () => {
     b: survey([work('3333.33333', 'SWE-bench: Can Language Models Resolve Real-World GitHub Issues?', 6)]),
   })
   assert.equal(splitShared(cross, { minDirections: 2 }).infrastructure.length, 1)
+})
+
+// The pair matrix truncates each direction to its top 20 cited works. That cut is
+// a modelling choice, not a fact about the field, and it can flip the answer to
+// "which direction is this direction most like". These pin the whole-corpus view
+// next to the truncated one so the document cannot report only the convenient one.
+test('similarity uses the whole corpus, not the top of it', () => {
+  const cross = crossDirection({ a: surveyA, b: surveyB })
+  const sim = similarityMatrix(cross)
+  const ab = sim.cells.find((c) => c.a === 'a' && c.b === 'b')
+  // a = {1111,2222,3333}, b = {1111,4444}; shared 1, union 4.
+  assert.equal(ab.shared, 1)
+  assert.equal(ab.aSize, 3)
+  assert.equal(ab.bSize, 2)
+  assert.ok(Math.abs(ab.jaccard - 1 / 4) < 1e-9)
+})
+
+test('a pair can be nearest under one cut and not under the other', () => {
+  // b shares a's *top* work but nothing else; c shares only a's tail but more of it.
+  const wide = survey([
+    work('1111.11111', 'Top Of A.', 100),
+    work('2222.22222', 'Tail One.', 2),
+    work('3333.33333', 'Tail Two.', 1),
+  ])
+  const narrow = survey([work('1111.11111', 'Top Of A.', 5)])
+  const tail = survey([work('2222.22222', 'Tail One.', 4), work('3333.33333', 'Tail Two.', 4)])
+  const cross = crossDirection({ a: wide, b: narrow, c: tail })
+  const effect = truncationEffect(cross, pairMatrix(cross, { top: 1 }))
+  const rowA = effect.rows.find((r) => r.direction === 'a')
+  assert.equal(rowA.topPick, 'b', 'the top-1 cut sees only the headline work')
+  assert.equal(rowA.fullPick, 'c', 'the whole corpus sees the two shared tail works')
+  assert.equal(rowA.same, false)
+})
+
+test('the document prints both cuts instead of choosing quietly', () => {
+  const cross = crossDirection({ a: surveyA, b: surveyB, c: surveyC })
+  const text = renderSynthesis({
+    cross,
+    matrix: pairMatrix(cross, { top: 2 }),
+    bridgeRows: [],
+    coverage: readingCoverage(cross, new Set(), { top: 2 }),
+    generated: '2026-11-23',
+  })
+  assert.match(text, /whole corpus/i)
+  assert.match(text, /nearest/i)
+})
+
+test('a direction reading an older field is named, not just counted', () => {
+  const old = survey([work('1111.11111', 'Old Method.', 9, { year: 2018 }), work('2222.22222', 'Older Still.', 5, { year: 2015 })])
+  const fresh = survey([work('3333.33333', 'New Method.', 4, { year: 2026 })])
+  const mixed = survey([work('1111.11111', 'Old Method.', 2, { year: 2018 }), work('3333.33333', 'New Method.', 2, { year: 2026 })])
+  const cross = crossDirection({ old, fresh, mixed })
+  const era = eraProfile(cross)
+  const byName = Object.fromEntries(era.rows.map((r) => [r.direction, r]))
+  assert.equal(byName.old.medianYear, 2016.5)
+  assert.equal(byName.fresh.medianYear, 2026)
+  assert.equal(byName.old.recentShare, 0)
+  assert.equal(byName.fresh.oldShare, 0)
+  assert.equal(byName.mixed.medianYear, 2022, 'an even split of two years medians to the midpoint')
+  assert.equal(era.rows[0].direction, 'fresh', 'rows are ordered newest first')
+})
+
+test('a work with no known year is left out of the median rather than counted as zero', () => {
+  const cross = crossDirection({ a: survey([work('1111.11111', 'Undated.', 5, { year: null }), work('2222.22222', 'Dated.', 3, { year: 2024 })]) })
+  const row = eraProfile(cross).rows[0]
+  assert.equal(row.withYear, 1)
+  assert.equal(row.medianYear, 2024)
 })

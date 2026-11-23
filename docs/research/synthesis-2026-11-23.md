@@ -129,6 +129,59 @@ Overlap between each pair's 20 most-cited works.
 | containment × research-method | 0 |
 | selfmod × research-method | 0 |
 
+### The same question asked over the whole corpus
+
+The table above cuts each direction to its most-cited works. That cut can flip the
+answer, because the works a direction cites *most* are the shared substrate everyone
+cites, not the works it argues with. Below is the same question asked over every work
+each direction cites, as Jaccard overlap. Neither number is the field; the two are a
+statement about how much the answer depends on where we cut.
+
+| pair | shared | of A | of B | Jaccard |
+| --- | --- | --- | --- | --- |
+| score-noise × research-method | 106 | 463 | 485 | 0.126 |
+| containment × research-method | 62 | 233 | 485 | 0.095 |
+| verifier × human | 74 | 723 | 492 | 0.065 |
+| knowledge × selfmod | 65 | 591 | 682 | 0.054 |
+| score-noise × human | 48 | 463 | 492 | 0.053 |
+| verifier × score-noise | 58 | 723 | 463 | 0.051 |
+| verifier × research-method | 59 | 723 | 485 | 0.051 |
+| verifier × knowledge | 61 | 723 | 591 | 0.049 |
+| verifier × selfmod | 61 | 723 | 682 | 0.045 |
+| human × research-method | 38 | 492 | 485 | 0.040 |
+| human × selfmod | 38 | 492 | 682 | 0.033 |
+| knowledge × research-method | 33 | 591 | 485 | 0.032 |
+
+**Nearest neighbour under both cuts.** 7 of 8 directions change neighbour when the cut moves:
+
+| direction | nearest by top-20 | nearest by whole corpus | same |
+| --- | --- | --- | --- |
+| verifier | score-noise | human | no |
+| score-noise | verifier | research-method | no |
+| budget-stop | verifier | knowledge | no |
+| knowledge | score-noise | selfmod | no |
+| human | verifier | verifier | yes |
+| containment | knowledge | research-method | no |
+| selfmod | score-noise | knowledge | no |
+| research-method | verifier | score-noise | no |
+
+## How old each direction is
+
+Median publication year of the works each direction cites, and the share of them from
+the agent era. A direction whose median citation predates that era is not behind; it is
+importing a method from another field, and the two cases ask for different reading.
+
+| direction | cited | with a year | median year | 2025 or newer | before 2023 |
+| --- | --- | --- | --- | --- | --- |
+| r1-verifier | 723 | 659 | 2025 | 64% | 11% |
+| r2-score-noise | 463 | 446 | 2025 | 52% | 19% |
+| r4-knowledge | 591 | 495 | 2025 | 62% | 18% |
+| r6-containment | 233 | 212 | 2025 | 70% | 5% |
+| r7-selfmod | 682 | 548 | 2025 | 56% | 16% |
+| r8-research-method | 485 | 427 | 2025 | 66% | 11% |
+| r5-human | 492 | 442 | 2024 | 45% | 15% |
+| r3-budget-stop | 122 | 119 | 2019 | 15% | 80% |
+
 ## Cited by many, read by none
 
 | work | year | directions |
@@ -195,12 +248,26 @@ R1 的主结论之一是 `2503.11926` §3.1 的"只看 CoT 的监控优于看动
 
 ## 三、R3 的孤立是这批数据里最响的一句话
 
-共引矩阵里 R3（预算与停止）与其余七个方向的前二十名重叠**全为 0**；它的 122 个被引工作里只有 9.8% 与任何方向共享，是八个方向里最低的，第二名 R7 是 18.2%。它的 top-5 清一色是超参搜索：Hyperband（26 次）、BOHB（20）、Freeze-thaw BO（8）、Fast BO（6）、Regularized Evolution（5）。
+先说一个我上一版写错、这次量出来的数：共引矩阵里 R3（预算与停止）与其余七个方向的前二十名重叠**不是全 0**。四个方向（R1/R2/R5/R7）各与它有 1 篇重叠，那 1 篇是 **`1707.06347` PPO**；另外三个（R4/R6/R8）才是 0。反过来看 R3 自己的 top-20：其中被任何别的方向引过的只有 **1 篇**（还是 PPO）。所以"零交集"是个漂亮但不准确的说法，我改成准确的：
 
-这句话有两种读法，我认为都对了一半：
+**R3 的 122 个被引工作里，只有 12 个（9.8%）被任何其他方向引过——八个方向里最低，第二名 R7 是 18.2%。而这 12 个里，没有一个是预算分配或早停的论文。** 清单是：PPO（6 个方向）、OpenAI Gym（3）、KernelBench（3）、MLS-Bench（3）、SWE-bench+（2）、Longformer（2）、On the (im)possibility of fairness（2），加上五篇"AI 做科研"家族（AI Scientist 被 5 个方向引、AI Scientist-v2、InternAgent、EvoScientist、AutoSci）。也就是说：R3 与另外七个方向共享的全部内容，是**一个优化器、一个环境接口、几个 benchmark，以及一条"自动科研"的产品线**；而它真正的主题——Hyperband（26 次）、BOHB（20）、Freeze-thaw BO（8）、Fast BO（6）、Regularized Evolution（5）——在另外七个方向里**一次都没出现**。
+
+这个更准确的版本比"全为 0"更有信息量，因为它把重叠的性质说清楚了：**共享的是工具，不是问题**。这也说明为什么用"被几种方向引"当相似度会把结论说得比实际更统一。
+
+两种读法我认为都对了一半：
 
 - 悲观的读法：**"给 agent 分配预算"还不是一个领域。** 我们这一类系统（候选、验证、晋升）在方法上其实是从 HPO 借来的，但 agent 文献没有把 HPO 的结论吸收进来——八份 survey 里唯一大量引 HPO 的就是 R3 自己。这意味着我们引用"successive halving 省预算"时，借的是一个在**可分辨、单调、同源**的设定下证明的结论，而我们三条都不满足。
 - 乐观的读法：**这是一个空位。** 如果 agent 文献整体没有预算分配的方法论，那么"在带噪声验证器、非同源 fidelity、n=1 观测的条件下怎样分配评估预算"就是没人写过的问题。R2 给了噪声的刻画，R3 给了分配算法，两边的工具都存在，缺的是把它们接起来的那篇。我们仓库里恰好有 470 轮真实数据，这是别人没有的素材。
+
+还有一个方法上的教训，我把它写进工具里而不是只写在这里：这张矩阵本来只截每个方向被引最多的 20 篇，而**"最被引"与"最相关"不是一回事**——最被引的往往是共同基础设施。用整库算一遍，八个方向里有 **7 个**的最近邻会变（只有 R5 仍是 R1）。所以综合文档现在两套都印：截断视图回答"谁最像谁（含共同工具）"，整库视图回答"谁与谁真的读同一批东西"，并明说两者不一致的方向。R3 在整库视图下最近邻是 R4（Jaccard 0.007，几乎为零），这个"最近邻"本身就是结论：**它没有邻居。**
+
+### 补一个更硬的解释：R3 不是"落后"，是另一个年代
+
+我本来只打算用"零交集"讲这件事，直到把出版年算出来。按被引工作的中位年份排：七个方向都落在 **2024–2025**，R3 落在 **2019**；2025 年以后的占比，七个方向是 **45%–70%**，R3 是 **15%**，而 2023 年以前的占比 R3 是 **80%**，其余方向 **5%–19%**。中位年份与"跨方向共享比例"的 Pearson 相关是 **0.645**（n=8，样本很小，但当参考不当证据）。
+
+这条数字改变了"孤立"的读法。它不是说 agent 文献忘了预算分配，而是说 **R3 在借另一个领域的成熟结论**：Hyperband 2018、BOHB 2018、Freeze-thaw 2015、Fast BO 2016、Regularized Evolution 2019。我们引用"successive halving 省预算"时，借的是一个 2018 年在**可分辨、单调、同源**前提下证明的结论。真正的问题不是"没人做预算分配"，而是"**做预算分配的那套前提，agent 评估一条都不满足**"——这才是能把两个方向接起来的那句话，也是我认为整份综合里最值得转成实验的一条。
+
+顺带一个反面提醒：如果只看"共被引次数"，R3 与 R7 都是"被引不少但共享很少"，看起来同一类；加上年份就分开了——R7 的中位年份是 2025、56% 来自 2025 年后，它是**新领域里的新方向**，R3 是**旧领域里的成熟方法被借过来**。同一张表上同一个数字，背后是两件不同的事。
 
 R3 同时在八份判断里贡献了一个我认为最容易被忽略的数：`1802.01548` §Conclusion 说早停的收益只在"资源更紧"的档位才显著，`2107.05847` §6.5 直说"选一个合适的预算档是实践中未解决的难题"。我们 470 轮里只有 9 轮做过 screening，screen 支出 $0.0750，占全库 $10.2898 的 0.73%。**我们不是"省得不够多"，是根本没进入那个档位。** `docs/l2-state.md` 里那处 21% 的反噬是紧档内的比较（$0.0356 vs $0.0293），把它当成"halving 让我们更贵"读错了量级。
 
@@ -234,68 +301,11 @@ R3 同时在八份判断里贡献了一个我认为最容易被忽略的数：`1
 
 1. **带噪声验证器的预算分配。** R3 的全部算法都假设比较是确定的，R2 说比较有 8–11pp 的噪声（20 个 mutant、p=0.85 时的二项标准误）。把 Wilson 下界塞进 Successive Halving 的淘汰规则会得到什么？我没在语料里看到有人做过。我们有 470 轮真实 (screen, verify) 配对，这是能直接回答的。
 2. **描述符该选什么。** R7 的 archive 依赖描述符正交，而我们的链参数（candidates、planMode、halving）通过 `pSolve` 与墙钟互相耦合。什么描述符能让"两个链在行为上不同"变成一个可计算量？`src/chain/spec-diff.js` 给的是结构差，不是行为差——差在结构上可能行为等价（`candidates` 从 1 到 2 在只有一个任务时完全等价）。
-3. **引用召回率作为门槛。** R8 说带引用的错误答案更危险。我们 1699 条 claim verified、1654 条带 locator，但**报告段落可以一个 claim 都不挂**。如果把"每段至少一条 claim"变成 seal 的必要条件，我们有多少份报告会被退回？这是一个现在就能算、但没人算过的数。
+3. **引用召回率作为门槛。** R8 说带引用的错误答案更危险。我们 1700 条 claim 里 1699 条 verified、1654 条带 locator，看起来已经比语料里大多数方案严格。但我把这句"报告段落可以一个 claim 都不挂"量了出来，结果比我预想的更糟：**13 份封印报告、95 个正文段落，挂上 claim 的段落是 0 个**。原因不是写报告的人偷懒，而是渲染器（`src/research/ledger.js` 的 `renderReport`）只写段落正文，`claimIds` 从来不被渲染到段落上；claim 与证据的关系全部堆在报告末尾的 `## Claims` 表里，正文与它的依据在文本上没有任何连接。所以"每段至少一条 claim"不是一个能直接变成门槛的条件——**得先把这条连接渲染出来，否则任何门槛都是在量一个不存在的东西**。这件事现在就能做（改动小），而它才是 R8 那条结论在我们仓库里真正的落点。
 
 ## 七、这份综合没回答的三件事
 
 1. **八份判断段之间的分歧，有多少是真的分歧、多少是术语。** 我并排读了，也只能靠语感判断"reward hacking 与 ASR 衰减是同一个机制"——这不是可验证的，除非有人把四个方向的机制写成同一套符号。我没做这件事。
-2. **R3 的孤立是文献的缺口，还是我检索的缺口。** 我用"budget / early stopping / successive halving / fidelity / bandit / allocation"检索，返回的全是 HPO。如果 agent 文献里其实有预算分配的论文，只是不用这些词（比如叫"compute-optimal agent"或"inference scaling"），那 R3 的孤立就是我的关键词造成的。
+2. **R3 的孤立是文献的缺口，还是我检索的缺口。** 我用"budget / early stopping / successive halving / fidelity / bandit / allocation"检索，返回的全是 HPO。年份数据部分回答了它：R3 的中位引文年份是 2019、81% 早于 2023，说明它借的是另一个领域的方法而**不是**漏检了今年的 agent 论文——漏检会表现为年份分布与别人一样、只是内容不同。但"agent 文献里有没有用别的词（compute-optimal agent、inference scaling）讲同一件事"仍然没查，那需要一轮以这些词为骨干的检索。
 3. **我们能不能承受一个真正的 final set。** 这条决定第五节第 2 条改不改。470 轮的历史数据能估，我这轮没有估。
 
-
----
-
-## 八、这份综合的证据与沉淀（机器可复算）
-
-上面七节是判断，判断必须能回到字节。这一节记录它回到哪儿。
-
-**封印报告。** 14 条 claim 全部逐字核验通过，报告封在 `~/.dsh/loom/research/ledger/reports/rsi-synthesis-2026-11-23-1795422285609`，seal 为
-`beb31b42fe9674302f94f7a90fd70fa50588a2e55d391e67d56d638d53815ea4`，涉及 14 份正文快照，`scripts/research-replay.mjs` 重算 13/13 份报告完好、14 个 blob 全部 `intact`（全库 306 份快照里 280 份是论文正文）。
-
-| claim | 讲什么 | 依据（locator） |
-| --- | --- | --- |
-| `c-8ed0fc3598d7` | regressional Goodhart：优化力在金奖励与噪声之间分配，所以分数涨不等于真修复涨 | `2210.10760` §4.2.1 |
-| `c-a0bf3d59ce00` | 只看 CoT 的监视远好于只看动作，弱模型（GPT-4o）能监视强模型 | `2503.11926` §3.1 |
-| `c-6d4488db5615` | ImpossibleBench 把"在不可能的测例上通过率"直接叫作弊率 | `2510.20270` Abstract |
-| `c-a3f89646905a` | 单次采样算 pass@k 方差高，论文给无偏重采样估计 | `2107.03374` §2.1 / §3.1 |
-| `c-920c16dfb421` | 评测界的「highest number is best」：SOTA 加粗而不做显著性检验 | `2411.00640` §1 |
-| `c-4ac5e5c6b65c` | multi-fidelity 的前提是 fidelity 与表现"平滑"相关——我们从未检查 | `2107.05847` §4.2.4 |
-| `c-02fe0971e99a` | BOHB 用**最大**可用预算下的模型作结论，而不是最便宜预算上的好成绩 | `1807.01774` §3.2 |
-| `c-b65143702917` | 早停的优势出现在"资源紧张"这一档，不是普遍成立 | `1802.01548` Conclusion |
-| `c-593cce7a9ebd` | MemGPT 的记忆写入与检索完全由 agent 自己决定 | `2310.08560` §2.3 |
-| `c-f1010cd6905a` | Agent Security Bench 把 memory retrieval 列为攻击面，平均 ASR 最高 84.30% | `2410.02644` Abstract |
-| `c-e967f22cf565` | 指令/数据不分是 LLM 的结构性限制（boundary-less tokens） | `2403.14720` §III-A |
-| `c-bc724e75303b` | MAP-Elites 的 archive 按行为描述符分格，它就是"种群" | `1504.04909` §3 |
-| `c-c31d7a4a7a85` | citation recall/precision 可测且很低：只有 51.5% 的句子被引用完全支撑 | `2304.09848` §1 |
-| `c-054c23681636` | Search-R1 把检索当环境的一部分，边推理边发查询 | `2503.09516` §1 |
-
-**沉淀进知识库。** 14 条 claim 全部 sink 成 lesson（`~/.dsh/loom/knowledge.json` 78 → **92** 条，69 条带非空 `notWhen`），每条都带证据 id 与 locator：
-
-| family | lesson | 一句话边界（notWhen 摘） |
-| --- | --- | --- |
-| gate | `lsn-5a63f78c88b6` | 分数是唯一信号且没有东西在对着它优化时 |
-| gate | `lsn-437a46e726e8` | agent 不输出 CoT，或监视器与被监视者同强且可被同一轮操纵时 |
-| gate | `lsn-19cd02a93db7` | 规格与测例一致，或不可解任务已被剔除时 |
-| gate | `lsn-ef90f53da575` | k=1、预算只够一次采样，或判定是确定性的时 |
-| gate | `lsn-208f7df02735` | 报的是区间而不是点，或比较发生在同一份代码的同一次运行内时 |
-| loop | `lsn-457d60d78c26` | 两个档跑的是同一条命令的不同预算，或已做过单调性检查时 |
-| loop | `lsn-2513e483d6b3` | 目标是吞吐而不是最优配置，或最大预算对任何配置都不可负担时 |
-| loop | `lsn-a3bb9d08fc93` | 算力充裕、预算不成约束，或比较发生在等墙钟的算法之间时 |
-| knowledge | `lsn-35fb08d5a3a4` | 有外部策展人编辑知识库，或运行期知识库只读时 |
-| guard | `lsn-8ac8b41792eb` | 没有工具或记忆暴露给不可信文本，或 agent 从不读自己没生成的内容时 |
-| guard | `lsn-cba13f1de566` | 模型不是边界、由独立进程强制边界，或不可信文本进不了指令流时 |
-| chain | `lsn-76ba6388ddef` | 只保留一个变体、不需要 archive，或目标是单一最优答案时 |
-| research | `lsn-f80a20c15525` | 报告只是一份摘要、没有 claim，或每句都绑了 claim id 时 |
-| research | `lsn-cf6b3b0bb404` | 检索发生在生成之前且问题静态，或检索索引在一次运行内不变时 |
-
-**四个没人写过的问题已进台账**（`~/.dsh/loom/research/questions.jsonl`，open 共 14 条）：`q-4e81cbfa7ae7`（我们自己的战役里 killRate 与真实修复数是否按 Goodhart 预测分离）、`q-74cfc020a40c`（screen 是否是 verify 的单调代理）、`q-839ba53c7fb1`（R3 的孤立是文献缺口还是关键词缺口）、`q-b8a6ea13d1da`（我们封印报告句子的 citation recall 是多少）。每条都写了 `closedBy`——什么能把它关掉。
-
-**复算。**
-
-```bash
-node scripts/research-synthesis.mjs --doc docs/research/synthesis-2026-11-23.md --reading directions/synthesis.reading.md
-node scripts/research-replay.mjs rsi-synthesis
-node scripts/research-deepread.mjs --ids .tmp/perdir30.json --terms .tmp/perdir30.json   # 需要重抓正文时
-```
-
-**这一节没有做的：** 14 条 claim 里没有一条是"四个方向的机制是同一个机制"这个判断本身——那是归纳，只能落在上面的散文里；被引数仍然是"本语料内被几篇引"，不是全领域引用数。

@@ -254,6 +254,10 @@ const standing = [
   // work one direction cites is a fact about that direction.
   'tests/self52/prefetch.test.mjs',
   'tests/self52/synthesis.test.mjs',
+  // The synthesis document is generated, so the flag that decides which
+  // surveys it reads has to work: a parsed-and-ignored flag yields a
+  // document that is about the wrong corpus and looks fine.
+  'tests/self52/synthesis-script.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
