@@ -234,7 +234,7 @@ R3 同时在八份判断里贡献了一个我认为最容易被忽略的数：`1
 
 1. **带噪声验证器的预算分配。** R3 的全部算法都假设比较是确定的，R2 说比较有 8–11pp 的噪声（20 个 mutant、p=0.85 时的二项标准误）。把 Wilson 下界塞进 Successive Halving 的淘汰规则会得到什么？我没在语料里看到有人做过。我们有 470 轮真实 (screen, verify) 配对，这是能直接回答的。
 2. **描述符该选什么。** R7 的 archive 依赖描述符正交，而我们的链参数（candidates、planMode、halving）通过 `pSolve` 与墙钟互相耦合。什么描述符能让"两个链在行为上不同"变成一个可计算量？`src/chain/spec-diff.js` 给的是结构差，不是行为差——差在结构上可能行为等价（`candidates` 从 1 到 2 在只有一个任务时完全等价）。
-3. **引用召回率作为门槛。** R8 说带引用的错误答案更危险。我们 1686 条 claim 全部 verified、1640 条带 locator，但**报告段落可以一个 claim 都不挂**。如果把"每段至少一条 claim"变成 seal 的必要条件，我们有多少份报告会被退回？这是一个现在就能算、但没人算过的数。
+3. **引用召回率作为门槛。** R8 说带引用的错误答案更危险。我们 1699 条 claim verified、1654 条带 locator，但**报告段落可以一个 claim 都不挂**。如果把"每段至少一条 claim"变成 seal 的必要条件，我们有多少份报告会被退回？这是一个现在就能算、但没人算过的数。
 
 ## 七、这份综合没回答的三件事
 
@@ -250,7 +250,7 @@ R3 同时在八份判断里贡献了一个我认为最容易被忽略的数：`1
 上面七节是判断，判断必须能回到字节。这一节记录它回到哪儿。
 
 **封印报告。** 14 条 claim 全部逐字核验通过，报告封在 `~/.dsh/loom/research/ledger/reports/rsi-synthesis-2026-11-23-1795422285609`，seal 为
-`beb31b42fe9674302f94f7a90fd70fa50588a2e55d391e67d56d638d53815ea4`，涉及 14 份正文快照，`scripts/research-replay.mjs` 重算 13/13 份报告完好、14 个 blob 全部 `intact`。
+`beb31b42fe9674302f94f7a90fd70fa50588a2e55d391e67d56d638d53815ea4`，涉及 14 份正文快照，`scripts/research-replay.mjs` 重算 13/13 份报告完好、14 个 blob 全部 `intact`（全库 306 份快照里 280 份是论文正文）。
 
 | claim | 讲什么 | 依据（locator） |
 | --- | --- | --- |
@@ -269,7 +269,7 @@ R3 同时在八份判断里贡献了一个我认为最容易被忽略的数：`1
 | `c-c31d7a4a7a85` | citation recall/precision 可测且很低：只有 51.5% 的句子被引用完全支撑 | `2304.09848` §1 |
 | `c-054c23681636` | Search-R1 把检索当环境的一部分，边推理边发查询 | `2503.09516` §1 |
 
-**沉淀进知识库。** 14 条 claim 全部 sink 成 lesson（`~/.dsh/loom/knowledge.json` 78 → **92** 条，70 条带 `notWhen`），每条都带证据 id 与 locator：
+**沉淀进知识库。** 14 条 claim 全部 sink 成 lesson（`~/.dsh/loom/knowledge.json` 78 → **92** 条，69 条带非空 `notWhen`），每条都带证据 id 与 locator：
 
 | family | lesson | 一句话边界（notWhen 摘） |
 | --- | --- | --- |
