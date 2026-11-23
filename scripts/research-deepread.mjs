@@ -47,7 +47,7 @@ import {
 } from '../src/research/deepread.js'
 import { parseSearchPage } from './research-survey.mjs'
 import { gradeNote, renderNote } from '../src/research/note.js'
-import { addEvidence, addClaim } from '../src/research/ledger.js'
+import { addEvidence, addClaim, verifyClaim } from '../src/research/ledger.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..')
@@ -210,12 +210,21 @@ export function readPaper(id, html, terms, { expect = '' } = {}) {
 
 /**
  * Deposit one paper's reading: the body as a snapshot, then one claim per
- * passage that quotes it verbatim and carries its locator.
+ * passage that quotes it verbatim and carries its locator, then the verdict on
+ * each of those claims.
  *
  * Split out of `main` so a spec can run it against a temporary ledger — the
  * rule "no passage, no claim" is the one that decides whether a later
  * verification failure means a bad source or a bad reading, and it must be
  * testable without a network.
+ *
+ * The verification is here rather than left to the caller for a reason that
+ * only showed up live: forty-one claims from the tenth direction sat with no
+ * verdict at all, and `sink` refused every one of them with "no verdict". A
+ * claim nobody checked is indistinguishable from a claim that failed, so the
+ * moment the bytes are in hand is the moment to check. What came back is
+ * reported in the return value — a silently dropped claim turns a parser bug
+ * into a quiet gap in the corpus.
  */
 export function writePaperToLedger(home, read, html, { maxClaims = 8 } = {}) {
   // The snapshot is the body text, not the HTML: a quote is a sentence, and
@@ -227,14 +236,17 @@ export function writePaperToLedger(home, read, html, { maxClaims = 8 } = {}) {
     content: text,
   })
   let registered = 0
+  const verified = []
+  const unverified = []
   for (const passage of (read.passages || []).slice(0, maxClaims)) {
     const quote = passage.text.replace(/\s+/g, ' ')
     if (!quote.trim()) continue
     // A claim quotes the passage verbatim; the locator is where it lives.
     // Without both, `verifyClaim` would either reject the quote or accept a
     // sentence nobody can find again.
+    let claim = null
     try {
-      addClaim(home, {
+      claim = addClaim(home, {
         text: `${read.title || read.id} — ${passage.locator}: ${quote.slice(0, 220)}`,
         evidenceIds: [evidence.id],
         quotes: [quote],
@@ -244,9 +256,21 @@ export function writePaperToLedger(home, read, html, { maxClaims = 8 } = {}) {
       registered += 1
     } catch (err) {
       console.error(`claim skipped for ${read.id}: ${err?.message ?? err}`)
+      continue
     }
+    // The quote is checked against the bytes this deposit just stored. A
+    // failure here is a parser bug, not a bad source, and the verdict says so.
+    const verdict = verifyClaim(home, claim)
+    if (verdict.status === 'verified') verified.push(verdict)
+    else unverified.push(verdict)
   }
-  return { evidenceId: evidence.id, bytes: evidence.bytes, claims: registered }
+  return {
+    evidenceId: evidence.id,
+    bytes: evidence.bytes,
+    claims: registered,
+    verified: verified.length,
+    unverified,
+  }
 }
 
 /** The document's own clock, in the timezone its filename is dated in. */

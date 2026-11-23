@@ -263,6 +263,11 @@ const standing = [
   // arXiv id and an access date all won that race, and 1.3% of cited works
   // got an impossible year. The fix is one exported helper used everywhere.
   'tests/self53/bibliography-year.test.mjs',
+  // A deposit that leaves its claims without a verdict cannot reach the loop:
+  // forty-one of the tenth direction's claims sat that way and sink refused
+  // every one of them. The bytes are in hand at deposit time, so that is when
+  // they get checked -- and what came back is reported, not dropped.
+  'tests/self53/deposit-verifies.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
