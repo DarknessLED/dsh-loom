@@ -1,6 +1,6 @@
 # R8 调研方法本身：文献饱和、系统综述自动化、证据质量与可复算
 
-- 检索：17 条查询（每条最多 2 页 × 50）→ 773 个不同候选，保留 287
+- 检索：17 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 773 个不同候选，保留 287
 - 回溯：读通 49 篇全文的参考文献，共 2732 条引用（5 篇无可用 HTML）
 - 语料内被引：172 个工作被本语料至少两篇论文引用；被引最多的是 11 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -140,10 +140,10 @@
 - (4 篇引) Deepseek-v4: Towards highly efficient million-token context intelligence. · 2026 · arXiv:2606.19348
 - (4 篇引) Glm-5: from vibe coding to agentic engineering. · 2026 · arXiv:2602.15763
 - (4 篇引) Self-rag: Learning to retrieve, generate, and critique through self-reflection. · 2024
-- (3 篇引) Cochrane handbook for systematic reviews of interventions. · 2019
-- (3 篇引) The PRISMA 2020 statement: an updated guideline for reporting systematic reviews. · 2020
+- (3 篇引) Cochrane handbook for systematic reviews of interventions. · 2023
+- (3 篇引) The PRISMA 2020 statement: an updated guideline for reporting systematic reviews. · 2021
 - (3 篇引) The AI scientist-v2: Workshop-level automated scientific discovery via agentic tree search. · 2025 · arXiv:2504.08066
-- (3 篇引) WebThinker: Empowering large reasoning models with deep research capability. · 2026
+- (3 篇引) WebThinker: Empowering large reasoning models with deep research capability. · 2025
 - (3 篇引) Webshop: Towards scalable real-world web interaction with grounded language agents. · 2022 · arXiv:2207.01206
 - (3 篇引) WebSailor: Navigating super-human reasoning for web agent. · 2025 · arXiv:2507.02592
 - (3 篇引) Mind2Web 2: evaluating agentic search with agent-as-a-judge · 2025 · arXiv:2506.21506
@@ -155,7 +155,7 @@
 - (3 篇引) τ \tau -bench: a benchmark for tool-agent-user interaction in real-world domains · 2024 · arXiv:2406.12045
 - (3 篇引) Direct Preference Optimization: Your Language Model is Secretly a Reward Model. · 2024
 - (3 篇引) MMBench: is your multi-modal model an all-around player? · 2024
-- (3 篇引) DocVQA: a dataset for vqa on document images · 2021
+- (3 篇引) DocVQA: a dataset for vqa on document images · 2020
 - (3 篇引) AlphaEvolve: A coding agent for scientific and algorithmic discovery. · 2025 · arXiv:2506.13131
 - (3 篇引) Mind2Web: Towards a generalist agent for the web. · 2023
 
@@ -252,4 +252,4 @@
 - arXiv:2411.02426 — HTTP 404
 - arXiv:2603.17723 — HTTP 404
 
-_生成于 2026-11-22T13:37:29.670Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:07:45.561Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

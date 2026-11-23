@@ -258,6 +258,11 @@ const standing = [
   // surveys it reads has to work: a parsed-and-ignored flag yields a
   // document that is about the wrong corpus and looks fine.
   'tests/self52/synthesis-script.test.mjs',
+  // A bibliography entry's year is read off an entry, not off whatever
+  // four-digit number appears last: a page range, an ISSN, a bracketed
+  // arXiv id and an access date all won that race, and 1.3% of cited works
+  // got an impossible year. The fix is one exported helper used everywhere.
+  'tests/self53/bibliography-year.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

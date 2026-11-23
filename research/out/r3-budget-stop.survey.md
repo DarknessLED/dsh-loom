@@ -1,6 +1,6 @@
 # R3 预算与停止：评估预算、计算最优分配、何时停手
 
-- 检索：18 条查询（每条最多 2 页 × 50）→ 724 个不同候选，保留 369
+- 检索：18 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 724 个不同候选，保留 369
 - 回溯：读通 50 篇全文的参考文献，共 1897 条引用（2 篇无可用 HTML）
 - 语料内被引：145 个工作被本语料至少两篇论文引用；被引最多的是 26 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -18,7 +18,7 @@
 | 15 | 20 | 2011 | “Sequential Model-Based Optimization for General Algorithm Configuration”. | — |
 | 8 | 19 | 2014 | “Freeze-thaw bayesian optimization” | 1406.3896 |
 | 8 | 18 | 2013 | “Almost Optimal Exploration in Multi-Armed Bandits” | — |
-| 7 | 14 | 2012 | “Multi-Task Bayesian Optimization”. | — |
+| 7 | 14 | 2013 | “Multi-Task Bayesian Optimization”. | — |
 | 7 | 6 | 1998 | “Efficient Global Optimization of Expensive Black-Box Functions” | — |
 | 6 | 18 | 2017 | “Fast Bayesian Optimization of Machine Learning Hyperparameters on Large Datasets” | 1605.07079 |
 | 6 | 18 | 2015 | “Efficient and Robust Automated Machine Learning” | — |
@@ -53,7 +53,7 @@
 | 20 | 15 | 2011 | “Sequential Model-Based Optimization for General Algorithm Configuration”. |
 | 19 | 8 | 2014 | “Freeze-thaw bayesian optimization” |
 | 18 | 8 | 2013 | “Almost Optimal Exploration in Multi-Armed Bandits” |
-| 14 | 7 | 2012 | “Multi-Task Bayesian Optimization”. |
+| 14 | 7 | 2013 | “Multi-Task Bayesian Optimization”. |
 | 6 | 7 | 1998 | “Efficient Global Optimization of Expensive Black-Box Functions” |
 | 18 | 6 | 2017 | “Fast Bayesian Optimization of Machine Learning Hyperparameters on Large Datasets” |
 | 18 | 6 | 2015 | “Efficient and Robust Automated Machine Learning” |
@@ -123,7 +123,7 @@
 - (16 篇引) “Practical bayesian optimization of machine learning algorithms,” · 2012
 - (15 篇引) “Sequential Model-Based Optimization for General Algorithm Configuration”. · 2011
 - (8 篇引) “Almost Optimal Exploration in Multi-Armed Bandits” · 2013
-- (7 篇引) “Multi-Task Bayesian Optimization”. · 2012
+- (7 篇引) “Multi-Task Bayesian Optimization”. · 2013
 - (7 篇引) “Efficient Global Optimization of Expensive Black-Box Functions” · 1998
 - (6 篇引) “Fast Bayesian Optimization of Machine Learning Hyperparameters on Large Datasets” · 2017 · arXiv:1605.07079
 - (6 篇引) “Efficient and Robust Automated Machine Learning” · 2015
@@ -249,4 +249,4 @@
 - arXiv:2410.18118 — HTTP 404
 - arXiv:2302.02688 — HTTP 404
 
-_生成于 2026-11-22T13:32:46.514Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:05:59.385Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

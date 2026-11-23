@@ -43,6 +43,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { publicationYear } from '../src/research/citegraph.js'
 
 const SEARCH = 'https://arxiv.org/search/'
 const HTML_BASE = 'https://arxiv.org/html'
@@ -386,16 +387,16 @@ export function parseBibliography(html) {
       if (!raw) continue
       // An arXiv id looks exactly like a year ("2505.22954"), and it sits in the
       // text, so the year is read after the ids are removed. Found on the DGM
-      // bibliography: "AI-GAs" was dated 1905 from arXiv 1905.10985.
-      const withoutIds = raw.replace(/\barxiv[:\s]*[0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?/gi, ' ')
-      const years = [...withoutIds.matchAll(/\b((?:19|20)[0-9]{2})\b/g)].map((m) => Number(m[1]))
+      // bibliography: "AI-GAs" was dated 1905 from arXiv 1905.10985. Page
+      // ranges, ISSNs and access dates fail the same way, so the rule lives in
+      // one place (`publicationYear`) and both readers use it.
       entries.push({
         key,
         cited: counts.get(key) ?? 0,
         authors: blocks[0] ?? '',
         title: cleanTitle(blocks[1] ?? ''),
         venue: plain((/<em[^>]*>([\s\S]*?)<\/em>/.exec(block) || [])[1] || '') || null,
-        year: years.length ? years[years.length - 1] : null,
+        year: publicationYear(raw),
         arxivId: ARXIV_ID_RE.test(raw) ? ARXIV_ID_RE.exec(raw)[1] : null,
         url: (/\bhref="(https?:\/\/[^"]+)"/.exec(block) || [])[1] ?? null,
         raw,

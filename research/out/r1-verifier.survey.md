@@ -1,6 +1,6 @@
 # R1 判决与验证器：奖励黑客、判决可靠性、验证器设计
 
-- 检索：26 条查询（每条最多 3 页 × 50）→ 979 个不同候选，保留 363
+- 检索：26 条查询 + 10 条回填查询（取自 gap 的标题）（每条最多 3 页 × 50）→ 979 个不同候选，保留 363
 - 回溯：读通 70 篇全文的参考文献，共 2954 条引用（6 篇无可用 HTML）
 - 语料内被引：310 个工作被本语料至少两篇论文引用；被引最多的是 31 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -144,7 +144,7 @@
 - (7 篇引) Livecodebench: Holistic and contamination free evaluation of large language models for code. · 2024 · arXiv:2403.07974
 - (6 篇引) SWE-Bench Pro: can AI agents solve long-horizon software engineering tasks? · 2025 · arXiv:2509.16941
 - (6 篇引) Countdown-code: a testbed for studying the emergence and generalization of reward hacking in rlvr · 2026 · arXiv:2603.07084
-- (6 篇引) Introducing SWE-bench Verified · 2026
+- (6 篇引) Introducing SWE-bench Verified · 2024
 - (6 篇引) Glm-5: from vibe coding to agentic engineering. · 2026 · arXiv:2602.15763
 - (6 篇引) DeepSeek-R1 incentivizes reasoning in LLMs through reinforcement learning. · 2025
 - (6 篇引) Reward Hacking in Rubric-Based Reinforcement Learning. · 2026 · arXiv:2605.12474
@@ -255,4 +255,4 @@
 - arXiv:2610.04793 — HTTP 404
 - arXiv:2607.13707 — no HTML rendering (pre-2023 paper, or LaTeX that did not convert)
 
-_生成于 2026-11-22T06:08:21.904Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:03:02.967Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

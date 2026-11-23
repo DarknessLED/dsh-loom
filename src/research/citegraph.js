@@ -29,7 +29,6 @@ const SPAN_BLOCK_RE = /<span[^>]*class="[^"]*ltx_bibblock[^"]*"[^>]*>([\s\S]*?)<
 const TAG_RE = /<[^>]+>/g
 const ARXIV_IN_TEXT_RE = /\barxiv[:\s]*([0-9]{4}\.[0-9]{4,5})(?:v[0-9]+)?/i
 const ARXIV_IN_URL_RE = /arxiv\.org\/(?:abs|pdf)\/([0-9]{4}\.[0-9]{4,5})(?:v[0-9]+)?/i
-const YEAR_RE = /\b((?:19|20)[0-9]{2})\b/g
 
 const ENTITIES = {
   '&nbsp;': ' ',
@@ -43,6 +42,50 @@ const ENTITIES = {
   '&ndash;': '-',
   '&mdash;': '-',
   '&hellip;': '...',
+}
+
+/**
+ * The publication year of a bibliography entry, or null when the entry has none.
+ *
+ * Taking "the last four-digit number in the entry" is right for the common case
+ * and wrong for four others, and the wrong ones are 1.2% of a real corpus: a
+ * page range (`pp. 2044–2056` -> 2056), an ISSN (`ISSN 1935-7524` -> 1935), a
+ * bracketed arXiv id (`[1905.08019]` -> 1905), or an access date
+ * (`[Accessed 14-11-2024]`). A survey direction ranked by its citation years
+ * cannot survive that, so each of those shapes is removed before the year is
+ * looked for, and a parenthesised year wins over a bare one because only APA
+ * style puts the publication year in parentheses.
+ */
+export function publicationYear(raw) {
+  if (typeof raw !== 'string' || !raw) return null
+  // A year has to be plausible as one. "2083" in `374(2083):20160112` is an
+  // issue number, and it is a four-digit number in the 2000s, so a bound is the
+  // only thing that separates it from a publication year. 2030 is the horizon;
+  // beyond that a number is almost certainly an identifier.
+  const YEAR = '(?:19[0-9]{2}|20[0-2][0-9])'
+  let text = raw
+  // Whole spans whose numbers are never the publication year.
+  text = text.replace(/https?:\/\/\S+/gi, ' ')
+  text = text.replace(/\[Accessed[^\]]*\]/gi, ' ')
+  text = text.replace(/\bdoi:\s*\S+/gi, ' ')
+  text = text.replace(/\bISSN[:\s]*\d{4}-\d{3}[\dxX]\b/gi, ' ')
+  text = text.replace(/\b\d{4}-\d{3}[\dxX]\b/g, ' ')
+  // arXiv ids look exactly like years ("2505.22954" -> 2505), bare or bracketed.
+  text = text.replace(/\barxiv[:\s]*[0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?/gi, ' ')
+  text = text.replace(/[0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?/g, ' ')
+  // Page ranges ("2002-2029", "2044-2056") before the numbers they contain.
+  text = text.replace(/\b\d+\s*[\u2013\u2014-]\s*\d+\b/g, ' ')
+  // A parenthesised run of digits that is not a plausible year is an issue, a
+  // volume or a page count: `374(2083):20160112` put "2083" where a year goes.
+  text = text.replace(new RegExp('\\((?!(?:' + YEAR + ')[a-z]?\\))\\s*\\d[\\d\\s]*\\)', 'g'), ' ')
+  // A parenthesised plausible year is the publication year in every style that
+  // uses one, and it is the only year the venue parenthetical can contribute.
+  const paren = [...text.matchAll(new RegExp('\\(' + YEAR + '[a-z]?\\)', 'g'))]
+  if (paren.length) return Number(paren[paren.length - 1][0].replace(/\D/g, '').slice(0, 4))
+  // Otherwise the year sits after a comma, a full stop, or opens the entry, and
+  // never inside a "vol. 12" / "no. 3" / "pp. 44" field.
+  const bare = [...text.matchAll(new RegExp('(?:^|[,.;:(]\\s*)(' + YEAR + ')[a-z]?(?=[\\s,.;:)]|$)', 'g'))]
+  return bare.length ? Number(bare[bare.length - 1][1]) : null
 }
 
 /** A bibliography title often ends with its year ("DAPO: ..., 2025."); the year has its own field. */
@@ -119,9 +162,8 @@ function readEntry(key, body) {
   // An arXiv id looks exactly like a year (2505.22954 -> "2505"), and it sits
   // in the entry text, so the year has to be read after the ids are removed.
   // Found on the DGM bibliography: "AI-GAs" was dated 1905 from arXiv 1905.10985.
-  const withoutIds = raw.replace(/\barxiv[:\s]*[0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?/gi, ' ')
-  const years = [...withoutIds.matchAll(YEAR_RE)]
-  const year = years.length ? Number(years[years.length - 1][1]) : null
+  // Page ranges, ISSNs and access dates are removed for the same reason.
+  const year = publicationYear(raw)
   const arxivId = ARXIV_IN_TEXT_RE.test(raw) ? ARXIV_IN_TEXT_RE.exec(raw)[1] : null
   return { key, ref, authors, title, year, venue, url, arxivId, raw }
 }

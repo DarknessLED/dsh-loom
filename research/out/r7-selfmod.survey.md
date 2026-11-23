@@ -1,6 +1,6 @@
 # R7 自我修改与循环：自改 agent、元进化、多样性崩塌与漂移
 
-- 检索：18 条查询（每条最多 2 页 × 50）→ 740 个不同候选，保留 282
+- 检索：18 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 740 个不同候选，保留 282
 - 回溯：读通 50 篇全文的参考文献，共 3733 条引用（3 篇无可用 HTML）
 - 语料内被引：155 个工作被本语料至少两篇论文引用；被引最多的是 14 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -147,7 +147,7 @@
 - (3 篇引) Measuring mathematical problem solving with the math dataset. · 2021 · arXiv:2103.03874
 - (3 篇引) Aflow: automating agentic workflow generation · 2025 · arXiv:2410.10762
 - (3 篇引) Jailbreaking black-box large language models in twenty queries · 2023 · arXiv:2310.08419
-- (3 篇引) Quality and Diversity Optimization: A Unifying Modular Framework. · 1941
+- (3 篇引) Quality and Diversity Optimization: A Unifying Modular Framework. · 2018
 - (3 篇引) Continual Lifelong Learning with Neural Networks: A Review. · 2019
 - (3 篇引) STaR: Bootstrapping Reasoning With Reasoning. · 2022
 - (3 篇引) AutoDAN: generating stealthy jailbreak prompts on aligned large language models · 2024 · arXiv:2310.04451
@@ -251,4 +251,4 @@
 - arXiv:2603.19461 — HTTP 404
 - arXiv:2610.18813 — no HTML rendering (pre-2023 paper, or LaTeX that did not convert)
 
-_生成于 2026-11-22T13:36:37.850Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:07:23.111Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

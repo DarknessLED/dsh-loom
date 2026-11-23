@@ -1,6 +1,6 @@
 # R2 评分与噪声：连续评分、评估方差、统计功效、噪声闸门
 
-- 检索：18 条查询（每条最多 2 页 × 50）→ 562 个不同候选，保留 373
+- 检索：18 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 562 个不同候选，保留 373
 - 回溯：读通 50 篇全文的参考文献，共 2570 条引用（4 篇无可用 HTML）
 - 语料内被引：165 个工作被本语料至少两篇论文引用；被引最多的是 16 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -73,7 +73,7 @@
 | 4 | 4 | 2022 | Training a helpful and harmless assistant with reinforcement learning from human feedback. |
 | 7 | 3 | 2023 | Self-consistency improves chain of thought reasoning in language models. |
 | 7 | 3 | 2013 | Monte carlo theory, methods and examples |
-| 6 | 3 | 1933 | Does reinforcement learning really incentivize reasoning capacity in LLMs beyond the base model? |
+| 6 | 3 | 2025 | Does reinforcement learning really incentivize reasoning capacity in LLMs beyond the base model? |
 
 ## 各细分方向的开篇（按语料内最早一篇）
 
@@ -146,7 +146,7 @@
 - (4 篇引) “Understanding R1-Zero-Like Training: A Critical Perspective” · 2025
 - (3 篇引) Self-consistency improves chain of thought reasoning in language models. · 2023
 - (3 篇引) Monte carlo theory, methods and examples · 2013
-- (3 篇引) Does reinforcement learning really incentivize reasoning capacity in LLMs beyond the base model? · 1933 · arXiv:2504.13837
+- (3 篇引) Does reinforcement learning really incentivize reasoning capacity in LLMs beyond the base model? · 2025 · arXiv:2504.13837
 - (3 篇引) “Group Sequence Policy Optimization” · 2025 · arXiv:2507.18071
 - (3 篇引) Elements of information theory · 2006
 - (3 篇引) Webarena: a realistic web environment for building autonomous agents · 2023 · arXiv:2307.13854
@@ -252,4 +252,4 @@
 - arXiv:2610.15058 — HTTP 404
 - arXiv:2610.34080 — HTTP 404
 
-_生成于 2026-11-22T13:31:51.275Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:05:48.765Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

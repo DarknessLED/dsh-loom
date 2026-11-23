@@ -1,6 +1,6 @@
 # R4 知识与迁移：经验积累、跨任务迁移、记忆与巩固
 
-- 检索：17 条查询（每条最多 2 页 × 50）→ 638 个不同候选，保留 236
+- 检索：17 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 638 个不同候选，保留 236
 - 回溯：读通 50 篇全文的参考文献，共 2652 条引用（3 篇无可用 HTML）
 - 语料内被引：318 个工作被本语料至少两篇论文引用；被引最多的是 19 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -26,7 +26,7 @@
 | 9 | 17 | 2024 | Evaluating very long-term conversational memory of llm agents. | 2402.17753 |
 | 8 | 17 | 2026 | SkillRL: Evolving Agents via Recursive Skill-Augmented Reinforcement Learning. | 2602.08234 |
 | 8 | 12 | 2024 | SWE-bench: Can language models resolve real-world github issues? | 2310.06770 |
-| 8 | 11 | 2010 | ALFWorld: Aligning text and embodied environments for interactive learning. | 2010.03768 |
+| 8 | 11 | 2021 | ALFWorld: Aligning text and embodied environments for interactive learning. | 2010.03768 |
 | 8 | 11 | 2020 | Language models are few-shot learners. | 2005.14165 |
 | 8 | 10 | 2021 | LoRA: Low-Rank Adaptation of Large Language Models. | 2106.09685 |
 | 8 | 9 | 2025 | Qwen3 technical report. | 2505.09388 |
@@ -37,7 +37,7 @@
 | 7 | 13 | 2026 | Memp: Exploring agent procedural memory. | 2508.06433 |
 | 7 | 13 | 2025 | Memory os of ai agent. | 2506.06326 |
 | 7 | 12 | 2024 | Deepseekmath: Pushing the limits of mathematical reasoning in open language models. | 2402.03300 |
-| 7 | 10 | 2025 | Lightmem: Lightweight and efficient memory-augmented generation. | 2510.18866 |
+| 7 | 10 | 2026 | Lightmem: Lightweight and efficient memory-augmented generation. | 2510.18866 |
 | 7 | 9 | 2025 | Memos: A memory os for ai system. | 2507.03724 |
 
 ## 反复被对比的基线（单篇内被多次引用）
@@ -61,7 +61,7 @@
 | 17 | 9 | 2024 | Evaluating very long-term conversational memory of llm agents. |
 | 17 | 8 | 2026 | SkillRL: Evolving Agents via Recursive Skill-Augmented Reinforcement Learning. |
 | 12 | 8 | 2024 | SWE-bench: Can language models resolve real-world github issues? |
-| 11 | 8 | 2010 | ALFWorld: Aligning text and embodied environments for interactive learning. |
+| 11 | 8 | 2021 | ALFWorld: Aligning text and embodied environments for interactive learning. |
 | 11 | 8 | 2020 | Language models are few-shot learners. |
 | 10 | 8 | 2021 | LoRA: Low-Rank Adaptation of Large Language Models. |
 | 9 | 8 | 2025 | Qwen3 technical report. |
@@ -72,7 +72,7 @@
 | 13 | 7 | 2026 | Memp: Exploring agent procedural memory. |
 | 13 | 7 | 2025 | Memory os of ai agent. |
 | 12 | 7 | 2024 | Deepseekmath: Pushing the limits of mathematical reasoning in open language models. |
-| 10 | 7 | 2025 | Lightmem: Lightweight and efficient memory-augmented generation. |
+| 10 | 7 | 2026 | Lightmem: Lightweight and efficient memory-augmented generation. |
 | 9 | 7 | 2025 | Memos: A memory os for ai system. |
 
 ## 各细分方向的开篇（按语料内最早一篇）
@@ -127,7 +127,7 @@
 - (9 篇引) Evaluating very long-term conversational memory of llm agents. · 2024 · arXiv:2402.17753
 - (8 篇引) SkillRL: Evolving Agents via Recursive Skill-Augmented Reinforcement Learning. · 2026 · arXiv:2602.08234
 - (8 篇引) SWE-bench: Can language models resolve real-world github issues? · 2024 · arXiv:2310.06770
-- (8 篇引) ALFWorld: Aligning text and embodied environments for interactive learning. · 2010 · arXiv:2010.03768
+- (8 篇引) ALFWorld: Aligning text and embodied environments for interactive learning. · 2021 · arXiv:2010.03768
 - (8 篇引) Language models are few-shot learners. · 2020 · arXiv:2005.14165
 - (8 篇引) LoRA: Low-Rank Adaptation of Large Language Models. · 2021 · arXiv:2106.09685
 - (8 篇引) Qwen3 technical report. · 2025 · arXiv:2505.09388
@@ -138,7 +138,7 @@
 - (7 篇引) Memp: Exploring agent procedural memory. · 2026 · arXiv:2508.06433
 - (7 篇引) Memory os of ai agent. · 2025 · arXiv:2506.06326
 - (7 篇引) Deepseekmath: Pushing the limits of mathematical reasoning in open language models. · 2024 · arXiv:2402.03300
-- (7 篇引) Lightmem: Lightweight and efficient memory-augmented generation. · 2025 · arXiv:2510.18866
+- (7 篇引) Lightmem: Lightweight and efficient memory-augmented generation. · 2026 · arXiv:2510.18866
 - (7 篇引) Memos: A memory os for ai system. · 2025 · arXiv:2507.03724
 - (7 篇引) PackNet: Adding multiple tasks to a single network by iterative pruning. · 2018
 - (7 篇引) Memento: Fine-tuning llm agents without fine-tuning llms. · 2025 · arXiv:2508.16153
@@ -152,7 +152,7 @@
 - (5 篇引) Cognitive architectures for language agents. · 2023 · arXiv:2309.02427
 - (5 篇引) Progressive neural networks. · 2016 · arXiv:1606.04671
 - (5 篇引) Skillx: Automatically constructing skill knowledge bases for agents. · 2026 · arXiv:2604.04804
-- (5 篇引) SimpleMem: Efficient lifelong memory for LLM agents. · ? · arXiv:2601.02553
+- (5 篇引) SimpleMem: Efficient lifelong memory for LLM agents. · 2026 · arXiv:2601.02553
 - (5 篇引) Agentic context engineering: Evolving contexts for self-improving language models. · 2026 · arXiv:2510.04618
 - (5 篇引) HippoRAG: neurobiologically inspired long-term memory for large language models · 2024 · arXiv:2405.14831
 - (5 篇引) Dense passage retrieval for open-domain question answering. · 2020 · arXiv:2004.04906
@@ -250,4 +250,4 @@
 - arXiv:2503.01058 — HTTP 404
 - arXiv:2610.39180 — HTTP 404
 
-_生成于 2026-11-22T13:33:32.697Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:06:15.137Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_

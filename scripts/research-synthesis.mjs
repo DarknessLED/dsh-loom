@@ -31,6 +31,7 @@ const DIRECTIONS = [
   'r6-containment',
   'r7-selfmod',
   'r8-research-method',
+  'r10-eval-budget',
 ]
 
 export function parseArgs(argv) {

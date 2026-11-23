@@ -1,6 +1,6 @@
 # R5 编排与人机：审批闸门、自主度、监督与责任
 
-- 检索：17 条查询（每条最多 2 页 × 50）→ 669 个不同候选，保留 267
+- 检索：17 条查询 + 8 条回填查询（取自 gap 的标题）（每条最多 2 页 × 50）→ 669 个不同候选，保留 267
 - 回溯：读通 50 篇全文的参考文献，共 2868 条引用（11 篇无可用 HTML）
 - 语料内被引：133 个工作被本语料至少两篇论文引用；被引最多的是 13 篇
 - 说明：所有"被引"都是**本语料内**的引用，不是全领域引用数。arXiv 的搜索页与全文 HTML 无需额度，API 当时在 429。
@@ -156,7 +156,7 @@
 - (3 篇引) Flow matching for generative modeling. · 2023 · arXiv:2210.02747
 - (3 篇引) Let’s verify step by step. · 2024
 - (3 篇引) Self-consistency improves chain of thought reasoning in language models · 2023 · arXiv:2203.11171
-- (3 篇引) Risks from Learned Optimization in Advanced Machine Learning Systems. · 1906 · arXiv:1906.01820
+- (3 篇引) Risks from Learned Optimization in Advanced Machine Learning Systems. · 2019 · arXiv:1906.01820
 - (3 篇引) Training verifiers to solve math word problems. · 2021 · arXiv:2110.14168
 
 ## 全部候选（按综合分）
@@ -258,4 +258,4 @@
 - arXiv:2604.23635 — HTTP 404
 - arXiv:2512.10304 — HTTP 404
 
-_生成于 2026-11-22T13:34:59.967Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
+_生成于 2026-11-23T15:07:07.456Z；缓存见 .cache/（搜索页与全文 HTML 都在里面）。_
