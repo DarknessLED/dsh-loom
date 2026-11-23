@@ -1,9 +1,13 @@
 # RSI 插件优化规格（2026-11-23）
 
 > 依据：八方向各 42 篇基石正文精读（336 篇 pick，读到 305 篇，1610 段带 locator 的逐字引文）、
-> 8 份 `directions/r*-*.deep2.reading.md`、`directions/synthesis.reading.md`、
+> 8 份 `directions/r*-*.deep2.reading.md`、`directions/synthesis.reading.md`（含跨方向共引、
+> 截断效应与年代剖面）、`docs/research/synthesis-2026-11-23.md`、
 > 账本 1700 claim（1699 verified / 1 contradicted / 1654 带 locator）与 13 份封印报告。
 > 本文只写「改什么、为什么、红 spec 长什么样、会错在哪」，实现与提交另起。
+>
+> 修订（2026-11-23 晚）：跨方向综合复核时纠正了三个数、量出了一个此前只是猜测的事实，
+> 据此改写了 P0-4，新增 §2 陷阱三，并把「相似度依赖切点」写进边界。改动处均标 **[修订]**。
 
 ---
 
@@ -23,6 +27,8 @@
 1. 所有「被引多少」都是**本语料内**的计数，不是全领域被引数。
 2. 判断段（`directions/*.reading.md`）是人写的归纳，不是论文原话；每条判断都尽标注了 locator，但「所以我们应该改 X」这一步是我的推理。
 3. `splitShared` 的 ideas / infrastructure 分类是标题启发式，已误判过一次（`2501.12948` DeepSeek-R1 被归进基础设施）；结论只读「shared ideas」表里的大项，不读单条。
+4. **[修订] 任何「几个方向看法一致」的句子都依赖一个切点。** 共引矩阵只截每个方向被引最多的 20 篇；用整库 Jaccard 重算，八个方向里 **7 个**的最近邻会变（只有 R5 的最近邻两侧都是 R1）。最被引的往往是共同基础设施（PPO、基座模型、benchmark），不是被争论的东西。所以本文引用「方向之间共享什么」时，一律同时给两种口径，不给单一口径。
+5. **[修订] 分清「文献说的」与「我在本机数的」。** §8 的表只收有 claim id 的文献结论；本机测量（战役数、段落覆盖率、R3 的共享比例）单独标注，它们没有封印、可复算但没有作者背书。混在一起会让读者以为「95 个段落没挂 claim」是某篇论文的发现。
 
 **写法（照 `tests/self37/spec-index.test.mjs` 与 TDD 的规矩）**
 
@@ -32,9 +38,9 @@
 
 ---
 
-## 2. 先看两个陷阱：改了不生效的地方
+## 2. 先看三个陷阱：改了不生效的地方
 
-这两条不是改动，是**前提**。不先说清，后面所有关于噪声与 holdout 的改动都会变成空转。
+这三条不是改动，是**前提**。不先说清，后面所有关于噪声、holdout 与引用的改动都会变成空转。
 
 ### 陷阱一：`decidePromotion` 不在主路径上
 
@@ -61,6 +67,25 @@ beatsIncumbent: taskBest === null || (score - taskBest >= policy.minGain - 1e-9 
 `gate.js:358-362` 那条「holdout 变好没有记录、变坏才拒绝」的规则读 `candidate.holdoutScore` / `incumbent.holdoutScore`；而真实轮次只写 `checks.holdout: true | false | 'skipped'`（`round.js:2415`、`2465`、`2472`、`2475`、`2477`、`2502`），**从不写分数**。
 
 **后果**：「holdout 只是回归检查」这句话现在有两重含义：规则本身只做否决（事实），而且它连输入都收不到（更强的事实）。P1-1 要修的就是这个。
+
+### 陷阱三 **[修订]**：报告段落与它引的 claim 之间没有文本连接
+
+`src/research/ledger.js:256` 的 `renderReport` 逐段只写 `cleanText(paragraph.text)`（`:262-264`），
+`paragraph.claimIds` **从不被读**。claim 与证据的关系全部落在报告末尾的 `## Claims` 表里，
+正文与它的依据在文本上没有任何连接。
+
+**这不是推测，是数出来的**：13 份封印报告、95 个正文段落里，**76 个（80%）一个 claim id 都没提到**。
+剩下 19 个全部来自同一份报告（`deep-r1-r8-structural-findings`），而那 19 个是我写正文时**手敲进去的**
+`· c-xxxx [verified]` 字样——不是渲染器写的（渲染器写的话会按段落声明的顺序出现，而这 19 个的 id
+是逐条手抄的）。换句话说：连接能力今天完全由作者手工提供，渲染器一次都没用过 `claimIds`。
+
+（脚本口径：切到 `## Claims` 之前、按空行分段、长度 >40 字符、不以 `#`/`|`/`>` 开头的段落，
+两个数分别是「段落里出现任何 `[0-9a-f]{8,}` 形态的 claim id」与「出现 `[c-…]` 方括号标记」。）
+
+**后果**：P0-4 原本写的是「给 manifest 加覆盖率字段」。加字段是对的，但**先加字段等于量一个不存在的东西**——
+今天由渲染器生成的覆盖率是 0，不是因为写得敷衍，而是因为渲染器没有这个能力。所以 P0-4 拆成两半，
+第一半是把连接渲染出来，第二半才是统计。这也顺带解释了为什么 `claimIds` 在工具 schema 里
+（`src/tools/index.js:1243`）存在了整整一轮却没有任何文档产出过它。
 
 ---
 
@@ -142,11 +167,24 @@ beatsIncumbent: taskBest === null || (score - taskBest >= policy.minGain - 1e-9 
   3. 只有当差异全部落在「`insufficient tasks`」这一个理由上时才继续——那说明要改的是 `minTasks` 的语义（轮次级任务数应改成「该任务历史上被评过几次」），不是合并本身；
   4. 验证：`tests/self53/one-promotion-rule.test.mjs` 绿 + 影子对照表写进 `docs/l2-state.md`。
 
-#### P0-4 封印报告带引用覆盖率
+#### P0-4 **[修订]** 封印报告带引用覆盖率（先接线，再统计）
 
 - **文献**：`2304.09848` §1「merely 51.5% of generated sentences are fully supported」；`2508.04183` §1 的 claim 分解。claim `c-c31d7a4a7a85`。
-- **现状锚点**：`src/research/ledger.js:256` 的 `renderReport` 只输出 `## Claims` 表；`sealReport`（`ledger.js:296`）的 manifest 里没有覆盖率。账本现状 1700 claim / 1699 verified，但**报告段落可以不挂任何 claim**，封印照样通过。
-- **红 spec**：`tests/self53/seal-counts-unsupported-paragraphs.test.mjs`
+- **现状锚点**：§2 陷阱三。`src/research/ledger.js:256` 的 `renderReport` 只输出 `## Claims` 表、从不写 `paragraph.claimIds`；`sealReport`（`ledger.js:296`）的 manifest 里没有覆盖率。**实测 13 份报告 / 95 个正文段落里 76 个什么都没挂**，另 19 个是同一份报告里手敲的 id、渲染器一次没用过 `claimIds`——所以这条改动的第一步不是统计，是让段落能挂。
+- **红 spec 一（接线）**：`tests/self53/report-renders-its-claim-links.test.mjs`
+  ```js
+  // 今天失败：report.md 里根本没有 claim id 出现在正文行上
+  const sealed = sealReport(home, {
+    topic: 't',
+    sections: [{ heading: 'A', paragraphs: [{ text: 'Two budgets, not one.', claimIds: ['c-1'] }] }],
+    claims: [{ id: 'c-1', status: 'verified', text: 'Two budgets.', note: '1 quote' }],
+  })
+  const body = readFileSync(join(sealed.dir, 'report.md'), 'utf8')
+  const para = body.split('## Claims')[0]
+  assert.match(para, /Two budgets, not one\.[^\n]*\[c-1\]/, 'the paragraph carries the id it rests on')
+  // 没有 claimId 的段落不许被伪造一条：仍然原样输出
+  ```
+- **红 spec 二（统计）**：`tests/self53/seal-counts-unsupported-paragraphs.test.mjs`
   ```js
   // 今天失败：manifest 没有 coverage 字段
   const sealed = sealReport(home, { topic:'t', sections:[{heading:'A', paragraphs:[{text:'no claim here'}]}], claims:[] })
@@ -154,9 +192,17 @@ beatsIncumbent: taskBest === null || (score - taskBest >= policy.minGain - 1e-9 
   assert.equal(sealed.manifest.coverage.cited, 0)
   assert.equal(sealed.manifest.coverage.uncited, 1)
   ```
-- **改法**：`renderReport` 统计「有 claimId 的段落 / 总段落」，数据透传到 manifest 的 `coverage`；报告首行输出 `coverage: 3/7 paragraphs cite a claim`；`verifySeal` 不动（覆盖率是内容，改了 seal 自然会变）。另加**引用召回**：`renderReport` 数「`claims` 表里出现的不同 evidence id 数 / manifest 里 pinned 的 evidence 数」（今天恒等于全部，因为没人统计缺失）。
-- **会错在哪**：段落级只是句级的粗近似，不能当精确率用；覆盖率高的报告也可能引用的是自己上一段。规格里必须写「覆盖率是下限，不是质量分」。已有的 13 份报告不会回溯加字段——只在 manifest 里加，旧报告读出来是 `coverage: null`，不许假装是 0。
-- **验收**：spec 绿 + `scripts/research-replay.mjs` 仍 13/13（新字段进了 manifest 就会改 seal，所以**旧报告不重封**）。
+- **改法**：
+  1. `renderReport` 在每个段落末尾追加 `[c-xxx, c-yyy]`（只写段落自己声明的 id，**不**根据文字相似度猜）；
+  2. 同一函数统计 `{paragraphs, cited, uncited, claimsListed, claimsNotInBody}`，透传到 manifest 的 `coverage`；
+  3. 报告首行输出 `coverage: 3/7 paragraphs cite a claim`；`verifySeal` 不动（覆盖率是内容，改了 seal 自然会变）；
+  4. 可选（另一条 commit）：`claimsNotInBody` 非空时 `verifySeal` 不算失败，但 `scripts/research-replay.mjs` 打印出来——那是「列在表里、没被任何段落用到」的 claim。
+- **会错在哪**：
+  - 段落级只是句级的粗近似，不能当精确率用；覆盖率高的报告也可能引用的是自己上一段。规格里必须写「覆盖率是下限，不是质量分」。
+  - 接线之后**旧报告的渲染结果会变**。已封的 13 份报告不许重封（重封等于换掉历史），它们的 manifest 读出来是 `coverage: null`；新报告才有。
+  - 统计口径要能区分「作者手敲的 id」与「渲染器写的 id」：只数 manifest 里由 `paragraph.claimIds` 生成的标记，别把正文里手写的字样算成覆盖率——两者混在一起正是当前 19/95 这个数看起来还不错的原因。
+  - `[c-1]` 这种标记是**给人看的**，不是给机器解析的权威来源——权威仍是 `## Claims` 表与 manifest。
+- **验收**：两条 spec 绿；新封一份报告能看到段落带 id 与 manifest 里的 coverage；`scripts/research-replay.mjs` 仍 13/13；`docs/research/` 里新增的报告带覆盖率。
 
 ### P1（结构改动）
 
@@ -251,7 +297,8 @@ P1-4（独立，先只记录）
 P2-*（任意时候，互不依赖）
 ```
 
-- **本轮建议**：P0-4 + P1-2（各一个下午，互不依赖，能立刻降低「带引用的错误答案」与「外部句子当指令」两个面），P0-3 用影子对照起头。
+- **[修订] P0-4 内部有顺序**：先接线（渲染 claim 链接），再统计（manifest 覆盖率）。反过来的话，由渲染器算出的覆盖率全是 0，字段加了也读不出任何信息——这正是本轮量出来的 0（手敲那 19 个不算，因为下一份报告不会有）。
+- **本轮建议**：P0-4（接线 + 统计）+ P1-2（各一个下午，互不依赖，能立刻降低「带引用的错误答案」与「外部句子当指令」两个面），P0-3 用影子对照起头。
 - **下一轮**：P0-1 → P1-1 → P1-3，这三条是一条链，必须一起验收（单独看 P0-1 会得到「棒子变了但没人用」的假象）。
 - **不许跳过 P0-3 直接做 P0-1**：改完不生效，是这份规格里最容易犯的错。
 
@@ -271,20 +318,25 @@ P2-*（任意时候，互不依赖）
 | `knowledge.json` lesson / 带 `notWhen` | 92 / 69 | 同上 |
 | `decisions.json` 记录 | 5 | 同上 |
 | `pruneLessons` 的调用点 | **0** | `grep -rn pruneLessons src/` |
-| 全量 suite | 315/315 | `node scripts/test-all.mjs` |
+| 全量 suite | **316/316** | `node scripts/test-all.mjs` |
+| **[修订]** 封印报告中「段落挂 claim」的比例 | **76 / 95 什么都没挂（80%）**；另 19 个是作者手敲的 id，渲染器 0 次 | `~/.dsh/loom/research/ledger/reports/*/report.md`；口径见 §2 陷阱三 |
+| **[修订]** R3 与其余方向的共享 | **12 / 122（9.8%）**，八方向最低；其中 0 篇关于预算分配或早停 | `research/out/*.survey.json` + `scripts/research-synthesis.mjs` |
+| **[修订]** R3 的引文中位年份 | **2019**（其余 2024–2025）；80% 早于 2023 | 同上（`eraProfile`） |
+| **[修订]** 截断视图下「最近邻」会变的方向数 | **7 / 8** | 同上（`truncationEffect`） |
 
-三个数最容易被说错，特别记下来：
+四个数最容易被说错，特别记下来：
 
 1. **92.7%**：所以「合并两条晋升路径」不是重构，是停掉九成历史行为——P0-3 的四步顺序不能省。
 2. **95/138 没有 holdout 池**：所以 P1-1 的第二个读数在多数战役里根本不存在，写「加一个读数」之前得先承认「没有第二个读数」是常态。
 3. **9 轮 screening / 0.73%**：所以 P1-3 的所有改动都在一个几乎没有被用过的路径上；它的收益上限是 0.73% 的支出，不该按「能省很多钱」来估。
+4. **[修订] 76/95 段落一个 claim id 都没提**：所以 P0-4 不是「加一个质量指标」，是「把连接从手工改回机器」。它今天看起来不是 0（19/95）只是因为我在一份报告里手敲了 id——那种做法不可能复制到每一份报告。正确的第一步是让渲染器接管，而不是让人继续抄。
 
 ---
 
 ## 7. 验收（整份规格）
 
 1. 每条改动的红 spec 在改之前**因为缺行为**失败，红的原因写进 commit message；变绿后 append 进 `scripts/test-all.mjs`。
-2. `node scripts/test-all.mjs` 全绿（当前 315/315）。
+2. `node scripts/test-all.mjs` 全绿（当前 **316/316**）。
 3. `docs/contracts.md` 与实现同步（`tests/self11/docs-coverage.test.mjs` 会让新模块没文档就失败）。
 4. `docs/l2-state.md`：halving 21% 那条 Correction 保持；新增一条「两条晋升路径何时合一、影子对照的不一致轮次数」。
 5. **诚实条款**：任何一条改动如果在真实战役里量不出收益，把观测写进 `docs/` 并保留 spec（spec 记录的是契约，不是效果）；不许为了让 spec 变绿而放宽断言。
@@ -310,5 +362,15 @@ P2-*（任意时候，互不依赖）
 | `c-920c16dfb421` | `2411.00640` | §1 | P0-4、P1-1 |
 | `c-054c23681636` | `2503.09516` | §1 | P2-2 |
 
-复算：`node scripts/research-replay.mjs`（13/13 seal）、`node scripts/research-synthesis.mjs --out-dir research/out`（共引矩阵）、
+上表的每一行都有一条**带封印**的 claim 支撑（`~/.dsh/loom/research/ledger/claims.jsonl`）。下面这三条是**本机测量**，没有封印、没有作者背书，只可复算：
+
+| 量 | 值 | 复算方式 | 支撑了哪条改动 |
+| --- | --- | --- | --- |
+| 报告段落挂 claim 的比例 | 76 / 95 全裸；19 个手敲 | 见 §2 陷阱三的口径；`node -e` 扫 `reports/*/report.md` | P0-4 |
+| R3 的跨方向共享 | 12 / 122 | `node scripts/research-synthesis.mjs --out-dir research/out` | P1-3 的前提论证 |
+| R3 引文中位年份 | 2019 | 同上（`eraProfile` 段） | P1-3：不是「没人做」，是「前提不成立」 |
+
+**R3 这条为什么值得单列（[修订]）**：上一版本写「R3 与其余七个方向零交集」，复核后是错的——四个方向各与它共享 1 篇，都是 PPO。更准确、也更有用的说法是：它共享的 12 篇全是**工具**（一个优化器、一个环境接口、几个 benchmark、一条「AI 做科研」产品线），没有一篇是预算分配或早停；而它真正依赖的 Hyperband / BOHB / freeze-thaw / regularized evolution 在其余七个方向一次都没出现。加上年代（中位 2019、80% 早于 2023），结论从「agent 文献忽略了预算分配」变成「**做预算分配的那套前提（可分辨、单调、同源）agent 评估一条都不满足**」。P1-3 的价值全部押在这句话上，所以它必须写对。
+
+复算：`node scripts/research-replay.mjs`（13/13 seal）、`node scripts/research-synthesis.mjs --out-dir research/out`（共引矩阵、整库 Jaccard、年代剖面）、
 `~/.dsh/loom/research/ledger/claims.jsonl`（1700 行）。
