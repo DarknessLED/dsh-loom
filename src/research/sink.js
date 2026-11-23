@@ -147,6 +147,12 @@ export function lessonFromClaim(claim, { family, notWhen } = {}) {
     evidence,
     notWhen: boundaries,
     source: 'research',
+    // A claim reaches here only after its quoted span was found in a stored
+    // snapshot, so its trust is `verified` — higher than anything the loop can
+    // say about itself. Its *origin* is still external: the subject is a paper's
+    // finding, not a thing this tree was watched doing.
+    origin: 'research-claim',
+    trust: 'verified',
     confidence: evidenceIds.length > 1 ? MAX_CONFIDENCE : 0.6,
   }
 }

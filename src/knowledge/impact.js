@@ -331,6 +331,13 @@ export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
     tags: Array.isArray(task?.tags) ? task.tags.slice(0, 8) : [],
     kind,
     claim,
+    // Where the sentence came from, because the brief prints lessons to the next
+    // worker and a sentence a model wrote about its own work reads differently
+    // from one a paper wrote about someone else's. The loop can only vouch for
+    // what it watched happen, so its lessons are `self-observed`; a lesson folded
+    // in from the research ledger carries `research-claim` (src/research/sink.js).
+    origin: 'self-observed',
+    trust: 'observed',
     evidence: `round ${round ?? '?'} attempt ${attempt?.id ?? '?'} verified (score ${attempt?.score ?? 0})`,
     // Where the lesson applies. A lesson is about files, not about the round
     // that happened to earn it: without this the tree can only group claims by

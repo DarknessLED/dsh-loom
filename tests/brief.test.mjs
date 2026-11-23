@@ -171,9 +171,11 @@ function fence(text) {
   const brief = buildWorkerBrief({ objective: 'o', task: { prompt: 'p' }, lessons, notes })
   ok(brief.includes('lesson claim 3') && !brief.includes('lesson claim 4'), 'lessons capped at 3')
   ok(brief.includes('sibling note 5') && !brief.includes('sibling note 6'), 'notes capped at 5')
-  eq((brief.match(/- \[fact\]/g) || []).length, 3, 'exactly 3 lesson lines are rendered')
+  // The tag now carries provenance as well as kind: a lesson with no recorded
+  // origin is labelled `unknown` rather than printed as if the loop observed it.
+  eq((brief.match(/- \[fact unknown\]/g) || []).length, 3, 'exactly 3 lesson lines are rendered')
   eq((brief.match(/- \[finding\]/g) || []).length, 5, 'exactly 5 note lines are rendered')
-  ok(brief.includes('- [fact] lesson claim 1'), 'lessons render their kind tag')
+  ok(brief.includes('- [fact unknown] lesson claim 1'), 'lessons render their kind tag')
   ok(brief.includes('- [finding] sibling note 1'), 'notes render their kind tag')
 }
 

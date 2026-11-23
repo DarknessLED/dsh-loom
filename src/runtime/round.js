@@ -17,10 +17,12 @@ import {
 import { makePatch, applyPatch } from '../exec/patch.js'
 import { DEFAULT_CONFIG } from '../core/config.js'
 import { toMs } from '../core/clock.js'
-import { scoreAttempt, rankAttempts } from '../gate/gate.js'
+import { scoreAttempt, rankAttempts, decidePromotion } from '../gate/gate.js'
 import { scoreOf } from '../gate/score.js'
+import { commitDecision, pairedHistory, pairedAgainstBase } from '../gate/sequential.js'
 import { verifyMetrics } from '../gate/metrics.js'
 import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
+import { descriptorOf } from '../chain/descriptor.js'
 import { measureDeclined, measureDeclinedGate, measurePrediction } from '../chain/measure.js'
 import { readDecisions, appendDecision } from '../loop/decisions.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
@@ -33,7 +35,7 @@ import { selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson, shapeOf } from '../knowledge/impact.js'
 import { readGlobalLessons, appendGlobalLesson } from '../knowledge/store.js'
 import { induceProcedures } from '../knowledge/procedure.js'
-import { pickSurvivors, screenEnabled } from './halving.js'
+import { fidelityCheck, halvingPlan, pickSurvivors, screenEnabled } from './halving.js'
 import { adaptiveCandidateMode, secondCandidateGate } from './candidates.js'
 import { planCandidates } from '../loop/candidates.js'
 import { exposeIndexes } from './exposure.js'
@@ -1390,9 +1392,34 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   const plan = []
   for (let i = 1; i <= candidates; i += 1) plan.push({ i, attemptId: `r${n}a${i}` })
   const holdoutFamilies = (state.evalset.holdout || []).slice(0, 50)
-  const screening = screenEnabled({ task, config: { ...config, halving: { ...config.halving, enabled: policy.halving } }, candidates })
+  // The cheap stage is only a discount if it ranks like the expensive one. The
+  // check reads this campaign's own record, so a proxy that has been pointing
+  // the wrong way turns screening off even though the task still declares one
+  // and the config still enables it. A short record is not a pattern: it says
+  // halving stays on and says why.
+  const fidelity = fidelityCheck(view.state?.rounds, {
+    window: config.halving?.fidelityWindow ?? 5,
+    minAgreement: config.halving?.fidelityAgreement ?? 0.6,
+  })
+  const screening = screenEnabled({
+    task,
+    config: { ...config, halving: { ...config.halving, enabled: policy.halving && fidelity.halving } },
+    candidates,
+  })
+  // What this round could spend on candidates at all. The freed shares are a
+  // fraction of a real ceiling, not a made-up 1.0: a campaign with $4 left pays
+  // $1 per candidate, and a dropped candidate frees $1 of it.
+  const halvingCeiling = Math.max(0, (Number(state.budget?.usd) || 0) - spentUsd)
+  const schedule = screening
+    ? halvingPlan({ candidates, eta: config.halving?.eta ?? 2, maxUsd: halvingCeiling, keepRatio: config.halving?.keepRatio })
+    : halvingPlan({ candidates: 1, maxUsd: halvingCeiling })
   const screenInfo = new Map()
   let survivors = plan.map((p) => p.attemptId)
+  // What the cheap stage did, written down so a later reader does not have to
+  // infer a schedule from a spend total: which candidates were screened, which
+  // it kept, and what the kept set was allowed to spend.
+  let screenedIds = []
+  let keptIds = []
   let best = null
   // Recorded on `round.finished` so a cheaper round says what it did not buy.
   let skippedCandidates = 0
@@ -1453,6 +1480,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
       const picked = pickSurvivors(results, { keepRatio: config.halving.keepRatio })
       survivors = picked.survivors.length ? picked.survivors : [plan[0].attemptId]
+      screenedIds = results.map((r) => r.id)
+      keptIds = [...survivors]
+      // The share a dropped candidate was holding. It is not handed to the
+      // survivors — that is what would make this successive halving — so the
+      // record says what was freed and that nothing was reallocated. Naming it
+      // is the difference between a prefilter and a schedule that looks like
+      // one.
+      const share = Number(schedule?.rungs?.[0]?.costUsd) || 0
       for (const id of picked.dropped) {
         const rec = {
           id,
@@ -1464,6 +1499,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           score: 0,
           screenedOut: true,
           screen: screenInfo.get(id),
+          // What the dropped candidate's share of the ceiling was worth, and
+          // where it went. `reallocUsd: 0` is the honest answer today.
+          freedUsd: Math.round(share * 1e6) / 1e6,
+          reallocUsd: 0,
+          halvingKind: schedule?.kind ?? 'prefilter',
           // The screen paid for this candidate, so the round's cost carries it.
           costUsd: Number(screenInfo.get(id)?.costUsd) || 0,
           tokens: screenInfo.get(id)?.tokens ?? null,
@@ -2422,6 +2462,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // as pure candidate work, and the loop looks slower than it is.
     let holdoutMs = 0
     let holdoutRuns = 0
+    // What the held-back verifier printed, read with the same universal parser
+    // the candidate's own reading goes through. Kept next to the run because the
+    // result object does not survive the block.
+    let holdoutReading = null
     // One holdout per round, round-robin over stable ids (see `holdoutPick`).
     // Running the whole pool every round turns the holdout into a second spec
     // the loop can quietly learn: today's promotion was gated on exactly the
@@ -2498,6 +2542,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         } catch (err) {
           result = { ok: false, stderr: String(err?.message ?? err) }
         }
+        // Read the instrument before deciding pass/fail: a verifier can print a
+        // rate and still exit non-zero, and the rate is still a measurement.
+        holdoutReading = verifyMetrics({ stdout: result?.stdout ?? '', status: result?.exitCode }).metrics?.killRate ?? null
         if (result.ok !== true) {
           checks.holdout = false
           const output = String(result.stderr || result.stdout || '')
@@ -2507,6 +2554,43 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
       holdoutMs = Math.max(0, Date.now() - holdoutStartedAt)
     }
+    // The held-back task is a second *reading*, not a checkbox. One exit code
+    // cannot tell a candidate that just cleared the bar from one that only
+    // cleared it on the visible task, and it certainly cannot say by how much.
+    // When the held-back verifier prints the same instrument the candidate used,
+    // record the number; when it fails, the number is 0 because it *was*
+    // measured; when there is no pool, it is null with a reason, because
+    // inventing a zero would be the lie this field is already full of (95 of 138
+    // campaigns here have no pool at all).
+    const candidateReading = Number.isFinite(Number(best?.metrics?.killRate))
+      ? Number(best.metrics.killRate)
+      : Number.isFinite(Number(score))
+        ? Number(score)
+        : null
+    let holdoutScore = null
+    let holdoutReason = null
+    if (checks.holdout === 'skipped' || checks.holdout === 'skipped-noop' || checks.holdout === 'skipped-same-command') {
+      holdoutReason = checks.holdout === 'skipped' ? 'no holdout pool to read from' : `${checks.holdout}: the held-back reading was not taken`
+    } else if (!holdoutTask) {
+      holdoutReason = 'no holdout pool to read from'
+    } else if (checks.holdout === false) {
+      holdoutScore = 0
+      holdoutReason = 'the held-back verifier failed, which is a measured zero'
+    } else if (holdoutReading !== null && holdoutReading !== undefined) {
+      holdoutScore = Number(holdoutReading)
+      holdoutReason = 'the held-back verifier printed the same instrument the candidate used'
+    } else {
+      // A pass with no metric is still a pass, but a pass and a number are
+      // different units, so this can never become a gain.
+      holdoutScore = 1
+      holdoutReason = 'the held-back verifier passed without printing a metric'
+    }
+    // A gain needs both sides read on the same instrument. A pass (1) against a
+    // kill rate (0.7) is not a comparison, and saying it is would turn a
+    // different unit into a direction.
+    const holdoutComparable = Number.isFinite(candidateReading) && Number.isFinite(holdoutScore) && !(holdoutScore === 1 && holdoutReading == null)
+    if (holdoutComparable) checks.holdoutGain = holdoutScore > candidateReading
+    else checks.holdoutGain = null
     // A patch that did not have to fix anything did not earn the verdict. The
     // no-op branch is the opposite claim (the tree already satisfied the task, and
     // the empty diff is the evidence), so it is left alone.
@@ -2577,10 +2661,80 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const promote = basePass && checks.holdout !== false
     const rejectedByHoldout = basePass && checks.holdout === false
 
+    // Two implementations of the same rule drift, and the one you measure is
+    // the looser one. `decidePromotion` is the documented version; the block
+    // above is the one that actually decides. Run the documented one here and
+    // record what it would have said, without letting it decide yet: the two
+    // disagree mainly on `minTasks` (the documented rule wants six tasks, this
+    // round evaluated one), and 230 of the ledger's 248 promotions came from
+    // campaigns with fewer than six tasks. Merging the paths blind would stop
+    // most of them, so the difference is written down first and read second.
+    const shadow = decidePromotion({
+      candidate: { score, source: scoreSource, metrics: best?.metrics ?? null },
+      incumbent: taskBest === null ? null : { score: taskBest, source: scoreSource },
+      config: {
+        minTasks: config.chain?.minTasks ?? DEFAULT_CONFIG.chain.minTasks,
+        minGain: policy.minGain,
+        holdoutSlack: policy.holdoutSlack,
+        noiseSpread: policy.noiseSpread,
+      },
+      evidence: { complete: true, tasks: 1, noiseSpread: policy.noiseSpread },
+      policy: { noiseSpread: policy.noiseSpread },
+    })
+    // The promotion rule in force is still the incumbent comparison above; the
+    // paired e-process runs beside it and writes down what it would have said.
+    // Switching the rule and the record in one commit would leave nobody able
+    // to say which of the two changed an outcome, so the shadow comes first.
+    // Two sources of pairs, answering two questions. Across rounds: "did this
+    // task get better than it ever was" — almost always empty here, because the
+    // selector walks the evalset rather than re-running a task (226 of 251
+    // task-runs were evaluated exactly once). Against the base: "is this better
+    // than the tree it replaces, on the same task and the same verifier" — the
+    // base is measured before any candidate exists, so this pair can go either
+    // way. Pairing the round's winner against its losers would not: the winner
+    // is the highest score, so every such pair is a win by construction.
+    const discordant = [
+      ...pairedHistory(view.state?.rounds, task.id),
+      // Both sides must be the *same reading*, or the pair compares a kill rate
+      // against a composite score and the winner is decided by which number the
+      // two sides happened to use. A task whose verifier prints no KILLRATE has
+      // no pair, which is honest: one observation is not a discordant pair.
+      ...pairedAgainstBase({
+        candidate: best?.metrics?.killRate ?? null,
+        base: checks.baseMetrics?.killRate ?? null,
+        epsilon: policy.noiseSpread ?? 0,
+      }),
+    ]
+    const sequential = commitDecision({
+      discordant,
+      alpha: config.gate?.alpha ?? DEFAULT_CONFIG.gate.alpha,
+      lambda: config.gate?.efoldLambda ?? DEFAULT_CONFIG.gate.efoldLambda,
+    })
     runtime.append(
       view,
       'gate.evaluated',
-      { candidateId: best?.id ?? `r${n}a0`, round: n, promoted: promote, score, incumbentScore: taskBest, checks },
+      {
+        candidateId: best?.id ?? `r${n}a0`,
+        round: n,
+        promoted: promote,
+        score,
+        incumbentScore: taskBest,
+        checks,
+        // The held-back reading, as a number when it was taken. `null` with a
+        // reason is the honest answer for the campaigns that have no pool, and
+        // `checks.holdoutGain` is only a boolean when both sides were read on
+        // the same instrument.
+        holdoutScore,
+        holdoutReason,
+        candidateScore: candidateReading,
+        decision: sequential.decision,
+        eValue: sequential.eValue,
+        firstCrossing: sequential.firstCrossing,
+        alpha: sequential.alpha,
+        lambda: sequential.lambda,
+        sequential,
+        shadow: { promote: shadow.promote, reason: shadow.reason },
+      },
       'system',
     )
 
@@ -2697,7 +2851,35 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const finished = runtime.append(
       view,
       'round.finished',
-      { n, status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain', score, scoreSource, progress, ...(best ? { shape: shapeOf(best) } : {}), chainVersion: state.chain.activeVersion, promoted: promote === true, planTimedOut, planUsable, ...modeRecord(), ...(holdoutId ? { holdoutId } : {}), ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}), salvagedCandidates, ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns) },
+      {
+        n,
+        status: promote ? 'promoted' : rejectedByHoldout ? 'holdout-failed' : 'no-gain',
+        score,
+        scoreSource,
+        progress,
+        ...(best ? { shape: shapeOf(best) } : {}),
+        chainVersion: state.chain.activeVersion,
+        promoted: promote === true,
+        // Which candidate won, as an id rather than a boolean: the fidelity
+        // check compares that id against what the cheap stage kept, and "we
+        // promoted something" cannot be compared with anything.
+        ...(promote && best?.id ? { promotedId: best.id } : {}),
+        // The screening record. Empty arrays on a round that did not screen, so
+        // a reader can tell "screened nothing" from "did not say".
+        screened: screenedIds,
+        kept: keptIds,
+        halving: schedule,
+        fidelity,
+        planTimedOut,
+        planUsable,
+        ...modeRecord(),
+        ...(holdoutId ? { holdoutId } : {}),
+        ...(checks.holdout === 'skipped-noop' ? { holdout: 'skipped-noop' } : {}),
+        holdoutScore,
+        holdoutReason,
+        salvagedCandidates,
+        ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source, holdoutMs, holdoutRuns),
+      },
       'system',
     )
 
@@ -2869,10 +3051,28 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       const tasks = view.state.evalset?.tasks ?? state.evalset?.tasks ?? []
       const scopeEditable = tasks.some((t) => (t?.verify?.scope?.editable || []).length > 0)
       const decided = readDecisions(runtime.home ? join(runtime.home, 'decisions.json') : null)
-      const proposed = proposeMutations(baseSpec, { fromVersion: nextVersion, max: maxMutations, decided, scopeEditable, rounds })
+      // The proposal record so far, so a menu that has become one idea repeated
+      // is marked `collapsed` instead of being offered again as if it were new.
+      // Built from what the loop itself appended, not from the decision ledger:
+      // a collapse is precisely the case where nothing got decided.
+      const proposedSoFar = (versions || []).map((v) => v?.kind).filter((k) => typeof k === 'string')
+      const proposed = proposeMutations(baseSpec, {
+        fromVersion: nextVersion,
+        max: maxMutations,
+        decided,
+        scopeEditable,
+        rounds,
+        history: proposedSoFar,
+      })
+      // Where this version lands in the archive, computed from behaviour rather
+      // than from the diff: `spec-diff` says which field moved, which cannot
+      // tell two versions apart that both edit a prompt and both score the same.
+      const activeDescriptor = descriptorOf({ chainVersion: activeVersion, rounds })
       const card = buildProposalCard({
         active: { version: activeVersion, spec: baseSpec },
-        proposals: proposed,
+        // Every proposal is filed in the cell the version it departs from
+        // occupies, so the archive records behaviour and not just edits.
+        proposals: proposed.map((p) => ({ ...p, descriptor: activeDescriptor })),
         rounds,
         config,
         measurements: state.chain.measurements ?? finished.chain?.measurements ?? [],
@@ -2895,7 +3095,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           {
             version: item.version,
             spec: item.spec,
+            // Which kind this proposal is, so the next card can see that the
+            // last six were the same one instead of counting them from scratch.
+            kind: item.kind,
             prediction: item.prediction,
+            // Filed by the cell the *current* version occupies, so the archive
+            // records where a proposal came from rather than only what it edits.
+            descriptor: activeDescriptor,
             diff: item.diff,
             evidence: item.evidence,
           },
@@ -2920,9 +3126,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           kind: i.kind,
           rationale: i.rationale,
           status: i.status,
+          note: i.note,
           prediction: i.prediction,
           risk: i.risk,
           diff: i.diff,
+          descriptor: i.descriptor,
         })),
         card: renderCard(card),
       })
@@ -3186,6 +3394,19 @@ function projectRound(state, round) {
     promoted: round.promoted === true,
     endedAt: Date.now(),
     ...(round.holdoutId != null ? { holdoutId: round.holdoutId } : {}),
+    // The held-back reading travels with the projected round: a reader asking
+    // "did the promotion survive the second task" should not have to replay the
+    // gate to find out what that task printed.
+    ...(round.holdoutScore !== undefined ? { holdoutScore: round.holdoutScore } : {}),
+    ...(round.holdoutReason != null ? { holdoutReason: round.holdoutReason } : {}),
+    // The screening record travels with the projected round because the fidelity
+    // check reads it back next round: a record that only exists on the event
+    // would make every campaign look like it had never screened.
+    ...(Array.isArray(round.screened) ? { screened: round.screened } : {}),
+    ...(Array.isArray(round.kept) ? { kept: round.kept } : {}),
+    ...(round.promotedId ? { promotedId: round.promotedId } : {}),
+    ...(round.halving ? { halving: round.halving } : {}),
+    ...(round.fidelity ? { fidelity: round.fidelity } : {}),
   })
   if (!Array.isArray(r.attempts)) r.attempts = []
   const seen = new Set(r.attempts.map((a) => a?.id))

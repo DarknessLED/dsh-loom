@@ -79,7 +79,13 @@ function trialsOf(lesson) {
 
 /** Same lesson, two writers: the counters are evidence and can only go up. */
 function mergeLesson(prev, next) {
+  // Provenance is a fact about where the sentence came from, so it is not
+  // something a later write may overwrite: a re-derived lesson keeps calling
+  // itself what it is. (`origin`/`trust` only move when the newer record says
+  // something the older one did not.)
   const out = { ...prev, ...next }
+  if (!out.origin && prev.origin) out.origin = prev.origin
+  if (!out.trust && prev.trust) out.trust = prev.trust
   const a = trialsOf(prev)
   const b = trialsOf(next)
   if (a || b) {
@@ -146,4 +152,53 @@ export function appendGlobalLesson(home, lesson) {
     }
     return kept
   })
+}
+
+/**
+ * Give every stored lesson an origin, from what its own record can prove.
+ *
+ * The brief prints a lesson's provenance next to its claim, and a store written
+ * before that field existed would make every lesson look like it came from
+ * nowhere. The recovery rule is not "assume the best": a record with
+ * `source: 'research'` was accepted only after a quoted span was found in a
+ * stored snapshot, so it is `research-claim` / `verified`; anything else was
+ * derived by the loop from an attempt it ran, so it is `self-observed` /
+ * `observed`. Nothing is ever promoted to `verified` by the absence of a field.
+ *
+ * Idempotent, so a retry after a crash cannot keep rewriting the store.
+ *
+ * @param {string} home loom home holding knowledge.json
+ * @returns {{updated:number, selfObserved:number, research:number}}
+ */
+export function backfillLessonOrigin(home) {
+  const file = fileOf(home)
+  const out = { updated: 0, selfObserved: 0, research: 0 }
+  if (!file || !existsSync(file)) return out
+  const all = readGlobalLessons(home)
+  if (!all.length) return out
+  const rewritten = all.map((lesson) => {
+    const research = lesson.source === 'research'
+    const origin = lesson.origin ?? (research ? 'research-claim' : 'self-observed')
+    const trust = lesson.trust ?? (research ? 'verified' : 'observed')
+    if (lesson.origin === origin && lesson.trust === trust) return lesson
+    if (research) out.research += 1
+    else out.selfObserved += 1
+    out.updated += 1
+    return { ...lesson, origin, trust }
+  })
+  withLock(file, () => {
+    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`
+    try {
+      writeFileSync(tmp, `${JSON.stringify(rewritten, null, 1)}\n`)
+      renameSync(tmp, file)
+    } catch {
+      try {
+        unlinkSync(tmp)
+      } catch {
+        /* nothing to clean */
+      }
+    }
+    return rewritten
+  })
+  return out
 }

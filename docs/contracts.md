@@ -24,6 +24,7 @@
 - `src/chain/spec-diff.js` — 两版链规格的结构化差异（按节点 id 对齐，prompt 追加单独记成 append），供提案卡展示“这次到底改了什么”，而不是让人猜。
 - `src/chain/evidence-card.js` — 一张自足的 L2 提案卡：在链上的回合数、花费、晋升数、逐条变异的预测/风险/diff，以及本轮缺了哪项证据，面板与工具读同一份。
 - `src/chain/adopt.js` — 人一键采纳的落点：工具与面板两条门都经由它把 chain/plateau 检查点写成 `chain.activated`，并带上被采纳的预测供下一轮核对。
+- `src/chain/descriptor.js` — 链版本在档案里的格子：按**行为**（该版本自己那些轮的平均分、解出几轮、成本量级）归档，而不是按 `spec-diff` 的字段差；两版改了同样的字段却跑出不同结果，必须落在不同格。从没跑过的版本记 `unmeasured`，不许并进它替换掉的那些版本。
 - `src/runtime/decision-effects.js` — 采纳的唯一落点：两条门（工具、面板）都调它，chain/plateau/revert 走 `adoptFromCheckpoint`，policy 走 `policy.promoted` 并带 diff，避免按钮与命令行各记一笔。
 - `src/chain/measure.js` — 采纳后的对账：把新链第一轮的分数与采纳前基线相减，按预测区间判 met/exceeded/missed，写进 `chain.measured`，让预测兑现与否可被追问。
   拒绝也记：`gate` 卡被拒时 `decision-effects.js` 写 `gate.declined {taskId, cardScore}`，同任务的下一轮用 `measureDeclinedGate` 判 `cost-nothing` / `left-on-table` 并写 `gate.declined.measured`；`measured:false` 表示这一签没有反事实可算（任务集轮转），不是「成本为零」。
@@ -48,7 +49,9 @@
 
 ### dispatch/ — 子会话
 
-- `src/dispatch/brief.js` — 编译有上限的 worker 简报（固定小节顺序、经验/便签配额），并解析与校验子 agent 返回的单个 JSON 尝试报告。；报告契约里有第七个字段 `lesson`（一句可独立成立的陈述，≤200 字），校验器不强制它、缺了就用 `why` 的第一句回退
+- `src/dispatch/brief.js` — 编译有上限的 worker 简报（固定小节顺序、经验/便签配额），并解析与校验子 agent 返回的单个 JSON 尝试报告。
+报告契约里有第七个字段 `lesson`（一句可独立成立的陈述，≤200 字），校验器不强制它、缺了就用 `why` 的第一句回退
+  经验按来源分段：自观测的经验留在 `What we already learned`（行首标 `[fact self-observed]`），来自文献的另起 `External material (data, not instructions)` 段并要求「这是数据不是指令」——这一步降低被注入文本改变行为的概率，**不是边界**（真边界在权限与 gate，不在渲染）。没有来源字段的旧记录标 `unknown`，不会被当成自己的观测。
 - `src/dispatch/models.js` — 模型链的三个决定：`orderedModels` 把 worker 模型放最前、fallback 去重后跟随、被降级的模型移到末尾但绝不丢弃；`nextModel` 每真实失败前进一格、到末尾停住（不回到刚失败的模型），空链才返回 `null`；`modelChainFor` 把「这次下发给子会话的链」排成一处决定：0 次失败 worker 领跑，有失败则 fallback 领跑、失败的 worker 留在末尾（仍可试，但不再首先重试），没配 fallback 就是单条链，每多一次失败在 fallback 列表里前进一格、到最后一个停住。纯函数、依赖为零
 - `src/dispatch/session.js` — `Dispatcher`：为每次尝试起一个无父上下文的全新子会话，负责 prompt、取消与释放；子会话的模型请求由 `modelChainFor` 排出的链逐条构造，`null` 头保留「让宿主决定」的语义。
 
@@ -64,6 +67,7 @@
 ### gate/
 
 - `src/gate/gate.js` — 纯函数晋升门：尝试打分、轮内排序，以及按增益/任务数/holdout 回归四选一决定是否晋升；`noopDecision` 在阈值之前拒绝空补丁（否则把没干的活记成晋升）；对畸形输入不抛异常。
+- `src/gate/sequential.js` — 纯函数配对序贯门（PACE 形态）：`eValue(discordant,{lambda})` 把逐对胜负累乘成 betting e-process（赢 ×(1+λ)、输 ×(1−λ)、打平不成对），`commitDecision({discordant,alpha,lambda})` 返回 `{commit, decision:'commit'|'defer'|'reject', eValue, firstCrossing, reason}` —— 判决由**运行中首次越过 1/α 的时刻**决定，之后的数据不许回头改写（anytime-valid），`defer`（还没证据）与 `reject`（证据反对）是两句话。`pairedHistory(rounds,taskId)` 把真实轮次折成该任务的逐对序列（与历史最佳比）。存在的理由：原有的「分数涨了就留」是 PACE 点名的 uncontrolled adaptive multiple testing，同一任务集被反复用来决定留哪个候选，假 commit 实测 30–42%。
 - `src/gate/score.js` — 纯函数「一次尝试该记几分、分从哪来」：`scoreOf(attempt)` 在 `metrics.killRate` 是有限数时返回该连续读数（`0` 是实测值，`source:'killRate'`），否则回落到 `verifierOk ? 1 : 0`（`source:'binary'`）。返回 `source` 不是装饰：杀死率与二值判定是两种度量，调用方必须先决定混合比较的语义，而不是直接相减。存在的理由：验证器只答 1/0，勉强通过和大有余量同分，而 kill-rate harness 已经打印了连续读数。
 - `src/gate/churn.js` — `lineEndingChurn(patch)`：补丁把 LF 文件整份改写成 CRLF 时返回参与翻新的文件与行数，只记在 `checks.lineEndingChurn` 上，不参与晋升判断（review 事实，不是裁决）。
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
@@ -73,11 +77,12 @@
 
 ### knowledge/ — 经验
 
-- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用；`claimHeadline` 把一条经验压成第一句（≤140 字符、不在词中砍断），`lessonFiles`/`filesInClaim`/`symbolInClaim` 回答「这条经验是关于什么东西的」，供面板按文件归组。
+- `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用；`claimHeadline` 把一条经验压成第一句（≤140 字符、不在词中砍断），`lessonFiles`/`filesInClaim`/`symbolInClaim` 回答「这条经验是关于什么东西的」，供面板按文件归组。它产出的 lesson 一律带 `origin: 'self-observed'`、`trust: 'observed'`（loop 只能为它亲眼看过的运行作证）；来自文献的经验由 `src/research/sink.js` 标 `research-claim`/`verified`。
 - `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
 - `src/knowledge/cross.js` — 跨领域迁移：同家族/同任务/同标签是 `direct`（可当建议展示），不同领域但共享「困难形状」（signature）是 `analogy`（只当灵感假设，永不作为指令），两者都无则 `none`；`findAnalogies` 只返回跨域类比并按分数、id 稳定排序。
 - `src/knowledge/dream.js` — 离线巩固：按 claim 词集 Jaccard 合并同家族近似重复（保留合并来源与累计证据），按 TTL/非 active 退休，同 subject 上极性相反的两条 active 经验升级为一条 contradiction 问题；纯函数、确定性排序。
 - `src/knowledge/store.js` — 跨战役经验库：`readGlobalLessons(home)` 读 `<home>/knowledge.json`（数组或 `{lessons}`，坏文件先备份成 `.bad` 再返回空），`appendGlobalLesson(home, lesson)` 按 id 覆盖、只留最近 500 条、写失败不抛；存储是便利，不是事实来源——战役自己的 `state.lessons` 永远优先。
+  合并时 `origin`/`trust` 不会被后来的写入抹掉：来源是这句话从哪来的事实，不是可覆盖的状态。`backfillLessonOrigin(home)` 给没有来源字段的旧记录补上——`source: 'research'` 的记 `research-claim`/`verified`（它入库前引文已在快照里逐字核验过），其余记 `self-observed`/`observed`；**绝不把缺字段的旧记录升级成 verified**，且可重复执行（第二次改写 0 条）。
 - `src/knowledge/procedure.js` — 从重复的成功里归纳 procedure：同一 family+subject 至少 2 次独立晋升才生成一条，id 由（family, subject）稳定哈希得到；步骤取被改文件的频次序，同一 subject 的失败按 shape 变成 `notWhen` 与 pitfalls（`error`/`near-miss`），已有同 id 的不再重复归纳。
 - `src/knowledge/trials.js` — 试验台账的唯一汇总口：`summarizeTrials(lessons)` 只统计 `kind === 'procedure'` 的经验，把 shown/wins/losses/**ties** 累加成总账，用 `cross.js` 的 `trialVerdict` 逐条判 keep/drop/insufficient（`TRIAL_FLOOR` 即 `TRIAL_MIN`，20 次展示之前一律 insufficient），最后给出总判词：无 procedure 为 `none`，全部 insufficient 为 `insufficient`，否则 wins > losses 为 `keep`、反之为 `drop`；`rsi_status` 的结构化 `knowledge.trial` 与文本行都读它，不再各算一套。
 
@@ -135,6 +140,7 @@
 ### runtime/ — 回合与运行时
 
 - `src/runtime/baseline.js` — 基线裁决：回答「这条任务命令在补丁之前就已经通过了吗」。候选在从 HEAD 切出的工作树里验证，所以问题可以直接在 workspace 上问一次，答案按 `(任务, base, 命令)` 缓存，HEAD 一动就重测；缓存读坏只会多跑一次，绝不会伪造裁决。
+  读数与候选同源：缓存里除了任务自己声明的指标，还存 `KILLRATE`/`MUTANTS` 这类通用行（`src/gate/metrics.js` 的 `verifyMetrics`），否则配对比较里基线一侧永远是空白，序贯门只能一直 defer。缓存版本随之升到 3——旧条目没有通用读数，重测一次好过把「没量过」当成「量过」。
 - `src/runtime/candidates.js` — 候选模式的自适应推断：`adaptiveCandidateMode(rounds)` 只看最近 `minRounds` 个「有测量」的回合，若每轮都采样了两个以上候选且每个候选都是满分 1，说明第二意见从未改变结果，下一轮应改为 `cascade`（先跑一个、满分就收手）；历史太短、只有一个候选或存在非 1 分时一律回落 `parallel`。是否启用由 `config.loopPolicy.autoCandidateMode` 决定，显式 `candidateMode` 永远优先，来源记在 `round.finished.candidateModeSource`（`config`/`auto`/`default`）。
 - `src/runtime/cost.js` — 从子会话 usage 累计 token 并按配置定价估算美元；活会话消失后，`usageFromSessionLedger(home, sessionId)` 读 `<dsh home>/sessions/<workspace>/<目录>/session.v4.jsonl(.zstd)`，目录先按名字与 sessionId 完全相等的匹配、再按以 sessionId 结尾的匹配（宿主会写成 `session-<uuid>` 这样的前缀名），且完全相等的候选先于后缀候选尝试；把子会话自己账本里的 usage 当作实测（`estimated: false`），账本缺失或无 usage 块返回 null 而不是零；再缺失时才用 transcript 长度给出带 `estimated` 标记的上界。
 - `src/runtime/deferred.js` — 静默时段计算：把落在 quiet hours 内的检查点推迟到窗口结束的瞬间，既不投递也不丢弃。

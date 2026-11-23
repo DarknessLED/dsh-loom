@@ -20,6 +20,19 @@ export const DEFAULT_CONFIG = {
     holdoutSlack: 0.02,
     /** How many times the same holdout may be reused before retirement. */
     holdoutReuse: 3,
+    /**
+     * The paired e-process that the promotion gate is moving to (PACE, arXiv
+     * 2606.08106). `alpha` is the per-candidate false-commit budget and
+     * `efoldLambda` is the betting fraction: a won discordant pair multiplies
+     * the running evidence by (1 + lambda) and a lost one by (1 - lambda).
+     *
+     * PACE tuned 0.05 / 0.5 on GSM8K-scale scores; ours are not those scores,
+     * so these are settings rather than constants. They start at PACE's values
+     * because no measurement of ours has produced better ones yet, and the gate
+     * runs them in shadow until a shadow table says switching is safe.
+     */
+    alpha: 0.05,
+    efoldLambda: 0.5,
   },
   checkpoint: {
     on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout', 'stuck', 'exhausted'],
@@ -190,6 +203,17 @@ export const DEFAULT_CONFIG = {
     enabled: true,
     keepRatio: 0.5,
     screenTimeoutMs: 3 * 60_000,
+    /** Bracket ratio of the priced schedule; 2 is the 4 -> 2 -> 1 ladder. */
+    eta: 2,
+    /**
+     * How many screening rounds the proxy is judged on before it may be vetoed,
+     * and how often the screen's kept set has to contain the promoted candidate.
+     * A short record is not a pattern: below the window the check keeps halving
+     * on and says it has not seen enough. The two commands are not the same
+     * command, so this is a switch with a veto rather than a constant.
+     */
+    fidelityWindow: 5,
+    fidelityAgreement: 0.6,
   },
   /**
    * Lean 4 gate. `enabled` only controls whether campaigns advertise it; the

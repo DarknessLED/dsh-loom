@@ -107,7 +107,7 @@ function apply(s, ev) {
       // The evidence that justified the proposal travels with it: a card read
       // weeks later must show the forecast it was adopted on, not a guess
       // reconstructed from the spec.
-      for (const key of ['prediction', 'diff', 'evidence']) {
+      for (const key of ['prediction', 'diff', 'evidence', 'descriptor', 'kind']) {
         if (d[key] !== undefined) v[key] = d[key]
       }
       s.chain.versions = s.chain.versions.filter((x) => x.version !== d.version).concat(v)

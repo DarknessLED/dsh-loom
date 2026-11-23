@@ -268,6 +268,34 @@ const standing = [
   // every one of them. The bytes are in hand at deposit time, so that is when
   // they get checked -- and what came back is reported, not dropped.
   'tests/self53/deposit-verifies.test.mjs',
+  'tests/self53/paired-e-process.test.mjs',
+  'tests/self53/promotion-uses-paired-test.test.mjs',
+  'tests/self53/gate-can-defer.test.mjs',
+  'tests/self53/one-promotion-rule.test.mjs',
+  // A pair needs both sides read by the same instrument; the base cache used to
+  // store only task-declared metrics, so every pair had a blank side.
+  'tests/self53/base-is-read-the-same-way.test.mjs',
+  // The pair only counts if the round actually hands it over: real round, real
+  // verifier, candidate above and below its base.
+  'tests/self53/a-round-writes-down-its-pair.test.mjs',
+  // A lesson the loop watched and a sentence a paper wrote are not the same
+  // kind of evidence; the brief now says which is which, and the store's old
+  // records get an origin from what they can prove.
+  'tests/self53/lessons-say-where-they-came-from.test.mjs',
+  'tests/self53/knowledge-origin-migration.test.mjs',
+  // A screen that drops candidates and keeps their budget is a prefilter, not
+  // successive halving; and a proxy whose ranking the verifier never confirms
+  // turns itself off instead of being paid for.
+  'tests/self53/halving-returns-what-it-saved.test.mjs',
+  'tests/self53/fidelity-check-can-stop-halving.test.mjs',
+  'tests/self53/a-round-records-its-halving.test.mjs',
+  // A held-back task that cannot say how much it measured is a checkbox wearing
+  // a second opinion's clothes.
+  'tests/self53/holdout-is-a-second-reading.test.mjs',
+  // A menu that keeps offering the same kind is not a search, and a version is
+  // filed by what it did rather than by which fields it edited.
+  'tests/self53/proposal-kinds-can-collapse.test.mjs',
+  'tests/self53/versions-are-filed-by-behaviour.test.mjs',
   // The gate card a person refuses is now a decision with a cost, and a sealed
   // report says which claims each paragraph rests on instead of keeping that
   // link in a table at the bottom. Both were 'measured' before as zero.

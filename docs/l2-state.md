@@ -327,3 +327,121 @@ as missing.
   (the scan skips `tests/self*`). Its malformed-round case disagreed with the
   predicate; the predicate now counts a missing record as flat, and the spec is
   pinned in `scripts/test-all.mjs`.
+
+## 2026-11-24: the promotion gate gets a budget of evidence
+
+Reading the eight directions' bodies turned one suspicion into a measurement:
+the loop's promotion rule is a sequential test that never accounted for its own
+repetition. Every round asks the same question of the same task ("is this
+better than the incumbent?") on fresh noise, and the rule answers it every
+time. That is textbook adaptive multiple testing, and the paper that names it
+(PACE, `2606.08106`) reports the consequence for greedy rules like ours:
+30–42% of commits are false and 10–33% of committed gains are harmful.
+
+### What changed
+
+- `src/gate/sequential.js` — `eValue` / `commitDecision` / `pairedHistory` /
+  `pairedAgainstBase`. A promotion is now a three-way answer: `commit` when the
+  running e-value first crosses `1/alpha` (and that crossing is never revised by
+  later rounds), `reject` when it falls to `alpha`, `defer` otherwise. The
+  default `alpha = 0.05`, `lambda = 0.5` live in `config.gate` because they were
+  PACE's numbers on GSM8K, not measurements of this tree.
+- `src/runtime/round.js` writes the pairing down every round: `pairedHistory`
+  (this task against its own best round) plus `pairedAgainstBase` (this
+  candidate against the killRate of the tree it replaces). `gate.evaluated` now
+  carries `decision`, `eValue`, `firstCrossing`, `alpha`, `lambda`, `sequential`
+  and a `shadow` of the documented promotion rule. `round.finished` and
+  `projectRound` keep them.
+- `src/runtime/baseline.js` had to be fixed first, and this is the finding that
+  matters most: the cached base reading never carried a `killRate`, because it
+  cached only the metrics the task *declared* while the candidate side read the
+  universal `KILLRATE=` line. Of the 148 historical `gate.evaluated` events with
+  a base metric, **0** had a killRate — so the paired test had nothing to pair
+  against and could only defer. Cache version 3 merges the universal reading
+  with the declared one (declared keys win) and keeps silence as `null`.
+- `src/gate/` gate cards that a person refuses now leave a counterfactual
+  (`gate.declined` in `decision-effects.js`, folded into `state.gate.declined`
+  and settled by the next round on that task via `measureDeclinedGate`). The
+  verdict vocabulary is `cost-nothing | left-on-table` on purpose: a refusal is
+  not a forecast, and reusing `met | missed` would say a prediction was graded
+  when none was made.
+
+### The shadow table
+
+`~/.dsh/loom/campaigns/*/events.jsonl`, 137 campaigns, 470 scored rounds, 248
+actual promotions:
+
+| | result |
+| --- | --- |
+| paired e-process, base-relative | commit 0, defer 470, reject 0 |
+| documented rule (`decidePromotion`) | would promote 0, `insufficient tasks` 470 |
+| disagreement | 248 (every actual promotion) |
+
+Both zeros are honest and both have the same cause: the history was not
+collected in a form that could answer the question. The 0 commits exist because
+no cached base reading ever contained a `killRate`, and the 0 shadow promotions
+exist because every campaign in the corpus has one task while
+`chain.minTasks` is 6. Neither number says the new gate is right; they say the
+old ledger cannot settle it, and only rounds run after this change can.
+
+**A first version of this measurement was wrong and is recorded here so it is
+not repeated.** `pairedFromAttempts` paired the round's winner against each
+loser. Since the winner is `argmax(score)` of the same attempts, every pair was
+a win: eight rounds always reached `1.5^8 ≥ 20`, with or without any
+improvement. It printed 14 commits across the corpus and all 14 were
+tautological. The export was deleted; `pairedAgainstBase` replaced it because
+the base tree is read before the candidate exists, so either side can win.
+
+### Holdout is a second reading, not a hurdle
+
+`checks.holdout` stays a gate for a *failed* held-back verifier, but the number
+it prints is now recorded: `holdoutScore`, `holdoutReason` and `candidateScore`
+on `gate.evaluated` and `round.finished`. When both sides print the same
+instrument, `holdoutGain` is a real comparison; when the held-back verifier only
+passes without printing a rate, the reading is `1` and `holdoutGain` is `null`,
+because a pass and a number are not the same unit. A held-back score *below* the
+candidate's does not block the promotion — the pool is one or two tasks, and a
+single reading carries the 2.2–6.0 point run-to-run spread already measured in
+`docs/research/r2-score-noise`. It is evidence, not a veto.
+
+### Halving is now a schedule with an honest name
+
+`src/runtime/halving.js` gained `halvingPlan` (rungs, `freedUsd`, and
+`kind: 'prefilter'`) and `fidelityCheck` (does the cheap stage rank like the
+verifier?). Rounds record `screened`, `kept`, `halving` and `fidelity`, and a
+screened-out attempt records `freedUsd`, `reallocUsd: 0`, `halvingKind`. The
+name is deliberately not `halving`: we drop candidates and keep the money, which
+is a prefilter, not successive halving. `fidelityCheck` turns the switch off
+when the cheap stage's ranking disagrees with the verifier in enough recent
+screening rounds — a short record is not treated as a pattern.
+
+### Versions are filed by behaviour
+
+`src/chain/descriptor.js` gives each chain version an archive cell from what its
+own rounds did (mean score bucket, solved share, cost magnitude), and
+`chain.proposed` / `chain.versions` keep that cell plus the mutation kind. A
+proposal record that keeps offering one kind is marked `collapsed` with the
+count, and a version that never ran is `unmeasured` — it is not merged into the
+versions it replaced.
+
+### Lessons say where they came from
+
+`knowledge.json` lessons now carry `origin` (`self-observed` | `research-claim`)
+and `trust` (`observed` | `verified`), backfilled across all 98 existing records
+by rule, never by upgrade: a record with no source stayed `observed`. The worker
+brief prints local lessons first and external ones under a heading that says
+they are data and were not observed in this tree — a reduction in the chance
+that quoted text redirects work, not a boundary.
+
+### What this does not claim
+
+- No round has yet run with cache version 3 and a paired base reading, so the
+  new gate has committed nothing in a live campaign. The shadow table cannot
+  supply that evidence retroactively.
+- `decidePromotion` remains a shadow. Merging it into the live rule would stop
+  230 of the 248 historical promotions, because 135 of 138 campaigns carry fewer
+  tasks than `minTasks`.
+- `halvingPlan.kind` is `prefilter` in every case today; `returnedUsd` is 0 by
+  construction, because no code path returns the freed budget to the survivors.
+- P1-1 records a lower held-back reading without acting on it. That is a
+  deliberate choice given pool size 1–2, not a finished design.

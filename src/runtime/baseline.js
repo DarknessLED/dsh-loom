@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { verifyMetrics } from '../gate/metrics.js'
 
 // Whether a task's command already passes on the base commit.
 //
@@ -27,7 +28,11 @@ const sha1 = (value) => createHash('sha1').update(value).digest('hex')
 // so reusing them would silently disable the graded-task reading in
 // src/gate/earned.js -- the cache would keep the oracle blind exactly where the
 // fix was needed. Bumping the key costs one re-measurement per live task.
-const CACHE_VERSION = 2
+// Version 3 stores the universal readings as well (KILLRATE from the same
+// stdout the candidate's round reads). Before it, a graded task's base was
+// cached with only the task-declared metrics, so the base side of a paired
+// comparison was usually unmeasured while the candidate side was not.
+const CACHE_VERSION = 3
 const versionedKey = (taskId, base, command) => sha1(JSON.stringify([CACHE_VERSION, String(taskId ?? ''), String(base ?? ''), String(command ?? '')]))
 
 const keyFile = (dir) => join(dir, CACHE_FILE)
@@ -71,9 +76,16 @@ export async function baseVerdict({ dir, cwd, taskId, base, command, run }) {
   // verdict: a graded task prints QUALITY=<n> and exits 0 in every state, so the
   // base "passes" while the actual progress is in this number. Without it the
   // earned check has nothing to compare and refuses real work.
+  const declared = verdict?.metrics && typeof verdict.metrics === 'object' ? verdict.metrics : {}
+  // The universal lines (KILLRATE, MUTANTS) are read from stdout here for the
+  // same reason the round reads them: a task that names no metric still prints
+  // a rate, and a base read without it is a base the gate cannot compare
+  // against. Declared metrics win on a shared key: the task named it.
+  const universal = verifyMetrics({ stdout: verdict?.stdout ?? '', status: verdict?.exitCode }).metrics
+  const merged = { ...universal, ...declared }
+  const metrics = Object.keys(merged).length > 0 ? merged : null
   try {
     const fresh = readCache(dir)
-    const metrics = verdict?.metrics && typeof verdict.metrics === 'object' ? verdict.metrics : null
     fresh[key] = { ok: okNow, exitCode: verdict?.exitCode ?? null, metrics, taskId: String(taskId ?? ''), base: base ?? null, command: String(command ?? ''), at: Date.now() }
     const { writeFileSync } = await import('node:fs')
     writeFileSync(keyFile(dir), JSON.stringify(fresh))
@@ -81,5 +93,5 @@ export async function baseVerdict({ dir, cwd, taskId, base, command, run }) {
     /* a cache that cannot be persisted is only a slower loop */
   }
   void cwd
-  return { ok: okNow, exitCode: verdict?.exitCode ?? null, metrics: verdict?.metrics ?? null, cached: false }
+  return { ok: okNow, exitCode: verdict?.exitCode ?? null, metrics, cached: false }
 }

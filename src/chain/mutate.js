@@ -73,7 +73,44 @@ export function mutateChain(base, { kind, version, rationale } = {}) {
   return null
 }
 
-export const MUTATION_KINDS = ['candidates+1', 'minimal-change', 'no-test-edits', 'state-your-uncertainty']
+/**
+ * The kinds above are the menu, but "four kinds" is a claim that deserves a date
+ * and a reason. Before this registry the array was the only record: a reader
+ * could not tell a kind that had been measured into existence from one that was
+ * guessed on the first day, and a proposal that repeated one kind six times
+ * looked exactly like a healthy search.
+ *
+ * `MUTATION_KINDS` stays exported as the derived list so nothing that iterates
+ * it has to change.
+ */
+export const MUTATION_REGISTRY = [
+  {
+    kind: 'candidates+1',
+    since: '2026-11-09',
+    evidence: ['ab-cand1b', 'ab-cand2b', 'ab-cand4'],
+    note: 'measured in paired A/B campaigns; the only kind with a cost/benefit number behind it',
+  },
+  {
+    kind: 'minimal-change',
+    since: '2026-11-09',
+    evidence: ['loom-mut'],
+    note: 'the default when a campaign has no record of what went wrong',
+  },
+  {
+    kind: 'no-test-edits',
+    since: '2026-11-09',
+    evidence: ['loom-mut'],
+    note: 'blocked outright when the task list contains a test deliverable',
+  },
+  {
+    kind: 'state-your-uncertainty',
+    since: '2026-11-09',
+    evidence: ['loom-mut'],
+    note: 'addresses the overconfident-report failure the loop kept seeing',
+  },
+]
+
+export const MUTATION_KINDS = MUTATION_REGISTRY.map((entry) => entry.kind)
 
 /**
  * Why a proposal is not worth a version.
@@ -87,7 +124,22 @@ export const MUTATION_KINDS = ['candidates+1', 'minimal-change', 'no-test-edits'
  * A blocked proposal is *reported*, not dropped: the caller still sees the hypothesis
  * and the reason it is not being offered again.
  */
-function statusOf(kind, { decided = [], scopeEditable = false } = {}) {
+function statusOf(kind, { decided = [], scopeEditable = false, history = [], collapseShare = 0.6, collapseMin = 3 } = {}) {
+  // A search that keeps proposing the same kind is not searching. Measured on
+  // the proposal record rather than the decision ledger: the ledger only knows
+  // what was decided, and the collapse this guards against is the one where
+  // nothing was decided because every card looked the same.
+  const proposed = (Array.isArray(history) ? history : []).filter((h) => (typeof h === 'string' ? h : h?.kind))
+  if (proposed.length >= collapseMin) {
+    const mine = proposed.filter((h) => (typeof h === 'string' ? h : h.kind) === kind).length
+    const share = mine / proposed.length
+    if (share >= collapseShare) {
+      return {
+        status: 'collapsed',
+        note: `${mine} of the last ${proposed.length} proposals were ${kind} (${Math.round(share * 100)}%): the menu has become one idea repeated`,
+      }
+    }
+  }
   if (kind === 'no-test-edits' && scopeEditable) {
     return { status: 'conflicts-with-scope', note: 'the task list contains tasks whose deliverable is a test edit: this instruction would make them impossible' }
   }
@@ -137,14 +189,14 @@ export function evidenceFor({ rounds = [], decided = [] } = {}) {
  * it again. Every returned mutation — fresh or blocked — carries the same
  * `evidence` snapshot, because the blocked ones are the card's "why not" line.
  */
-export function proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false, rounds = [] } = {}) {
+export function proposeMutations(base, { fromVersion, max = 3, decided = [], scopeEditable = false, rounds = [], history = [], collapseShare = 0.6, collapseMin = 3 } = {}) {
   const out = []
   const evidence = evidenceFor({ rounds, decided })
   let version = Number(fromVersion) || (Number(base?.version) || 1) + 1
   for (const kind of MUTATION_KINDS) {
     const m = mutateChain(base, { kind, version })
     if (!m) continue
-    const s = statusOf(kind, { decided, scopeEditable })
+    const s = statusOf(kind, { decided, scopeEditable, history, collapseShare, collapseMin })
     out.push({ ...m, ...s, evidence })
     version += 1
     if (out.filter((x) => x.status === 'fresh').length >= max) break

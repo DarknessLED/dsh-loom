@@ -67,6 +67,11 @@ export function buildProposalCard({ active, proposals = [], rounds = [], config 
       risk,
       diff,
       diffLines: p?.diffLines ?? renderDiff(diff),
+      // Where this proposal's starting point sits in the archive, when the
+      // caller knows. Not defaulted here: a cell invented inside the card would
+      // be a behaviour claim the card cannot check.
+      descriptor: p?.descriptor ?? null,
+      note: p?.note ?? null,
       spec,
     }
   })
