@@ -1,0 +1,61 @@
+# r2-score-noise: 三十篇之后
+
+## 一、这批论文在说什么(按主题归并,不按论文罗列)
+
+这一批里真正在算方差的只有两篇半，其余都在报告数字。`2411.00640` §1 把行业习惯说得很直白:「Evals are commonly run and reported with a "highest number is best" mentality」，并且点名 SOTA 加粗却「not necessarily to test that result for any kind of statistical significance」；它给的框架是把每题得分写成 x_i + ε_i，要估的是 ε_i 的条件方差 σ_i²(§2.1)。同一件事在 `2407.21783` §5.1.1 只用一句话处理:「Benchmark scores are estimates of a model's true performance. These estimates have variance because benchmark sets are finite samples drawn from some underlying distribution」，然后按高斯假设报 95% CI。`2107.03374` §2.1 更早:「computing pass@k in this way can have high variance」，所以换成无偏估计并附数值稳定实现。三篇合起来说明抽样方差这一支已有共识的算法，分歧只剩要不要 bootstrap——`2411.00640` §2.1 认为 CLT 够用，「we regard bootstrapping as unnecessary」。
+
+另一支方差不在公式里，在模板里。`2310.11324` §3.2 把 performance interval 定义成 [min_i m(p_i,D), max_i m(p_i,D)]，这是对格式取极值，不是对样本取置信区间；它的结论最刺人:「these trends are often reversed」，LLaMA-2-13B 与 -70B 在 d=0.02 上就能被换一种格式翻过来(§Comparison trends between models are often reversed just by choosing different formats.)。`2407.21783` §5 承认 five task prompts 之间有方差；`2412.15115` §4 用几百条 system prompt 去压它，说结果是 reduced variance；`2403.07974` §7 反过来说「huge performance variances that can be caused due to insufficient prompt」。`2404.04475` §Length-balanced win rate 提醒分层本身会「increase variance ... and can also introduce adversarial vulnerabilities」。四篇说的是同一件事:prompt 是一个自由参数，而 `2411.00640` 的 x_i + ε_i 模型里没有它的位置。
+
+把「谁更好」变成可复现的量，这批论文给的两条路都承认自己只是近似。`2403.04132` §5 用 BT 系数加 pivot bootstrap 与 sandwich 稳健标准误，并且只在区间完全分离时才报排名 R_m = 1 + Σ 1{inf C_m' > sup C_m}，其均匀有效性是 ℙ(∃m: R_m > rank(P)_m) ≤ α；§4 明说即使 BT 的参数形式不成立，MLE 在 sandwich 协方差下仍渐近正态。判官那一路的锚点低得多:`2203.02155` 用 5 组标注者做 5 折交叉验证(§Our models generalize to the preferences of "held-out" labelers that did not produce any training data.)，得到「These RMs have an accuracy of 69.6 ± 0.9%」，而 §5.2 Who are we aligning to? 承认标注池的种子是「OpenAI employees, biasing」。`2310.17631` §3.2 把判官质量定义成与 teacher 的「agreement, precision, recall, and F1-score」——这是相对量，不是绝对量。`2411.15594` §4 写清了失效机理:「inconsistent scores for identical prompts and inputs due to sampling variance or internal preference drift」；§4.5 又说想隔离某一种 bias 时「often challenging to isolate the bias of interest from other confounding factors」。`2303.16634` §2 补了个更朴素的陷阱:1–5 分制里「one digit usually dominates the distribution of the scores」，分数方差低，与人的相关性也低。`1909.08593` §3.2 是这条线的源头，它说人类 pairwise 结论「significantly noisier」，即使用 1024 个样本、每样本 3 个标注者多数票；§2.2 更直接:同 β 不同 seed「sometimes end up with quite different values of KL(π,ρ), making them hard to compare」；§4.3 的结论是加标注也救不回来，「does not resolve all the practical difficulties with ambiguity」。
+
+「pass@k」这四个字母在这批论文里至少是四个不同的估计量，而 k 的选择直接决定结论。`2107.03374` §3.3:679M 模型 pass@1 的最优温度 T*=0.2，pass@100 是 T*=0.8，同一模型换 k，最优配置就反了；§3.4 里 GPT-Neo 6.4% pass@1 / 21.3% pass@100，Tabnine 2.6% / 7.6% 就已经「roughly equivalent to Codex-12M」，可见高 k 会把 12M 与更大的模型压到同一档。`2501.12948` §Baselines 明确拒绝 greedy，理由正是「higher repetition rates and significant variability across different checkpoints」，于是默认 pass@k 且非零温度；§E.4 同时报「61.8% solve rate (Pass@1)」与「Pass@64 ... 90.0%」。`2508.10925` 把平均当成 pass@1:「we average over 4 tries per instance to compute pass@1」(§5.2.3.1)，CTF 则是「16 rollouts ... report pass@12」(§5.2.2.1)。`2406.12045` §3 用 pass^k 量可靠性:「pass^k can capture the reliability of the agent at handling variations in conversations with the same underlying semantics」——同一符号，含义是重复一致率。`2504.13837` §4.4 则把 pass@1 与 pass@256 当两个量:前者 26.1→42.5，后者下降。`2512.02556` §General Agent 走的是构造端:数据集阶段就「retain only instances with non-zero pass@100」，把不可能与必然完成的任务都滤掉，和 `2403.07974` §1 嫌题目「variance in performances is low」是同一个动作。
+
+第三组论文里的噪声不是评分的噪声，是 reward 的噪声，而它们修的是训练内部。`2507.18071` §1 把 GRPO 的不稳定归因到「fundamental misapplication and invalidation of importance sampling weights」，后果是「high-variance training noise that progressively accumulates with increased response length」，解法是序列级 clip 与长度归一化(§4.1 GSPO)。`2503.14476` §3.4 把截断样本的惩罚叫 reward noise:「a sound reasoning process can be penalized solely due to its excessive length」，于是用 Overlong Filtering 屏蔽这些样本的 loss；§3.2 补了另一侧:「the resulting advantage for this group is zero」。`2402.03300` §4.1.1 说得最直白:PPO 的 value function 是「a baseline in the calculation of the advantage for variance reduction」，GRPO 去掉它是为了省显存。`2504.13837` §4.3 反过来量算法差异:Δ_SE 从 GRPO 的 43.9 到 RLOO 的 42.6，「these differences are not fundamental」。`2412.15115` §4.3 则拿方差当课程:query 的处理顺序「determined by the variance of their responses」。这些都对，但没有一条能搬到 gate 上——它们优化的是训练分布内的方差，我们的 gate 读的是训练之后的一个数。
+
+最后，这批论文里最实用的话往往只有一句，且藏在百页报告的正文角落。`2106.09685` §5.5 承认 GPT-3 175B 那档「only report the typical standard deviation for a given task over random seeds, as opposed to providing one for every entry」——省略被允许，不等于标准差存在。`2407.21783` §5.2.6 干脆按「low variance」挑任务，因为 n-gram 类指标不可信。`1804.08771` 把累积后果算给我们看:「variances bigger than many reported gains」(§1)，同一个 WMT'14 en-de 有两份数据集(§2.4)，§4 于是说跨测试集比较本身已不可靠。`2005.01643` §3.1 提供了正确的语言:importance sampling 高方差，加权 per-decision 仍然「too much variance to be effective」，doubly robust 只在模型或行为策略之一正确时无偏，置信界要靠「concentration inequalities」。`1910.00177` §5.1 用「5 training runs initialized with different random seeds」报平均回报。`2305.18290` §6.1 提醒比分数要比同一条约束下的分数:「achieving slightly higher reward but with very different KL divergence from the reference policy is not a fair comparison」，§5.2 又把归一化项解释成 reference policy 的 soft value function——这两句合起来是说，reward 的绝对值不是可比的量。`2402.03300` §2.1 的 500,000 条正例与 §5 的 400B/150B 对照表代表另一种写法:数字齐全，方差缺席。再往外一层，`2110.14168` §5.2(dropout 对 verifier 有显著提升)、`1711.05101` §3(解耦权重衰减的贝叶斯滤波解释)、`2505.09388` §4(logit 蒸馏)、`2204.05862` §5.4(Relative Mahalanobis 的 AUROC 更好)、`2512.02498` §6(结论是「potential to fuel the next generation」)与测量无关，我把它们当语料噪声，不当证据。这批论文共享的是「报什么」的约定，不是「怎么读」的约定。
+
+## 二、我认为什么变了
+
+1. **本仓库同时运行两套互不兼容的认识论，而且它们都在 src/ 里活着。** `src/loop/ab.js` 在 n=1 时明说「one paired task cannot estimate variance, so no interval and no detectable floor exist: this is not evidence of an effect」；`src/gate/gate.js` 的晋升路径每一轮都是 n=1，却照样 promote。若 `2411.00640` §5 的定义成立——power 是「the ability of an experiment to make a measurement of interest in the presence of statistical noise」——那么 gate 的每一次 promote 都落在它自己 A/B 腿所定义的「不是效应的证据」里。这改变的不是措辞:要么 gate 承认自己是决策规则而非推断，要么它必须记下 n。
+
+2. **0.1 这根棒子在算术上小了约 2.8 倍，而它现在就是晋升的最后一关。** `src/core/config.js:249` 缺省 `noiseSpread: 0.1`，`src/gate/gate.js:378-382` 把它乘 `noiseMultiplier`(缺省 1)当作 delta 的门槛。两个独立读数之差的 sd 是 √2·σ，95% 界约 2.77σ；若 0.1 是单次读数的 spread，现门槛只有应有门槛的 1/2.77。`2411.00640` §2.1 的 σ_i² 与 `2407.21783` §5.1.1 的 95% CI 都指向「差要有差的区间」。结论:在 0.1 到 0.28 之间的 delta 上，我们的 gate 会 promote——正好是它自己声称要挡的那一段。
+
+3. **`mutants` 被解析却在打分处丢掉，于是「这条读数有多准」在系统里不存在。** `src/gate/metrics.js:19-31` 认了 KILLRATE 与 MUTANTS 两行，`src/gate/score.js:58-70` 只用 killRate，返回 `{score, source}`。3/3 与 17/20 在前者是 1.0、后者是 0.85，而门不知道哪个更可信。`2107.03374` §2.1 的教训是朴素估计的方差与样本量绑定；`2411.00640` §5 的 power 也要求知道 n。所以这不是「少存一个字段」，是把精度从决策里删掉了。
+
+4. **incumbent 是一次陈旧的单点观测，delta 里有一项没人估的漂移。** `src/runtime/round.js:2304` 算 `incumbentDelta = score - taskBest`，而 `taskBest` 来自早先轮次的账本，本轮不重测。`1909.08593` §2.2 记录的正是这个失效模式(同 β、不同 seed 的 KL 差到「hard to compare」)。`2406.12045` §3 的 pass^k 之所以有意义，是因为它把「同一语义的多次采样」当测量单位，而不是拿今天的读数减上个月的读数。
+
+5. **我们的仪器重复性很可能是 0，而它真正的不确定性是 8–11 个百分点；gate 把这两件事混成一个数。** `research/mutants/gen.mjs` 按 `sha256(slug:index)` 取样，`docs/graded-loop.md` 说同一组 20 个 mutant 每次一样，所以重跑读数不变(除非 spec 本身 flaky)；但「这批 spec 更能钉住 bug」是对 mutant 总体说的，20 个样本在 p=0.85 处的二项标准误是 √(0.85·0.15/20)=8.0pp，p=0.5 处 11.2pp。`2411.00640` §2.1 的 conditional variance 就是这一项。一个 `noiseSpread` 同时冒充重跑方差与外推方差，是这轮读完最想改的一处。
+
+6. **killRate 的天花板是 gen.mjs 的 12 类算子，所以 `2504.13837` 的 trade 就是我们正在做的 trade。** 那篇 §4.4:pass@1「consistently improves from 26.1 to 42.5」而 pass@256 下降；§1 的结论是 RLVR 只是「sampling more efficiently on problems already solvable by the base model」。我们的平均是 killRate，「已可解」是被 12 类字节级变异覆盖的断言，而最省力的提升方式是把当前行为钉得更死——`docs/graded-loop.md` 自己列过这个 caveat，但只留了 oracle 一道门，oracle 管的是「别改测量器」，不管「测量器的边界在缩小」。
+
+7. **文档里所有「省了 / 救回了」都是单点比例，区间比结论宽。** `docs/graded-loop.md` 的「rescued it 28 times in 239」按 Wilson 95% 是 [8.2%, 16.4%](这是我的算术，不是仓库里的)。`1804.08771` §1 的「variances bigger than many reported gains」正是这个量级；`2411.00640` §1 说行业惯例干脆不做显著性检验。这条判断会错的地方在于:方向可能仍然对，只是幅度不可引用——而 docs 现在引用的全是幅度。
+
+8. **「noise」判决目前不可行动:它和「gain below threshold」共用同一个 `promote:false` 形状，没人统计它发生了多少次。** 见 `src/gate/gate.js:431-437`。一个 campaign 若 MDE 大于 minGain，按 `2411.00640` §5 它的 power 是 0，而它照样烧预算。这把「仪器分辨率不足」伪装成了「这一轮没提升」，两种事实在账本里长得一样。
+
+9. **「部分分」不是我们的发明，它的合法性来自方差而不是刻度。** `2107.03374` §3.5 写到 APPS 同时报 strict accuracy 与「the percentage of unit tests passed, even if the solution is incorrect」，后者「reported only so as to reduce variance」。所以 killRate 站得住，是因为它比 0/1 方差小，不是因为它更细。任何让它变噪的改动——减少 mutant 数、缩短超时、放宽并发锁——都是在拆掉它唯一的理由，而 `--sample=20` 现在只是一个命令行参数。
+
+## 三、这批论文之间互相矛盾的地方
+
+1. **RL 到底「涌现」了新能力，还是只是把基座里已有的路径采样得更频繁。** `2501.12948` §7 Author List 的措辞是「outcome-based RL induces the emergence of long Chain-of-Thought patterns in LLMs, achieving breakthrough reasoning capabilities」；`2504.13837` §1 Introduction 直接顶回去:「Reasoning paths generated by current RLVR model already exist in its base model」。前者拿 pass@1 从 15.6% 到 77.9%(`2501.12948` §2.3)当能力证据，后者拿 pass@256 下降当边界收窄的证据。这不是口径差异，是对同一个现象的两个本体论。对我们直接相关:一条被晋升的链，究竟算「新能力」还是「同一棵树里本来就有、现在被钉住了」——`docs/graded-loop.md` 的 oracle 只回答了后半个问题的一半。
+
+2. **pass@1 是「抽一次」还是「抽四次取平均」。** `2107.03374` §2.1 的无偏估计量在 k=1 时就是一个样本，而且 §3.3 说最优温度随 k 变(T*=0.2 vs 0.8)，所以这个样本的温度是被 k 定义的；`2508.10925` §5.2.3.1 却写「we average over 4 tries per instance to compute pass@1」。同一个名字，一个是单次抽样，一个是四次平均，后者的方差约为前者的四分之一。两份报告里都叫 pass@1 的数字不可直接比较，而引用它们的人不会去看这一行。
+
+3. **bootstrap 到底要不要。** `2411.00640` §2.1 说得很硬:CLT 适用于任何有限方差、题量够大的 eval，「we regard bootstrapping as unnecessary unless a complicate[d]」情形；`2403.04132` §5 却把 pivot bootstrap 列为首选策略之一，另一个是 sandwich。差别不在手法，在前提:Chatbot Arena 不信任 BT 的参数形式(§4 专门论证 assumptions 不成立时仍可用 sandwich)，而 `2411.00640` 的框架假设每题得分是同分布的 x_i + ε_i。谁对取决于你信不信模型的形式，这两篇没有共同的裁判。
+
+4. **上一轮八篇的结论和这批打架，而且错的是上一轮。** 上一轮把 `2403.04132` §5 的排名规则搬来当 gate 判据(「`noiseSpread` 改成区间是否分离」)。但那篇的均匀有效性控的是「同时给 M 个模型排名」这一族的假阳性——ℙ(∃m: R_m > rank(P)_m) ≤ α，其中的 C_m 是 BT 系数的联合置信区间；gate 做的是单次成对判决，n=1 时连方差都估不出(`src/loop/ab.js` 自己写着「not evidence of an effect」)。这批里 `2411.00640` §5 给的才是对的语言:power 与 MDE，而不是排名分离。上一轮的建议会把一个 family-wise 规则套到 n=1 的成对判决上，比现状更糟，也比现状更贵。
+
+## 四、三条我会改的
+
+1. **让误差棒由 n 与 σ 算出来，而不是从配置里读一个常数。** 改 `src/gate/score.js`(返回 `{score, source, n}`，n 取自 `MUTANTS`)、`src/gate/gate.js`(`bar = z·√2·σ_hat`，`noiseMultiplier` 缺省从 1 改成 1.96，σ 缺省从常量 0.1 改成按 n 的二项下界 √(p(1-p)/n)，reason 里带上 n)、`src/core/config.js`(给 `noiseSpread` 加注释说明它是单次读数的 spread 还是差的 spread——现在这句话没说清，两种读法差 2.8 倍)。同步改 `docs/contracts.md` 里「缺省 0.1 即实测 pooled spread」那一段，否则下一个人还会按旧读法用。
+
+2. **把「测了几次、什么时候测的、这次判决是不是噪声」写进记录，并让噪声判决能被计数。** 改 `src/runtime/round.js:2299-2324`(`gate.evaluated` 增 `incumbentMeasuredAt`、`observations`、`noiseVerdict`)、`src/loop/decisions.js`(要求 evidence 里出现 n，而不是任意一个有限数就算证据)、`src/loop/policy.js`(每个 campaign 统计 noise 判决占比，超阈值时以「仪器分辨率不足」为理由停，而不是继续在 promote / no-gain 之间二选一)。
+
+3. **给仪器加一个 worker 看不见的 holdout 算子族，并在 gate 处同时读两个数。** 改 `research/mutants/gen.mjs`(现存的 12 类字节级变异保留为 visible，新增语句删除、分支体互换、`await` 移除、比较方向反转四类 holdout)、`research/mutants/task.mjs`(多打一行 `HOLDOUTKILL=`，与 KILLRATE 同格式)、`docs/graded-loop.md`(把「What this does not establish」从免责声明改成可检验的句子:holdout kill rate 应当随 visible 一起升，若只升 visible 而 holdout 平或降，就记一次边界收窄)。这是 `2504.13837` §2.2 的 pass@k 思路在我们这套仪器上的最小可用版本。
+
+## 五、这份阅读没回答的三件事
+
+1. **「42 篇」实际只有 31 篇有正文，而缺的那几篇正好管着我的第二、三条判断。** `1707.06347` 与 `1412.6980` 在 digest 里标着 [UNREAD]，正文拿不到；另有九篇零段落:`2009.03300`、`2303.08774`、`2207.05221`、`2305.17926`、`2212.08073`、`2305.20050`、`2307.13854`、`2404.12272`、`2308.03688`——零段落既可能是抽取失败，也可能是真的没有可引的测量段落，我分不清，所以不把它们当作「这些论文没讨论噪声」的证据。但 PPO 的 clip 与 Adam 的解耦衰减在本批里都是被二次引用的(`2507.18071` §4.1、`1711.05101` §3)，若原文里有关于裁剪与方差的具体条款，我第二条关于误差棒的判断可能要重写。这是缺信息，不是我没读。
+
+2. **killRate 的 run-to-run 方差到底是 0 吗。** 我上面算的 8–11pp 是「把 20 个 mutant 外推到别的 mutant」的二项下界，不是重跑方差。重跑方差只能靠同一棵树跑十次 22 个任务来测，而 `docs/graded-loop.md` 提到过 repo-wide 锁、guard spec 引入半棵树、mutation 跨进程可见——这些都是 flakiness 的已知来源。这件事很便宜，但没人做；在它做出来之前，第五条判断里「重复性很可能是 0」只是猜测。
+
+3. **一条被晋升的链，它的「边界」该用哪个量。** `2504.13837` 用 pass@256；我们没有对应量。`docs/graded-loop.md` 说「a kill rate is a property of a test suite and a mutation operator, not of the code」，那么边界应该是 holdout 算子族的 kill rate，还是 oracle 差分通过的路径数?在这个量定下来之前，第六条判断无法被证伪——我可以一直说「边界在收窄」，而没有任何一行代码能反驳我。

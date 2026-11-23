@@ -247,6 +247,13 @@ const standing = [
   // that does not match it.
   'tests/self51/deep-identity.test.mjs',
   'tests/self51/deep-expect.test.mjs',
+  // Reading forty-two papers a direction instead of eight is a fetch job: the
+  // prefetcher must not re-download a body, must not remember a PDF pointer as
+  // a body, must retry a 429 and must not retry a 404. The synthesis is the
+  // other half -- a work several directions cite is a fact about agents, and a
+  // work one direction cites is a fact about that direction.
+  'tests/self52/prefetch.test.mjs',
+  'tests/self52/synthesis.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

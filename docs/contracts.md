@@ -92,6 +92,8 @@
 - `src/research/questions.js` — 问题台账（append-only JSONL）：每个问题必须写 `closedBy`（什么能关掉它），关闭必须带 `answer`，`park` 是「暂时没有预算」而不是删除；id 由问题文本（忽略标点大小写）哈希得到，同一问题问两次只有一条；`openQuestions` 带 `ageDays`，`renderQuestionLine` 一行说明有几条开着、最老的那条等了多久。
 - `src/research/sink.js` — 研究结论唯一允许进入循环的口：只有 `verified` 的 claim 能变成 lesson，lesson 带证据 id 与 locator，`fact` 必须带 `notWhen` 边界；与现有 active lesson 冲突时不自动应用，而是生成一张两侧都引原文的提案卡交给人；未通过核验的 claim 进 `skipped` 并写明原因，绝不静默丢弃。
 - `src/research/run.js` — 一轮调研的编排：搜索失败是命名的 gap 且其余查询继续，抓取失败/二进制不进证据，读到但没匹配到 span 记作「读了没贡献」而不是沉默，`authority` 只数真正读到的页，没有 web 服务时返回 `web-unavailable` 并仍给计划；search/fetch 由依赖注入，所以离线可测。
+。
+- `src/research/synthesis.js` — 把八份 survey 放在一起看，而不是八份分开看：`workIndex` 只认有 arXiv id 且被本语料至少引一次的工作，`crossDirection` 把被多个方向独立引到的工作收成一行（每方向保留自己的引用强度，所以「三个方向各引一次」不会被「一个方向引三十次」压住），`pairMatrix` 给出两两方向 top-N 的重叠并**同时**命名两侧都不与任何人共享的方向（只报一侧会让人以为另一侧有伴），`bridges` 找被多个方向引却从未读过正文的工作，`readingCoverage` 把「这个方向被引最多的四十个里读了几个」算成数。`splitShared` 再切一刀：被多方向共享的工作，一半是共享的**想法**，一半只是共享的**基座**（模型报告、优化器、benchmark），这两件事混在一起会让语料看起来比它实际更统一——判定是标题启发式，会错判几篇，所以两张表都原样打印。它只说共引，不说谁对。
 
 - `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
 
