@@ -384,6 +384,44 @@ exist because every campaign in the corpus has one task while
 `chain.minTasks` is 6. Neither number says the new gate is right; they say the
 old ledger cannot settle it, and only rounds run after this change can.
 
+### The live run that settled it (`paired-gate3`)
+
+Workspace `C:/Projects/RSI-live/paired2`: one task, one file holding
+`step: <value>`, one verifier printing `KILLRATE=<value>`. The task asks for one
+step of at most +0.10 per round, so every round buys a candidate that should
+beat the tree it replaces by a known amount — a case where a correct gate must
+eventually commit, and where the number of rounds it takes is checkable
+arithmetic.
+
+| round | score | base read | e-value | pairs | decision |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0.15 | 0.05 | 1.5 | 1 | defer |
+| 2 | 0.25 | 0.15 | 1.5 | 1 | defer |
+| 3 | 0.35 | 0.25 | 2.25 | 2 | defer |
+| 4 | 0.45 | 0.35 | 3.375 | 3 | defer |
+| 5 | 0.55 | 0.45 | 5.0625 | 4 | defer |
+| 6 | 0.65 | 0.55 | 7.59375 | 5 | defer |
+| 7 | 0.75 | 0.65 | 11.390625 | 6 | defer |
+| 8 | 0.85 | 0.75 | 17.0859375 | 7 | defer |
+| 9 | 0.95 | 0.85 | **25.62890625** | 8 | **commit**, first crossing 8 |
+| 10 | 1.00 | 0.95 | 38.443359375 | 9 | commit (still) |
+
+Two things are worth reading off this table. First, `1.5^8 = 25.63` is the
+arithmetic the module promises, and it took exactly eight paired wins to cross
+`1/alpha = 20` — the gate is counting, not estimating. Second, round 2 shows the
+pair count stuck at 1: round 1's score (0.15) equalled the second reading of the
+tree, so that pair carried no information and was dropped. A gate that counted
+it as a win would have committed earlier for a reason that does not exist.
+
+**This run also found a bug the tests had missed.** An unfinished round carries
+`score: null`, and `Number(null)` is `0` — finite. So `pairedHistory` recorded
+the current round as a loss before it had a score, and every round contributed
+one win and one loss: the e-value oscillated instead of growing. The first live
+campaign (`paired-gate2`) committed nothing in six rounds with e-values of
+1.5 / 0.75 / 1.125 / 1.6875 — rising and falling, which is not what eight wins
+should look like. The filter now requires `score !== null && score !== undefined`
+before the finite check, and `tests/self53/paired-e-process.test.mjs` pins it.
+
 **A first version of this measurement was wrong and is recorded here so it is
 not repeated.** `pairedFromAttempts` paired the round's winner against each
 loser. Since the winner is `argmax(score)` of the same attempts, every pair was

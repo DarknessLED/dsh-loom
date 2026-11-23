@@ -89,3 +89,19 @@ assert.deepEqual(pairedAgainstBase({ candidate: 0.75, base: 0.5, epsilon: 0.1 })
 
 console.log('ok: one round contributes the pair that can go either way')
 
+// A round that has started but not finished carries `score: null`. It is not a
+// zero: `Number(null)` is 0, so a bare finite-check would record the current
+// round as a loss and shrink the e-value every round — the gate would then take
+// longer to commit for a reason that has nothing to do with the candidate.
+assert.deepEqual(
+  pairedHistory([{ n: 1, taskId: 't1', score: 0.25 }, { n: 2, taskId: 't1', score: null }], 't1'),
+  [],
+  'an unfinished round is not a zero score',
+)
+assert.deepEqual(
+  pairedHistory([{ n: 1, taskId: 't1', score: 0.25 }, { n: 2, taskId: 't1', score: 0.4 }], 't1'),
+  [1],
+  'and a finished one still counts',
+)
+console.log('ok: a round that has not finished is not a loss')
+

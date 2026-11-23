@@ -129,7 +129,11 @@ export function pairedHistory(rounds, taskId) {
   const out = []
   let best = null
   const sorted = rounds
-    .filter((r) => r && String(r.taskId) === String(taskId) && Number.isFinite(Number(r.score)))
+    // A round that has started but not finished has `score: null`, and
+    // `Number(null)` is 0 — finite, so a bare `Number.isFinite(Number(...))`
+    // counts the current round as a zero and manufactures a loss out of a
+    // measurement that has not happened yet. Only a real number counts.
+    .filter((r) => r && String(r.taskId) === String(taskId) && r.score !== null && r.score !== undefined && Number.isFinite(Number(r.score)))
     .sort((a, b) => Number(a.n) - Number(b.n))
   for (const r of sorted) {
     const score = Number(r.score)

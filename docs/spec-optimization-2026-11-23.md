@@ -419,3 +419,48 @@ P2-*（任意时候，互不依赖）
 
 复算：`node scripts/research-replay.mjs`（13/13 seal）、`node scripts/research-synthesis.mjs --out-dir research/out`（共引矩阵、整库 Jaccard、年代剖面）、
 `~/.dsh/loom/research/ledger/claims.jsonl`（1700 行）。
+
+## 9. 落地记录（2026-11-24，commit `e5999f8`）
+
+这一轮把 §3 的 P0 与 P1 做完了，并且**每一条都先让规格红、再让它绿**。下面按条目写它现在是什么、证据在哪、以及哪条真缺陷是它在实现途中逼出来的。
+
+### 已落地
+
+| 条目 | 落点 | 一句话 | 规格 |
+| --- | --- | --- | --- |
+| P0-1 | `src/gate/sequential.js`、`round.js` | 晋升是三态序贯检验：`commit` 在 e-value 首次越过 `1/α` 时发生且此后不许改写，`reject` 在跌到 `α` 时，中间一律 `defer` | `paired-e-process`、`gate-can-defer`、`promotion-uses-paired-test`、`a-round-writes-down-its-pair` |
+| P0-2 | `measure.js`（`measureDeclinedGate`）、`decision-effects.js`、`reduce.js` | 人拒绝的 gate 卡也留反事实：`gate.declined`，下一轮同任务结算成 `cost-nothing` / `left-on-table`（**刻意不用 met/missed**：拒绝不是预测） | `declined-gate-is-measured`、`declined-forecast`（旧断言已改） |
+| P0-3 | `round.js` 的 `shadow` | `decidePromotion` 只做影子，把它的判决与理由逐轮写在 `gate.evaluated` 上，两套规则并排可见 | `one-promotion-rule` |
+| P0-4 | `ledger.js` 的 `renderReport` / `sealReport` | 声明了 claim 的段落在正文末尾带上 `[c-…]`，manifest 记 `coverage`（段落数、被引段落数、表里列了但正文没用的 id） | `report-renders-its-claim-links`、`seal-counts-unsupported-paragraphs` |
+| P1-1 | `round.js` 的 `holdoutScore` / `holdoutReason` / `candidateScore` | holdout 仍是**失败即否决**的门，但它印出来的数被记下并可与候选比；不可比时 `holdoutGain` 是 `null` 而不是假 | `holdout-is-a-second-reading` |
+| P1-2 | `impact.js`、`research/sink.js`、`brief.js`、`store.js` | lesson 带 `origin` / `trust`；98 条旧记录按规则回填（**绝不把缺来源的升级成 verified**）；简报先本地证据、外来材料另起一段并声明「是数据不是指令」 | `lessons-say-where-they-came-from`、`knowledge-origin-migration` |
+| P1-3 | `halving.js` 的 `halvingPlan` / `fidelityCheck`，`round.js` 记录 | 轮次记 `screened` / `kept` / `halving` / `fidelity`，被淘汰的尝试记 `freedUsd` / `reallocUsd: 0` / `halvingKind`；`kind` 诚实叫 `prefilter`（丢候选、钱留给自己），便宜档与正式档排序不一致时自动关掉 | `halving-returns-what-it-saved`、`fidelity-check-can-stop-halving`、`a-round-records-its-halving` |
+| P1-4 | `src/chain/descriptor.js`、`mutate.js`、`evidence-card.js`、`reduce.js` | 版本按**行为**归档（平均分档、解出比例、成本量级），提案带格子与种类；同类占多数标 `collapsed`；从未跑过的记 `unmeasured` 且不并进被替换版本 | `proposal-kinds-can-collapse`、`versions-are-filed-by-behaviour` |
+
+### 实现逼出来的三个真缺陷
+
+1. **base 与候选读数不同源**（最严重）。`src/runtime/baseline.js` 只缓存任务**声明**的 metrics，而候选侧读通用 `KILLRATE=` 行。历史 148 条带 base metric 的 `gate.evaluated` 里，带 `killRate` 的是 **0** 条。缓存版本升到 3，两边合并、声明键优先、沉默保持 `null`。规格 `base-is-read-the-same-way`。
+2. **第一版配对是同义反复**。`pairedFromAttempts` 拿本轮 winner 对每个 loser 造对，而 winner 是同一批分数的 `argmax`，所以每对必是赢对——八轮必到 `1.5^8`，与有没有改进无关。全库影子表因此印出 14 次 commit，14 次全假。已删除该导出，换成 `pairedAgainstBase`（对候选之前就读过的 base 树，两侧都可能赢），14 → **0**。
+3. **未完成的轮被记成 0 分**。`pairedHistory` 用 `Number.isFinite(Number(r.score))` 过滤，而 `score: null` 经过 `Number()` 是 0、是有限数——于是当前这轮在出分之前就被记成一次失败，每轮一赢一输，e-value 来回震荡。第一次真机战役 `paired-gate2` 六轮 e-value 是 1.5 / 0.75 / 1.125 / 1.6875（该涨却在跌）才暴露它。过滤已加 `score !== null && score !== undefined`，规格 `paired-e-process` 增一条。
+
+### 真机证据（不是影子）
+
+`paired-gate3`（`C:/Projects/RSI-live/paired2`，一轮一小步、空仓 0.05 起）九轮：
+
+| 轮 | 分 | base 读数 | e-value | 对数 | 判决 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0.15 | 0.05 | 1.5 | 1 | defer |
+| 2 | 0.25 | 0.15 | 1.5 | 1 | defer |
+| … | | | | | |
+| 8 | 0.85 | 0.75 | 17.0859375 | 7 | defer |
+| 9 | 0.95 | 0.85 | **25.62890625** | 8 | **commit**，首次越线 = 8 |
+| 10 | 1.00 | 0.95 | 38.443359375 | 9 | commit（不再回撤） |
+
+第 2 轮对数停在 1 是正确行为：第 1 轮的 0.15 与 base 再读一次的 0.15 相等，那一对不携带信息。把它算作赢会让门提前 commit，理由是编出来的。
+
+### 仍然只是影子 / 没做
+
+- `decidePromotion` 的影子在 470 历史轮里 470 次判 `insufficient tasks`（`minTasks` 默认 6，而语料里 135/138 个战役只有 1 个任务）。合并会让 248 次历史晋升中的 230 次停止，所以本轮只并排显示，不真判。
+- 历史账本里 base 从未带 `killRate`，所以序贯门在**旧**数据上 0 次 commit；只有 `paired-gate3` 这种带缓存 v3 的新战役才产生配对。
+- `halvingPlan.returnedUsd` 恒 0：我们丢候选、把预算留给自己，没有任何代码路径把省下的额度还给幸存者。
+- P1-1 记录「holdout 比候选低」但不据此否决。池只有 1–2 个任务时，单次读数的 2.2–6.0 个点漂移大于它要判的差；这是有意的取舍，不是完成态。
