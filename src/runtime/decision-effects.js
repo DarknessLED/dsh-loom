@@ -79,6 +79,31 @@ export function applyApprovalEffects({ runtime, view, target, config, actor = 'h
  */
 export function applyRejectionEffects({ runtime, view, target, actor = 'human', note = null } = {}) {
   if (!target || !runtime || !view) return null
+  if (target.kind === 'gate') {
+    // A passing patch that a person refused. The ledger had no place for this:
+    // the round recorded "not promoted" and the card closed, so the only
+    // available summary of a campaign was "fewer promotions", never whether the
+    // refusals were right. The card already carries the task id (through
+    // `cardEvidence`) and the score it was shown with, so recording the refusal
+    // costs no extra measurement — only the later round is needed to grade it.
+    const payload = target.payload ?? {}
+    const taskId = payload?.evidence?.task?.id ?? payload?.taskId ?? null
+    // `cardScore` is what the refused patch itself reached, not a baseline of
+    // the task: the delta against a later round is then "what the patch bought",
+    // which is the only thing a refusal can be graded on.
+    const cardScore = Number.isFinite(Number(payload?.score)) ? Number(payload.score) : null
+    const at = Date.now()
+    runtime.append(
+      view,
+      'gate.declined',
+      { taskId: taskId == null ? null : String(taskId), cardScore, note: note || null, at },
+      actor,
+    )
+    // `measured: false` is not a placeholder: a card with no task id can never
+    // be graded, and a refusal whose counterfactual never ran looks exactly
+    // like one that cost nothing unless the difference is written down.
+    return { kind: 'gate.declined', taskId: taskId == null ? null : String(taskId), cardScore, measured: false, at }
+  }
   if (target.kind !== 'chain' && target.kind !== 'plateau' && target.kind !== 'chain-revert') return null
   const payload = target.payload
   if (!payload || payload.chainVersion == null) return null

@@ -21,7 +21,7 @@ import { scoreAttempt, rankAttempts } from '../gate/gate.js'
 import { scoreOf } from '../gate/score.js'
 import { verifyMetrics } from '../gate/metrics.js'
 import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
-import { measureDeclined, measurePrediction } from '../chain/measure.js'
+import { measureDeclined, measureDeclinedGate, measurePrediction } from '../chain/measure.js'
 import { readDecisions, appendDecision } from '../loop/decisions.js'
 import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } from './cost.js'
 import { writeLease, updateLease } from './lease.js'
@@ -2794,6 +2794,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         round: { n, taskId: task.id, chainVersion: state.chain.activeVersion, score },
       })
       if (counterfactual) runtime.append(view, 'chain.measured', counterfactual, 'system')
+    }
+
+    // A patch a person refused at the gate also owns a counterfactual. The
+    // card showed a score; this round on the same task is what happened
+    // without the patch. `missed` means the refusal kept the task where it
+    // was, `met` means the person left a measured gain on the table. Either
+    // way the ledger stops being able to say only "fewer promotions".
+    const declinedGate = (view.state.gate?.declined ?? []).find(
+      (d) => d && d.measured !== true && d.taskId != null && String(d.taskId) === String(task.id),
+    )
+    if (declinedGate) {
+      const counterfactual = measureDeclinedGate({
+        declined: declinedGate,
+        round: { n, taskId: task.id, score },
+      })
+      if (counterfactual) runtime.append(view, 'gate.declined.measured', counterfactual, 'system')
     }
 
     // Three rounds in a row whose patches changed while the verifier said exactly

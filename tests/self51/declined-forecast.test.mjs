@@ -119,14 +119,21 @@ assert.equal(appended[0].type, 'chain.declined')
 assert.equal(appended[0].data.version, 2)
 ok('declining a plateau card appends chain.declined for the version it named')
 
-// Approving the same card must not also decline it, and a gate card (which
-// names no version) has nothing to decline.
+// Approving the same card must not also decline it. A gate card names no
+// chain version, so it never produces a chain.declined — but it is not
+// nothing: a refused promotion is a counterfactual and gets its own record,
+// with no task id and nothing measured yet. Refusing to write that down is
+// what made "we said no" look identical to "there was nothing to say no to".
 const noise = []
 const quietRuntime = { append: (_v, type, data) => noise.push({ type, data }) }
 const approved = applyApprovalEffects({ runtime: quietRuntime, view, target: { id: 'cp-2', kind: 'plateau', payload: { chainVersion: 2 } } })
 assert.equal(approved.chain, 2)
-assert.equal(applyRejectionEffects({ runtime: quietRuntime, view, target: { id: 'cp-3', kind: 'gate', payload: {} } }), null)
-assert.equal(noise.filter((e) => e.type === 'chain.declined').length, 0, 'an approval or a version-less card never declines anything')
+const refusedGate = applyRejectionEffects({ runtime: quietRuntime, view, target: { id: 'cp-3', kind: 'gate', payload: {} } })
+assert.equal(refusedGate.kind, 'gate.declined')
+assert.equal(refusedGate.taskId, null, 'a card with no task id says so instead of guessing one')
+assert.equal(refusedGate.measured, false)
+assert.equal(noise.filter((e) => e.type === 'chain.declined').length, 0, 'an approval or a version-less card never declines a chain version')
+assert.equal(noise.filter((e) => e.type === 'gate.declined').length, 1, 'a refused promotion is written down')
 ok('declines are only recorded when a version was actually refused')
 
 // The counterfactual has to survive contact with a real round: the reducer's

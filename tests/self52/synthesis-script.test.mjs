@@ -132,7 +132,12 @@ test('the committed document is what the script produces from the committed inpu
   const { surveys } = loadSurveys(join(root, 'research', 'out'))
   if (!Object.keys(surveys).length) return
   const reading = readFileSync(readingPath, 'utf8')
-  const built = buildSynthesis({ surveys, readIds: new Set(), generated: '2026-11-23', reading })
+  // The stamp is the day the document was generated, not a constant: taking it
+  // from the document itself keeps this suite about "the machine half is
+  // reproduced" instead of failing every time the file is regenerated.
+  const stamp = /Generated (\d{4}-\d{2}-\d{2}) by/.exec(doc)
+  assert.ok(stamp, 'the committed document says which day it was generated')
+  const built = buildSynthesis({ surveys, readIds: new Set(), generated: stamp[1], reading })
   const machineHalf = doc.split('\n---\n')[0]
   // The ledger lives outside the repo, and two sections depend on it: which
   // works are bridges and how much of each direction has been read. Compare the

@@ -3,24 +3,78 @@
   "name": "Evaluation budget meets evaluation reliability",
   "why": "R3 的孤立不一定是没人做预算分配，而是没人同时做预算分配与评估可靠性。这一轮专门去找联合空间：谁在决定「再跑几次、再花多少钱才够下结论」，并且用统计上站得住的停止规则。若这个方向也空，那 R3 的孤立就是真缺口；若它满，那 P1-3 的前提句要改写。",
   "queries": [
-    { "q": "\"sequential testing\" AND (\"benchmark\" OR \"evaluation\")", "max": 50 },
-    { "q": "\"anytime-valid\" OR \"confidence sequence\"", "max": 40 },
-    { "q": "\"adaptive evaluation\" AND \"budget\"", "max": 50 },
-    { "q": "\"sample size\" AND \"evaluation\" AND \"statistical power\"", "max": 50 },
-    { "q": "\"efficient benchmarking\" AND \"LLM\"", "max": 50 },
-    { "q": "\"evaluation cost\" AND \"reliability\"", "max": 40 },
-    { "q": "\"replication\" AND \"benchmark\" AND \"variance\"", "max": 50 },
-    { "q": "\"stopping rule\" AND \"evaluation\" AND \"LLM\"", "max": 40 },
-    { "q": "\"statistical significance\" AND \"LLM benchmark\"", "max": 50 },
-    { "q": "\"adaptive testing\" AND (\"model evaluation\" OR \"capability\")", "max": 50 },
-    { "q": "\"stratified sampling\" AND \"evaluation\" AND \"variance reduction\"", "max": 40 },
-    { "q": "\"active testing\" AND \"machine learning\" AND \"budget\"", "max": 40 },
-    { "q": "\"early stopping\" AND \"evaluation\" AND \"LLM\"", "max": 40 },
-    { "q": "\"power analysis\" AND (\"LLM\" OR \"deep learning\") AND \"evaluation\"", "max": 40 },
-    { "q": "\"item response theory\" AND \"benchmark\" AND \"adaptive\"", "max": 40 },
-    { "q": "\"benchmark contamination\" AND \"statistical\"", "max": 30 },
-    { "q": "\"elastic\" OR \"budget-aware\" AND \"benchmark\" AND \"sampling\"", "max": 40 },
-    { "q": "\"sequential halving\" AND \"evaluation\"", "max": 30 }
+    {
+      "q": "sequential testing benchmark evaluation",
+      "max": 50
+    },
+    {
+      "q": "\"anytime-valid\" OR \"confidence sequence\"",
+      "max": 40
+    },
+    {
+      "q": "\"adaptive evaluation\" AND \"budget\"",
+      "max": 50
+    },
+    {
+      "q": "\"sample size\" AND \"evaluation\" AND \"statistical power\"",
+      "max": 50
+    },
+    {
+      "q": "\"efficient benchmarking\" AND \"LLM\"",
+      "max": 50
+    },
+    {
+      "q": "\"evaluation cost\" AND \"reliability\"",
+      "max": 40
+    },
+    {
+      "q": "\"replication\" AND \"benchmark\" AND \"variance\"",
+      "max": 50
+    },
+    {
+      "q": "\"stopping rule\" AND \"evaluation\" AND \"LLM\"",
+      "max": 40
+    },
+    {
+      "q": "\"statistical significance\" AND \"LLM benchmark\"",
+      "max": 50
+    },
+    {
+      "q": "adaptive testing model evaluation capability",
+      "max": 50
+    },
+    {
+      "q": "\"stratified sampling\" AND \"evaluation\" AND \"variance reduction\"",
+      "max": 40
+    },
+    {
+      "q": "active testing machine learning budget",
+      "max": 40
+    },
+    {
+      "q": "\"early stopping\" AND \"evaluation\" AND \"LLM\"",
+      "max": 40
+    },
+    {
+      "q": "power analysis LLM evaluation statistical",
+      "max": 40
+    },
+    {
+      "q": "\"item response theory\" AND \"benchmark\" AND \"adaptive\"",
+      "max": 40
+    },
+    {
+      "q": "\"benchmark contamination\" AND \"statistical\"",
+      "max": 30
+    },
+    {
+      "q": "\"elastic\" OR \"budget-aware\" AND \"benchmark\" AND \"sampling\"",
+      "max": 40
+    },
+    {
+      "q": "\"sequential halving\" AND \"evaluation\"",
+      "max": 30
+    }
   ],
   "seeds": [
     "TinyBenchmarks: Evaluating LLMs with Fewer Examples",
@@ -33,10 +87,42 @@
     "Adaptive Evaluation Budget Allocation for Language Models"
   ],
   "clusters": {
-    "stopping rules with guarantees": ["sequential test", "anytime-valid", "confidence sequence", "stopping rule", "alpha spending", "e-value"],
-    "sample size and power": ["sample size", "statistical power", "power analysis", "how many", "minimum detectable"],
-    "adaptive and stratified sampling": ["adaptive evaluation", "stratified sampling", "item response", "active testing", "variance reduction"],
-    "cost-aware benchmarking": ["efficient benchmark", "budget-aware", "evaluation cost", "reduce the number of", "subset selection"],
-    "replication and noise": ["replication", "variance", "noise", "seed", "repeat", "reliab"]
+    "stopping rules with guarantees": [
+      "sequential test",
+      "anytime-valid",
+      "confidence sequence",
+      "stopping rule",
+      "alpha spending",
+      "e-value"
+    ],
+    "sample size and power": [
+      "sample size",
+      "statistical power",
+      "power analysis",
+      "how many",
+      "minimum detectable"
+    ],
+    "adaptive and stratified sampling": [
+      "adaptive evaluation",
+      "stratified sampling",
+      "item response",
+      "active testing",
+      "variance reduction"
+    ],
+    "cost-aware benchmarking": [
+      "efficient benchmark",
+      "budget-aware",
+      "evaluation cost",
+      "reduce the number of",
+      "subset selection"
+    ],
+    "replication and noise": [
+      "replication",
+      "variance",
+      "noise",
+      "seed",
+      "repeat",
+      "reliab"
+    ]
   }
 }

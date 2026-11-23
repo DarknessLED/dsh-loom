@@ -253,15 +253,55 @@ export function verifyClaim(home, claim) {
 // sealing
 // ---------------------------------------------------------------------------
 
+function claimIdsOf(paragraph) {
+  if (typeof paragraph === 'string' || !paragraph) return []
+  const raw = Array.isArray(paragraph.claimIds) ? paragraph.claimIds : []
+  const seen = new Set()
+  const out = []
+  for (const id of raw) {
+    const text = cleanText(id)
+    if (!text || seen.has(text)) continue
+    seen.add(text)
+    out.push(text)
+  }
+  return out
+}
+
+/**
+ * Render the prose, with each paragraph's declared claims printed next to it.
+ *
+ * Two rules, both of them about not lying in the sealed bytes:
+ *
+ *   * the marker lists only what the paragraph *declared*. Nothing is inferred
+ *     from word overlap — a renderer that guesses links makes citation coverage
+ *     a measure of how the renderer feels;
+ *   * a paragraph that declares nothing is written exactly as given. A silent
+ *     paragraph is a fact about the argument, and decorating it would erase the
+ *     only signal a reader has that a sentence rests on nothing.
+ *
+ * The marker is for a reader, not a parser: the claim table and the manifest
+ * stay the authority. A `[c-9]` typed into the prose by hand is therefore not a
+ * citation, and `coverage` counts only the markers this function wrote.
+ */
 function renderReport({ title, topic, sections, claims }) {
   const lines = [`# ${cleanText(title) || `Research report: ${cleanText(topic) || 'untitled'}`}`, '']
   if (cleanText(topic)) lines.push(`**Topic.** ${cleanText(topic)}`, '')
+  const stats = { paragraphs: 0, cited: 0, ids: new Set() }
   for (const section of Array.isArray(sections) ? sections : []) {
     const heading = cleanText(section?.heading)
     if (heading) lines.push(`## ${heading}`, '')
     for (const paragraph of Array.isArray(section?.paragraphs) ? section.paragraphs : []) {
       const text = typeof paragraph === 'string' ? paragraph : cleanText(paragraph?.text)
-      if (text) lines.push(text, '')
+      if (!text) continue
+      const ids = claimIdsOf(paragraph)
+      stats.paragraphs += 1
+      if (ids.length) {
+        stats.cited += 1
+        for (const id of ids) stats.ids.add(id)
+        lines.push(`${text} [${ids.join(', ')}]`, '')
+      } else {
+        lines.push(text, '')
+      }
     }
   }
 
@@ -282,7 +322,21 @@ function renderReport({ title, topic, sections, claims }) {
     const checked = rows.filter((c) => cleanText(c?.status) === 'verified').length
     lines.push(`${checked} of ${rows.length} claim(s) rest on a literal found in the stored bytes.`, '')
   }
-  return `${lines.join('\n').trimEnd()}\n`
+
+  // Stated in the document because a reader of the sealed bytes has no other
+  // way to see it. It is a floor, not a quality score: a cited paragraph can
+  // cite the wrong claim, and a one-line transition will always be uncited.
+  const coverage = {
+    paragraphs: stats.paragraphs,
+    cited: stats.cited,
+    uncited: stats.paragraphs - stats.cited,
+    claimsListed: rows.length,
+    claimsNotInBody: rows.map((c) => cleanText(c?.id)).filter((id) => id && !stats.ids.has(id)),
+  }
+  if (stats.paragraphs) {
+    lines.push(`coverage: ${coverage.cited}/${coverage.paragraphs} paragraphs cite a claim`, '')
+  }
+  return { body: `${lines.join('\n').trimEnd()}\n`, coverage }
 }
 
 /**
@@ -294,7 +348,7 @@ function renderReport({ title, topic, sections, claims }) {
  * source can change without the seal changing.
  */
 export function sealReport(home, { topic, title, sections, evidenceIds, claims } = {}) {
-  const body = renderReport({ title, topic, sections, claims })
+  const { body, coverage } = renderReport({ title, topic, sections, claims })
   const dir = join(ledgerDir(home), 'reports', `${cleanText(topic) ? cleanText(topic).replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 60) : 'report'}-${Date.now()}`)
   ensure(dir)
 
@@ -319,6 +373,10 @@ export function sealReport(home, { topic, title, sections, evidenceIds, claims }
     files: { 'report.md': sha256(body) },
     evidence: cited,
     ...(pinned.length ? { claims: pinned } : {}),
+    // How much of the argument points at a checked claim. Recorded here rather
+    // than computed from the body later, because a count that re-scans the text
+    // would credit ids typed by hand and describe typography instead of evidence.
+    coverage,
   }
   const seal = sha256(JSON.stringify(manifest))
 

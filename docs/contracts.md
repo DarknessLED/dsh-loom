@@ -26,6 +26,7 @@
 - `src/chain/adopt.js` — 人一键采纳的落点：工具与面板两条门都经由它把 chain/plateau 检查点写成 `chain.activated`，并带上被采纳的预测供下一轮核对。
 - `src/runtime/decision-effects.js` — 采纳的唯一落点：两条门（工具、面板）都调它，chain/plateau/revert 走 `adoptFromCheckpoint`，policy 走 `policy.promoted` 并带 diff，避免按钮与命令行各记一笔。
 - `src/chain/measure.js` — 采纳后的对账：把新链第一轮的分数与采纳前基线相减，按预测区间判 met/exceeded/missed，写进 `chain.measured`，让预测兑现与否可被追问。
+  拒绝也记：`gate` 卡被拒时 `decision-effects.js` 写 `gate.declined {taskId, cardScore}`，同任务的下一轮用 `measureDeclinedGate` 判 `cost-nothing` / `left-on-table` 并写 `gate.declined.measured`；`measured:false` 表示这一签没有反事实可算（任务集轮转），不是「成本为零」。
 
 ### collab/
 
@@ -88,7 +89,7 @@
 - `src/research/foundations.js` — 一份 survey 早就算出、却从没人用它读过的东西：`cls.foundations` 按「本语料里有几篇读过全文的论文引了它」排好序，这份表只被打印进文档、没被读。`selectReadingList` 把这张表变成阅读清单：没有 arXiv id 的丢掉（抓不到就别在每个方向重试），并列按标题排（否则同一语料两次跑出不同清单，文档不再可复现），同一篇论文跨方向只算一篇（否则账本会把同一份字节存两遍），`sota` 不带被引数所以补在排序之后而不是以 0 分混进去。返回的 `basis` 里写明「in this corpus」，因为这是语料内计数、不是全领域被引数。
 - `src/research/plan.js` — 调研的查询计划：`quick/standard/deep` 三档预设（quick 的 `fetchTop` 必须是 0，即只出计划不抓页），子问题优先于自动扩展，`maxQueries` 可被调用方收紧但 `rounds` 不可被覆盖（否则「快速」会被悄悄买成「深度」）；纯函数，不碰网络。
 - `src/research/fetch.js` — 只做「找到」与「读成文本」：URL 身份按 scheme/host/去追踪参数归一（解析失败走字符串回退，绝不抛），多查询结果按 rank 轮转合并去重，抓取目标按 host 限流，HTML 转文本去脚本样式注释，词项按语言抽（拉丁去停用词、CJK 二字滑窗），段摘必须是原文逐字span（40 字以下丢、600 字截断），第二轮查询只问「两个独立来源都出现的词」。算法移植自 dsh-deep-research（MIT），署名见 THIRD_PARTY_NOTICES.md。
-- `src/research/ledger.js` — 调研的事实底座：快照按自身字节做内容寻址（`ev-` + sha256 前 12 位），claim 必须带引文，判定顺序是 `unbound`（没引证据）→ `unverified`（证据缺失/被改/没引文）→ `contradicted`（引文不在快照里，这是更强也更用的信息）→ `verified`（引文逐字命中）；`sealReport` 写 report.md + manifest.json，seal 覆盖 manifest 与每份被引快照的哈希，`verifySeal` 全部重算。
+- `src/research/ledger.js` — 调研的事实底座：快照按自身字节做内容寻址（`ev-` + sha256 前 12 位），claim 必须带引文，判定顺序是 `unbound`（没引证据）→ `unverified`（证据缺失/被改/没引文）→ `contradicted`（引文不在快照里，这是更强也更用的信息）→ `verified`（引文逐字命中）；`sealReport` 写 report.md + manifest.json，seal 覆盖 manifest 与每份被引快照的哈希，`verifySeal` 全部重算。段落可在 `claimIds` 里声明它依据的 claim，`renderReport` 把 id 打在该段末尾（`[c-1, c-2]`）；没声明的段落原样输出，绝不按文字相似度猜。manifest 记 `coverage {paragraphs, cited, uncited, claimsListed, claimsNotInBody}`，报告正文写 `coverage: n/m paragraphs cite a claim`——覆盖率是下限不是质量分，且只数渲染器写的标记，手敲在正文里的 id 不算引用。
 - `src/research/questions.js` — 问题台账（append-only JSONL）：每个问题必须写 `closedBy`（什么能关掉它），关闭必须带 `answer`，`park` 是「暂时没有预算」而不是删除；id 由问题文本（忽略标点大小写）哈希得到，同一问题问两次只有一条；`openQuestions` 带 `ageDays`，`renderQuestionLine` 一行说明有几条开着、最老的那条等了多久。
 - `src/research/sink.js` — 研究结论唯一允许进入循环的口：只有 `verified` 的 claim 能变成 lesson，lesson 带证据 id 与 locator，`fact` 必须带 `notWhen` 边界；与现有 active lesson 冲突时不自动应用，而是生成一张两侧都引原文的提案卡交给人；未通过核验的 claim 进 `skipped` 并写明原因，绝不静默丢弃。
 - `src/research/run.js` — 一轮调研的编排：搜索失败是命名的 gap 且其余查询继续，抓取失败/二进制不进证据，读到但没匹配到 span 记作「读了没贡献」而不是沉默，`authority` 只数真正读到的页，没有 web 服务时返回 `web-unavailable` 并仍给计划；search/fetch 由依赖注入，所以离线可测。

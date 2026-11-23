@@ -52,6 +52,54 @@ export function measureDeclined({ declined, round } = {}) {
   return graded ? { ...graded, applied: false } : null
 }
 
+/**
+ * The same question for a *patch* a person refused at the gate.
+ *
+ * This one carries no forecast: the card showed a score, not a prediction. So
+ * the honest reading is a comparison, not a delta against a predicted point —
+ * the card's score is what the refused patch had already reached, and the next
+ * round on that task says whether the task got there anyway.
+ *
+ * The verdicts are named for what a refusal costs rather than reusing the
+ * forecast's `met`/`missed`: `cost-nothing` means the task reached the card's
+ * score without the patch, and `left-on-table` means it did not. Reusing the
+ * forecast vocabulary here would quietly equate "no prediction" with "a
+ * prediction that was graded", which is the confusion this record exists to end.
+ *
+ * A task that never came back gets `null`. "Never measured" and "cost nothing"
+ * are different facts, and the ledger keeps the first as `measured: false`
+ * rather than letting both collapse into a zero.
+ *
+ * @param {{
+ *   declined: {taskId:string|null, cardScore:number|null},
+ *   round: {n:number, taskId:string, score:number}
+ * }} input
+ * @returns {null | {kind:string, applied:false, taskId:string, round:number, cardScore:number, actual:number, realized:number, verdict:'cost-nothing'|'left-on-table'}}
+ */
+export function measureDeclinedGate({ declined, round } = {}) {
+  if (!declined || !round) return null
+  if (declined.taskId == null || round.taskId == null) return null
+  if (String(round.taskId) !== String(declined.taskId)) return null
+  if (!Number.isFinite(Number(round.score))) return null
+  // No card score means the card did not record what the patch achieved, and
+  // substituting 0 would credit the refusal with a gain it never demonstrated.
+  // `Number(null)` is 0, so the null check has to come before the numeric one.
+  if (declined.cardScore == null || !Number.isFinite(Number(declined.cardScore))) return null
+  const cardScore = Number(declined.cardScore)
+  const actual = Number(round.score)
+  const realized = round6(actual - cardScore)
+  return {
+    kind: 'gate',
+    applied: false,
+    taskId: String(declined.taskId),
+    round: round.n ?? null,
+    cardScore,
+    actual,
+    realized,
+    verdict: actual >= cardScore ? 'cost-nothing' : 'left-on-table',
+  }
+}
+
 function grade({ version, prediction, baseline: table, round }) {
   const taskId = round.taskId ?? null
   if (taskId == null) return null

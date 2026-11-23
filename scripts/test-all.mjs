@@ -268,6 +268,12 @@ const standing = [
   // every one of them. The bytes are in hand at deposit time, so that is when
   // they get checked -- and what came back is reported, not dropped.
   'tests/self53/deposit-verifies.test.mjs',
+  // The gate card a person refuses is now a decision with a cost, and a sealed
+  // report says which claims each paragraph rests on instead of keeping that
+  // link in a table at the bottom. Both were 'measured' before as zero.
+  'tests/self53/declined-gate-is-measured.test.mjs',
+  'tests/self53/report-renders-its-claim-links.test.mjs',
+  'tests/self53/seal-counts-unsupported-paragraphs.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

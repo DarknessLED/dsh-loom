@@ -38,6 +38,12 @@ export function emptyState(id = null) {
     /** Lesson records accumulate here (see src/knowledge/impact.js). */
     lessons: [],
     incumbent: null,
+    /**
+     * Patches a person refused at the gate, capped like the chain's forecast
+     * measurements. A refusal is a decision with a cost, and `measured:false`
+     * is what keeps "no later round on this task" from reading as "cost zero".
+     */
+    gate: { declined: [] },
     seq: 0,
   }
 }
@@ -296,6 +302,28 @@ function apply(s, ev) {
     case 'candidate.proposed':
       s.candidates.push({ id: d.id, kind: d.kind, version: d.version, at: ev.t, status: 'proposed', score: null })
       break
+    case 'gate.declined': {
+      // A passing patch a person refused. Kept here (not in the checkpoint,
+      // which the person closes) so the next round on the task can grade it.
+      if (!Array.isArray(s.gate.declined)) s.gate.declined = []
+      s.gate.declined.push({
+        taskId: d.taskId == null ? null : String(d.taskId),
+        cardScore: Number.isFinite(Number(d.cardScore)) ? Number(d.cardScore) : null,
+        note: d.note ?? null,
+        measured: false,
+        at: ev.t,
+      })
+      // Ten is enough to answer "were the last refusals right" without
+      // letting a long campaign grow this list without bound.
+      while (s.gate.declined.length > 10) s.gate.declined.shift()
+      break
+    }
+    case 'gate.declined.measured': {
+      if (!Array.isArray(s.gate.declined)) s.gate.declined = []
+      const row = [...s.gate.declined].reverse().find((r) => r.measured !== true && String(r.taskId) === String(d.taskId))
+      if (row) Object.assign(row, { measured: true, verdict: d.verdict ?? null, realized: Number.isFinite(Number(d.realized)) ? Number(d.realized) : null, measuredAt: ev.t })
+      break
+    }
     case 'gate.evaluated': {
       const c = s.candidates.find((x) => x.id === d.candidateId)
       if (c) Object.assign(c, { gate: d, status: d.promoted ? 'promoted' : 'rejected' })
