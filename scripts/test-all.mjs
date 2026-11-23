@@ -239,6 +239,14 @@ const standing = [
   // with its baseline, the next round grades it against the chain that stayed
   // in force, and adopted/refused forecasts are counted apart.
   'tests/self51/declined-forecast.test.mjs',
+  'tests/self51/foundations.test.mjs',
+  // A paper's HTML can be the wrong paper: arXiv serves a PDF pointer for
+  // some ids, some front matter is swallowed into one <title>, and a
+  // bibliography can cite the wrong id for a work it names. The reading
+  // therefore carries the title it expected and refuses to file anything
+  // that does not match it.
+  'tests/self51/deep-identity.test.mjs',
+  'tests/self51/deep-expect.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

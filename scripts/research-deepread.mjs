@@ -40,7 +40,12 @@ import {
   sectionForParagraph,
   passagesWithLocators,
   buildDeepNote,
+  documentTitle,
+  titleSimilarity,
+  bodyIsUnrendered,
+  pickBestTitle,
 } from '../src/research/deepread.js'
+import { parseSearchPage } from './research-survey.mjs'
 import { gradeNote, renderNote } from '../src/research/note.js'
 import { addEvidence, addClaim } from '../src/research/ledger.js'
 
@@ -58,6 +63,8 @@ function usage() {
     '  --out <file>      write the JSON result here',
     '  --doc <file>      write a Markdown document here',
     '  --reading <file>  append this hand-written judgement section to the doc',
+    '  --expect <file>   JSON {id: expected title}; a mismatch stops the deposit',
+    '  --cache <dir>     read bodies from here instead of research/out/.cache/deep',
     '  --ledger          store passages as evidence and register locator claims',
     '  --home <dir>      loom home (default: ~/.dsh/loom)',
   ].join('\n')
@@ -74,6 +81,9 @@ export function parseArgs(argv) {
     else if (flag === '--doc') { out.doc = next; i += 1 }
     else if (flag === '--home') { out.home = next; i += 1 }
     else if (flag === '--reading') { out.reading = next; i += 1 }
+    else if (flag === '--expect') { out.expect = next; i += 1 }
+    else if (flag === '--no-resolve') out.no_resolve = true
+    else if (flag === '--cache') { out.cache = next; i += 1 }
     else if (flag === '--ledger') out.ledger = true
     else if (flag === '--help' || flag === '-h') out.help = true
   }
@@ -81,9 +91,11 @@ export function parseArgs(argv) {
 }
 
 /** One body, cached by id. A cache hit never touches the network. */
-async function bodyFor(id, { refresh = false } = {}) {
-  mkdirSync(CACHE, { recursive: true })
-  const file = join(CACHE, `${id.replace(/[^0-9a-zA-Z._-]/g, '_')}.html`)
+// The cache directory is injectable so a spec can read fixture bodies without
+// touching the repo's real cache and without reaching the network.
+async function bodyFor(id, { refresh = false, cache = CACHE } = {}) {
+  mkdirSync(cache, { recursive: true })
+  const file = join(cache, `${id.replace(/[^0-9a-zA-Z._-]/g, '_')}.html`)
   if (!refresh && existsSync(file)) {
     const cached = readFileSync(file, 'utf8')
     if (/ltx_section|ltx_p/.test(cached)) return { html: cached, cached: true, file }
@@ -102,17 +114,32 @@ async function bodyFor(id, { refresh = false } = {}) {
   return { html, cached: false, file }
 }
 
-function titleOf(html) {
-  // arXiv's HTML5 pages do not carry `citation_*` meta tags (only the abs page
-  // does), so the title has to come from `<title>` and the author list from the
-  // `ltx_personname` spans. Reading it from meta alone left every real paper
-  // titled with its own arXiv id.
-  const meta = /<meta\s+name="citation_title"\s+content="([^"]*)"/i.exec(html)
-  if (meta) return meta[1].replace(/&amp;/g, '&').replace(/&#34;/g, '"').trim()
-  const tag = /<title>([\s\S]*?)<\/title>/i.exec(html)
-  if (tag) return plainTextFromHtml(tag[1])
-  return ''
+/**
+ * Find the paper whose title we know, when the id we were given reaches another.
+ *
+ * arXiv's title search routinely returns citing papers above the original, so
+ * the first result is not the answer -- the best title match above 0.8 is, and
+ * "no result above 0.8" is a legitimate answer (the paper may not be on arXiv
+ * at all under that title).
+ */
+export async function resolveByTitle(expected) {
+  if (!expected) return null
+  const query = encodeURIComponent(expected.replace(/[\u201c\u201d"]/g, '').slice(0, 200))
+  const url = `https://arxiv.org/search/?query=${query}&searchtype=title&abstracts=show&size=50`
+  let html
+  try {
+    const response = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/html' } })
+    if (!response.ok) return null
+    html = await response.text()
+  } catch {
+    return null
+  }
+  return pickBestTitle(parseSearchPage(html), expected)
 }
+
+// The title lives in the document heading, not the title tag: LaTeXML writes
+// "1Introduction" there for papers whose title element it could not fill.
+const titleOf = (html) => documentTitle(html)
 
 function plainTextFromHtml(html) {
   return String(html ?? '')
@@ -146,16 +173,32 @@ function authorsOf(html) {
  * Read one paper: sections, passages, a graded note. Never throws — a paper
  * that cannot be read is reported as a gap on the note, not as a crash.
  */
-export function readPaper(id, html, terms) {
+export function readPaper(id, html, terms, { expect = '' } = {}) {
   const sections = splitSections(html)
-  const notes = buildDeepNote({ paper: { id, title: titleOf(html) || id, authors: [] }, html, terms })
+  const stated = titleOf(html)
+  // A paper that states no title is not a paper that disagrees about one: two
+  // older renderings here (`1605.07079`, `1810.05934`) carry only "1
+  // Introduction" in `<title>`. The survey's title is used for the record, and
+  // the reading says which of the two it came from.
+  const title = stated || expect || id
+  const titleBasis = stated ? 'body' : expect ? 'expected' : 'id'
+  const notes = buildDeepNote({ paper: { id, title, authors: [] }, html, terms })
   const authors = authorsOf(html)
   notes.identity.authors = authors.length ? authors.slice(0, 6) : ['(author list not in the page)']
   const graded = gradeNote(notes)
   const passages = passagesWithLocators(html, terms)
+  // A fetched body is only this paper if its own heading agrees with the title
+  // the survey attributed to the id. `2609.02138` cites Hyperband as
+  // arXiv:1903.11059, which is AlphaX: fetching the id returns a readable paper
+  // that is not the one asked for, and nothing downstream would notice.
+  const similarity = expect && stated ? titleSimilarity(expect, stated) : null
   return {
     id,
     title: notes.identity.title,
+    titleBasis,
+    expected: expect || null,
+    similarity,
+    mismatch: similarity != null && similarity < 0.5,
     sections: sections.length,
     sectionList: sections.map((s) => s.locator),
     passages,
@@ -265,17 +308,53 @@ async function main(argv) {
   const generated = localStamp()
   const result = { generated, terms: args.terms, papers: [] }
 
+  const expect = args.expect && existsSync(resolve(args.expect)) ? JSON.parse(readFileSync(resolve(args.expect), 'utf8')) : {}
+
   for (const id of args.ids) {
-    const body = await bodyFor(id)
+    const cacheDir = args.cache ? resolve(args.cache) : CACHE
+    let body = await bodyFor(id, { cache: cacheDir })
     if (!body.html) {
       result.papers.push({ id, title: '', sections: 0, passages: [], error: body.error })
       continue
     }
-    const read = readPaper(id, body.html, args.terms)
-    const digest = createHash('sha256').update(body.html).digest('hex').slice(0, 16)
-    result.papers.push({ ...read, cached: body.cached, sha256: digest, bytes: Buffer.byteLength(body.html, 'utf8'), origin: `https://arxiv.org/html/${id}` })
+    if (bodyIsUnrendered(body.html)) {
+      // Not an empty paper: arXiv renders some submissions as a pointer to the
+      // PDF, and saying "no passage matched" would blame the terms instead.
+      result.papers.push({ id, title: titleOf(body.html) || expect[id] || '', sections: 0, passages: [], error: 'no rendered body: arXiv serves a pointer to the PDF' })
+      continue
+    }
+    const read = readPaper(id, body.html, args.terms, { expect: expect[id] || '' })
 
-    if (args.ledger) {
+    if (read.mismatch && read.expected && !args.no_resolve) {
+      // The id reached another paper. The title is the only thing we actually
+      // know, so it decides: search by title, take the best match above 0.8,
+      // and read that body instead -- reporting which id was replaced.
+      const hit = await resolveByTitle(read.expected)
+      if (hit && hit.id !== id) {
+        const retry = await bodyFor(hit.id, { cache: cacheDir })
+        if (retry.html && !bodyIsUnrendered(retry.html)) {
+          const again = readPaper(hit.id, retry.html, args.terms, { expect: read.expected })
+          if (!again.mismatch) {
+            Object.assign(read, again, { requestedId: id, resolvedFrom: id })
+            body = retry
+          }
+        }
+      }
+    }
+
+    const digest = createHash('sha256').update(body.html).digest('hex').slice(0, 16)
+    result.papers.push({
+      ...read,
+      cached: body.cached,
+      sha256: digest,
+      bytes: Buffer.byteLength(body.html, 'utf8'),
+      origin: `https://arxiv.org/html/${read.id}`,
+    })
+
+    // A mismatched body is not deposited: evidence that quotes the wrong paper is
+    // worse than no evidence, because the claim verifies and the citation lies.
+    if (read.mismatch) console.error(`${id}: fetched title (${read.similarity?.toFixed(2)}) does not match ${read.expected}`)
+    if (args.ledger && !read.mismatch) {
       // The snapshot is the body text, not the HTML: a quote is a sentence, and
       // storing markup would make every quote a whitespace accident.
       read.ledger = writePaperToLedger(home, { ...read, origin: `https://arxiv.org/html/${id}` }, body.html)
@@ -295,9 +374,10 @@ async function main(argv) {
     console.error(`wrote ${args.doc}${reading ? '' : ' (no judgement section: pass --reading)'}`)
   }
 
-  const failed = result.papers.filter((p) => p.error || !p.ok).length
+  const failed = result.papers.filter((p) => p.error || !p.ok || p.mismatch).length
   for (const paper of result.papers) {
     if (paper.error) { console.log(`${paper.id}\tunread\t${paper.error}`); continue }
+    if (paper.mismatch) { console.log(`${paper.id}\tmismatch\t${paper.expected} != ${paper.title}`); continue }
     const line = renderNote(paper.graded).join(' | ')
     console.log(`${paper.id}\t${paper.passages.length} passages\t${line}`)
   }

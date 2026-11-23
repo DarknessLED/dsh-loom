@@ -62,6 +62,138 @@ export function bodyText(html) {
   return plainText(text).replace(/\s*\n\s*/g, '\n').trim()
 }
 
+// A title a reader could search for. LaTeXML writes "Untitled Document" when a
+// paper declares none, and falls back to the first section heading ("1
+// Introduction") when it cannot find the document title at all -- both look
+// like a title to a string comparison and neither can be cited.
+const JUNK_TITLE_RE = /^(untitled document|untitled|no title)$/i
+const HEADING_TITLE_RE = /^(?:\d+(?:\.\d+)*\.?\s*)?(?:introduction|related work|background|conclusion|references|appendix)\b/i
+
+function titleFromHeading(html) {
+  const h1 = /<h1[^>]*class="[^"]*ltx_title_document[^"]*"[^>]*>([\s\S]*?)<\/h1>/i.exec(html)
+  if (h1) return plainText(h1[1])
+  const span = /<span[^>]*class="[^"]*ltx_title_document[^"]*"[^>]*>([\s\S]*?)<\/span>/i.exec(html)
+  if (span) return plainText(span[1])
+  return ''
+}
+
+/**
+ * The paper's own title, or '' when the page does not state one.
+ *
+ * Returning '' rather than the best available string is deliberate: the caller
+ * has an expected title and a similarity check, and a plausible-looking wrong
+ * title is what gets a note filed under the wrong paper.
+ */
+export function documentTitle(html) {
+  if (typeof html !== 'string' || !html) return ''
+  const candidates = [
+    titleFromHeading(html),
+    (/<title>([\s\S]*?)<\/title>/i.exec(html) || [])[1] || '',
+    (/<meta\s+name="citation_title"\s+content="([^"]*)"/i.exec(html) || [])[1] || '',
+  ]
+  for (const raw of candidates) {
+    const title = plainText(String(raw)).replace(/\s+/g, ' ').trim()
+    if (!title || JUNK_TITLE_RE.test(title) || HEADING_TITLE_RE.test(title)) continue
+    if (title.length < 4) continue
+    return title
+  }
+  return ''
+}
+
+/**
+ * Normalised title for comparison; keeps letters and spaces.
+ *
+ * Superscripts go first: NFKD turns a superscript two into a plain "2", which
+ * welds it to the word and makes "Harness2" a different word from "Harness".
+ * Quotes inside a word are a glyph artifact ("G\"odel" is Gödel rendered by a
+ * converter that lost the diaeresis), so they are deleted rather than turned
+ * into a word break.
+ */
+function titleKey(text) {
+  return String(text || '')
+    .replace(/[\u00b2\u00b3\u00b9\u2070-\u209f]/g, '')
+    .replace(/["'\u2018\u2019\u201c\u201d]/g, '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * How much two titles share, 0..1, by word overlap of the longer title.
+ *
+ * Word overlap rather than edit distance because the mismatches are whole
+ * words ("AlphaX" against "Hyperband") while the matches are punctuation,
+ * superscripts and restored diaereses.
+ */
+export function titleSimilarity(a, b) {
+  const words = (text) => new Set(titleKey(text).split(' ').filter((w) => w.length > 2))
+  const left = words(a)
+  const right = words(b)
+  if (!left.size || !right.size) return 0
+  let shared = 0
+  for (const w of left) if (right.has(w)) shared += 1
+  const overlap = shared / Math.max(left.size, right.size)
+  // A swallowed title is still the title: `1504.04949` (MAP-Elites) renders as
+  // one `<title>` containing the paper name followed by every author, their
+  // institutions and the preprint date. Word overlap of the long form scores
+  // 0.15, so near-containment has to count as a match -- the opposite error,
+  // a short generic title inside an unrelated paper, is what the words filter
+  // and the 0.8 threshold exist for.
+  if (shared / Math.min(left.size, right.size) >= 0.9) return 1
+  return overlap
+}
+
+/**
+ * Pick the search result that is the paper we meant, or none.
+ *
+ * A wrong id is not always recoverable by guessing: Hyperband is
+ * `1603.06560`, and a citing paper wrote `1903.11059` (AlphaX) next to its
+ * title. The title is what we actually know, so the search result whose title
+ * matches it is the paper -- but only above a real threshold, because the top
+ * hit for a title query is usually a *paper that cites it*.
+ *
+ * @param {Array<{id:string,title:string}>} records
+ * @param {string} expected
+ * @param {{min?:number}} options
+ */
+export function pickBestTitle(records, expected, { min = 0.8 } = {}) {
+  const list = Array.isArray(records) ? records : []
+  let best = null
+  for (const record of list) {
+    if (!record || typeof record.id !== 'string' || !record.id.trim()) continue
+    const similarity = titleSimilarity(expected, record.title)
+    if (!best || similarity > best.similarity) best = { id: record.id.trim(), title: record.title, similarity }
+  }
+  if (!best || best.similarity < min) return null
+  return best
+}
+
+/**
+ * True when arXiv served a placeholder instead of a rendered body.
+ *
+ * `1707.06347` (PPO) is the example that motivated this: the page says "See
+ * pages 1-last of ppo-min.pdf" and nothing else. Reading it yields zero
+ * passages, which is indistinguishable from "the terms did not match" unless
+ * the stub itself is recognised.
+ */
+export function bodyIsUnrendered(html) {
+  if (typeof html !== 'string' || !html) return true
+  const paragraphs = (html.match(/<p\b[^>]*\bid="[^"]*"/g) || []).length
+  // No paragraph with an id means no body this module can quote, whatever the
+  // page contains.
+  if (!paragraphs) return true
+  const text = bodyText(html)
+  const pointer = /see pages\s+\S+\s+of\s+\S+\.pdf/i.exec(text)
+  if (!pointer) return false
+  // A rendered paper may quote that sentence (it is how a supplement is
+  // announced); a placeholder is *only* that sentence.
+  const rest = `${text.slice(0, pointer.index)} ${text.slice(pointer.index + pointer[0].length)}`
+  return rest.trim().length < 200
+}
+
 /**
  * The sections of a body, in document order, each with the number a reader
  * would cite and the plain name.

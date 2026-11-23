@@ -99,3 +99,36 @@ node scripts/research-doc.mjs          # 重新生成 docs/research/*-survey-*.m
 它把 19 篇工作、20 条更新循环拆成同一张七阶段表（采集 / 评定 / 诊断 / 抽象 / 更新 / 验证 / 保留），未做的列写 NR。一旦按这个粒度看，**"某系统会自我改进"这句话就没有信息量了**：A-MEM 与 ReasoningBank 的评定、诊断、验证三列全是 NR，而 Self-Harness 与 AHE 的七列是填满的。这解释了上一轮 R4 里"memory 类工作效果不稳定"——不是记忆机制的问题，是这些循环里没有独立的验证阶段。
 
 对我们最直接的三条差距写在 `docs/research/r9-rsi-survey-2026-11-23.md` 的结论段：被回退的提案从来没有被测量、holdout 池参与晋升所以它是选择集不是测试集、每个战役缺少同预算的 test-time scaling 对照臂。
+
+## 第三种看法：把基石论文的正文读掉（2026-11-23 追加）
+
+前两层是"找到"和"往回看引用"，第三层是"打开正文"。差别的量级不是修辞：`cls.foundations` 那张表早就排在每份 survey 里，八份合计 1542 个被本语料多篇引用的工作，而此前读过正文的只有 10 篇——全部来自 r9 那一篇综述的引用族。
+
+`src/research/foundations.js` 的 `selectReadingList` 把那张表变成清单，规则四条，每条都对着一种"看起来合理却没用的清单"：没有 arXiv id 的丢掉（抓不到就别在每个方向重试）、并列按标题排（否则同一语料两次跑出不同清单）、同一篇跨方向只算一篇（否则账本存两遍同一份字节）、`sota` 不带被引数所以补在排序之后而不是以 0 分混进去。八方向各取 8 篇，64 个 pick、55 篇唯一（8 篇在两个方向各被引用一次）。
+
+实际读到 **52 篇**（`1707.06347` PPO 的 arXiv 页只有一句"See pages 1-last of ppo-min.pdf"，报 unread 而不是算它没说话；`1903.11059` 见下），共 **338 段逐字引文**，每段带章节号与段落锚点（`§4.2.1 Regressional Goodhart` + `S4.SS2.SSS1.p1.1`），全部通过 `gradeNote` 的 depth=full 检查。账本从 **46 claim / 0 带 locator** 变成 **491 claim / 445 带 locator**，其中这一轮新增 385 条全部 verified。
+
+### 一次「引用撒谎」的实录
+
+r3 的清单第一名按语料内被引数是"Hyperband"，arXiv id 写作 `1903.11059`。抓下来发现那是 **AlphaX**（神经架构搜索），不是 Hyperband：`2108.08019` 的参考文献里写着 `Hyperband ... arXiv preprint arXiv:1903.11059, 2019`——**引用本身是错的**，而我们的证据链完全能通过（引文在页面里逐字存在）。
+
+所以深读脚本现在带 `--expect <id,标题>`：正文提取的标题与期望标题相似度低于 0.5 时**不落账**，走 arXiv 标题检索找回正确 id（阈值 0.8）。Hyperband 由此解析到 `1603.06560`，日志里留一行 `FROM:1903.11059`。这一条是整轮里最值得记住的：**能验证引文存在，不等于这篇论文就是它自称的那篇**。
+
+### 八份正文阅读的位置
+
+每份 `docs/research/deep-r<N>-<name>-2026-11-23.md` 是机器表（章节数、段落数、`gradeNote` 结论）+ 逐段引文 + `---` + `directions/r<N>-<name>.deep.reading.md`（人手判断：读完这八篇正文我认为什么变了 / 三条我会改的 / 这份调研没回答的三件事）。判断段里的每个数字都能回到上面某一段引文的章节号。
+
+八份判断段里最重的三条，都指向仓库里已经存在的代码：
+
+1. **`docs/l2-state.md` 里那个 21% 的 halving 结论要撤回。** r3 的正文说得很清楚：successive halving 省下的预算必须还给幸存者，我们的 screening 没有还；而 r2 的正文给出单次观测的波动区间（`docs/research/deep-r2-score-noise-2026-11-23.md` 引 Chatbot Arena §5 的区间算法与 pass@k §2.1 的高方差警告），21% 的差异落在这个区间里。
+2. **score 上升不等于修复。** r1 的正文（Scaling Laws §4.2.1 的 regressional Goodhart）解释了为什么 killRate 从 0.85 涨到 0.9 可能什么都没修好——优化力被分给了噪声。巡环现在的 `score` 正是那种单一读数。
+3. **带封印的报告更危险。** r8 的正文（WebGPT §6.2）说带引用的错误陈述更可能被相信；我们的账本里 445 条带 locator 的 claim 是这一轮才补上的，此前 72% 只读摘要。报告首页应当写明证据深度分布。
+
+### 沉淀去了哪
+
+- **账本**：98 份证据快照（其中 75 份来自 arxiv.org 的正文或摘要页）+ 491 条 claim，`scripts/research-replay.mjs` 复算 **12/12 seal ok**。
+- **封印报告**：`deep-r1-r8-structural-findings`（19 条 claim，19 verified，seal `802fe2f4…`）。
+- **知识库**：15 条 lesson 进 `knowledge.json`（63 → 78 条），每条带 `notWhen` 边界与 locator；按 family 分 gate 2 / loop 3 / knowledge 2 / panel 2 / guard 2 / chain 2 / research 2。
+- **问题台账**：5 条新问题（screen 与 verify 是否单调、哪些 eval 任务不可解、lesson 能否跨仓库迁移、外部句子能否驱动提案、链的描述符该选什么），现共 10 条 open。
+
+这一轮没做到的：每方向只取被引最高的 8 篇（不是全部基石）、只用一个术语表抽段（不是全文精读）、PPO 的正文读不到、八份判断段之间还没有交叉引用。

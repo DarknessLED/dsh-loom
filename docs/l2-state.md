@@ -202,6 +202,33 @@ when the round would otherwise search without a winner; it loses when a sibling
 wins early and when screens cost as much as attempts. Both numbers are in the
 campaign ledgers under `~/.dsh/loom/campaigns/halving-{on5,off5,nw-on,nw-off}`.
 
+### Correction (2026-11-23, after reading the halving literature in the body)
+
+The two numbers above stand as measurements, but the sentence "it cost 21% more"
+does not survive as a conclusion, for two reasons that only became visible after
+reading the primary sources rather than their abstracts:
+
+1. **n = 1 per arm.** Each row is one round. The difference is $0.006258, and one
+   screen in the losing arm burned 42k tokens — a single screen's prompt can move
+   a round's cost by more than the gap being attributed to halving. A cost claim
+   needs repeats, the same way a score claim needs repeats.
+2. **What this is not, is successive halving.** Successive halving is defined by
+   two properties: the low-fidelity score has to rank configurations like the
+   high-fidelity one (fidelity monotonicity), and the budget freed by the losers
+   has to be spent on the survivors. Our screening has neither: `screen` and
+   `verify` are different commands over different artifacts, and the money saved
+   is simply not spent. Both properties are stated plainly in BOHB §4.1 and in
+   the HPO survey §4.2.4 / §6.5 (`docs/research/deep-r3-budget-stop-2026-11-23.md`
+   quotes them with section numbers).
+
+So the honest summary is narrower than the one above: **screening pays when the
+round has no winner anyway** (the second regime, 37.9%, a large enough gap to
+survive the variance), and the first regime's 21% is a single observation of a
+procedure that is not successive halving. What would change the verdict is a
+repeat with the screen cost held under the round cost — recorded as an open
+question (`q-0afdc68d3ea0`: is `screen` a monotone proxy for `verify`?) rather
+than asserted here.
+
 ## What this does not claim
 
 - Kill rate is a property of a test suite and a mutation operator, not of the code
