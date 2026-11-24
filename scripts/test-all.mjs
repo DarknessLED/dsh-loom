@@ -317,6 +317,13 @@ const standing = [
   // `declared` policy, the refusal is on the attempt record, and `allow` (the
   // default) delegates everything exactly as before.
   'tests/self53/a-child-without-exec-has-no-shell.test.mjs',
+  // A survey page is an index of what a field cites; it is not something an
+  // agent can query for one work's starting point, its pipeline and its
+  // mechanisms, and the mechanism quotes may not be shorter than 200 characters
+  // or the page is a bullet list pretending to be a reading.
+  'tests/self54/workrecord.test.mjs',
+  'tests/self54/workview.test.mjs',
+  'tests/self54/research-work.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
