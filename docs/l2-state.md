@@ -473,9 +473,10 @@ that quoted text redirects work, not a boundary.
 
 ### What this does not claim
 
-- No round has yet run with cache version 3 and a paired base reading, so the
-  new gate has committed nothing in a live campaign. The shadow table cannot
-  supply that evidence retroactively.
+- The new gate has committed in one live campaign (`paired-gate3`, 8 discordant
+  pairs) but it does not decide anything yet: `promote` is still the old
+  comparison, and `commit` is written down beside it. A campaign where the
+  sequential answer *replaces* the promotion rule has not run.
 - `decidePromotion` remains a shadow. Merging it into the live rule would stop
   230 of the 248 historical promotions, because 135 of 138 campaigns carry fewer
   tasks than `minTasks`.

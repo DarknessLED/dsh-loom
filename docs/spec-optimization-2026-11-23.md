@@ -428,7 +428,7 @@ P2-*（任意时候，互不依赖）
 
 | 条目 | 落点 | 一句话 | 规格 |
 | --- | --- | --- | --- |
-| P0-1 | `src/gate/sequential.js`、`round.js` | 晋升是三态序贯检验：`commit` 在 e-value 首次越过 `1/α` 时发生且此后不许改写，`reject` 在跌到 `α` 时，中间一律 `defer` | `paired-e-process`、`gate-can-defer`、`promotion-uses-paired-test`、`a-round-writes-down-its-pair` |
+| P0-1 | `src/gate/sequential.js`、`round.js` | 序贯检验**已算出并逐轮写进账本**（`decision` / `eValue` / `firstCrossing`），但**还没有接管晋升**：`promote` 仍是 `basePass && holdout !== false`，`commit` 此刻只是记录。切真的开关没做，因为要先把 P0-3 的两条路径合一 | `paired-e-process`、`gate-can-defer`、`promotion-uses-paired-test`、`a-round-writes-down-its-pair` |
 | P0-2 | `measure.js`（`measureDeclinedGate`）、`decision-effects.js`、`reduce.js` | 人拒绝的 gate 卡也留反事实：`gate.declined`，下一轮同任务结算成 `cost-nothing` / `left-on-table`（**刻意不用 met/missed**：拒绝不是预测） | `declined-gate-is-measured`、`declined-forecast`（旧断言已改） |
 | P0-3 | `round.js` 的 `shadow` | `decidePromotion` 只做影子，把它的判决与理由逐轮写在 `gate.evaluated` 上，两套规则并排可见 | `one-promotion-rule` |
 | P0-4 | `ledger.js` 的 `renderReport` / `sealReport` | 声明了 claim 的段落在正文末尾带上 `[c-…]`，manifest 记 `coverage`（段落数、被引段落数、表里列了但正文没用的 id） | `report-renders-its-claim-links`、`seal-counts-unsupported-paragraphs` |
