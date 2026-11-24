@@ -58,14 +58,36 @@ export function byTask(rows, version) {
 }
 
 /**
+ * The smallest number of paired tasks that makes a comparison mean anything.
+ *
+ * Six was the original bar and it is still the right bar for a wide pool: six
+ * paired readings is what made the first comparisons credible. But 135 of the
+ * 138 campaigns in the ledger carry fewer than six tasks, so a flat six asked
+ * for evidence the campaign could not physically produce and the comparison
+ * refused every chain ever evolved. Below the ceiling the bar becomes 60% of the
+ * pool — still strict (four tasks ask for three), never below two, because a
+ * single reading is not a comparison at all.
+ */
+export function minTasksFor(poolSize) {
+  const pool = Number(poolSize)
+  if (!Number.isFinite(pool) || pool <= 0) return 2
+  if (pool >= 6) return 6
+  return Math.max(2, Math.ceil(pool * 0.6))
+}
+
+/**
  * Paired comparison of two chain versions.
+ *
+ * `minTasks` defaults to `minTasksFor` of the pool (the tasks either version was
+ * scored on), so a four-task campaign is judged on the four tasks it has instead
+ * of being told to find two more.
  *
  * `ok` requires three independent things, and says why when it is false:
  * enough common tasks, a mean gain that clears `minGain`, and no single task
  * regressing by more than `holdoutSlack` (a chain that wins on average by
  * breaking one task is not an improvement).
  */
-export function compareChains({ rounds, baseVersion, candidateVersion, minTasks = 6, minGain = 0.05, holdoutSlack = 0.02 } = {}) {
+export function compareChains({ rounds, baseVersion, candidateVersion, minTasks = null, minGain = 0.05, holdoutSlack = 0.02 } = {}) {
   const rows = chainEvidence({ rounds })
   const base = byTask(rows, baseVersion)
   const cand = byTask(rows, candidateVersion)
@@ -75,6 +97,8 @@ export function compareChains({ rounds, baseVersion, candidateVersion, minTasks 
     if (b) paired.push({ taskId, base: b.score, candidate: c.score, delta: round6(c.score - b.score) })
   }
   const n = paired.length
+  const pool = new Set([...base.keys(), ...cand.keys()]).size
+  const bar = minTasks === null || minTasks === undefined ? minTasksFor(pool) : Number(minTasks)
   const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0)
   const baseScore = round6(mean(paired.map((p) => p.base)))
   const candidateScore = round6(mean(paired.map((p) => p.candidate)))
@@ -82,7 +106,7 @@ export function compareChains({ rounds, baseVersion, candidateVersion, minTasks 
   const worst = paired.reduce((w, p) => (w === null || p.delta < w.delta ? p : w), null)
 
   const checks = {
-    enoughTasks: n >= Number(minTasks),
+    enoughTasks: n >= bar,
     gain: delta >= Number(minGain) - EPS,
     noRegression: !worst || worst.delta >= -Math.abs(Number(holdoutSlack)) - EPS,
   }
@@ -100,6 +124,8 @@ export function compareChains({ rounds, baseVersion, candidateVersion, minTasks 
     checks,
     paired,
     pairedTasks: n,
+    pool,
+    minTasks: bar,
     baseScore,
     candidateScore,
     delta,

@@ -464,3 +464,29 @@ P2-*（任意时候，互不依赖）
 - 历史账本里 base 从未带 `killRate`，所以序贯门在**旧**数据上 0 次 commit；只有 `paired-gate3` 这种带缓存 v3 的新战役才产生配对。
 - `halvingPlan.returnedUsd` 恒 0：我们丢候选、把预算留给自己，没有任何代码路径把省下的额度还给幸存者。
 - P1-1 记录「holdout 比候选低」但不据此否决。池只有 1–2 个任务时，单次读数的 2.2–6.0 个点漂移大于它要判的差；这是有意的取舍，不是完成态。
+
+---
+
+## 10. 落地记录（P2 六条，2026-11-24）
+
+§3 的六条 P2 全部落地，同样是先红后绿。它们比 P0/P1 小，但两条改的是**判定语义**（P2-4 的英雄区间、P2-1 的任务数门槛），所以旧断言跟着改了；改的地方在下面逐条写明。
+
+| 条目 | 落点 | 一句话 | 规格 |
+| --- | --- | --- | --- |
+| P2-1 | `src/chain/evidence.js` 的 `minTasksFor`、`core/config.js` 的 `chain.minTasksFromPool` | 任务数门槛由任务池推导（池的 60%，下限 2、上限 `chain.minTasks`），因为恒定 6 让 135/138 个只有一两个任务的战役永远比不了两类链 | `a-threshold-follows-the-pool` |
+| P2-2 | `src/research/fetch.js` 的 `buildFollowupQueries`、`run.js` 的轮次循环、`plan.js` 的 `deep` 档 | 后续轮次由「未问过的共享词占比」决定（`minMarginal` 默认 0.34），深档最多三轮；`rounds !== 2` 那种常数停法已删 | `a-followup-round-can-be-the-third` |
+| P2-3 | `src/research/deepread.js` 的 `shallow`、`note.js` 的 `claimFindings` | 正文可引段落少于 3 段的笔记带 `shallow: true`，mechanism/evaluation/reproducibility 级 claim 无论声明 depth 多高都判 `depth-exceeds-reading` | `a-thin-reading-is-marked` |
+| P2-4 | `src/knowledge/cross.js` 的 `trialVerdict`（Wilson 区间）、`select.js` 的 `pruneLessons`、`round.js` 接线、`reduce.js` 的 `lesson.retired` | 一条 lesson 的试用判决不再是裸多数：`wilson(wins, wins+losses+ties)` 的下界过 0.5 才 `keep`、上界低于 0.5 才 `drop`，其余 `insufficient`；`pruneLessons` 第一次接进回合主路径，退休写 `lesson.retired` 带原因 | `a-lesson-that-lost-its-trial-is-retired` |
+| P2-5 | `src/gate/oracle.js` 的 `oracleDataPaths` | 验证器读的数据文件也是 apparatus：从它跑的脚本里的相对字符串字面量取数据扩展名（json/jsonl/csv/tsv/yaml/toml/txt/ndjson），只有解析到真实存在的工作区内文件才算 | `the-fixture-is-apparatus-too` |
+| P2-6 | `src/dispatch/privilege.js`、`src/index.js` 的 guard、`round.js` 的登记/释放 | 宿主的 `AgentOptions` 没有权限字段，所以规则落在工具管线上：`session.workerShell: 'declared'` 下，任务没声明 `exec: true` 的子会话被 `SHELL_TOOLS` 拒绝，`allow`（默认）逐字节等于今天 | `a-child-without-exec-has-no-shell` |
+
+### 三条要特别说明的
+
+1. **P2-4 改了历史判定**。旧 `trialVerdict` 是 `wins > losses ? 'keep' : 'drop'`，所以 11 胜 9 负会被判 `keep`；新规则下这个区间的 Wilson 下界约 0.36、上界约 0.80，跨过 0.5，判 `insufficient`。这不是回归：20 次展示里 11 胜 9 负本来就没有证据说它比没有好。`tests/self25/procedure-transfer.test.mjs` 里那条 11/3/6 的断言因此从 `keep` 改成 `insufficient`，并新增 16/3/1 仍然 `keep`；`tests/self32/prune-trial.test.mjs` 把「20 展示 2 胜 5 负」改成 2 胜 17 负才该 drop，另加一条「20 展示但只比过 7 次 → 不 drop」——`shown` 是展示次数，`judged` 是真正比过的次数，缺了后者就会把没量过的当输了。
+2. **P2-6 不是沙箱**。它拒绝的是「任务没说要用 shell 却拿到了 shell」这件事，不是「子 agent 出不了工作区」——后者由宿主的 workspace 约束与 `scope.js` 管。默认 `allow` 时连 guard 都不产生拒绝，这是刻意的：一个会拒绝「自己没听说过的会话」的 guard 会误伤操作者自己的会话和别的插件的子 agent。简报里也没写「你没有 shell」这句话，因为默认模式下这句话是假的。
+3. **P2-2 的 0.34 与 P2-3 的 3 段都是我定的阈值**，没有文献给出的精确值。它们的方向来自 R8（「停止条件应该是可测的边际」）与 R1（「读得浅的笔记不该承载机制级结论」），具体数字是工程判断，第一次真跑后应该按结果调，而不是当常数供起来。
+
+### 这一轮逼出来的两个真缺陷
+
+1. **`fidelityCheck` 读的字段与真实轮次不一致**。它只认 `r.promoted` 是字符串（候选 id），而回合写的是布尔 `promoted` 加新的 `promotedId`，于是「有晋升的轮」永远不被计入 `considered`，一致性永远算不出来。修法是加 `promotedOf(r)` 同时认两者。规格 `fidelity-check-can-stop-halving` 的「未晋升的轮不算分歧」那条就是为它写的。
+2. **`descriptorOf` 的成本量级会算出负档**。`Math.floor(Math.log10(0.02) + 1)` 是 `-1`，于是键里出现 `c-1`，与 `s0-w0-c-3` 这种正档混在一起，按描述符归档就分不清「便宜」和「更便宜」的边界。修法是 `Math.max(0, Math.min(9, …))`。

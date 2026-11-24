@@ -230,7 +230,7 @@ export function selectLessons(lessons, options) {
  * rules above; entries falling outside `max` are simply not kept.
  */
 export function pruneLessons(lessons, options) {
-  if (!Array.isArray(lessons)) return { kept: [], retired: [] }
+  if (!Array.isArray(lessons)) return { kept: [], retired: [], details: [] }
 
   const round = finiteNumber(optionValue(options, 'round', 0), 0)
   const rawMax = optionValue(options, 'max', DEFAULT_MAX)
@@ -240,6 +240,11 @@ export function pruneLessons(lessons, options) {
 
   const surviving = []
   const retired = []
+  // Why each lesson left. A retirement is a judgement about a claim, and the
+  // ledger can only record a judgement if the caller is told which one it was:
+  // "gone" with no reason reads the same whether the clock ran out or the
+  // evidence did.
+  const details = []
 
   for (const lesson of lessons) {
     const id = lessonId(lesson)
@@ -257,8 +262,13 @@ export function pruneLessons(lessons, options) {
     // older producer; leaving them active means every brief keeps spending a
     // slot to say so.
     const noWork = isNoWorkClaim(lesson.claim)
-    if (isExpired(lesson, { round }) || neverUseful || noWork) {
+    const expired = isExpired(lesson, { round })
+    if (expired || neverUseful || noWork) {
       retired.push(id)
+      // A lost trial outranks the clock: both are true at once sometimes, and
+      // the one that judged the claim is the more useful thing to say.
+      const reason = verdict === 'drop' ? 'trial' : expired ? 'expired' : neverUseful ? 'never-useful' : 'no-work'
+      details.push({ id, reason })
       continue
     }
     surviving.push(lesson)
@@ -274,5 +284,6 @@ export function pruneLessons(lessons, options) {
   })
 
   retired.sort()
-  return { kept: surviving.slice(0, max), retired }
+  details.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  return { kept: surviving.slice(0, max), retired, details }
 }

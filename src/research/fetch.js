@@ -359,13 +359,33 @@ export function extractPassages(markdown, terms, options = {}) {
 }
 
 /**
- * The second round's queries: terms that at least two independent sources use
- * and the original question did not. At most two, and only when the plan has a
- * second round and room left in the query budget.
+ * The queries one follow-up round should ask: terms that at least two
+ * independent sources use and the original question did not.
+ *
+ * There is no fixed number of rounds here. A round is bought while it still has
+ * something to ask about — the share of the shared vocabulary that has not been
+ * asked in an earlier round has to clear `minMarginal`. The old behaviour (a
+ * single second round, everything else refused) is the `maxRounds: 2` case of
+ * this rule, which is why the previous `rounds !== 2` constant could be replaced
+ * without changing what a two-round plan does: with nothing asked yet the fresh
+ * share is 1, and one is above any sensible bar.
+ *
+ * Round 1 asks the planned queries, so a round number below two asks nothing.
  */
 export function buildFollowupQueries(question, sources, options = {}) {
-  const rounds = options?.rounds === undefined ? 2 : options.rounds
-  if (rounds !== 2) return []
+  const maxRounds = Number.isFinite(options?.maxRounds)
+    ? Math.floor(options.maxRounds)
+    : options?.rounds === undefined
+      ? 2
+      : Math.floor(Number(options.rounds))
+  const round = Number.isFinite(options?.round) ? Math.floor(options.round) : 2
+  if (round < 2 || round > maxRounds) return []
+  const minMarginal = Number.isFinite(options?.minMarginal) ? Number(options.minMarginal) : 0.34
+  const askedLower = new Set(
+    (Array.isArray(options?.usedTerms) ? options.usedTerms : [])
+      .filter((term) => typeof term === 'string' && term)
+      .map((term) => term.toLowerCase()),
+  )
 
   const core = collapseWhitespace(question)
   const existingQueries = (Array.isArray(options?.existingQueries) ? options.existingQueries : [])
@@ -398,10 +418,17 @@ export function buildFollowupQueries(question, sources, options = {}) {
   }
 
   const originalText = [core, ...existingQueries].join('\n').toLowerCase()
-  const candidates = [...coverage.entries()]
+  const shared = [...coverage.entries()]
     .filter(([term, count]) => count >= 2)
     .filter(([term]) => !originalText.includes(term.toLowerCase()))
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  // The marginal test is a share of what the sources actually share, so a thin
+  // record can still buy a round and a record whose vocabulary is exhausted
+  // cannot. An empty record never buys one: there is nothing to correlate.
+  const fresh = shared.filter(([term]) => !askedLower.has(term.toLowerCase()))
+  if (!shared.length) return []
+  if (fresh.length / shared.length < minMarginal) return []
+  const candidates = fresh
 
   const followups = []
   for (const [term] of candidates) {

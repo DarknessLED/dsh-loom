@@ -721,7 +721,9 @@ export function registerTools(ctx, { runtime, config }) {
           rounds,
           baseVersion,
           candidateVersion: candVersion,
-          minTasks: Number(config.chain?.minTasks) || 6,
+          // Null lets the comparison derive the bar from the pool (P2-1): six paired
+          // tasks is the ceiling, not a demand a four-task campaign can never meet.
+          minTasks: config.chain?.minTasksFromPool === false ? Number(config.chain?.minTasks) || 6 : null,
           minGain: Number(config.chain?.minGain) || 0.05,
           holdoutSlack: Number(config.chain?.holdoutSlack) || 0.02,
         })

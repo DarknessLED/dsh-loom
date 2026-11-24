@@ -125,23 +125,35 @@ export async function runResearch(input, deps = {}) {
 
   let sources = mergeSearchResults(batches, { maxSources: limits.maxSources })
 
-  // --- round 2: terms two independent sources share -----------------------
-  if (plan.rounds >= 2 && sources.length >= 2) {
+  // --- follow-up rounds: terms two independent sources share --------------
+  // A round is bought while the shared vocabulary still holds terms no earlier
+  // query used (`buildFollowupQueries` owns that test). The old code asked
+  // exactly once with `rounds !== 2` as its rule, which is a constant rather
+  // than a stopping rule: a third round was unreachable and a second round that
+  // had nothing new still spent a query. The preset still caps how many rounds a
+  // depth buys, so nothing here overrides the tier a caller chose.
+  const askedTerms = []
+  for (let round = 2; round <= plan.rounds && sources.length >= 2; round += 1) {
     const followups = buildFollowupQueries(question, sources, {
-      rounds: plan.rounds,
+      round,
+      maxRounds: plan.rounds,
       maxQueries: limits.maxQueries,
-      existingQueries: plan.queries,
+      existingQueries: queries.map((q) => q.query),
+      usedTerms: askedTerms,
     })
+    if (!followups.length) break
+    const core = collapseWhitespace(question)
     for (const query of followups) {
+      if (query.startsWith(`${core} `)) askedTerms.push(query.slice(core.length + 1).toLowerCase())
       try {
         const res = await search(query, { maxResults: limits.maxSources })
         const found = Array.isArray(res?.sources) ? res.sources : []
         if (res?.truncated === true) warnings.push(`the provider truncated the result for "${clip(query, 60)}"`)
-        queries.push({ query, status: 'ok', sources: found.length, followup: true })
+        queries.push({ query, status: 'ok', sources: found.length, followup: true, round })
         batches.push({ query, sources: found })
       } catch (err) {
         const error = messageOf(err)
-        queries.push({ query, status: 'failed', error, followup: true })
+        queries.push({ query, status: 'failed', error, followup: true, round })
         gaps.push(clip(`follow-up search failed for "${query}": ${error}`, MAX_GAP_CHARS))
       }
     }

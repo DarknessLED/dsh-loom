@@ -501,6 +501,18 @@ function apply(s, ev) {
       }
       break
     }
+    case 'lesson.retired': {
+      // A retirement is a judgement, so it lands on the record rather than only
+      // in the event log: `selectLessons` shows nothing that is not `active`, and
+      // a lesson that stayed active here would be "retired" again every round.
+      const l = s.lessons.find((x) => x.id === d.id)
+      if (l) {
+        l.status = 'retired'
+        l.retiredReason = d.reason ?? null
+        l.retiredAt = ev.t
+      }
+      break
+    }
     case 'lesson.quarantined': {
       const l = s.lessons.find((x) => x.id === d.id)
       if (l) {

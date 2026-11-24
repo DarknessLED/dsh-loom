@@ -114,6 +114,26 @@ export function findAnalogies(target, lessons, options = {}) {
  */
 export const TRIAL_MIN = 20
 
+// A majority is not a verdict.
+//
+// The old rule was `wins > losses ? keep : drop`, so 11-9 retired a lesson in
+// one direction and kept it in the other -- on evidence that cannot separate the
+// two. With n comparisons the Wilson interval is the bar: a record whose
+// interval still straddles a half is `insufficient` and the lesson keeps its
+// slot until more showings settle it. Only the extreme proportions survive
+// twenty showings, which is what a twenty-showing threshold was always for.
+const Z95 = 1.96
+
+function wilson(k, n) {
+  if (!Number.isFinite(n) || n <= 0) return { low: 0, high: 1 }
+  const p = k / n
+  const z2 = Z95 * Z95
+  const denom = 1 + z2 / n
+  const centre = (p + z2 / (2 * n)) / denom
+  const half = (Z95 * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / denom
+  return { low: Math.max(0, centre - half), high: Math.min(1, centre + half) }
+}
+
 export function trialVerdict(lesson) {
   const t = toObject(lesson).trials
   if (!t || typeof t !== 'object') return 'insufficient'
@@ -128,6 +148,30 @@ export function trialVerdict(lesson) {
   // With no comparison at all (no wins, losses or ties) the lesson was never
   // judged, so it stays pending rather than being retired on silence.
   if (wins + losses + ties === 0) return 'insufficient'
-  return wins > losses ? 'keep' : 'drop'
+  // Every comparison is a trial, including a tie. A tie is "shown, compared,
+  // and nothing measurable happened", which is not a win: the question is
+  // whether the lesson paid for its slot, and a tie is a slot that bought
+  // nothing. So the denominator is every showing and the numerator is the
+  // wins -- counting ties as half a win would let a lesson that never once
+  // helped sit at exactly a half forever.
+  //
+  // Two numbers, and they answer different questions. `shown` is what the
+  // lesson cost -- every showing spent a slot in a brief. `compared` is what we
+  // know -- showings whose outcome was actually read. A trial is only judged
+  // when at least half of its showings were compared: seven comparisons out of
+  // twenty is not a verdict, it is a record that stopped being kept.
+  //
+  // Once it is judged, the denominator is `shown`: an unjudged showing still
+  // cost the slot, and using `compared` instead lets a lesson with 3 wins and 9
+  // losses hide eight unread showings behind a denominator of twelve, which
+  // pushes the upper bound over 0.5 and keeps a lesson that never paid.
+  const compared = wins + losses + ties
+  if (compared === 0) return 'insufficient'
+  if (compared * 2 < shown) return 'insufficient'
+  const judged = Math.max(shown, compared)
+  const ci = wilson(wins, judged)
+  if (ci.low > 0.5) return 'keep'
+  if (ci.high < 0.5) return 'drop'
+  return 'insufficient'
 }
 

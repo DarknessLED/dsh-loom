@@ -17,7 +17,12 @@
 export const DEPTH_PRESETS = Object.freeze({
   quick: Object.freeze({ rounds: 1, maxQueries: 3, maxSources: 8, fetchTop: 0, fetchCharBudget: 0 }),
   standard: Object.freeze({ rounds: 2, maxQueries: 5, maxSources: 12, fetchTop: 4, fetchCharBudget: 60_000 }),
-  deep: Object.freeze({ rounds: 2, maxQueries: 8, maxSources: 20, fetchTop: 6, fetchCharBudget: 120_000 }),
+  // `deep` buys a third follow-up round: it is the tier that already pays for six
+  // page reads, and the marginal-coverage rule in `buildFollowupQueries` is what
+  // decides whether that round actually asks anything. A preset that promises
+  // depth but caps rounds at the tier that does not read pages would make depth a
+  // label.
+  deep: Object.freeze({ rounds: 3, maxQueries: 8, maxSources: 20, fetchTop: 6, fetchCharBudget: 120_000 }),
 })
 
 export const DEFAULT_DEPTH = 'standard'

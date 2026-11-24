@@ -296,12 +296,27 @@ const standing = [
   // filed by what it did rather than by which fields it edited.
   'tests/self53/proposal-kinds-can-collapse.test.mjs',
   'tests/self53/versions-are-filed-by-behaviour.test.mjs',
+  // A majority is not a verdict, and the retirement rules now actually run.
+  'tests/self53/a-lesson-that-lost-its-trial-is-retired.test.mjs',
+  // The six-task bar was a wall for every campaign with fewer than six tasks.
+  'tests/self53/a-threshold-follows-the-pool.test.mjs',
+  // A follow-up round is bought on measured marginal coverage, not a constant.
+  'tests/self53/a-followup-round-can-be-the-third.test.mjs',
+  // A reading that could quote almost nothing is not a structural reading.
+  'tests/self53/a-thin-reading-is-marked.test.mjs',
+  // A verifier that reads a fixture is only as honest as the fixture.
+  'tests/self53/the-fixture-is-apparatus-too.test.mjs',
   // The gate card a person refuses is now a decision with a cost, and a sealed
   // report says which claims each paragraph rests on instead of keeping that
   // link in a table at the bottom. Both were 'measured' before as zero.
   'tests/self53/declined-gate-is-measured.test.mjs',
   'tests/self53/report-renders-its-claim-links.test.mjs',
   'tests/self53/seal-counts-unsupported-paragraphs.test.mjs',
+  // The host has no per-child capability field, so the rule lives on the tool
+  // pipeline: a task that never says `exec: true` gets no shell under the
+  // `declared` policy, the refusal is on the attempt record, and `allow` (the
+  // default) delegates everything exactly as before.
+  'tests/self53/a-child-without-exec-has-no-shell.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

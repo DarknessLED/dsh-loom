@@ -7,6 +7,7 @@ import { claimOwnership, releaseLock } from './core/lock.js'
 import { Runtime } from './runtime/runtime.js'
 import { svc } from './core/services.js'
 import { registerTools } from './tools/index.js'
+import { shellPrivileges } from './dispatch/privilege.js'
 import { panelSource, actionHandler } from './panel/api.js'
 import { panelRoute } from './panel/route.js'
 import { loadConfigSchema, mergeConfigValues } from './config-schema.js'
@@ -105,6 +106,23 @@ function applyInner(ctx, config) {
   } catch (err) {
     trace('apply:tools-failed', err)
     log('tool registration failed:', err?.message ?? err)
+  }
+
+  // A worker child gets a shell only when its task asked for one
+  // (src/dispatch/privilege.js). The host has no per-child capability field --
+  // `AgentOptions` is provider/model/effort/tokens and `SubagentStartRequest`
+  // carries no tool list -- so the rule is enforced on the one pipeline every
+  // dispatch passes: a string returned from a guard is a denial no later
+  // listener can undo. Default mode is `allow`, and an unregistered session
+  // (the operator's own, or another plugin's child) always delegates.
+  try {
+    const install = () => ctx.tools.guard((exec) => shellPrivileges.decision(exec?.agent?.id, exec?.name))
+    if (typeof ctx.effect === 'function') ctx.effect(install, 'dsh-loom: worker shell privilege')
+    else install()
+    trace('apply:guard')
+  } catch (err) {
+    trace('apply:guard-failed', err)
+    log('shell privilege guard failed:', err?.message ?? err)
   }
 
   // The panel's only data source. `ctx.get('webServer')` at apply time is a

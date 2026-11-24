@@ -29,9 +29,10 @@ import { campaignUsage, fallbackSpend, hasTokens, pricingFor, usageOfSession } f
 import { writeLease, updateLease } from './lease.js'
 import { classifyResult } from '../dispatch/session.js'
 import { buildWorkerBrief, parseAttemptReport } from '../dispatch/brief.js'
+import { privilegesFor, shellPrivileges } from '../dispatch/privilege.js'
 import { nodeExecutable, nodeOnPath, withNodeOnPath } from '../exec/node-bin.js'
 import { boardPath, appendNote, readNotes, pruneNotes } from '../collab/board.js'
-import { selectLessons } from '../knowledge/select.js'
+import { pruneLessons, selectLessons } from '../knowledge/select.js'
 import { pairedImpacts, applyImpacts, shouldQuarantine, deriveLesson, shapeOf } from '../knowledge/impact.js'
 import { readGlobalLessons, appendGlobalLesson } from '../knowledge/store.js'
 import { induceProcedures } from '../knowledge/procedure.js'
@@ -877,6 +878,12 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       workspace: { branch, cwd: wtPath },
     })
     const timeoutMs = Math.max(30_000, Math.min(config.halving?.screenTimeoutMs ?? 180_000, config.session.attemptTimeoutMs))
+    // The screen is a child session too, so the same rule applies: a task that
+    // did not ask for a shell does not get one for its cheap pass either.
+    // Otherwise `workerShell: 'declared'` would be a rule about the expensive
+    // attempt only, and a screening pass could still run commands.
+    const screenPrivileges = privilegesFor(task, config)
+    let screenDenied = null
     const run = await dispatcher.run(brief, {
       cwd: wtPath,
       timeoutMs,
@@ -886,7 +893,15 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       // byte-identical.
       model: config.halving?.screenModel || config.models.worker || null,
       models,
+      ...(screenPrivileges.shell
+        ? {}
+        : {
+            onStart: ({ sessionId }) => {
+              screenDenied = shellPrivileges.deny(sessionId, screenPrivileges.reason)
+            },
+          }),
     })
+    if (screenDenied) shellPrivileges.release(screenDenied)
     const ver = await runVerifier(task.screen, { cwd: wtPath, timeoutMs: config.verify.timeoutMs, env: verifierEnv })
     // A screen is a model call too. Billing it only when a full attempt runs
     // makes halving look cheaper than it is: the saving has to be measured net
@@ -905,6 +920,7 @@ async function screenCandidate({ runtime, view, state, config, dispatcher, task,
       exitCode: ver.exitCode ?? null,
       verdict,
       rank,
+      privileges: screenPrivileges,
       costUsd: screenBilled.usd ?? 0,
       tokens: tokensOf(screenSpend, brief, run.text),
       sessionId: run.sessionId ?? null,
@@ -1589,8 +1605,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // failure we are in *now*. Empty on the first round, which is why a
         // shape match is never the only route into a brief.
         const lastShape = [...(state.rounds || [])].reverse().find((r) => Array.isArray(r.shape))?.shape ?? []
+        // Retirement has to run somewhere, and this is the only place a brief is
+        // built. A lesson whose trial lost, whose clock ran out, or whose claim
+        // says nothing was done is dropped from the pool here, with the
+        // reason recorded: leaving `pruneLessons` uncalled made every one of those
+        // rules a function nobody ran, so a lesson that had already lost its trial
+        // kept taking a slot in every later brief.
+        const pruning = pruneLessons(lessonPool, { round: n, max: 500 })
+        for (const gone of pruning.details) {
+          const known = (state.lessons || []).find((l) => l.id === gone.id)
+          if (!known || known.status !== 'active') continue
+          runtime.append(view, 'lesson.retired', { id: gone.id, reason: gone.reason }, 'system')
+        }
         const lessons = treated && policy.knowledge && config.knowledge?.enabled
-          ? selectLessons(lessonPool, {
+          ? selectLessons(pruning.kept, {
               round: n,
               task: { ...task, shape: lastShape },
               phase,
@@ -1644,10 +1672,20 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         record = { ...record, timeoutMs, deadlineAt }
         runtime.append(view, 'attempt.deadline', { round: n, attemptId, timeoutMs, deadlineAt }, 'system')
         writeLease(view.dir, { attemptId, round: n, deadline: deadlineAt })
+        // A task that never said it needs a shell does not get one (see
+        // src/dispatch/privilege.js). The decision is recorded on the attempt and
+        // enforced on the child session the host hands back, because that id is
+        // all the tool guard ever sees.
+        const privileges = privilegesFor(task, config)
+        const deniedShellSessions = []
         // Every session this attempt starts is registered here, because the
         // abort hook is the only lever a sibling has on a running candidate.
         const startedHook = ({ sessionId, abort, deadline }) => {
           updateLease(view.dir, attemptId, { sessionId, deadline })
+          if (!privileges.shell) {
+            const key = shellPrivileges.deny(sessionId, privileges.reason)
+            if (key) deniedShellSessions.push(key)
+          }
           aborts.set(attemptId, abort)
           runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
           // The winner may have crossed the line while this session was still
@@ -1666,6 +1704,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           models,
           onStart: startedHook,
         })
+        // The child is disposed by now, so the denial has nothing left to guard:
+        // leaving it in the map would refuse a later attempt that reused the id.
+        for (const key of deniedShellSessions) shellPrivileges.release(key)
         // A context overflow is a packaging problem, not a code problem: the
         // child never got to work. Retry once with a brief that carries less
         // (no notes, no lessons, no plan) before writing the attempt off.
@@ -1906,6 +1947,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           ...record,
           // The tree this attempt was cut against: salvage re-verifies against it.
           base: base ?? null,
+          privileges,
           verifierOk: gateOk,
           exitCode: ver.exitCode,
           verifySignature: verifierSignature(ver),

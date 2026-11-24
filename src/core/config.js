@@ -140,6 +140,20 @@ export const DEFAULT_CONFIG = {
      */
     fallbackReserveMs: 0,
     /**
+     * Which children get to run commands: `allow` (default), `declared`, `deny`.
+     *
+     * The host offers no per-child tool permission -- `AgentOptions` carries
+     * provider/model/effort/tokens and `SubagentStartRequest` has no capability
+     * list -- so the loop enforces this on the tool pipeline instead: under
+     * `declared`, a child whose task does not say `exec: true` is refused shell
+     * tools by a guard in `src/index.js`. `allow` is today's behaviour exactly;
+     * `deny` refuses every worker child. The point of `declared` is not secrecy
+     * (a child can still read files) but that a task which never asked for a
+     * shell cannot quietly acquire one, and the refusal is recorded on the
+     * attempt as evidence.
+     */
+    workerShell: 'allow',
+    /**
      * The least slice worth handing to a fallback model. Below this the child
      * would be cancelled before its first token, so the attempt reports its
      * timeout rather than buying a second child that cannot finish. It is a
@@ -273,7 +287,23 @@ export const DEFAULT_CONFIG = {
     noiseSpread: 0.1,
   },
   /** L1: what evidence a chain version needs before it may replace the active one. */
-  chain: { minTasks: 6, minGain: 0.05, holdoutSlack: 0.02, maxMutations: 3 },
+  chain: {
+    minTasks: 6,
+    /**
+     * Whether the six-task bar may fall to what the pool can actually supply.
+     *
+     * Six paired tasks is the right bar for a wide pool, but 135 of 138
+     * campaigns carry fewer than six tasks, so a flat six demanded evidence
+     * those campaigns could not produce and `compareChains` refused every
+     * chain ever evolved. With this on, the bar is `minTasksFor(pool)` — 60%
+     * of the pool, never below two, never above `minTasks`. Turn it off to
+     * demand the literal number regardless of the pool.
+     */
+    minTasksFromPool: true,
+    minGain: 0.05,
+    holdoutSlack: 0.02,
+    maxMutations: 3,
+  },
 }
 
 export function normalizeConfig(raw) {

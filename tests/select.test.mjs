@@ -467,7 +467,7 @@ const CALL = { round: 3, task: TASK, phase: 'exploit' }
     pruneThrew = true
   }
   eq(pruneThrew, false, 'pruneLessons(null) does not throw')
-  deepEq(pruned, { kept: [], retired: [] }, 'pruneLessons(null) returns empty buckets')
+  deepEq(pruned, { kept: [], retired: [], details: [] }, 'pruneLessons(null) returns empty buckets')
 
   const pruneMixed = pruneLessons(
     [null, 42, 'lesson', {}, { id: 'good-1' }, { id: 'good-2', createdRound: 1 }],

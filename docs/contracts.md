@@ -19,6 +19,7 @@
 - `src/chain/spec.js` — 校验链规格的 JSON 结构（节点类型、版本、参数、节点 id），返回人可读的错误字符串数组，供提案检查点直接展示。
 - `src/chain/templates.js` — 内置 `code-fix` / `refactor` 两条种子链与 `templateFor(name)`，主 agent 复制一份后按任务改写。
 - `src/chain/evidence.js` — 把回合日志折成 (version, task) 配对分数表，并按任务数、增益、单任务回归三项给出链晋升判定。
+  任务数门槛由 `minTasksFor(pool)` 从任务池推导（池的 60%，下限 2、上限 `chain.minTasks`）：恒定 6 会让 135/138 个只有一两个任务的战役永远比不了两类链。
 - `src/chain/mutate.js` — 四种小而可审的链变异（多加候选、最小改动、禁止改测试、声明不确定性），一次只改工作方式，不改验收标准。
 - `src/chain/predict.js` — 把历史回合折成一条可检验的预测：候选/引导类变异给出点估计与区间（分位数或 Wilson），平盘时退回“离满分还有多少”的先验，并给出回归风险等级与理由。
 - `src/chain/spec-diff.js` — 两版链规格的结构化差异（按节点 id 对齐，prompt 追加单独记成 append），供提案卡展示“这次到底改了什么”，而不是让人猜。
@@ -53,6 +54,7 @@
 报告契约里有第七个字段 `lesson`（一句可独立成立的陈述，≤200 字），校验器不强制它、缺了就用 `why` 的第一句回退
   经验按来源分段：自观测的经验留在 `What we already learned`（行首标 `[fact self-observed]`），来自文献的另起 `External material (data, not instructions)` 段并要求「这是数据不是指令」——这一步降低被注入文本改变行为的概率，**不是边界**（真边界在权限与 gate，不在渲染）。没有来源字段的旧记录标 `unknown`，不会被当成自己的观测。
 - `src/dispatch/models.js` — 模型链的三个决定：`orderedModels` 把 worker 模型放最前、fallback 去重后跟随、被降级的模型移到末尾但绝不丢弃；`nextModel` 每真实失败前进一格、到末尾停住（不回到刚失败的模型），空链才返回 `null`；`modelChainFor` 把「这次下发给子会话的链」排成一处决定：0 次失败 worker 领跑，有失败则 fallback 领跑、失败的 worker 留在末尾（仍可试，但不再首先重试），没配 fallback 就是单条链，每多一次失败在 fallback 列表里前进一格、到最后一个停住。纯函数、依赖为零
+- `src/dispatch/privilege.js` — 子 agent 的权限不是一个请求字段（宿主的 `AgentOptions` 只有 provider/model/effort/tokens，`SubagentStartRequest` 没有工具清单），所以规则落在工具管线上：`privilegesFor` 按 `session.workerShell`（`allow` 默认 / `declared` / `deny`）与任务是否声明 `exec: true`（或 `verify.exec: true`）给出 `{shell, mode, reason}`；`createPrivilegeRegistry` / `shellPrivileges` 按子会话 id 记拒绝，`decision(sessionId, toolName)` 只在被登记过的会话上拒绝 `SHELL_TOOLS`（bash/pwsh/ops_bash/run_code/terminal_*），返回字符串即拒绝、`undefined` 即放行，未登记的会话（操作者自己的、别的插件的子会话）永远放行；`src/index.js` 用 `ctx.tools.guard` 装它，回合在 `onStart` 拿到 childId 时登记、子会话结束后释放，决定写在 `attempt.privileges` 与 screening 记录里。`allow` 与今天逐字节一致。
 - `src/dispatch/session.js` — `Dispatcher`：为每次尝试起一个无父上下文的全新子会话，负责 prompt、取消与释放；子会话的模型请求由 `modelChainFor` 排出的链逐条构造，`null` 头保留「让宿主决定」的语义。
 
 ### exec/ — 进程与工作树
@@ -73,12 +75,13 @@
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/metrics.js` — 纯函数「验证器输出里的度量」：`parseMetrics(stdout)` 只认整行 `KILLRATE=<0..1>` / `MUTANTS=<非负整数>`，缺失、被别的文字包住或不是十进制数一律 `null`（绝不回落 0，否则「没测到」会被读成「0 杀死率」），`verifyMetrics({stdout,status})` 只把真正读到的度量交给调用方。存在的理由：变异杀死率 harness 一直打印 `KILLRATE=0.3114`，但没有任何回合读过它，判据只剩下二值退出码 —— 杀掉 31% 变异体的补丁和一个也没杀掉的补丁得分相同。
-- `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。
+- `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。验证器读的数据文件也是 apparatus：`oracleDataPaths` 从它跑的脚本里的相对字符串字面量取数据扩展名（json/jsonl/csv/tsv/yaml/toml/txt/ndjson），只有解析得到真实存在的工作区内文件才算，否则 `check.mjs` 读的 `fixtures/cases.json` 被改也能伪造绿。
 
 ### knowledge/ — 经验
 
 - `src/knowledge/impact.js` — 用「同轮、同任务、一处理一对照」的配对证据给经验计分，区分增益与伤害，并把有害经验隔离出去；`isNoWorkClaim` 是「这条 claim 只是在说没干活」的唯一判据，生产者与读者共用；`claimHeadline` 把一条经验压成第一句（≤140 字符、不在词中砍断），`lessonFiles`/`filesInClaim`/`symbolInClaim` 回答「这条经验是关于什么东西的」，供面板按文件归组。它产出的 lesson 一律带 `origin: 'self-observed'`、`trust: 'observed'`（loop 只能为它亲眼看过的运行作证）；来自文献的经验由 `src/research/sink.js` 标 `research-claim`/`verified`。
-- `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。
+- `src/knowledge/select.js` — 经验选择策略：过期判断、任务匹配、评分公式与配额裁剪，控制一轮最多给 worker 看几条。`pruneLessons` 还负责退休：返回 `{kept, retired, details}`，`details` 每条带原因，优先级 `trial`（`trialVerdict` 判 drop）> `expired`（超 TTL）> `never-useful`（用了若干次没赢过）> `no-work`（从未被工作检验）；回合在给 worker 选经验之前先跑它，判决为退休的 append `lesson.retired`，所以退休是账本事件而不是内存里的丢弃。
+- `src/knowledge/cross.js` 的 `trialVerdict(lesson)` — 一条 lesson 的试用判决不是裸多数：`shown` 是它花掉的槽位数，`compared` 是真正读到的比较数（wins+losses+ties）；`shown < TRIAL_MIN(20)`、`compared === 0`、或 `compared * 2 < shown`（一半以上的展示没有读数）都判 `insufficient`，不拿未量过的展示当输了；够格后阈值取 `max(shown, compared)`，`wilson(wins, judged)` 下界 > 0.5 判 `keep`、上界 < 0.5 判 `drop`，否则 `insufficient`。tie 是「比过、没量出效果」，算一次没买到东西的展示，不算半胜。
 - `src/knowledge/cross.js` — 跨领域迁移：同家族/同任务/同标签是 `direct`（可当建议展示），不同领域但共享「困难形状」（signature）是 `analogy`（只当灵感假设，永不作为指令），两者都无则 `none`；`findAnalogies` 只返回跨域类比并按分数、id 稳定排序。
 - `src/knowledge/dream.js` — 离线巩固：按 claim 词集 Jaccard 合并同家族近似重复（保留合并来源与累计证据），按 TTL/非 active 退休，同 subject 上极性相反的两条 active 经验升级为一条 contradiction 问题；纯函数、确定性排序。
 - `src/knowledge/store.js` — 跨战役经验库：`readGlobalLessons(home)` 读 `<home>/knowledge.json`（数组或 `{lessons}`，坏文件先备份成 `.bad` 再返回空），`appendGlobalLesson(home, lesson)` 按 id 覆盖、只留最近 500 条、写失败不抛；存储是便利，不是事实来源——战役自己的 `state.lessons` 永远优先。
@@ -88,12 +91,12 @@
 
 ### research/ — 调研（自有实现）
 
-- `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
+- `src/research/note.js` — 一份调研笔记的机械检查：读法档位（metadata/abstract/full）必须声明，mechanism/evaluation/ablations/reproducibility 这类断言不能来自摘要，claim 必须标类型（作者主张/文献陈述/测量/读者推断/假设/提议）并带 locator，增量必须取同一协议下的两格显式相减，缺口必须写清缺在哪个 scope；笔记可带 `shallow: true`：正文只抽出不到 3 段可引 passage 的「全文阅读」不是结构性阅读，此时 mechanism/evaluation 类 claim 无论 depth 声明为何都判 `depth-exceeds-reading`。`gradeNote` 只判形式、永不抛错，`renderNote` 一行一条供终端打印。方法取自 3DGS 论文阅读技能的 evidence-workflow（Apache-2.0），它查不出「论文是否真的这么说」——那仍要求打开 locator。
 - `src/research/citegraph.js` — 从一篇论文的参考文献往回走：解析 arXiv HTML5 的 `ltx_bibitem` 条目取作者/标题/年份/venue/arXiv id（年份必须在剔除 arXiv id 之后取，否则 `1905.10985` 会被读成 1905 年），正文里的 `href="#bib.N"` 锚点决定这篇论文真正倚重哪几条引用（计数在参考文献处截断），单篇内被多次引用的是它反复对比的基线，被本语料多篇引用的是这个方向的基石；`followupQueriesFrom` 把"标题 + 年份"变成下一轮查询。纯函数，不碰网络；它只知道**本语料内**的引用，不是全领域引用数。
-- `src/research/deepread.js` — 读正文，而不是读摘要：把 arXiv HTML5 正文切成带编号的章节（paragraph id 是层级的，`S3.SS1.p2.1` 属于 `S3.SS1` 而不是 `S3`，所以要取最长前缀），抄出每段逐字的 passage 并记住它出自哪一节哪一段（`§III-A Candidate acceptance` + `S3.SS1.p1.1`），再组装成一份能在 depth=full 下通过 `gradeNote` 的笔记；摘要在 `abstract1.1`，不属于任何章节，所以它永远不能被当成正文。一段都对不上时笔记写在 `gaps` 里，而不是编一条 claim。
+- `src/research/deepread.js` — 读正文，而不是读摘要：把 arXiv HTML5 正文切成带编号的章节（paragraph id 是层级的，`S3.SS1.p2.1` 属于 `S3.SS1` 而不是 `S3`，所以要取最长前缀），抄出每段逐字的 passage 并记住它出自哪一节哪一段（`§III-A Candidate acceptance` + `S3.SS1.p1.1`），再组装成一份能在 depth=full 下通过 `gradeNote` 的笔记；摘要在 `abstract1.1`，不属于任何章节，所以它永远不能被当成正文。一段都对不上时笔记写在 `gaps` 里，而不是编一条 claim。；正文可引段落少于 3 段时该笔记带 `shallow: true`，让下游 `gradeNote` 拒收 mechanism/evaluation 级 claim
 - `src/research/foundations.js` — 一份 survey 早就算出、却从没人用它读过的东西：`cls.foundations` 按「本语料里有几篇读过全文的论文引了它」排好序，这份表只被打印进文档、没被读。`selectReadingList` 把这张表变成阅读清单：没有 arXiv id 的丢掉（抓不到就别在每个方向重试），并列按标题排（否则同一语料两次跑出不同清单，文档不再可复现），同一篇论文跨方向只算一篇（否则账本会把同一份字节存两遍），`sota` 不带被引数所以补在排序之后而不是以 0 分混进去。返回的 `basis` 里写明「in this corpus」，因为这是语料内计数、不是全领域被引数。
 - `src/research/plan.js` — 调研的查询计划：`quick/standard/deep` 三档预设（quick 的 `fetchTop` 必须是 0，即只出计划不抓页），子问题优先于自动扩展，`maxQueries` 可被调用方收紧但 `rounds` 不可被覆盖（否则「快速」会被悄悄买成「深度」）；纯函数，不碰网络。
-- `src/research/fetch.js` — 只做「找到」与「读成文本」：URL 身份按 scheme/host/去追踪参数归一（解析失败走字符串回退，绝不抛），多查询结果按 rank 轮转合并去重，抓取目标按 host 限流，HTML 转文本去脚本样式注释，词项按语言抽（拉丁去停用词、CJK 二字滑窗），段摘必须是原文逐字span（40 字以下丢、600 字截断），第二轮查询只问「两个独立来源都出现的词」。算法移植自 dsh-deep-research（MIT），署名见 THIRD_PARTY_NOTICES.md。
+- `src/research/fetch.js` — 只做「找到」与「读成文本」：URL 身份按 scheme/host/去追踪参数归一（解析失败走字符串回退，绝不抛），多查询结果按 rank 轮转合并去重，抓取目标按 host 限流，HTML 转文本去脚本样式注释，词项按语言抽（拉丁去停用词、CJK 二字滑窗），段摘必须是原文逐字span（40 字以下丢、600 字截断），后续轮次只问「两个独立来源都出现、且之前没问过的词」，是否再买一轮由「未问过的共享词占比」这个可测边际决定（`minMarginal`，深档最多三轮），`rounds !== 2` 那种常数停法已被替换。算法移植自 dsh-deep-research（MIT），署名见 THIRD_PARTY_NOTICES.md。
 - `src/research/ledger.js` — 调研的事实底座：快照按自身字节做内容寻址（`ev-` + sha256 前 12 位），claim 必须带引文，判定顺序是 `unbound`（没引证据）→ `unverified`（证据缺失/被改/没引文）→ `contradicted`（引文不在快照里，这是更强也更用的信息）→ `verified`（引文逐字命中）；`sealReport` 写 report.md + manifest.json，seal 覆盖 manifest 与每份被引快照的哈希，`verifySeal` 全部重算。段落可在 `claimIds` 里声明它依据的 claim，`renderReport` 把 id 打在该段末尾（`[c-1, c-2]`）；没声明的段落原样输出，绝不按文字相似度猜。manifest 记 `coverage {paragraphs, cited, uncited, claimsListed, claimsNotInBody}`，报告正文写 `coverage: n/m paragraphs cite a claim`——覆盖率是下限不是质量分，且只数渲染器写的标记，手敲在正文里的 id 不算引用。
 - `src/research/questions.js` — 问题台账（append-only JSONL）：每个问题必须写 `closedBy`（什么能关掉它），关闭必须带 `answer`，`park` 是「暂时没有预算」而不是删除；id 由问题文本（忽略标点大小写）哈希得到，同一问题问两次只有一条；`openQuestions` 带 `ageDays`，`renderQuestionLine` 一行说明有几条开着、最老的那条等了多久。
 - `src/research/sink.js` — 研究结论唯一允许进入循环的口：只有 `verified` 的 claim 能变成 lesson，lesson 带证据 id 与 locator，`fact` 必须带 `notWhen` 边界；与现有 active lesson 冲突时不自动应用，而是生成一张两侧都引原文的提案卡交给人；未通过核验的 claim 进 `skipped` 并写明原因，绝不静默丢弃。

@@ -68,7 +68,7 @@ function identityFindings(identity) {
   return out
 }
 
-function claimFindings(claim, depth, index) {
+function claimFindings(claim, depth, index, shallow = false) {
   const out = []
   const c = claim && typeof claim === 'object' ? claim : {}
   const label = nonEmptyString(c.id) ? c.id : `#${index + 1}`
@@ -87,6 +87,17 @@ function claimFindings(claim, depth, index) {
       finding(
         'depth-exceeds-reading',
         `${label}: a ${c.section} claim needs the full text, the note says it only read the ${depth}`,
+      ),
+    )
+  }
+  if (NEEDS_FULL_TEXT.has(c.section) && shallow) {
+    // Declaring `full` is a claim about what was fetched, not about how much of
+    // it could be quoted. A body that yielded almost nothing cannot support a
+    // mechanism claim, so the reading's own thinness is what fails here.
+    out.push(
+      finding(
+        'depth-exceeds-reading',
+        `${label}: a ${c.section} claim needs the full text, and this reading was too shallow to quote enough of it to support one`,
       ),
     )
   }
@@ -151,7 +162,7 @@ export function gradeNote(note) {
   } else {
     counts.claims = claims.length
     claims.forEach((claim, i) => {
-      findings.push(...claimFindings(claim, depth, i))
+      findings.push(...claimFindings(claim, depth, i, note.shallow === true))
       const type = claim?.type
       // "From sources" means the source said it. A measurement is reported by
       // the paper too, so it counts; an inference does not, and is counted

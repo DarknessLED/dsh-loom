@@ -105,7 +105,12 @@ test('shown and credited are counted, and 20 showings without a win is a drop', 
   assert.equal(trialVerdict(state.lessons[0]), 'insufficient')
   const twenty = { ...state.lessons[0], trials: { shown: 20, wins: 3, losses: 9, ties: 8 } }
   assert.equal(trialVerdict(twenty), 'drop')
-  const good = { ...twenty, trials: { shown: 20, wins: 11, losses: 3, ties: 6 } }
+  // A majority is not a verdict: 11-3-6 keeps the lesson out of the "drop"
+  // bucket but does not clear the interval, so it stays pending. The record that
+  // does clear it is the lopsided one below.
+  const majority = { ...twenty, trials: { shown: 20, wins: 11, losses: 3, ties: 6 } }
+  assert.equal(trialVerdict(majority), 'insufficient')
+  const good = { ...twenty, trials: { shown: 20, wins: 16, losses: 3, ties: 1 } }
   assert.equal(trialVerdict(good), 'keep')
 })
 

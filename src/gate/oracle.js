@@ -314,6 +314,69 @@ export function oracleEnforcedPaths(closure) {
   )
 }
 
+// Data a verifier reads is apparatus in exactly the sense the scripts are: the
+// patch may not edit the thing that decides. A JSON fixture is the case that got
+// missed, because `oracleScripts` only follows code and a patch that edits
+// `fixtures/cases.json` changes the verdict without touching a line the apparatus
+// set names. Derivation stays a pure function of the workspace: relative string
+// literals in the named scripts that end in a data extension *and* resolve to a
+// real file, so a filename mentioned in a log line is not pinned.
+const DATA_EXT = ['\.json', '\.jsonl', '\.csv', '\.tsv', '\.yaml', '\.yml', '\.toml', '\.txt', '\.ndjson']
+
+/** Relative string literals in a file that name an existing data file. */
+function dataSpecifiers(text) {
+  const out = []
+  const re = /['"]((?:\.{1,2}\/)[^'"]*?(?:\.jsonl?|\.csv|\.tsv|\.ya?ml|\.toml|\.txt|\.ndjson))['"]/g
+  for (const match of String(text ?? '').matchAll(re)) out.push(match[1])
+  return out
+}
+
+/**
+ * Data files the verifier's own scripts read.
+ *
+ * Only relative literals ending in a data extension are considered, and a
+ * candidate that does not resolve to an existing file inside the workspace is
+ * dropped: a log line that says "wrote cases.json" pins nothing.
+ *
+ * @param {{cmd?: string, cwd?: string, pin?: string[]}|string|null} spec
+ * @param {{cwd: string}} opts workspace root
+ * @returns {string[]} workspace-relative POSIX paths
+ */
+export function oracleDataPaths(spec, opts) {
+  const root = typeof opts?.cwd === 'string' && opts.cwd.trim() !== '' ? resolve(opts.cwd) : null
+  if (!root) return []
+  const out = []
+  const seen = new Set()
+  const add = (rel) => {
+    if (!rel || seen.has(rel)) return false
+    seen.add(rel)
+    out.push(rel)
+    return true
+  }
+  const scripts = oracleNamedPaths(spec, opts)
+  for (const rel of scripts) {
+    if (!SCRIPT_EXT.some((ext) => rel.endsWith(ext))) continue
+    let text
+    try {
+      text = readFileSync(resolve(root, rel), 'utf8')
+    } catch {
+      continue
+    }
+    for (const specish of dataSpecifiers(text)) {
+      const abs = resolve(root, rel, '..', specish)
+      let ok = false
+      try {
+        ok = existsSync(abs) && statSync(abs).isFile()
+      } catch {
+        ok = false
+      }
+      if (!ok) continue
+      add(withinRoot(root, abs))
+    }
+  }
+  return out
+}
+
 export function oraclePathsFor(spec, opts) {
   const root = typeof opts?.cwd === 'string' && opts.cwd.trim() !== '' ? resolve(opts.cwd) : null
   if (!root) return []
@@ -333,6 +396,10 @@ export function oraclePathsFor(spec, opts) {
     const rel = withinRoot(root, abs)
     if (rel) add(rel)
   }
+  // A verifier that reads a fixture is only as honest as the fixture, so the
+  // data its scripts open is part of the apparatus by the same argument as the
+  // scripts themselves (see `oracleDataPaths`).
+  for (const p of oracleDataPaths(spec, opts)) add(p)
   let frontier = out.slice()
   for (let depth = 0; depth < 8 && frontier.length > 0 && out.length < 200; depth += 1) {
     const next = []

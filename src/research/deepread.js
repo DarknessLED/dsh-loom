@@ -327,6 +327,14 @@ export function buildDeepNote({ paper, html, terms, gaps } = {}) {
   }
 
   const passages = passagesWithLocators(html, terms)
+  // A reading that could quote almost nothing is a shallow reading wearing the
+  // word `full`: HTML was fetched, so `depth` is honest, but two usable
+  // paragraphs are not a structural reading of a long paper. Marking it lets
+  // `gradeNote` refuse the mechanism and evaluation claims that a thin body
+  // cannot support (see arXiv 2501.04227 §1 for the 6.1 vs 3.8 gap between a
+  // thorough and a quick reading of the same material).
+  const SHALLOW_PASSAGES = 3
+  note.shallow = passages.length < SHALLOW_PASSAGES
   for (const passage of passages) {
     const section = sectionKind(passage.locator)
     const claim = {

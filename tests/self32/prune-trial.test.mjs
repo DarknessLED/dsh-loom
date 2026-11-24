@@ -27,8 +27,15 @@ test('an open trial survives the never-useful retirement rule', () => {
 })
 
 test('a trial that reached its evidence and lost is retired', () => {
-  const { retired } = pruneLessons([lesson({ trials: { shown: 20, wins: 2, losses: 5 } })], { round: 6 })
+  // The verdict is on the comparisons that were judged, not on the showings:
+  // twenty showings that produced seven comparisons cannot convict anything.
+  const { retired } = pruneLessons([lesson({ trials: { shown: 20, wins: 2, losses: 17 } })], { round: 6 })
   assert.deepEqual(retired, ['lsn-1'])
+})
+
+test('a trial that was shown twenty times but compared seven has not decided', () => {
+  const { retired } = pruneLessons([lesson({ trials: { shown: 20, wins: 2, losses: 5 } })], { round: 6 })
+  assert.deepEqual(retired, [], 'seven comparisons on the wrong side of a coin is not a verdict')
 })
 
 test('a lesson with no trial still follows the old never-useful rule', () => {
