@@ -85,11 +85,19 @@ function paragraphs(region) {
  * An absolute URL for a figure, or null.
  *
  * arXiv writes `src="2601.00001v1/pipeline.png"` -- relative to the paper's own
- * HTML directory. Concatenating the base and the path without the slash gives
- * ".../htmlpipeline.png", which is a 404 that looks like a missing figure, so a
- * caller can never tell "the authors drew no figure" from "we built the URL
- * wrong". A URL that is already absolute is kept as written (authors do link
- * out to their own CDN), and no base means no answer.
+ * versioned HTML directory, not to `/html/<id>`. Concatenating the basename and
+ * the path produced `https://arxiv.org/html/2402.03300/2402.03300v3/...`, which
+ * arXiv answers with 404 for every one of the 101 figures in the nine libraries.
+ * A broken image is indistinguishable from a paper that drew no figure, which is
+ * the one thing this field exists to tell apart, so the version segment in the
+ * src replaces the id in the base:
+ *
+ *   https://arxiv.org/html/2402.03300 + 2402.03300v3/figures/Math.png
+ *     -> https://arxiv.org/html/2402.03300v3/figures/Math.png   (200, png)
+ *
+ * A src that does not begin with the paper id (or a base that is not an arXiv
+ * HTML directory) is joined as before: guessing a version there would invent a
+ * path, and an absolute URL a author linked to is kept as written.
  */
 export function figureUrl(base, src) {
   const path = typeof src === 'string' ? src.trim() : ''
@@ -97,7 +105,13 @@ export function figureUrl(base, src) {
   if (/^https?:\/\//i.test(path)) return path
   const root = typeof base === 'string' ? base.trim() : ''
   if (!root) return null
-  return `${root.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+  const trimmed = root.replace(/\/+$/, '')
+  const versioned = /^(.*?\/html\/)([^/]+)$/.exec(trimmed)
+  const head = /^([0-9]{4}\.[0-9]{4,5})v[0-9]+\//.exec(path)
+  if (versioned && head) {
+    return `${versioned[1]}${head[0].replace(/\/$/, '')}/${path.slice(head[0].length)}`
+  }
+  return `${trimmed}/${path.replace(/^\/+/, '')}`
 }
 
 // --- mechanisms -----------------------------------------------------------
@@ -466,6 +480,28 @@ function figureOf(region, base, sections) {
  *
  * @param {{id:string, html:string, origin?:string, abstract?:string, year?:number, title?:string}} input
  */
+/** The paper's own abstract, for the records whose id never appears in the
+ * candidate list (foundations and citations carry no prose). The body always
+ * has it, so a record is never built blind just because a survey trimmed it.
+ *
+ * Two shapes exist. Most papers use `<div id="abstract1" class="ltx_abstract">`
+ * with an `<h6>` heading; a few -- SWE-Bench Pro among them -- write the
+ * abstract as an ordinary `<section>` whose heading happens to say "Abstract"
+ * and give it no abstract id at all. Matching only the first shape left those
+ * records with an empty abstract, which then emptied their vector and their
+ * cluster, so both shapes are read. A paper arXiv serves as a PDF pointer has
+ * neither and keeps the empty string, which is the honest answer. */
+function abstractOf(html) {
+  const block = /<(?:div|section)\b[^>]*\bid="abstract1?"[^>]*>([\s\S]*?)<\/(?:div|section)>/i.exec(html)
+  if (block) {
+    const body = block[1].replace(/<h6\b[^>]*>[\s\S]*?<\/h6>/i, '')
+    return plainText(body).replace(/\s+/g, ' ').trim()
+  }
+  const section = /<section\b[^>]*>\s*<h[2-6]\b[^>]*>\s*(?:<span\b[^>]*>[\s\S]*?<\/span>\s*)?Abstract\s*<\/h[2-6]>([\s\S]*?)<\/section>/i.exec(html)
+  if (!section) return ''
+  return plainText(section[1]).replace(/\s+/g, ' ').trim()
+}
+
 export function buildWorkRecord(input = {}) {
   const html = typeof input.html === 'string' ? input.html : ''
   const region = stripToBody(html)
@@ -530,12 +566,24 @@ export function buildWorkRecord(input = {}) {
     ? 'the diagram is the paper’s own method subsections in order; the drawn figure is under figure'
     : 'no method section was found, so there is no pipeline to draw and no mechanism to list'
 
+  // `Number(null)` is 0, so the plain coercion wrote year 0 for every record
+  // that came from a reading file rather than from the survey -- those carry no
+  // year at all. A year of 0 is not "unknown", it is a claim the paper is
+  // 2,026 years old, and it sorted those works to the top of every table.
+  const givenYear = input.year === null || input.year === undefined ? null : Number(input.year)
   const record = {
     id,
-    title: title.replace(/^[\u2018\u2019\u201c\u201d"']+/, '').replace(/[\u2018\u2019\u201c\u201d"'.]+$/, '').trim() || title,
-    year: Number.isFinite(Number(input.year)) ? Number(input.year) : null,
+    // A paper whose body has no usable heading and whose survey entry is gone
+    // is not a paper with a blank name: the id is what we actually know.
+    title: title.replace(/^[\u2018\u2019\u201c\u201d"']+/, '').replace(/[\u2018\u2019\u201c\u201d"'.]+$/, '').trim() || id,
+    // Where the name came from, so a reader can weigh it: the paper's own
+    // heading, a survey row, or nothing at all (the id stands in).
+    titleBasis: bodyTitle ? 'body' : givenTitle ? 'survey' : 'id',
+    year: Number.isFinite(givenYear) && givenYear > 1000 ? givenYear : null,
     origin: base || null,
-    abstract: typeof input.abstract === 'string' ? input.abstract.trim() : '',
+    // The survey's abstract is usually the whole thing now, but a foundation
+    // reaches this function with no prose at all; the body always carries one.
+    abstract: (typeof input.abstract === 'string' ? input.abstract.trim() : '') || abstractOf(html),
     motivation,
     pipeline: { mermaid, figure, stages, note },
     mechanisms,

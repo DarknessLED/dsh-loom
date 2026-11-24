@@ -10,6 +10,7 @@ import { registerTools } from './tools/index.js'
 import { shellPrivileges } from './dispatch/privilege.js'
 import { panelSource, actionHandler } from './panel/api.js'
 import { panelRoute } from './panel/route.js'
+import { researchRoute } from './panel/research.js'
 import { loadConfigSchema, mergeConfigValues } from './config-schema.js'
 
 export const name = 'dsh-loom'
@@ -138,10 +139,19 @@ function applyInner(ctx, config) {
     ctx.inject(['webServer'], (scope) => {
       try {
         const webServer = svc(scope, 'webServer')
+        // The library's shelf is a second route, not a second payload on the
+        // panel's: a work record is a few hundred kilobytes and the campaign
+        // state is polled every five seconds, so sharing one path would make
+        // every poll pay for a shelf nobody opened. The root comes from the
+        // module's own location, not `process.cwd()`: the host's working
+        // directory is whatever session is open, and the shelf lives beside
+        // this file.
+        const research = researchRoute()
         const route = panelRoute(panelSource({ runtime, config: cfg }), {
           write: actionHandler({ runtime, config: cfg }),
         })
         scope.effect(() => webServer.register(route), 'dsh-loom: panel route')
+        scope.effect(() => webServer.register(research), 'dsh-loom: research route')
       } catch (err) {
         log('panel route failed:', err?.message ?? err)
       }

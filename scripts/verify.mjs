@@ -237,10 +237,16 @@ ctx4.disposeAll()
       return () => {}
     },
   })
-  ok(routes.length === 1, `panel route registers after webServer appears (${routes.length})`, routes.map((r) => r.path))
-  ok(routes[0]?.path === '/dsh-loom/state', 'panel route path is /dsh-loom/state')
-  ok(routes[0]?.kind === 'exact', 'panel route is exact')
-  ok(typeof routes[0]?.handler === 'function', 'panel route has a handler')
+  const panel = routes.find((r) => r.path === '/dsh-loom/state')
+  const shelf = routes.find((r) => r.path === '/dsh-loom/research')
+  ok(routes.length === 2, `both routes register after webServer appears (${routes.length})`, routes.map((r) => r.path))
+  ok(panel?.path === '/dsh-loom/state', 'panel route path is /dsh-loom/state')
+  ok(panel?.kind === 'exact', 'panel route is exact')
+  ok(typeof panel?.handler === 'function', 'panel route has a handler')
+  // The shelf is a prefix route on purpose: one registration serves the index,
+  // one direction and one work, and a prefix that matches nothing 404s.
+  ok(shelf?.kind === 'prefix', 'research route is a prefix so it can serve index, direction and work')
+  ok(typeof shelf?.handler === 'function', 'research route has a handler')
   ok(sections.length === 1, `prompt section registers after systemPrompt appears (${sections.length})`)
   ok(sections[0]?.name === 'dsh-loom:campaigns', 'prompt section name')
   ok(typeof sections[0]?.text === 'function' && typeof sections[0].text() === 'string', 'prompt text is a lazy string')

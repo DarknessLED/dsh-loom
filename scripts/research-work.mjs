@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url'
 
 import { buildWorkRecord, indexOfWorks, similarTo } from '../src/research/workrecord.js'
 import { agentDigest, renderLibraryMarkdown } from '../src/research/workview.js'
+import { bodyIsUnrendered } from '../src/research/deepread.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..')
@@ -83,15 +84,26 @@ export function selectIds(survey, { top = 10 } = {}) {
   const cls = survey?.cls ?? {}
   const picked = []
   const seen = new Set()
+  // Foundations and citations carry an id and a title but no abstract, so a
+  // record built only from them has nothing for the vector or the cluster
+  // classifier to read. The abstracts live on the candidate list; join on id.
+  const prose = new Map()
+  for (const paper of Array.isArray(survey?.b?.papers) ? survey.b.papers : []) {
+    if (paper?.id && typeof paper.abstract === 'string' && paper.abstract) prose.set(paper.id, paper.abstract)
+  }
   const push = (paper) => {
     const id = paper && typeof paper.id === 'string' ? paper.id.trim() : ''
     if (!id || seen.has(id)) return
     seen.add(id)
-    picked.push({ id, title: paper.title ?? '', year: paper.year ?? null })
+    // The abstract rides along: the record's vector and the panel's cluster
+    // classification both read `title + abstract`, and a work whose abstract is
+    // dropped at this step becomes unclassifiable for no visible reason.
+    const abstract = paper.abstract || prose.get(id) || ''
+    picked.push({ id, title: paper.title ?? '', year: paper.year ?? null, abstract })
   }
   for (const work of Array.isArray(cls.foundations) ? cls.foundations : []) {
     if (picked.length >= size) break
-    push(work.arxivId ? { id: work.arxivId, title: work.title, year: work.year } : work)
+    push(work.arxivId ? { id: work.arxivId, title: work.title, year: work.year, abstract: work.abstract } : work)
   }
   for (const paper of Array.isArray(cls.sota) ? cls.sota : []) {
     if (picked.length >= size) break
@@ -102,6 +114,36 @@ export function selectIds(survey, { top = 10 } = {}) {
     push(paper)
   }
   return picked
+}
+
+/**
+ * Everything a survey already knows about one id.
+ *
+ * A reading file names works the survey may have stopped returning in its top
+ * slice -- the reading is the expensive half, so it still goes into the library.
+ * But the survey usually still knows that work's title and year somewhere in its
+ * lists, and passing `null` for both threw that away: the table printed `?` for
+ * the year of a paper the survey had dated all along.
+ */
+export function lookupInSurvey(survey, id) {
+  const want = String(id ?? '').trim()
+  if (!want) return null
+  const lists = []
+  const cls = survey?.cls ?? {}
+  for (const name of ['foundations', 'sota', 'compared']) {
+    if (Array.isArray(cls[name])) lists.push(...cls[name])
+  }
+  if (Array.isArray(survey?.b?.papers)) lists.push(...survey.b.papers)
+  for (const entry of lists) {
+    if (!entry) continue
+    const entryId = entry.arxivId ?? entry.id
+    if (String(entryId ?? '').trim() !== want) continue
+    const title = typeof entry.title === 'string' ? entry.title.replace(/^[\u2018\u2019\u201c\u201d",\s]+|[\u2018\u2019\u201c\u201d",\s]+$/g, '') : ''
+    const year = Number.isFinite(Number(entry.year)) && Number(entry.year) > 1000 ? Number(entry.year) : null
+    const abstract = typeof entry.abstract === 'string' ? entry.abstract : ''
+    if (title || year || abstract) return { title, year, abstract }
+  }
+  return null
 }
 
 function cacheFile(cache, id) {
@@ -160,6 +202,14 @@ export async function buildLibrary({ ids = [], cache = CACHE, fetch: allowFetch 
     }
     if (!html) {
       missing.push({ id, reason: 'not in the cache and fetching is off' })
+      continue
+    }
+    // arXiv answers some papers with a page that only points at the PDF. It is
+    // HTML, it has a title, and it has no sections -- which would quietly become
+    // a record claiming the paper has no method and no abstract. That is a
+    // fetching failure wearing a record's clothes, so it is reported as missing.
+    if (bodyIsUnrendered(html)) {
+      missing.push({ id, reason: 'arXiv serves only a pointer to the PDF, so there is no body to read' })
       continue
     }
     const record = buildWorkRecord({
@@ -239,6 +289,13 @@ async function main() {
     console.log(usage())
     process.exit(args.help ? 0 : 2)
   }
+  // A reading is the expensive half of the library -- someone read the paper
+  // and signed it. A survey rerun can drop a work it used to keep, or a
+  // foundation can carry no prose at all; either way the reading must not be
+  // stranded, and a library that silently shrinks under its own readings would
+  // make them look like they were never written. So the reading file is part of
+  // the selection, not a decoration on top of it.
+  const readings = readReadings(args.reading ? resolve(ROOT, args.reading) : null)
   let ids = args.ids
   if (!ids.length) {
     const survey = readSurvey(args.survey)
@@ -247,6 +304,17 @@ async function main() {
       process.exit(2)
     }
     ids = selectIds(survey, { top: args.top ?? 10 })
+    const chosen = new Set(ids.map((entry) => (typeof entry === 'string' ? entry : entry.id)))
+    for (const id of Object.keys(readings)) {
+      if (chosen.has(id)) continue
+      chosen.add(id)
+      // The reading file carries no metadata of its own (that is the point: the
+      // human half is prose), so ask the survey before passing blanks. Without
+      // this, a work kept only because someone read it printed `?` for its year
+      // and the id in place of a title.
+      const known = lookupInSurvey(survey, id) ?? {}
+      ids.push({ id, title: known.title ?? '', year: known.year ?? null, abstract: known.abstract ?? '' })
+    }
   }
   const cache = args.cache ? resolve(ROOT, args.cache) : CACHE
   const result = await buildLibrary({
@@ -255,7 +323,6 @@ async function main() {
     fetch: args.fetch,
     figuresDir: args.figures ? resolve(ROOT, args.figures) : null,
   })
-  const readings = readReadings(args.reading ? resolve(ROOT, args.reading) : null)
   const date = args.date || localDate()
 
   const outFile = args.out ? resolve(ROOT, args.out) : join(ROOT, 'research', 'out', `work-${args.slug}.json`)

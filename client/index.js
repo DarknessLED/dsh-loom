@@ -399,6 +399,57 @@ window.__ModuleLoader__.load({
       '.loom-err b{display:block;margin-bottom:4px;font-size:12.5px;letter-spacing:0}',
       '.loom-err .hint{font-size:12px;line-height:1.55;color:var(--loom-soft);margin-bottom:6px}',
       '.loom-err .detail{margin-top:7px;font-family:var(--loom-mono);font-size:11px;color:var(--loom-quiet);word-break:break-all}',
+      // ---- the research shelf ---------------------------------------------
+      // One line per direction, then the works of the opened one. The panel is
+      // read at 320px in the sidebar and at full width in a window, so nothing
+      // here sets a width: rows pack with the container, and the title column is
+      // the only one that grows.
+      '.loom-dirs{display:flex;flex-direction:column;gap:2px;padding:0 0 2px}',
+      '.loom-dirrow{min-width:0}',
+      '.loom-dirhit{display:flex;align-items:baseline;gap:8px;width:100%;padding:7px 10px;border:0;border-radius:10px;',
+      ' background:transparent;color:inherit;font:inherit;font-size:12px;text-align:left;cursor:pointer;min-width:0;',
+      ' transition:background 180ms var(--loom-ease)}',
+      '.loom-dirhit:hover{background:var(--loom-hover)}',
+      '.loom-dirrow.active .loom-dirhit{background:var(--loom-surface)}',
+      '.loom-dirhit .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--loom-ink)}',
+      '.loom-dirhit .c,.loom-dirhit .g,.loom-dirhit .s{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;',
+      ' letter-spacing:0;color:var(--loom-faint)}',
+      // A direction where nobody has written a summary yet is a direction with
+      // zero prose: the number is quiet, not absent, because "0/12" says which
+      // column is empty and a missing column says nothing at all.
+      '.loom-dirhit .s{margin-left:auto;color:var(--loom-quiet)}',
+      '.loom-cluster{display:flex;flex-direction:column;gap:1px;padding:6px 0 2px}',
+      '.loom-cluster-head{display:flex;align-items:baseline;gap:8px;padding:4px 10px 3px;font-size:11px;',
+      ' letter-spacing:.01em;color:var(--loom-faint)}',
+      '.loom-cluster-head .n{margin-left:auto;font-family:var(--loom-mono);letter-spacing:0}',
+      '.loom-workrow{min-width:0}',
+      '.loom-workhit{display:flex;align-items:baseline;gap:8px;width:100%;padding:6px 10px;border:0;border-radius:9px;',
+      ' background:transparent;color:inherit;font:inherit;font-size:12px;text-align:left;cursor:pointer;min-width:0}',
+      '.loom-workhit:hover{background:var(--loom-hover)}',
+      '.loom-workrow.open .loom-workhit{background:var(--loom-surface)}',
+      '.loom-workhit .id{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;letter-spacing:0;color:var(--loom-faint)}',
+      '.loom-workhit .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--loom-soft)}',
+      '.loom-workhit .m,.loom-workhit .f,.loom-workhit .c{flex:0 0 auto;font-family:var(--loom-mono);font-size:11px;',
+      ' letter-spacing:0;color:var(--loom-faint)}',
+      '.loom-workhit .f{margin-left:auto}',
+      '.loom-workpage{padding:8px 10px 12px;border-left:1px solid var(--loom-line);margin:2px 0 6px 10px;min-width:0}',
+      '.loom-fig{display:block;margin:0 0 10px;text-decoration:none}',
+      '.loom-fig img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--loom-line);',
+      ' background:var(--loom-surface)}',
+      '.loom-fig .cap{display:block;margin-top:5px;font-size:11px;line-height:1.5;color:var(--loom-faint)}',
+      '.loom-wsec{padding:0 0 10px}',
+      '.loom-wsec-head{font-size:11.5px;font-weight:600;letter-spacing:.01em;color:var(--loom-ink);padding:6px 0 4px}',
+      '.loom-wsec p{margin:0 0 6px;font-size:12px;line-height:1.65;color:var(--loom-soft);white-space:pre-wrap;',
+      ' overflow-wrap:anywhere}',
+      '.loom-worknote{padding:8px 10px;font-size:12px;line-height:1.55;color:var(--loom-quiet)}',
+      '.loom-worknote.bad{color:var(--loom-warn)}',
+      '.loom-worklink{display:inline-block;padding:2px 0;font-family:var(--loom-mono);font-size:11px;',
+      ' letter-spacing:0;color:var(--loom-quiet);text-decoration:none}',
+      '.loom-worklink:hover{color:var(--loom-ink)}',
+      // a wide panel has room for the figure beside the text, and a 720px-wide
+      // screenshot is unreadable squeezed into a 320px sidebar
+      '@container (min-width:560px){.loom-works{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));',
+      ' gap:2px 10px;align-items:start}}',
       '.loom-loading{padding:14px;font-size:12px;color:var(--loom-quiet)}',
       '.loom-broken{display:flex;align-items:baseline;gap:6px;padding:8px 14px;font-family:var(--loom-mono);font-size:11.5px;color:var(--loom-quiet)}',
       '.loom-broken b{font-weight:500;color:var(--loom-soft)}',
@@ -2174,11 +2225,267 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // The library's shelf, rendered where the reader already looks.
+    //
+    // The route serves one prefix path with three answers, so this section keeps
+    // its own small decode step: a direction list, one direction's classified
+    // rows, and one work's page. Nothing here renders Markdown into HTML -- the
+    // bundle requires react and nothing else, so the diagram block is shown as
+    // text and the figure is a real image from arXiv. A page that pretended to
+    // draw the diagram would be claiming a renderer the host never installed.
+    function Research(react) {
+      var h = react.createElement
+      var useState = react.useState
+      var useEffect = react.useEffect
+
+      var SHELF = '/dsh-loom/research'
+
+      function get(url) {
+        return fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          return r.json()
+        })
+      }
+
+      // Cut the page at its "## " headings, ignoring anything inside a fence.
+      // This is the same five sections the Markdown file has, not a re-labelled
+      // summary of them.
+      function sectionsOf(markdown) {
+        var lines = String(markdown || '').split('\n')
+        var out = []
+        var current = null
+        var fence = false
+        for (var i = 0; i < lines.length; i += 1) {
+          var line = lines[i]
+          if (line.indexOf('\u0060\u0060\u0060') === 0) fence = !fence
+          if (fence) {
+            if (current) current.lines.push(line)
+            continue
+          }
+          if (line.indexOf('## ') === 0) {
+            current = { name: line.slice(3).trim(), lines: [] }
+            out.push(current)
+            continue
+          }
+          if (current && line.indexOf('# ') !== 0) current.lines.push(line)
+        }
+        return out
+      }
+
+      function paragraphs(body) {
+        return body
+          .replace(/^\s*\u0060\u0060\u0060\s*mermaid\s*$/gm, '')
+          .replace(/^\s*\u0060\u0060\u0060\s*$/gm, '')
+          .trim()
+          .split(/\n{2,}/)
+          .map(function (part) {
+            return part.trim()
+          })
+          .filter(Boolean)
+      }
+
+      function workPage(state) {
+        if (state.loading) return h('div', { className: 'loom-worknote' }, '正在读取这一篇…')
+        if (state.error) return h('div', { className: 'loom-worknote bad' }, state.error)
+        var record = state.record || {}
+        var figure = record.pipeline && record.pipeline.figure
+        return h(
+          'div',
+          { className: 'loom-workpage' },
+          figure && figure.url
+            ? h(
+                'a',
+                { href: figure.url, target: '_blank', rel: 'noreferrer', className: 'loom-fig' },
+                h('img', { src: figure.url, alt: figure.caption || 'pipeline figure', loading: 'lazy' }),
+                h('span', { className: 'cap' }, figure.caption || 'pipeline figure'),
+              )
+            : null,
+          sectionsOf(state.markdown).map(function (section) {
+            return h(
+              'div',
+              { key: section.name, className: 'loom-wsec' },
+              h('div', { className: 'loom-wsec-head' }, section.name),
+              paragraphs(section.lines.join('\n')).map(function (part, index) {
+                return h('p', { key: index }, part)
+              }),
+            )
+          }),
+          record.id
+            ? h(
+                'a',
+                { className: 'loom-worklink', href: 'https://arxiv.org/abs/' + record.id, target: '_blank', rel: 'noreferrer' },
+                'arXiv:' + record.id,
+              )
+            : null,
+        )
+      }
+
+      return function ResearchSection(props) {
+        var shelf = (props && props.shelf) || { loading: true, error: null, directions: [], total: null }
+        var pick = useState(null)
+        var chosen = pick[0]
+        var setChosen = pick[1]
+        var detail = useState({ loading: false, error: null, works: [], clusters: [] })
+        var d = detail[0]
+        var setDetail = detail[1]
+        var page = useState(null)
+        var p = page[0]
+        var setPage = page[1]
+        var open = useState(null)
+        // `props.openId` / `props.open` are a controlled door: a caller that
+        // already holds one page (a deep link, or the spec that mounts this
+        // section without a browser) passes it in instead of waiting for a
+        // click to fetch it. Internal state is the uncontrolled default.
+        var openId = open[0] || (props && props.openId) || null
+        var setOpenId = open[1]
+        // A supplied page wins over a click: the shelf object may already
+        // carry one (a deep link, or the spec that mounts this section with no
+        // browser). Rendering it does not require an `openId`, because a page
+        // that is here is a page the caller asked to show.
+        var shown = p || (props && props.open) || (shelf && shelf.open) || null
+
+        useEffect(
+          function () {
+            if (!chosen) return
+            setDetail({ loading: true, error: null, works: [], clusters: [] })
+            get(SHELF + '/' + chosen)
+              .then(function (body) {
+                setDetail({ loading: false, error: null, works: body.works || [], clusters: body.clusters || [] })
+              })
+              .catch(function (err) {
+                setDetail({ loading: false, error: String((err && err.message) || err), works: [], clusters: [] })
+              })
+          },
+          [chosen],
+        )
+
+        useEffect(
+          function () {
+            if (!chosen || !openId) {
+              setPage(null)
+              return
+            }
+            setPage({ loading: true, error: null, markdown: '' })
+            get(SHELF + '/' + chosen + '/' + openId)
+              .then(function (body) {
+                setPage({ loading: false, error: null, markdown: body.markdown || '', record: body.record || null })
+              })
+              .catch(function (err) {
+                setPage({ loading: false, error: String((err && err.message) || err), markdown: '' })
+              })
+          },
+          [chosen, openId],
+        )
+
+        if (shelf.loading) {
+          return h('div', { className: 'loom-sec' }, h('div', { className: 'loom-sec-head' }, '调研'), h('div', { className: 'loom-worknote' }, '正在读取调研库…'))
+        }
+        if (shelf.error) {
+          return h('div', { className: 'loom-sec' }, h('div', { className: 'loom-sec-head' }, '调研'), h('div', { className: 'loom-worknote bad' }, shelf.error))
+        }
+        var directions = shelf.directions || []
+        if (!directions.length) {
+          // "not built yet" is the first state a reader meets, so it is said in
+          // a sentence rather than shown as an empty list under a title.
+          return h(
+            'div',
+            { className: 'loom-sec' },
+            h('div', { className: 'loom-sec-head' }, '调研'),
+            h('div', { className: 'loom-worknote' }, '还没有建过库：scripts/research-work.mjs 还没有为任何方向跑过。'),
+          )
+        }
+
+        var total = shelf.total || {}
+        var head = h(
+          'div',
+          { className: 'loom-sec-head' },
+          '调研',
+          h('span', { className: 'n' }, (total.works || 0) + ' 篇 · ' + directions.length + ' 个方向 · ' + (total.figures || 0) + ' 张图'),
+        )
+
+        var rows = directions.map(function (dir) {
+          var active = dir.slug === chosen
+          return h(
+            'div',
+            { key: dir.slug, className: 'loom-dirrow' + (active ? ' active' : '') },
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'loom-dirhit',
+                onClick: function () {
+                  setChosen(active ? null : dir.slug)
+                  setOpenId(null)
+                },
+                title: dir.name,
+              },
+              h('span', { className: 'nm' }, dir.name),
+              h('span', { className: 'c' }, dir.works + ' 篇'),
+              // How many works somebody actually wrote about is the one number
+              // that separates a shelf from a pile.
+              h('span', { className: 's', title: dir.summaries + ' 篇有人写过总结' }, '总结 ' + dir.summaries + '/' + dir.works),
+              h('span', { className: 'g' }, dir.figures + ' 图'),
+            ),
+          )
+        })
+
+        var detailBlock = null
+        if (chosen) {
+          if (d.loading) detailBlock = h('div', { className: 'loom-worknote' }, '正在读取 ' + chosen + '…')
+          else if (d.error) detailBlock = h('div', { className: 'loom-worknote bad' }, d.error)
+          else {
+            detailBlock = h(
+              'div',
+              { className: 'loom-works' },
+              (d.clusters || []).map(function (cluster) {
+                var items = (d.works || []).filter(function (work) {
+                  return work.cluster === cluster.label
+                })
+                if (!items.length) return null
+                return h(
+                  'div',
+                  { key: cluster.label, className: 'loom-cluster' },
+                  h('div', { className: 'loom-cluster-head' }, cluster.label, h('span', { className: 'n' }, String(cluster.count))),
+                  items.map(function (work) {
+                    var isOpen = work.id === openId
+                    return h(
+                      'div',
+                      { key: work.id, className: 'loom-workrow' + (isOpen ? ' open' : '') },
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: 'loom-workhit',
+                          onClick: function () {
+                            setOpenId(isOpen ? null : work.id)
+                          },
+                          title: work.title,
+                        },
+                        h('span', { className: 'id' }, work.id),
+                        h('span', { className: 't' }, work.title || '(no title)'),
+                        h('span', { className: 'm', title: '机制点' }, String(work.mechanisms)),
+                        h('span', { className: 'f', title: work.hasFigure ? '有 pipeline 图' : '论文没有可取的图' }, work.hasFigure ? '图' : '—'),
+                        h('span', { className: 'c', title: '被本库几篇引用' }, work.citedBy ? String(work.citedBy) : ''),
+                      ),
+                    )
+                  }),
+                )
+              }),
+            )
+          }
+        }
+
+        return h('div', { className: 'loom-sec' }, head, h('div', { className: 'loom-dirs' }, rows), detailBlock, shown ? workPage(shown) : null)
+      }
+    }
+
     function Panel(react, CardView) {
       var h = react.createElement
       var useState = react.useState
       var useEffect = react.useEffect
       var useCallback = react.useCallback
+
+      var ResearchSection = Research(react)
 
       return function LoomPanel() {
         var s = useState({ loading: true, data: null, error: null, busy: null })
@@ -2190,6 +2497,29 @@ window.__ModuleLoader__.load({
         var f = useState(readCollapsed)
         var folded = f[0]
         var setFolded = f[1]
+
+        // The shelf has its own route and its own cadence: it changes when a
+        // library is built, not every five seconds, so it is fetched once and
+        // refreshed on demand instead of riding the campaign poll.
+        var sh = useState({ loading: true, error: null, directions: [], total: null })
+        var shelf = sh[0]
+        var setShelf = sh[1]
+        var reloadShelf = useCallback(function () {
+          setShelf(function (prev) {
+            return { loading: true, error: null, directions: prev.directions || [], total: prev.total }
+          })
+          fetch('/dsh-loom/research', { headers: { accept: 'application/json' }, cache: 'no-store' })
+            .then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status)
+              return r.json()
+            })
+            .then(function (body) {
+              setShelf({ loading: false, error: null, directions: body.directions || [], total: body.total || null })
+            })
+            .catch(function (err) {
+              setShelf({ loading: false, error: String((err && err.message) || err), directions: [], total: null })
+            })
+        }, [])
         var k = useState(null)
         var confirming = k[0]
         var setConfirming = k[1]
@@ -2212,6 +2542,7 @@ window.__ModuleLoader__.load({
           ensureStyle(typeof document === 'undefined' ? null : document)
           paintInk(typeof document === 'undefined' ? null : document)
           load()
+          reloadShelf()
           var t = setInterval(function () {
             // re-pin on every tick: if the reader flips the host theme, the
             // ink base has to follow it without a reload
@@ -2221,7 +2552,7 @@ window.__ModuleLoader__.load({
           return function () {
             clearInterval(t)
           }
-        }, [load])
+        }, [load, reloadShelf])
 
         var act = useCallback(
           function (campaign, action, decision, checkpoint, extra) {
@@ -2766,6 +3097,11 @@ window.__ModuleLoader__.load({
           )
         }
 
+        var researchBlock = h(ResearchSection, {
+          shelf: shelf,
+          onReload: reloadShelf,
+        })
+
         var footer = h(
           'div',
           { className: 'loom-foot' },
@@ -2794,7 +3130,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'loom', style: { height: '100%' } },
           header,
-          h('div', { className: 'loom-scroll', style: { overflowY: 'auto' } }, pendingBlock, strip, body, treeBlock),
+          h('div', { className: 'loom-scroll', style: { overflowY: 'auto' } }, pendingBlock, strip, body, treeBlock, researchBlock),
           footer,
         )
       }
@@ -3165,6 +3501,7 @@ window.__ModuleLoader__.load({
       text: text,
       Panel: Panel,
       Card: Card,
+      Research: Research,
       overview: overview,
       metrics: metrics,
       pending: pending,

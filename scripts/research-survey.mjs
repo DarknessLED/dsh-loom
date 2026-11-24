@@ -159,6 +159,32 @@ function isoFromArxivDate(text) {
  * arXiv id, title, authors, a highlighted abstract, categories, and a
  * "Submitted …; originally announced …" line.
  */
+/**
+ * The text of one `<span class="<className>">` element, nested spans included.
+ *
+ * Returns '' when the class is absent. The walk is a simple depth counter: that
+ * is all an HTML fragment from one generator needs, and it is enough to keep a
+ * highlighted word from ending the paragraph it sits in.
+ */
+function spanBody(html, className) {
+  const open = new RegExp(`<span class="${className}[^"]*"[^>]*>`).exec(html)
+  if (!open) return ''
+  const start = open.index + open[0].length
+  let depth = 1
+  let cursor = start
+  while (depth > 0) {
+    const next = /<span\b|<\/span>/g
+    next.lastIndex = cursor
+    const match = next.exec(html)
+    if (!match) return html.slice(start)
+    if (match[0] === '</span>') depth -= 1
+    else depth += 1
+    if (depth === 0) return html.slice(start, match.index)
+    cursor = match.index + match[0].length
+  }
+  return html.slice(start)
+}
+
 export function parseSearchPage(html) {
   if (typeof html !== 'string' || !html) return []
   const results = []
@@ -170,7 +196,14 @@ export function parseSearchPage(html) {
     const authors = [...authorsRaw.matchAll(/>([^<>]+)<\/a>/g)].map((m) => plain(m[1])).filter(Boolean)
     // `abstract-full` ends with the collapse control ("▽ Less"); it is chrome,
     // not text, and it used to end up quoted in the survey tables.
-    const abstract = plain((/<span class="abstract-full[^"]*"[^>]*>([\s\S]*?)<\/span>/.exec(block) || [])[1] || '')
+    //
+    // The body is read by balancing `<span>` against `</span>` rather than by a
+    // non-greedy match: arXiv wraps every query hit in its own
+    // `<span class="search-hit">`, so the first closing tag ends the abstract
+    // at the first highlighted word. That truncated 2,070 of 2,090 abstracts to
+    // 12-15 characters, which silently emptied the keyword classification that
+    // groups the library.
+    const abstract = plain(spanBody(block, 'abstract-full'))
       .replace(/\s*(?:[▽△▲]\s*)?(?:Less|More)\s*$/, '')
     const categories = [...block.matchAll(/data-tooltip="([^"]+)"/g)].map((m) => m[1])
     const submitted = /Submitted<\/span>\s*([^;<]+)/.exec(block)

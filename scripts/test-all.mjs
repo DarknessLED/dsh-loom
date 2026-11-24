@@ -324,6 +324,16 @@ const standing = [
   'tests/self54/workrecord.test.mjs',
   'tests/self54/workview.test.mjs',
   'tests/self54/research-work.test.mjs',
+  // The library gets a door: a read-only prefix route, the panel section that
+  // reads it, a figure URL that is not a 404, and the abstract walker that was
+  // cutting every abstract at its first highlighted word.
+  'tests/self55/research-route.test.mjs',
+  'tests/self55/research-index.test.mjs',
+  'tests/self55/figure-url.test.mjs',
+  'tests/self55/panel-research-section.test.mjs',
+  'tests/self55/abstract-not-cut-at-a-highlight.test.mjs',
+  'tests/self55/a-record-has-its-abstract.test.mjs',
+  'tests/self55/a-pdf-pointer-is-not-a-record.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

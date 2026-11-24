@@ -16,7 +16,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { parseArgs, selectIds, buildLibrary, readReadings, localDate } from '../../scripts/research-work.mjs'
+import { parseArgs, selectIds, lookupInSurvey, buildLibrary, readReadings, localDate } from '../../scripts/research-work.mjs'
 
 let pass = 0
 const ok = (name) => {
@@ -134,6 +134,26 @@ assert.equal(signed._by, undefined, 'the signature is not itself a work')
 ok('a signed reading file carries the author each page needs')
 
 ok('a missing reading file is empty readings, not a crash')
+
+// A reading names a work the survey's top slice no longer returns. The reading
+// has no metadata of its own -- it is prose -- so the survey is asked before
+// blanks are passed: otherwise that work printed `?` for a year the survey had
+// dated all along, and its id where a title was.
+const readingOnly = {
+  cls: { foundations: [{ arxivId: '1903.11059', title: '“AlphaX: exploring architectures.”', year: 2019 }] },
+  b: { papers: [] },
+}
+assert.deepEqual(lookupInSurvey(readingOnly, '1903.11059'), {
+  title: 'AlphaX: exploring architectures.',
+  year: 2019,
+  abstract: '',
+}, 'the survey answer drops the curly quotes and keeps the year')
+assert.equal(lookupInSurvey(readingOnly, '9999.00000'), null, 'a work the survey never saw is null, not an empty shell')
+assert.equal(lookupInSurvey(readingOnly, ''), null)
+assert.equal(lookupInSurvey(null, '1903.11059'), null, 'no survey is null, not a crash')
+const fromPapers = { cls: {}, b: { papers: [{ id: '2601.00002', title: 'Still in the list', year: 2021, abstract: 'prose' }] } }
+assert.deepEqual(lookupInSurvey(fromPapers, '2601.00002'), { title: 'Still in the list', year: 2021, abstract: 'prose' })
+ok('a work kept only because someone read it still gets its title and year from the survey')
 
 const lib = await buildLibrary({ ids: ['2601.00001'], cache, fetch: false })
 const index = lib.index

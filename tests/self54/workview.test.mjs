@@ -58,7 +58,9 @@ assert.doesNotMatch(page, /It connects to/, 'no connections are invented when no
 ok('a missing summary is named, not generated')
 
 assert.match(page, /```mermaid\nflowchart LR/)
-assert.match(page, /!\[The gate in one picture\.\]\(https:\/\/arxiv\.org\/html\/2601\.00001\/2601\.00001v1\/gate\.png\)/)
+// The figure lives under the versioned html directory, not under the bare id:
+// the old shape was a 404 for every one of the 101 figures in the libraries.
+assert.match(page, /!\[The gate in one picture\.\]\(https:\/\/arxiv\.org\/html\/2601\.00001v1\/gate\.png\)/)
 ok('the diagram and the drawn figure both survive into the page')
 
 // Every mechanism point is on the page with its locator, at full length: a page

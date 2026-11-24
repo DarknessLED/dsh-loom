@@ -68,7 +68,11 @@ assert.match(record.motivation.locator, /Introduction/)
 ok('a record starts from what the paper says is wrong')
 
 assert.equal(record.pipeline.figure.src, '2601.00001v1/pipeline.png')
-assert.equal(record.pipeline.figure.url, 'https://arxiv.org/html/2601.00001/2601.00001v1/pipeline.png')
+// arXiv writes src relative to the paper's *versioned* html directory, so the
+// version segment replaces the id instead of following it. The old expectation
+// here pinned the 404 form; see tests/self55/figure-url.test.mjs for the three
+// verified shapes.
+assert.equal(record.pipeline.figure.url, 'https://arxiv.org/html/2601.00001v1/pipeline.png')
 assert.equal(record.pipeline.figure.inMethod, true, 'the figure inside the method is preferred over a teaser')
 assert.match(record.pipeline.figure.caption, /two-stage pipeline/)
 ok('the drawn figure is kept with an absolute url and its caption')
@@ -122,15 +126,17 @@ assert.equal(trailing.length, 1)
 assert.ok(trailing[0].chars >= 200)
 ok('a trailing stub joins the point before it')
 
-// figureUrl: arXiv writes a path relative to the paper's own html directory.
+// figureUrl: arXiv writes a path relative to the paper's *versioned* html
+// directory, so `2601.00001v1/pipeline.png` replaces the id rather than
+// following it. This block used to pin the concatenated form, which was a 404
+// for every figure in the nine libraries; the three verified shapes and the
+// fallbacks live in tests/self55/figure-url.test.mjs, and this keeps the one
+// assertion the record itself depends on.
 assert.equal(
   figureUrl('https://arxiv.org/html/2601.00001', '2601.00001v1/pipeline.png'),
-  'https://arxiv.org/html/2601.00001/2601.00001v1/pipeline.png',
+  'https://arxiv.org/html/2601.00001v1/pipeline.png',
 )
-assert.equal(figureUrl('https://arxiv.org/html/2601.00001v2/', 'x.svg'), 'https://arxiv.org/html/2601.00001v2/x.svg')
-assert.equal(figureUrl('https://arxiv.org/html/2601.00001', 'https://cdn.example/y.png'), 'https://cdn.example/y.png')
 assert.equal(figureUrl('', 'a.png'), null, 'no base URL means no answer, not a broken path')
-assert.equal(figureUrl('https://arxiv.org/html/2601.00001', ''), null)
 ok('a figure url is resolved inside the paper directory, not concatenated')
 
 assert.equal(pipelineMermaid([]), '', 'no sections is an empty diagram, not a mermaid error')
@@ -269,6 +275,20 @@ assert.equal(composite.pipeline.figure.id, 'S2.F3', 'the outer figure is the one
 assert.match(composite.pipeline.figure.caption, /Design space/, 'the caption is the outer one, not the panel letter')
 assert.doesNotMatch(composite.pipeline.figure.caption, /^\(a\)/, 'a panel label is not a caption')
 ok('a figure made of panels is captioned by the figure, not by a panel letter')
+
+// `Number(null)` is 0, so a record built from a reading file (which carries no
+// year) came out claiming the paper was published in year 0 and sorted to the
+// top of every table. An unknown year is null, and a paper whose body has no
+// usable heading keeps its id as a name rather than an empty title.
+const noYear = buildWorkRecord({ id: '2601.00007', html: FIXTURE, origin: 'https://arxiv.org/html/2601.00007' })
+assert.equal(noYear.year, null, 'a missing year stays unknown instead of becoming year 0')
+const zeroYear = buildWorkRecord({ id: '2601.00008', html: FIXTURE, year: 0 })
+assert.equal(zeroYear.year, null, 'a zero year is not a publication year')
+const realYear = buildWorkRecord({ id: '2601.00009', html: FIXTURE, year: 2021 })
+assert.equal(realYear.year, 2021)
+const untitled = buildWorkRecord({ id: '2601.00010', html: '<html><head><title>1Introduction</title></head><body><p class="ltx_p">A body without any heading at all but with enough words to be a paragraph of text.</p></body></html>' })
+assert.equal(untitled.title, '2601.00010', 'a paper with no heading is named by its id, not by an empty string')
+ok('an unknown year is null and an unnamed paper is named by its id')
 
 console.log
 console.log(`\n${pass} checks passed`)

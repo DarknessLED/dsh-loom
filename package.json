@@ -28,7 +28,8 @@
     },
     "client": {
       "platform": "web",
-      "inject": []
+      "inject": [],
+      "immediately": true
     }
   },
   "engines": {

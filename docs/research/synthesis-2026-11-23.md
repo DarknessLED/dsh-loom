@@ -1,6 +1,6 @@
 # Eight literatures, one corpus: what the directions share
 
-Generated 2026-11-24 by `scripts/research-synthesis.mjs`. Every number below is recomputed from
+Generated 2026-11-25 by `scripts/research-synthesis.mjs`. Every number below is recomputed from
 `research/out/*.survey.json`; the prose after the rule is written by hand.
 
 ## How to read this
@@ -19,14 +19,15 @@ Generated 2026-11-24 by `scripts/research-synthesis.mjs`. Every number below is 
 | quantity | value |
 | --- | --- |
 | directions | 9 |
-| distinct works cited by ≥1 direction | 3388 |
-| cited by ≥8 directions | 1 |
-| cited by ≥7 directions | 4 |
-| cited by ≥6 directions | 3 |
-| cited by ≥5 directions | 18 |
-| cited by ≥4 directions | 28 |
-| cited by ≥3 directions | 75 |
-| cited by ≥2 directions | 333 |
+| distinct works cited by ≥1 direction | 3314 |
+| cited by ≥9 directions | 3 |
+| cited by ≥8 directions | 2 |
+| cited by ≥7 directions | 3 |
+| cited by ≥6 directions | 5 |
+| cited by ≥5 directions | 17 |
+| cited by ≥4 directions | 23 |
+| cited by ≥3 directions | 65 |
+| cited by ≥2 directions | 317 |
 
 ## The same prior in several places
 
@@ -39,61 +40,61 @@ the field's tooling.
 
 | work | year | directions | cites |
 | --- | --- | --- | --- |
-| DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models. (`2402.03300`) | 2024 | 6 | verifier 30, score-noise 8, knowledge 4, human 6, selfmod 3, research-method 2 |
-| Training verifiers to solve math word problems. (`2110.14168`) | 2021 | 6 | verifier 6, score-noise 8, human 3, selfmod 2, research-method 2, eval-budget 6 |
-| Evaluating large language models trained on code. (`2107.03374`) | 2021 | 5 | verifier 7, score-noise 11, human 1, selfmod 6, research-method 2 |
-| Constitutional AI: Harmlessness from AI Feedback. (`2212.08073`) | 2022 | 5 | verifier 6, score-noise 3, human 8, selfmod 2, eval-budget 3 |
-| Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback. (`2204.05862`) | 2022 | 5 | verifier 5, score-noise 4, human 5, containment 2, eval-budget 1 |
-| AlphaEvolve: A coding agent for scientific and algorithmic discovery. (`2506.13131`) | 2025 | 5 | verifier 3, score-noise 1, selfmod 7, research-method 3, eval-budget 1 |
-| Search-R1: Training LLMs to reason and leverage search engines with reinforcement learning. (`2503.09516`) | 2025 | 5 | verifier 3, knowledge 2, human 1, research-method 7, eval-budget 1 |
-| Webgpt: Browser-assisted question-answering with human feedback. (`2112.09332`) | 2021 | 5 | verifier 2, score-noise 2, knowledge 1, containment 2, research-method 5 |
-| Universal and transferable adversarial attacks on aligned language models (`2307.15043`) | 2023 | 5 | score-noise 1, containment 5, selfmod 2, research-method 1, eval-budget 3 |
-| The AI scientist: towards fully automated open-ended scientific discovery (`2408.06292`) | 2024 | 5 | budget-stop 1, human 1, selfmod 2, research-method 4, eval-budget 2 |
-| A survey on LLM-as-a-judge. (`2411.15594`) | 2024 | 5 | verifier 2, score-noise 5, human 1, containment 1, research-method 1 |
-| React: Synergizing reasoning and acting in language models. (`2210.03629`) | 2023 | 4 | verifier 5, knowledge 15, containment 11, selfmod 4 |
-| Toolformer: Language models can teach themselves to use tools. (`2302.04761`) | 2023 | 4 | verifier 3, knowledge 7, human 4, containment 6 |
-| Agent workflow memory. (`2409.07429`) | 2024 | 4 | verifier 1, knowledge 10, selfmod 2, eval-budget 1 |
-| Fine-tuning language models from human preferences (`1909.08593`) | 2019 | 4 | verifier 2, score-noise 3, human 4, eval-budget 1 |
-| Qwen3 embedding: advancing text embedding and reranking through foundation models (`2506.05176`) | 2025 | 4 | verifier 2, score-noise 1, knowledge 4, research-method 3 |
-| GEPA: Reflective prompt evolution can outperform reinforcement learning. (`2507.19457`) | 2025 | 4 | verifier 2, containment 1, selfmod 4, eval-budget 2 |
-| Bertscore: evaluating text generation with bert (`1904.09675`) | 2019 | 4 | verifier 1, score-noise 1, research-method 2, eval-budget 4 |
-| Scaling laws for neural language models. (`2001.08361`) | 2020 | 4 | verifier 3, score-noise 1, human 1, eval-budget 1 |
-| A survey of self-evolving agents: On path to artificial super intelligence. (`2507.21046`) | 2025 | 4 | verifier 1, knowledge 3, selfmod 1, eval-budget 1 |
-| Classifier-free diffusion guidance. (`2207.12598`) | 2022 | 4 | verifier 1, score-noise 1, human 2, selfmod 1 |
-| Ragen: Understanding self-evolution in llm agents via multi-turn reinforcement learning. (`2504.20073`) | 2025 | 4 | verifier 1, knowledge 2, human 1, selfmod 1 |
-| AI agents that matter (`2407.01502`) | 2024 | 4 | verifier 1, score-noise 1, human 1, research-method 1 |
-| Scaling LLM test-time compute optimally can be more effective than scaling model parameters. (`2408.03314`) | 2024 | 4 | verifier 1, score-noise 1, selfmod 1, research-method 1 |
-| Concrete problems in ai safety. (`1606.06565`) | 2016 | 3 | verifier 15, human 6, selfmod 1 |
-| Voyager: An open-ended embodied agent with large language models. (`2305.16291`) | 2024 | 3 | knowledge 14, selfmod 6, eval-budget 1 |
-| Monitoring reasoning models for misbehavior and the risks of promoting obfuscation. (`2503.11926`) | 2025 | 3 | verifier 15, score-noise 1, research-method 1 |
-| Chain-of-thought prompting elicits reasoning in large language models. (`2201.11903`) | 2022 | 3 | verifier 5, human 6, research-method 4 |
-| Weak-to-strong generalization: Eliciting strong capabilities with weak supervision. (`2312.09390`) | 2023 | 3 | verifier 3, human 6, selfmod 1 |
-| Rubrics as Rewards: Reinforcement Learning Beyond Verifiable Domains. (`2507.17746`) | 2026 | 3 | verifier 8, knowledge 1, selfmod 1 |
+| DeepSeekMath: Pushing the limits of mathematical reasoning in open language models. (`2402.03300`) | 2024 | 9 | verifier 26, score-noise 9, budget-stop 2, knowledge 4, human 2, containment 1, selfmod 2, research-method 2, eval-budget 1 |
+| Training verifiers to solve math word problems. (`2110.14168`) | 2021 | 8 | verifier 7, score-noise 8, budget-stop 4, knowledge 3, human 3, selfmod 1, research-method 1, eval-budget 7 |
+| ReAct: Synergizing reasoning and acting in language models. (`2210.03629`) | 2023 | 7 | verifier 10, budget-stop 4, knowledge 24, containment 9, selfmod 3, research-method 14, eval-budget 3 |
+| Scaling laws for neural language models. (`2001.08361`) | 2020 | 7 | verifier 1, score-noise 1, budget-stop 1, knowledge 1, human 3, selfmod 1, eval-budget 1 |
+| Evaluating large language models trained on code. (`2107.03374`) | 2021 | 6 | verifier 11, score-noise 11, knowledge 6, selfmod 3, research-method 2, eval-budget 1 |
+| AlphaEvolve: A coding agent for scientific and algorithmic discovery. (`2506.13131`) | 2025 | 6 | verifier 4, score-noise 1, budget-stop 3, selfmod 10, research-method 1, eval-budget 1 |
+| The ai scientist: Towards fully automated open-ended scientific discovery. (`2408.06292`) | 2024 | 6 | verifier 2, budget-stop 1, human 1, selfmod 2, research-method 2, eval-budget 1 |
+| Program synthesis with large language models. (`2108.07732`) | 2021 | 5 | verifier 8, score-noise 4, knowledge 3, selfmod 1, eval-budget 1 |
+| Webgpt: Browser-assisted question-answering with human feedback. (`2112.09332`) | 2021 | 5 | score-noise 2, budget-stop 1, knowledge 2, containment 2, research-method 7 |
+| Universal and transferable adversarial attacks on aligned language models (`2307.15043`) | 2023 | 5 | score-noise 2, containment 5, selfmod 3, research-method 2, eval-budget 1 |
+| AI agents that matter (`2407.01502`) | 2024 | 5 | verifier 1, score-noise 1, human 1, selfmod 1, research-method 1 |
+| Agent workflow memory. (`2409.07429`) | 2024 | 4 | verifier 1, knowledge 17, selfmod 1, eval-budget 1 |
+| Constitutional ai: Harmlessness from ai feedback. (`2212.08073`) | 2022 | 4 | verifier 6, score-noise 2, budget-stop 2, human 9 |
+| Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback. (`2204.05862`) | 2022 | 4 | verifier 3, score-noise 2, human 6, containment 1 |
+| Tree of thoughts: Deliberate problem solving with large language models. (`2305.10601`) | 2023 | 4 | verifier 5, knowledge 4, research-method 2, eval-budget 1 |
+| GEPA: Reflective prompt evolution can outperform reinforcement learning. (`2507.19457`) | 2025 | 4 | verifier 2, budget-stop 4, selfmod 2, eval-budget 4 |
+| Think you have solved question answering? try arc, the ai2 reasoning challenge. (`1803.05457`) | 2018 | 4 | score-noise 3, budget-stop 3, human 1, eval-budget 2 |
+| Adding error bars to evals: A statistical approach to language model evaluations. (`2411.00640`) | 2024 | 4 | verifier 1, score-noise 5, selfmod 1, eval-budget 2 |
+| Qwen3 embedding: advancing text embedding and reranking through foundation models (`2506.05176`) | 2025 | 4 | verifier 1, score-noise 1, knowledge 4, research-method 2 |
+| A survey of self-evolving agents: On path to artificial super intelligence. (`2507.21046`) | 2025 | 4 | verifier 1, knowledge 5, selfmod 1, eval-budget 1 |
+| Do as i can, not as i say: Grounding language in robotic affordances. (`2204.01691`) | 2022 | 4 | verifier 1, knowledge 4, selfmod 1, eval-budget 1 |
+| On the opportunities and risks of foundation models (`2108.07258`) | 2021 | 4 | score-noise 1, human 2, selfmod 1, research-method 1 |
+| Red teaming language models to reduce harms: Methods, scaling behaviors, and lessons learned. (`2209.07858`) | 2022 | 4 | verifier 1, human 2, selfmod 1, eval-budget 1 |
+| Scaling LLM test-time compute optimally can be more effective than scaling model parameters. (`2408.03314`) | 2024 | 4 | verifier 2, score-noise 1, budget-stop 1, research-method 1 |
+| Agent-safetybench: evaluating the safety of llm agents (`2412.14470`) | 2024 | 4 | verifier 1, score-noise 1, human 1, containment 2 |
+| Let’s verify step by step. (`2305.20050`) | 2024 | 3 | verifier 17, score-noise 6, human 6 |
+| Training language models to follow instructions with human feedback. (`2203.02155`) | 2022 | 3 | verifier 14, score-noise 11, selfmod 2 |
+| Voyager: An Open-Ended Embodied Agent with Large Language Models. (`2305.16291`) | 2023 | 3 | knowledge 23, selfmod 2, eval-budget 2 |
+| Concrete problems in AI safety. (`1606.06565`) | 2016 | 3 | verifier 13, human 8, eval-budget 1 |
+| Toolformer: Language models can teach themselves to use tools. (`2302.04761`) | 2023 | 3 | verifier 5, knowledge 9, research-method 8 |
 
 ### Shared infrastructure
 
 | work | year | directions | cites |
 | --- | --- | --- | --- |
-| Qwen3 Technical Report. (`2505.09388`) | 2025 | 8 | verifier 13, score-noise 6, knowledge 8, human 6, containment 2, selfmod 3, research-method 6, eval-budget 4 |
-| Deepseek-r1: Incentivizing reasoning capability in LLMs via reinforcement learning. (`2501.12948`) | 2025 | 7 | verifier 9, score-noise 6, knowledge 1, human 4, selfmod 2, research-method 3, eval-budget 2 |
-| The LLaMa 3 herd of models. (`2407.21783`) | 2024 | 7 | verifier 3, score-noise 6, knowledge 1, human 5, selfmod 4, research-method 2, eval-budget 1 |
-| τ \tau -bench: A benchmark for tool-agent-user interaction in real-world domains. (`2406.12045`) | 2025 | 7 | verifier 5, score-noise 6, knowledge 1, containment 1, selfmod 1, research-method 3, eval-budget 2 |
-| GPT4 technical report. (`2303.08774`) | 2023 | 7 | verifier 1, score-noise 4, knowledge 2, human 3, selfmod 1, research-method 1, eval-budget 2 |
-| Proximal policy optimization algorithms. (`1707.06347`) | 2017 | 6 | verifier 8, score-noise 9, budget-stop 3, knowledge 4, human 4, selfmod 3 |
-| LoRA: Low-rank adaptation of large language models. (`2106.09685`) | 2021 | 5 | verifier 3, score-noise 8, knowledge 6, selfmod 2, research-method 3 |
-| Qwen2.5 technical report. (`2412.15115`) | 2024 | 5 | verifier 6, score-noise 4, knowledge 2, selfmod 4, eval-budget 4 |
-| Webarena: A realistic web environment for building autonomous agents. (`2307.13854`) | 2024 | 5 | verifier 3, score-noise 3, knowledge 4, containment 6, eval-budget 2 |
-| Llama 2: Open foundation and fine-tuned chat models. (`2307.09288`) | 2023 | 5 | verifier 2, score-noise 2, knowledge 3, human 3, selfmod 1 |
-| gpt-oss-120b & gpt-oss-20b model card. (`2508.10925`) | 2025 | 5 | verifier 3, score-noise 3, human 1, containment 1, research-method 2 |
-| AgentBench: Evaluating LLMs as agents. (`2308.03688`) | 2024 | 5 | verifier 3, score-noise 2, knowledge 1, containment 1, research-method 2 |
-| Gemini: a family of highly capable multimodal models (`2312.11805`) | 2023 | 5 | knowledge 1, human 5, containment 1, research-method 1, eval-budget 1 |
-| DeepSeek-V3.2: pushing the frontier of open large language models (`2512.02556`) | 2025 | 5 | verifier 2, score-noise 2, knowledge 2, human 2, selfmod 1 |
-| DeepSeek-V3 technical report (`2412.19437`) | 2024 | 5 | knowledge 1, human 1, selfmod 1, research-method 2, eval-budget 1 |
-| Deepseek-v4: Towards highly efficient million-token context intelligence. (`2606.19348`) | 2026 | 4 | verifier 10, knowledge 4, selfmod 1, research-method 4 |
-| Measuring massive multitask language understanding. (`2009.03300`) | 2021 | 4 | verifier 3, score-noise 6, human 4, selfmod 2 |
-| Terminal-Bench: Benchmarking agents on hard, realistic tasks in command line interfaces. (`2601.11868`) | 2026 | 4 | verifier 7, knowledge 3, containment 3, selfmod 2 |
-| Livecodebench: Holistic and contamination free evaluation of large language models for code. (`2403.07974`) | 2024 | 4 | verifier 7, score-noise 3, human 1, selfmod 1 |
-| Glm-5: from vibe coding to agentic engineering. (`2602.15763`) | 2026 | 4 | verifier 6, knowledge 1, research-method 4, eval-budget 1 |
+| Qwen3 technical report. (`2505.09388`) | 2025 | 9 | verifier 12, score-noise 6, budget-stop 2, knowledge 10, human 4, containment 6, selfmod 4, research-method 4, eval-budget 4 |
+| The LLaMa 3 herd of models. (`2407.21783`) | 2024 | 9 | verifier 2, score-noise 8, budget-stop 5, knowledge 4, human 6, containment 4, selfmod 2, research-method 1, eval-budget 2 |
+| Qwen2.5 technical report. (`2412.15115`) | 2025 | 8 | verifier 3, score-noise 5, budget-stop 1, human 3, containment 1, selfmod 2, research-method 3, eval-budget 2 |
+| GPT-4 technical report. (`2303.08774`) | 2023 | 7 | verifier 4, score-noise 3, knowledge 4, human 5, selfmod 2, research-method 1, eval-budget 2 |
+| Proximal policy optimization algorithms. (`1707.06347`) | 2017 | 6 | verifier 7, score-noise 7, budget-stop 1, knowledge 3, human 2, selfmod 3 |
+| LoRA: Low-rank adaptation of large language models. (`2106.09685`) | 2021 | 6 | verifier 2, score-noise 8, knowledge 5, selfmod 1, research-method 5, eval-budget 1 |
+| Deepseek-r1: Incentivizing reasoning capability in LLMs via reinforcement learning. (`2501.12948`) | 2025 | 5 | verifier 11, score-noise 5, knowledge 1, human 2, eval-budget 2 |
+| Webarena: A realistic web environment for building autonomous agents. (`2307.13854`) | 2024 | 5 | verifier 3, score-noise 3, containment 4, research-method 5, eval-budget 3 |
+| τ \tau -bench: A benchmark for tool-agent-user interaction in real-world domains. (`2406.12045`) | 2024 | 5 | verifier 7, score-noise 5, knowledge 1, research-method 1, eval-budget 4 |
+| Deepseek-v4: Towards highly efficient million-token context intelligence. (`2606.19348`) | 2026 | 5 | verifier 9, budget-stop 1, knowledge 2, selfmod 1, research-method 1 |
+| Gpt-4o system card. (`2410.21276`) | 2024 | 5 | verifier 1, score-noise 2, knowledge 4, human 3, eval-budget 2 |
+| gpt-oss-120b & gpt-oss-20b model card. (`2508.10925`) | 2025 | 5 | verifier 4, score-noise 3, budget-stop 1, knowledge 2, research-method 2 |
+| Glm-5: from vibe coding to agentic engineering. (`2602.15763`) | 2026 | 5 | verifier 5, score-noise 1, knowledge 2, research-method 1, eval-budget 1 |
+| Mistral 7b. (`2310.06825`) | 2023 | 5 | verifier 1, score-noise 3, budget-stop 2, knowledge 1, human 1 |
+| Gemini: a family of highly capable multimodal models (`2312.11805`) | 2023 | 5 | budget-stop 1, human 2, containment 1, research-method 2, eval-budget 2 |
+| Gemini 2.5: Pushing the frontier with advanced reasoning, multimodality, long context, and next generation agentic capabilities. (`2507.06261`) | 2025 | 5 | verifier 1, score-noise 2, knowledge 2, selfmod 2, research-method 1 |
+| Kimi k2. 5: Visual agentic intelligence. (`2602.02276`) | 2026 | 5 | verifier 3, score-noise 1, knowledge 2, containment 1, research-method 1 |
+| Gemma 4 technical report. (`2607.02770`) | 2026 | 5 | verifier 2, score-noise 1, containment 2, research-method 1, eval-budget 1 |
+| OpenAI gpt-5 system card (`2601.03267`) | 2025 | 5 | verifier 2, score-noise 1, knowledge 1, selfmod 1, eval-budget 1 |
+| Measuring massive multitask language understanding. (`2009.03300`) | 2021 | 4 | verifier 3, score-noise 6, human 1, eval-budget 3 |
 
 ## Which directions are the same direction
 
@@ -101,42 +102,42 @@ Overlap between each pair's 20 most-cited works.
 
 | pair | shared of top-20 |
 | --- | --- |
-| verifier × score-noise | 6 |
-| verifier × human | 5 |
-| score-noise × human | 5 |
+| verifier × score-noise | 7 |
+| knowledge × research-method | 4 |
+| eval-budget × score-noise | 4 |
+| eval-budget × selfmod | 4 |
+| verifier × knowledge | 3 |
+| verifier × selfmod | 3 |
+| score-noise × human | 3 |
 | score-noise × selfmod | 3 |
+| knowledge × selfmod | 3 |
+| eval-budget × budget-stop | 3 |
+| eval-budget × research-method | 3 |
+| verifier × human | 2 |
 | verifier × research-method | 2 |
+| verifier × eval-budget | 2 |
+| score-noise × budget-stop | 2 |
+| score-noise × knowledge | 2 |
 | score-noise × research-method | 2 |
-| knowledge × containment | 2 |
-| knowledge × selfmod | 2 |
-| human × selfmod | 2 |
-| human × research-method | 2 |
-| eval-budget × score-noise | 2 |
-| eval-budget × human | 2 |
-| eval-budget × selfmod | 2 |
+| budget-stop × selfmod | 2 |
+| selfmod × research-method | 2 |
+| eval-budget × knowledge | 2 |
 | verifier × budget-stop | 1 |
-| verifier × knowledge | 1 |
-| verifier × selfmod | 1 |
-| verifier × eval-budget | 1 |
-| score-noise × budget-stop | 1 |
-| score-noise × knowledge | 1 |
+| verifier × containment | 1 |
+| budget-stop × knowledge | 1 |
 | budget-stop × human | 1 |
-| budget-stop × selfmod | 1 |
-| knowledge × human | 1 |
-| knowledge × research-method | 1 |
+| budget-stop × containment | 1 |
+| budget-stop × research-method | 1 |
+| knowledge × containment | 1 |
 | containment × selfmod | 1 |
-| eval-budget × knowledge | 1 |
+| containment × research-method | 1 |
 | eval-budget × containment | 1 |
-| eval-budget × research-method | 1 |
-| verifier × containment | 0 |
 | score-noise × containment | 0 |
-| budget-stop × knowledge | 0 |
-| budget-stop × containment | 0 |
-| budget-stop × research-method | 0 |
+| knowledge × human | 0 |
 | human × containment | 0 |
-| containment × research-method | 0 |
-| selfmod × research-method | 0 |
-| eval-budget × budget-stop | 0 |
+| human × selfmod | 0 |
+| human × research-method | 0 |
+| eval-budget × human | 0 |
 
 ### The same question asked over the whole corpus
 
@@ -148,31 +149,31 @@ statement about how much the answer depends on where we cut.
 
 | pair | shared | of A | of B | Jaccard |
 | --- | --- | --- | --- | --- |
-| score-noise × research-method | 106 | 463 | 485 | 0.126 |
-| containment × research-method | 62 | 233 | 485 | 0.095 |
-| verifier × human | 71 | 705 | 492 | 0.063 |
-| verifier × score-noise | 62 | 705 | 463 | 0.056 |
-| score-noise × human | 48 | 463 | 492 | 0.053 |
-| knowledge × selfmod | 61 | 537 | 682 | 0.053 |
-| verifier × research-method | 56 | 705 | 485 | 0.049 |
-| verifier × selfmod | 59 | 705 | 682 | 0.044 |
-| score-noise × eval-budget | 34 | 463 | 354 | 0.043 |
-| verifier × knowledge | 51 | 705 | 537 | 0.043 |
-| human × research-method | 38 | 492 | 485 | 0.040 |
-| knowledge × research-method | 34 | 537 | 485 | 0.034 |
+| score-noise × research-method | 116 | 467 | 451 | 0.145 |
+| score-noise × eval-budget | 47 | 467 | 352 | 0.061 |
+| verifier × score-noise | 72 | 863 | 467 | 0.057 |
+| verifier × research-method | 64 | 863 | 451 | 0.051 |
+| verifier × knowledge | 64 | 863 | 549 | 0.047 |
+| knowledge × research-method | 45 | 549 | 451 | 0.047 |
+| verifier × selfmod | 50 | 863 | 355 | 0.043 |
+| budget-stop × selfmod | 22 | 191 | 355 | 0.042 |
+| selfmod × eval-budget | 28 | 355 | 352 | 0.041 |
+| verifier × human | 53 | 863 | 508 | 0.040 |
+| score-noise × human | 37 | 467 | 508 | 0.039 |
+| knowledge × eval-budget | 34 | 549 | 352 | 0.039 |
 
 **Nearest neighbour under both cuts.** 7 of 9 directions change neighbour when the cut moves:
 
 | direction | nearest by top-20 | nearest by whole corpus | same |
 | --- | --- | --- | --- |
-| verifier | score-noise | human | no |
+| verifier | score-noise | score-noise | yes |
 | score-noise | verifier | research-method | no |
-| budget-stop | verifier | knowledge | no |
-| knowledge | containment | selfmod | no |
-| human | verifier | verifier | yes |
-| containment | knowledge | research-method | no |
-| selfmod | score-noise | knowledge | no |
-| research-method | verifier | score-noise | no |
+| budget-stop | eval-budget | selfmod | no |
+| knowledge | research-method | verifier | no |
+| human | score-noise | verifier | no |
+| containment | verifier | research-method | no |
+| selfmod | eval-budget | verifier | no |
+| research-method | knowledge | score-noise | no |
 | eval-budget | score-noise | score-noise | yes |
 
 ## How old each direction is
@@ -183,19 +184,26 @@ importing a method from another field, and the two cases ask for different readi
 
 | direction | cited | with a year | median year | 2025 or newer | before 2023 |
 | --- | --- | --- | --- | --- | --- |
-| r1-verifier | 705 | 703 | 2025 | 65% | 11% |
-| r10-eval-budget | 354 | 353 | 2025 | 64% | 14% |
-| r2-score-noise | 463 | 463 | 2025 | 53% | 18% |
-| r4-knowledge | 537 | 537 | 2025 | 67% | 15% |
-| r6-containment | 233 | 233 | 2025 | 72% | 5% |
-| r7-selfmod | 682 | 672 | 2025 | 64% | 13% |
-| r8-research-method | 485 | 485 | 2025 | 67% | 10% |
-| r5-human | 492 | 492 | 2024 | 47% | 14% |
-| r3-budget-stop | 122 | 117 | 2019 | 17% | 78% |
+| r1-verifier | 863 | 861 | 2025 | 69% | 10% |
+| r10-eval-budget | 352 | 351 | 2025 | 60% | 18% |
+| r2-score-noise | 467 | 457 | 2025 | 52% | 19% |
+| r4-knowledge | 549 | 548 | 2025 | 74% | 8% |
+| r6-containment | 243 | 243 | 2025 | 69% | 4% |
+| r7-selfmod | 355 | 353 | 2025 | 54% | 19% |
+| r8-research-method | 451 | 449 | 2025 | 70% | 7% |
+| r3-budget-stop | 191 | 188 | 2024 | 39% | 42% |
+| r5-human | 508 | 506 | 2024 | 30% | 24% |
 
 ## Cited by many, read by none
 
-_Nothing left: every work cited by four or more directions has a note in the ledger._
+| work | year | directions |
+| --- | --- | --- |
+| Gemma 4 technical report. (`2607.02770`) | 2026 | 5 |
+| Think you have solved question answering? try arc, the ai2 reasoning challenge. (`1803.05457`) | 2018 | 4 |
+| Qwen2.5-Coder technical report. (`2409.12186`) | 2024 | 4 |
+| On the opportunities and risks of foundation models (`2108.07258`) | 2021 | 4 |
+| Red teaming language models to reduce harms: Methods, scaling behaviors, and lessons learned. (`2209.07858`) | 2022 | 4 |
+| Agent-safetybench: evaluating the safety of llm agents (`2412.14470`) | 2024 | 4 |
 
 ## How much of each direction we have actually read
 
@@ -203,14 +211,14 @@ Of each direction’s most-cited works, how many have a body note in the ledger 
 
 | direction | read | of top |
 | --- | --- | --- |
-| r1-verifier | 40 | 40 |
-| r2-score-noise | 40 | 40 |
-| r3-budget-stop | 35 | 40 |
-| r4-knowledge | 36 | 40 |
-| r5-human | 40 | 40 |
-| r6-containment | 38 | 40 |
-| r7-selfmod | 39 | 40 |
-| r8-research-method | 40 | 40 |
+| r1-verifier | 34 | 40 |
+| r2-score-noise | 33 | 40 |
+| r3-budget-stop | 32 | 40 |
+| r4-knowledge | 29 | 40 |
+| r5-human | 27 | 40 |
+| r6-containment | 27 | 40 |
+| r7-selfmod | 31 | 40 |
+| r8-research-method | 26 | 40 |
 | r10-eval-budget | 28 | 40 |
 
 ---
