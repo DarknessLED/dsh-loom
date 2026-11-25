@@ -593,6 +593,35 @@ together in one round is what `owns-scope-live` is for.
   the scope is a directory (`tests/`), and the gate checks the patch stays
   inside it, not that the patch is the file the task asked for.
 
+### The second lock was not a missing declaration — it was a contradiction
+
+`owns-scope-live` declared both permissions, and the round came back with:
+
+```
+verifierOk: true
+oracleClean: true
+oracleReleased: ["scripts/test-all.mjs"]
+testsClean: false
+scope: { editable: ["tests/"], checked: 2, violations: ["scripts/test-all.mjs"] }
+```
+
+The same path was excused by `verify.owns` and convicted by `verify.scope` in the
+same evaluation. A correct patch — the spec, and the one-line pin that makes the
+suite see it — could not land, and every further round reproduced it: three
+rounds on `owns-live`, two on `owns-scope-live`, $0.34 together, zero landings.
+
+The fix (`b3c072c`) reads the two declarations as one: `scopeVerdict` takes
+`owns`, an owned path still counts in `checked` but is no longer a violation, an
+undeclared apparatus path is still refused, and a task with `owns` but no scope
+keeps the legacy answer. Four assertions in
+`tests/self56/an-owned-path-is-inside-the-scope.test.mjs`, full gate 367/367.
+
+**Not yet proven live.** Both campaigns were stopped rather than run again,
+because the plugin instance that would judge them still holds `src/gate/scope.js`
+from before `b3c072c`. The same staleness that made `verify.owns` look broken for
+a day now hides its complement: the code is committed and specified, and the
+first round that exercises it has not happened.
+
 ## 2026-11-25: the held-back reading exists now
 
 P1-1 was written, specified and committed without ever producing a number: every
