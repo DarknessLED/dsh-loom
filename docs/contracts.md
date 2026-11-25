@@ -166,6 +166,7 @@
 - `src/runtime/quality.js` — 战役证据健康度：把回合账本折成通过率、增益、停滞等少数指标，供报告与面板给出同一结论。
 - `src/runtime/review.js` — 待决队列排序：按风险（holdout/anomaly 高、gate/policy 中、其余低）再按提出时间与 id 排列，为每条决策生成单行摘要与动词短语建议，供 `rsi_status` 渲染。
 - `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动；另外在启动时把「没有改动」这类旧 claim 退役（`noWorkLessons`），因为它们仍在被选进简报。
+- `src/runtime/round.js` 的 round 收尾多了一个 `interrupted` 分支：本轮被派出的每个 attempt 都带 `abandoned`（操作者暂停、停止、stall）且没有任何一个产出 patch 时，本轮以 `status: 'interrupted'`、`score: null`、`reason: 'stopped'`、`retryable: true` 结束，不写 `no-gain` 也不写 0。理由：验证器没在那棵树上跑过，写 0 是对没人看过的补丁下判决；账本里已有九轮这样被记成 `no-gain` 并喂给平台期检测。窄化条件刻意保留：只要有一个 attempt 留下了 patch（那是 salvage 的事），或有一个是带诊断的死亡（那是真失败），收尾与从前逐字节相同。
 
 - `src/runtime/orphans.js` — `orphanWindowMs(config)` and `findOrphans({state, events, liveRounds, now, afterMs})`.
   两项事实都在一起，才允许释放一个轮次：本轮在这个进程里没有被 `watchdog` 看着（`liveRounds` 不含它），

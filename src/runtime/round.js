@@ -2265,6 +2265,68 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       }
       return { status: 'interrupted', round: n, retryable: true, score: null, promoted: false, taskId: task.id }
     }
+    // An operator stop is not a measurement either.
+    //
+    // `abandoned` is a string exactly when the host aborted the child and no
+    // sibling had solved the task: a stall, a pause, a stop. The verifier never
+    // ran on that tree (`verified` is `{ skipped: true }` above), so `score: 0`
+    // here is not "the patch failed" -- it is "nobody looked". Nine rounds in
+    // this repository's ledger are exactly that, every one of them a campaign
+    // stopped after its patch had already been landed by hand, and each one is
+    // now standing evidence that the task did not improve. Three in a row is
+    // what a plateau card reads.
+    //
+    // Kept narrow on purpose: at least one attempt must have been dispatched,
+    // every dispatched attempt must carry an operator stop, and no attempt may
+    // have produced a patch. A stopped child that left a patch is salvage
+    // business (there is something to re-verify), and a death with a diagnosis
+    // is a real failure -- both keep closing as they did.
+    const stoppedAttempts = dispatchedAttempts.filter((a) => typeof a.abandoned === 'string')
+    const nothingToJudge = attempts.every((a) => (Number(a.patchBytes) || 0) === 0)
+    if (
+      dispatchedAttempts.length > 0 &&
+      stoppedAttempts.length === dispatchedAttempts.length &&
+      nothingToJudge
+    ) {
+      const stoppedSpend = attempts.reduce((sum, a) => sum + (Number(a.costUsd) || 0), 0)
+      if (stoppedSpend > 0) {
+        runtime.append(view, 'budget.spent', { usd: stoppedSpend, attempts: attempts.length }, 'system')
+      }
+      runtime.append(
+        view,
+        'round.finished',
+        {
+          n,
+          status: 'interrupted',
+          // Worth repeating: the round measured nothing about the task, and
+          // nothing about it may be written off against the task.
+          retryable: true,
+          // No score at all. Zero is the measurement of a patch that ran.
+          score: null,
+          promoted: false,
+          reason: 'stopped',
+          planTimedOut,
+          planUsable,
+          ...modeRecord(),
+          ...roundStats(attempts, roundStartedAt, verifierRuns, verifierMs, planMs, pricing.source),
+        },
+        'system',
+      )
+      projectRound(view.state, {
+        n,
+        taskId: task.id,
+        status: 'interrupted',
+        score: null,
+        promoted: false,
+        reason: 'stopped',
+        attempts,
+      })
+      log(`round ${n}: every dispatched attempt was stopped before it produced a patch; round interrupted, not scored`)
+      // Return here: the normal path would append a second `round.finished`
+      // for the same round, and the second one would carry the zero.
+      return { status: 'interrupted', round: n, retryable: true, score: null, promoted: false, taskId: task.id, reason: 'stopped' }
+    }
+
     try {
       pruneNotes(board, { max: 20 })
     } catch {

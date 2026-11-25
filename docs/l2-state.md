@@ -660,6 +660,56 @@ at 14:50 ran against it. Two consequences:
   this file should be read the same way: not proven on the codepath the host had
   loaded.
 
+## 2026-11-25: nine rounds were scored against a patch nobody ran
+
+An operator stop (a `rsi_control {action:"stop"}`, a stall, a pause) comes back as
+`stopReason: 'aborted'` with `abandoned: 'interrupted'`. The verifier is skipped on
+that tree (`verified: { skipped: true }`), the attempt carries `patchBytes: 0`, and
+the round then fell through to the ordinary path and closed as `no-gain` with
+`score: 0`.
+
+That zero is not "the patch failed". It is "nobody looked". `plateauReached` and
+`bestPriorScore` both skip `status: 'interrupted'` for exactly this reason, and the
+predicate that produces that status only recognised *infrastructure* loss. A stop
+was neither infrastructure nor a real failure, so it landed in the one bucket that
+has to mean "measured and did not improve".
+
+Nine rounds in this ledger are that shape, and every one of them is a campaign I
+stopped after landing its patch by hand:
+
+| campaign | round | why it was stopped |
+| --- | --- | --- |
+| `pair-audit` | 2 | patch applied by hand in `da068f2` |
+| `sequential-decides` | 2 | patch applied by hand in `930433f` |
+| `owns-land-live` | 1 | the campaign was not discriminating (own `scope` also listed the path) |
+| `oracle-honest` | 2 | patch applied by hand in `591547b` |
+| `abandon-live` | 2 | patch applied by hand in `2d43f4f` |
+| `loom-acc6` | 9 | stopped mid-run |
+| `loom-mut` | 2 | stopped mid-run |
+| `loom-noise` | 4 | stopped mid-run |
+| `loom-tri5` | 3 | stopped mid-run |
+
+Each of those is standing evidence, in the only file the loop reads back, that a
+task did not improve. Three in a row is what raises a plateau card, and a plateau
+card is what makes L2 propose a different chain — so a person stopping a campaign
+three times could have been read as "this task is stuck".
+
+The fix is a fourth closing branch in `src/runtime/round.js`, narrow on purpose:
+the round is `interrupted` only when at least one attempt was dispatched, **every**
+dispatched attempt carries an operator stop, and **no** attempt produced a patch. A
+stopped child that left a patch is salvage business (there is something to
+re-verify); a death with a diagnosis is a real failure and keeps closing as
+`no-gain`. `tests/self56/a-stopped-round-is-not-a-flat-round.test.mjs` (8 checks)
+is the discriminating spec: the stopped round, the projection, three stopped rounds
+not being a plateau, and — the other direction — a diagnosed death still closing as
+a zero.
+
+What this does not claim: the nine historical rounds are not rewritten. They stay
+as they were written, because the ledger is append-only and re-labelling history to
+match a later rule is how a ledger stops being evidence. The number to carry
+forward is "nine of the 212 `no-gain` rounds were stops, 4.2%", not "the loop was
+never confused".
+
 ## 2026-11-25: the held-back reading exists now
 
 P1-1 was written, specified and committed without ever producing a number: every
