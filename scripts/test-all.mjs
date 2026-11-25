@@ -365,6 +365,11 @@ const standing = [
   // as killed, retries it out of the same budget, and when the retries are all
   // killed it says the code was never judged instead of reporting a failure.
   'tests/self56/a-killed-run-is-not-a-failing-one.test.mjs',
+  // "470 of 483 rounds had no paired outcome" came from a throwaway script, so
+  // nobody could re-derive it. scripts/pair-audit.mjs rebuilds the pairing from
+  // the ledger with the gate's own `pairAgainstBase`/`commitDecision`, names a
+  // ledger that predates the fields as unmeasured, and never writes to the home.
+  'tests/self56/a-pair-audit-can-be-rerun.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

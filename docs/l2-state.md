@@ -368,14 +368,34 @@ time. That is textbook adaptive multiple testing, and the paper that names it
 
 ### The shadow table
 
-`~/.dsh/loom/campaigns/*/events.jsonl`, 137 campaigns, 470 scored rounds, 248
-actual promotions:
+`node scripts/pair-audit.mjs` (committed; `--home`, `--campaign`, `--json`)
+re-derives this from `~/.dsh/loom/campaigns/*/events.jsonl` using the gate's own
+`pairAgainstBase` / `commitDecision`, so the numbers below are reproducible
+rather than remembered. Current run: **149 campaigns, 495 rounds, 16 with a
+pair — 16 won, 0 lost.** The denominator is the part that matters: only **16 of
+495** rounds had a base reading at all and 112 had a measurable candidate; no
+pair was possible in 459 of them (363 had neither side measured, 96 had a
+candidate but no base). 67 campaigns predate the paired fields entirely and are
+reported as *unmeasured*, not as zero pairs.
+
+An earlier revision of this page said "470 of 483 rounds, commit 0 / defer 470".
+That was one throwaway script's answer and it was wrong in both numbers: the
+true counts are 495 rounds and 16 pairable, and those 16 pairs all resolved (the
+16 rounds are the `paired-gate3` ladder, whose whole design was to make each
+candidate beat its own base). The cause of the near-total silence is unchanged
+and is the finding worth keeping: no cached base reading carried a `killRate`
+before cache version 3.
 
 | | result |
 | --- | --- |
-| paired e-process, base-relative | commit 0, defer 470, reject 0 |
-| documented rule (`decidePromotion`) | would promote 0, `insufficient tasks` 470 |
-| disagreement | 248 (every actual promotion) |
+| pairable rounds in the corpus | 16 of 495 (`pair-audit`) |
+| of those, won / lost | 16 / 0 |
+| documented rule (`decidePromotion`) shadow | 495 × `insufficient tasks` |
+| disagreement with actual promotions | every actual promotion |
+
+The 16 pairs are not evidence that the new gate is calibrated — they are one
+carefully built ladder. They say the arithmetic runs on real ledger bytes; they
+do not say it generalises. Only rounds run after cache version 3 can.
 
 Both zeros are honest and both have the same cause: the history was not
 collected in a form that could answer the question. The 0 commits exist because
