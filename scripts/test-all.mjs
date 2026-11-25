@@ -429,6 +429,10 @@ const standing = [
   // the leg prefers the ones nobody has touched.
   'tests/self57/a-question-is-a-queue-not-a-loop.test.mjs',
   'tests/self57/the-ledger-hears-about-the-read.test.mjs',
+  // The measure of `used` only works if the worker is told that citing a note is
+  // part of the report: eighteen rounds carried a research record and `used`
+  // never once came back true.
+  'tests/self57/the-brief-asks-whether-the-notes-helped.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

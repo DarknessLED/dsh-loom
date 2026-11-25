@@ -992,6 +992,36 @@ round is supposed to read again for.
   spec, and a worker's reply also has to say `stopReason: 'completed'` or
   `gateOk` is false for a reason that has nothing to do with the patch.
 
+- **The measure nobody was told about.** Eighteen rounds across nine campaigns
+  carried a `research` record and `used` came back `true` zero times. That looks
+  like a verdict on reading and it was not one: the notes were in the brief, the
+  span check ran on the report, and nothing ever asked the worker to say whether
+  a note had shaped the change. A worker that reads a quotation and silently
+  acts on it produces exactly the same record as a worker that ignored it, so
+  the leg was measuring a behaviour nobody had requested. The brief now asks, in
+  the same section as the notes and next to the `evidence` key that can carry
+  the answer: quote a few words or name the source if one of them mattered, say
+  nothing if none did. Pinned by
+  `tests/self57/the-brief-asks-whether-the-notes-helped.test.mjs`; the
+  distinction it preserves is that "used none" and "never read" are different
+  facts, and only the first is something a round can be graded on.
+
+  What this still does not claim: an instruction is not compliance. The next
+  campaign that reads and lands can still come back `used: false`, and that will
+  then be a measurement rather than an absence — which is the whole difference
+  between the eighteen rounds above and the rounds after this commit.
+
+- **Reading rounds promote less often, and that sentence is not a finding.**
+  Re-counted over every campaign on 2026-11-26: 19 rounds that were allowed to
+  read promoted 8 (42%), 6 rounds that skipped the leg promoted 6 (100%). It
+  would be easy to publish that as "reading hurts". It cannot be: `auto` turns
+  the leg *off* after a win (`researchModeFor`), so the skip bucket is by
+  construction populated with campaigns that had already started landing, and
+  the read bucket with the ones that had not. The two arms are selected on the
+  outcome. A real answer needs the same round decided both ways, which is what
+  `src/loop/ab.js` does for policies and what the leg has no equivalent of yet.
+  Recorded here so the number is not re-derived later and mistaken for evidence.
+
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.
