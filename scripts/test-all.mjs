@@ -386,6 +386,9 @@ const standing = [
   // chain it proposed, and grading that as a forecast made 59 of 62
   // `chain.measured` events read as a prediction that came true.
   'tests/self56/a-forecast-that-was-never-made-is-not-graded.test.mjs',
+  // 26 of 267 promotions in the ledger were empty landings, and only the
+  // artifact said so; the round now carries the flag it already computed.
+  'tests/self56/a-noop-landing-says-so.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

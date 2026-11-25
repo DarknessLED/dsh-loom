@@ -2972,6 +2972,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         ...(best ? { shape: shapeOf(best) } : {}),
         chainVersion: state.chain.activeVersion,
         promoted: promote === true,
+        // A landing on a tree that already satisfied the task is a real
+        // landing and not a real change. `artifact.promoted` has said so
+        // since the no-op path existed; the round never did, so 26 of the
+        // 267 promotions in this ledger read as ordinary work.
+        noop: checks.noop === true,
         // Which candidate won, as an id rather than a boolean: the fidelity
         // check compares that id against what the cheap stage kept, and "we
         // promoted something" cannot be compared with anything.
@@ -3009,6 +3014,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       ...(best ? { shape: shapeOf(best) } : {}),
       chainVersion: state.chain.activeVersion,
       promoted: promote === true,
+      noop: checks.noop === true,
       attempts,
     })
 
@@ -3504,6 +3510,9 @@ function projectRound(state, round) {
     ...(round.progress != null ? { progress: round.progress } : {}),
     ...(round.chainVersion != null ? { chainVersion: round.chainVersion } : {}),
     promoted: round.promoted === true,
+    // Empty landings are the difference between "267 promotions" and "241
+    // promotions and 26 rounds that confirmed the tree was already right".
+    ...(round.noop !== undefined ? { noop: round.noop === true } : {}),
     endedAt: Date.now(),
     ...(round.holdoutId != null ? { holdoutId: round.holdoutId } : {}),
     // The held-back reading travels with the projected round: a reader asking
