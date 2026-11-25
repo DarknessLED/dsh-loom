@@ -866,6 +866,36 @@ Two things this does not claim:
 - **The allowance stops a campaign, it does not ration it.** `maxRounds: 3` means
   the fourth round reads nothing, not that it reads less.
 
+### The balance, measured (2026-11-26)
+
+Campaign `balance4-live` on the plugin instance applied at 05:11 local, two
+one-edit tasks, `researchMode: auto`. Both rounds promoted; the point of the
+campaign was what the second round did with its budget.
+
+| round | projected `research` | cost |
+| --- | --- | --- |
+| 1 | `{"mode":"full","read":2,"passages":4,"used":false}` | $0.0085 |
+| 2 | `{"mode":"off","read":0,"used":null,"skipped":"not-run"}` | $0.0069 |
+
+Round one bought a leg it never used (4 passages in the brief, none of them
+reached for), and `researchModeFor` answered `off` for round two: two searches
+and two page fetches that were not bought, on a round that then solved its task
+anyway. That is the first time the research/do balance moved because of a
+measurement rather than because a person set the knob.
+
+Three limits this does not claim away:
+
+- **The leg records `costUsd: 0`.** Search and fetch go through `ctx.web`, which
+  is not priced by `config.models.pricing`, so the reading is not in the
+  campaign's budget. "The leg is cheap" is an assumption, not a measurement; an
+  $0.008 round is the agent's tokens, not its pages.
+- **`used: false` is span matching.** The worker may well have applied the idea
+  in different words; the record says "no passage appears verbatim", not "the
+  reading was useless".
+- **One campaign.** `auto` now has a mechanism with a live measurement behind
+  it, not a distribution: the next campaign that reads and loses will buy again,
+  and nothing here says how often that should happen.
+
 ### The leg ran in a live round
 
 Campaign `react-live`, round 1, 2026-11-26 (`candidates: 1`, `researchMode: full`):
