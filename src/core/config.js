@@ -216,6 +216,15 @@ export const DEFAULT_CONFIG = {
   halving: {
     enabled: true,
     keepRatio: 0.5,
+    /**
+     * Hand the money a dropped candidate was holding to the survivors instead of
+     * keeping it. Off by default, and off is byte-identical to the prefilter the
+     * loop has always run: `returnedUsd` is 0, `reallocUsd` is 0 and the plan is
+     * named `prefilter`. On, a round that screens N candidates down to K reports
+     * `returnedUsd = (N - K) * ceiling / N` and each survivor's attempt budget
+     * rises by `returnedUsd / K`; the plan is then named `halving`.
+     */
+    returnToSurvivors: false,
     screenTimeoutMs: 3 * 60_000,
     /** Bracket ratio of the priced schedule; 2 is the 4 -> 2 -> 1 ladder. */
     eta: 2,

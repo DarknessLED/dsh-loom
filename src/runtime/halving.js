@@ -65,10 +65,19 @@ export function pickSurvivors(results, { keepRatio = 0.5, minKeep = 1 } = {}) {
  * one tight bucket, and calling a prefilter "successive halving" is how that
  * number came to look like a verdict on the schedule rather than on a prefilter.
  *
- * @param {{candidates?:number, eta?:number, maxUsd?:number, keepRatio?:number|null}} opts
- * @returns {{candidates:number, eta:number, maxUsd:number, rungs:Array<{keep:number, drop:number, costUsd:number, freedUsd:number}>, returnedUsd:number, kind:string}}
+ * `returnToSurvivors` is what turns a prefilter into the schedule the name
+ * promises. When it is true the share held by every candidate the screen drops
+ * is handed to the survivors: `returnedUsd` is that money, `rungs[0]` is the
+ * rung the survivors actually run (K of N, priced at their enlarged budget) and
+ * `perSurvivorUsd` is one survivor's share. It can never invent money: the
+ * survivors' rung costs at most the ceiling, because every dollar it hands on
+ * was already inside that ceiling. Default false, and the ladder this function
+ * returns with the flag off is byte-identical to the prefilter it always was.
+ *
+ * @param {{candidates?:number, eta?:number, maxUsd?:number, keepRatio?:number|null, returnToSurvivors?:boolean}} opts
+ * @returns {{candidates:number, eta:number, maxUsd:number, rungs:Array<{keep:number, drop:number, costUsd:number, freedUsd:number}>, returnedUsd:number, perSurvivorUsd:number, survivors:number, shareUsd:number, kind:string}}
  */
-export function halvingPlan({ candidates = 1, eta = 2, maxUsd = 0, keepRatio = null } = {}) {
+export function halvingPlan({ candidates = 1, eta = 2, maxUsd = 0, keepRatio = null, returnToSurvivors = false } = {}) {
   const n = Math.max(1, Math.floor(Number(candidates) || 1))
   const step = Math.max(2, Math.floor(Number(eta) || 2))
   const ceiling = Number.isFinite(Number(maxUsd)) && Number(maxUsd) > 0 ? Number(maxUsd) : 0
@@ -76,10 +85,10 @@ export function halvingPlan({ candidates = 1, eta = 2, maxUsd = 0, keepRatio = n
     keepRatio !== null && Number.isFinite(Number(keepRatio)) && Number(keepRatio) > 0
       ? Math.min(1, Number(keepRatio))
       : null
+  // Fixed to six decimals and never NaN: a share of an empty ceiling is 0.
+  const round6 = (value) => (Number.isFinite(value) ? Number(value.toFixed(6)) : 0)
 
-  // Shares are the ceiling split evenly over the candidates of the first rung.
-  // A candidate dropped at rung k frees exactly its own share, which is why the
-  // freed amount is proportional to how many were dropped.
+  // What each candidate of the first rung holds.
   const share = n > 0 ? ceiling / n : 0
   // The ladder names every stage a candidate can be in, including the last one
   // (keep 1, where the ordinary gate decides). `drop` is how many were lost on
@@ -92,22 +101,85 @@ export function halvingPlan({ candidates = 1, eta = 2, maxUsd = 0, keepRatio = n
     keeps.push(next)
     keep = next
   }
-  const rungs = keeps.map((kept, index) => {
+  const prefilterRungs = keeps.map((kept, index) => {
     const drop = index === 0 ? 0 : keeps[index - 1] - kept
     return {
       keep: kept,
       drop,
-      costUsd: Number((kept * share).toFixed(6)),
-      freedUsd: Number((drop * share).toFixed(6)),
+      costUsd: round6(kept * share),
+      freedUsd: round6(drop * share),
     }
   })
 
-  const returnedUsd = 0
-  // A schedule exists only when something can be dropped and something can be
-  // spent. Everything else is `none`, which is the honest answer for one
-  // candidate or a campaign with no budget.
-  const kind = n > 1 && ceiling > 0 ? 'prefilter' : 'none'
-  return { candidates: n, eta: step, maxUsd: ceiling, rungs, returnedUsd, kind }
+  // Nothing can be handed back when there is nothing to drop (one candidate) or
+  // nothing to drop it from (an empty ceiling). Both are the `none` schedule
+  // they always were, and both must stay finite rather than NaN. The
+  // per-survivor budget is still recorded, because it is a real number: a lone
+  // candidate holds the whole ceiling, and an empty ceiling holds nothing.
+  if (n === 1 || ceiling <= 0) {
+    return {
+      candidates: n,
+      eta: step,
+      maxUsd: ceiling,
+      rungs: prefilterRungs,
+      returnedUsd: 0,
+      perSurvivorUsd: round6(share),
+      survivors: n,
+      shareUsd: round6(share),
+      kind: 'none',
+    }
+  }
+
+  if (!returnToSurvivors) {
+    // The legacy schedule, unchanged to the last field: dropping candidates
+    // frees their shares and nobody spends them. A plan that returns nothing is
+    // a prefilter, not successive halving — and `perSurvivorUsd` is simply what
+    // a survivor already held, not a raised budget.
+    return {
+      candidates: n,
+      eta: step,
+      maxUsd: ceiling,
+      rungs: prefilterRungs,
+      returnedUsd: 0,
+      perSurvivorUsd: round6(share),
+      survivors: keeps[1],
+      shareUsd: round6(share),
+      kind: 'prefilter',
+    }
+  }
+
+  // The survivors are the first rung's kept count: what the screen drops is the
+  // only drop a real round makes, so that is the money this plan can return.
+  const survivors = keeps[1]
+  const returnedUsd = round6((n - survivors) * share)
+  // Every survivor also keeps what it already held, so one survivor's attempt
+  // budget rises by exactly the returned share per survivor. When the split is
+  // even this is the ceiling over the survivors: no money is invented.
+  const perSurvivorUsd = round6(share + returnedUsd / survivors)
+  // With the flag on, the first rung is the rung the survivors actually run:
+  // it keeps K, it costs the whole ceiling (per seat, what one survivor used to
+  // hold plus the share that was handed to it), and what it freed is the money
+  // the round hands on rather than keeps. The rest of the ladder follows from K.
+  const rungs = keeps.slice(1).map((kept, index) => {
+    const droppedInto = index === 0 ? n - kept : keeps[index] - kept
+    return {
+      keep: kept,
+      drop: droppedInto,
+      costUsd: round6(kept * perSurvivorUsd),
+      freedUsd: round6(droppedInto * share),
+    }
+  })
+  return {
+    candidates: n,
+    eta: step,
+    maxUsd: ceiling,
+    rungs,
+    returnedUsd,
+    perSurvivorUsd,
+    survivors,
+    shareUsd: round6(share),
+    kind: 'halving',
+  }
 }
 
 /**

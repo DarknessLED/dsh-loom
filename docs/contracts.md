@@ -39,7 +39,7 @@
 - `src/core/atomic.js` — 原子落盘原语：临时文件加 rename 的 JSON 写、JSONL 追加/读取、无损序列化，供所有状态文件复用。
 - `src/config-schema.js` — 插件的配置表单：`FIELDS` 列出操作者真正会调的十个路径（模型链、两个超时、并发、推理强度、最小增益、规划策略、开关、心跳），`describeConfig()` 把它们投成 JSON Schema，`mergeConfigValues(base, values)` 只校验表单拥有的路径、**其余键原样保留**（`home`/`budget`/`verify`/`knowledge` 是文件级决定，不能被一次热更新重置），`loadConfigSchema()` 动态 import schemastery 建出宿主读得懂的 `Config`，解析不到就退化成 `undefined`（等于今天的行为，绝不拖垮入口）。
 - `src/core/clock.js` — 时间戳归一：数字毫秒/数字字符串/ISO/Date 一律读成毫秒，读不出来就返回 null，永不返回 NaN；账本里的 `createdAt`/`updatedAt`/`round.at` 都是数字，用 `Date.parse()` 读会静默失效。
-- `src/core/config.js` — 默认配置与归一化：tick 周期、预算、gate 阈值、检查点、静默时段、会话与定价表，非法值一律回落默认。
+- `src/core/config.js` — 默认配置与归一化：tick 周期、预算、gate 阈值、检查点、静默时段、会话与定价表，非法值一律回落默认。 `halving.returnToSurvivors`（默认 false）决定 halving 回合是否把被淘汰候选省下的预算还给幸存者：false 与旧行为逐字节一致，true 时 `round.finished.halving` 记 `returnedUsd`/`perSurvivorUsd`，每条被淘汰的 attempt 记 `reallocUsd = 它交出去的那一份`。
 - `src/core/ledger.js` — 只追加的事件日志：序号从文件现状分配以兼容热重载双写者，所有派生状态都必须能由它重建。
 - `src/core/lock.js` — 面板所有权锁：newest-writer-wins 的抢占、心跳刷新、存活/过期判定，以及只删自己记录的释放。
 - `src/core/paths.js` — 状态目录布局：`~/.dsh/loom` 根、campaign 目录校验、目录创建与安全文件名片段。
@@ -153,7 +153,7 @@
 - `src/runtime/doctor.js` — 预检医生：`doctor({workspace, home, runtime, config, now})` 同步检查 workspace 是否在 git 工作树内、工作树是否干净、Node 版本是否达标、home 是否可写、本窗口是否持有循环所有权；每项返回 `{id, ok, detail, fix}`，失败项给出可直接执行的修复命令（如 `git init`、commit 或 stash），单项抛错记为带错误文本的失败检查，函数本身永不抛错。
 - `src/runtime/exposure.js` — 决定本轮哪个候选看到经验：只暴露一个且按回合轮换，保证同一轮存在真正的对照组。
 - `src/runtime/guard-reuse.js` — 守卫复用：当 autopilot 的 guard 命令作为独立子句逐字出现在任务的 verify 命令里时，验证器跑的就是同一件证据，于是从交给验证器的命令中删掉该子句，晋升后不再重复 spawn，只在 `autopilot.applied` 记 `guard:'reused-verifier'` 并照常提交；guard 不是同一命令时仍恰好运行一次。
-- `src/runtime/halving.js` — 轮内 successive halving：先用廉价的 screen 验证器淘汰一半候选，再只为幸存者付真实尝试成本。
+- `src/runtime/halving.js` — 轮内 successive halving：先用廉价的 screen 验证器淘汰一半候选，再只为幸存者付真实尝试成本。`halvingPlan({candidates, eta, maxUsd, keepRatio, returnToSurvivors})` 把这条阶梯定价：每档给出 `keep`/`drop`/`costUsd`/`freedUsd`，`returnedUsd` 是被淘汰候选让出、又还给了幸存者的那部分预算，`perSurvivorUsd` 是单个幸存者现在能花的上限（自己原来那份加上 `returnedUsd / K`）。`returnToSurvivors` 缺省 false：此时 `rungs` 与旧版逐字段一致、`returnedUsd: 0`、`kind: 'prefilter'`（丢候选但钱留给自己，不是 successive halving）；置 true 时第一档就是幸存者真正要跑的那一档（`costUsd` 涨到 `kept * perSurvivorUsd`，永不超过 `maxUsd`），`kind: 'halving'`。金额一律保留 6 位小数；只有一个候选或上限为 0 时返回 `kind: 'none'`、`returnedUsd: 0`，绝不产生 NaN。
 - `src/runtime/hold.js` — 人工「暂缓」的到期时刻：读取 `config.checkpoint.holdMs`（缺省 6 小时），非法或非正值回落默认，保证暂缓永远指向未来而不是偷偷变成立即回答。
 - `src/runtime/ids.js` — 检查点 id 生成：时间戳加定宽单调计数器，保证同一毫秒内多次 raise 也不碰撞。
 - `src/runtime/lease.js` — 尝试租约：记录「本该在跑」的尝试，崩溃重启时对账，并按 TTL 清扫陈旧租约。

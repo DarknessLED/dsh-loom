@@ -343,6 +343,9 @@ const standing = [
   // A technical report or a benchmark is an instrument, not a missed cluster:
   // the leftover bucket says which of the two it is.
   'tests/self55/apparatus-is-not-unclustered.test.mjs',
+  // An RSI round that screens candidates down and keeps the money is a prefilter;
+  // `halving.returnToSurvivors` hands the freed share back, priced per survivor.
+  'tests/self56/a-round-hands-back-what-it-saved.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

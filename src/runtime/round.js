@@ -1427,8 +1427,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // $1 per candidate, and a dropped candidate frees $1 of it.
   const halvingCeiling = Math.max(0, (Number(state.budget?.usd) || 0) - spentUsd)
   const schedule = screening
-    ? halvingPlan({ candidates, eta: config.halving?.eta ?? 2, maxUsd: halvingCeiling, keepRatio: config.halving?.keepRatio })
-    : halvingPlan({ candidates: 1, maxUsd: halvingCeiling })
+    ? halvingPlan({
+        candidates,
+        eta: config.halving?.eta ?? 2,
+        maxUsd: halvingCeiling,
+        keepRatio: config.halving?.keepRatio,
+        // Off by default: a plan that keeps the money is the prefilter this
+        // round has always run. On, the dropped candidates' shares are handed to
+        // the survivors and the plan says so (`kind: 'halving'`).
+        returnToSurvivors: config.halving?.returnToSurvivors === true,
+      })
+    : halvingPlan({ candidates: 1, maxUsd: halvingCeiling, returnToSurvivors: config.halving?.returnToSurvivors === true })
   const screenInfo = new Map()
   let survivors = plan.map((p) => p.attemptId)
   // What the cheap stage did, written down so a later reader does not have to
@@ -1498,12 +1507,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       survivors = picked.survivors.length ? picked.survivors : [plan[0].attemptId]
       screenedIds = results.map((r) => r.id)
       keptIds = [...survivors]
-      // The share a dropped candidate was holding. It is not handed to the
-      // survivors — that is what would make this successive halving — so the
-      // record says what was freed and that nothing was reallocated. Naming it
-      // is the difference between a prefilter and a schedule that looks like
-      // one.
-      const share = Number(schedule?.rungs?.[0]?.costUsd) || 0
+      // The share one candidate was holding, and what was handed on. With
+      // `returnToSurvivors` off this is the prefilter we always ran: the plan
+      // prices its first rung as the whole ceiling and nothing is reallocated,
+      // so `reallocUsd: 0` stays the honest record. With it on the plan names
+      // the per-candidate share outright and every dropped candidate hands
+      // exactly that share to the survivors.
+      const share =
+        schedule?.kind === 'halving'
+          ? Number(schedule?.shareUsd) || 0
+          : Number(schedule?.rungs?.[0]?.costUsd) || 0
+      const reallocPerDrop = schedule?.kind === 'halving' ? share : 0
       for (const id of picked.dropped) {
         const rec = {
           id,
@@ -1516,9 +1530,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           screenedOut: true,
           screen: screenInfo.get(id),
           // What the dropped candidate's share of the ceiling was worth, and
-          // where it went. `reallocUsd: 0` is the honest answer today.
+          // where it went: to the survivors when the round returns it, nowhere
+          // when the flag is off.
           freedUsd: Math.round(share * 1e6) / 1e6,
-          reallocUsd: 0,
+          reallocUsd: Math.round(reallocPerDrop * 1e6) / 1e6,
           halvingKind: schedule?.kind ?? 'prefilter',
           // The screen paid for this candidate, so the round's cost carries it.
           costUsd: Number(screenInfo.get(id)?.costUsd) || 0,
