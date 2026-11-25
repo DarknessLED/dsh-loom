@@ -934,8 +934,20 @@ round is supposed to read again for.
   `round.finished.research.question` (mode `off` does not consume one), pinned
   by `tests/self57/the-question-rotates.test.mjs`. Skipping is not answering:
   when every open entry has been asked once the leg falls back to the task, and
-  the ledger entry stays open. Nothing closes a question from a round's
-  findings yet — closing needs a verdict, and a quoted passage is not one.
+  the ledger entry stays open. A question that has been read
+  `config.research.maxQuestionAsks` times (three by default) without ever being
+  followed by a promotion is now **parked**, not closed: `reflectOnQuestions`
+  counts only rounds that actually paid for a read, ignores `interrupted` rounds
+  (nobody ran them), and `src/runtime/round.js` writes both the ledger entry and
+  a `question.parked` event carrying the id, the count and the reason. Parking
+  is a claim about this loop — "up to here it has not been able to use it" — and
+  not an answer; closing still needs a verdict, and a quoted passage is not one.
+  Before this, all seventeen ledger questions were open and none were ever
+  closed, so every new campaign started at oldest and asked the same thing.
+  One correction found while wiring it: the reflection has to read the rounds the
+  fold of `round.finished` just produced, not `view.state`, because a runtime
+  whose fold is partial shows rounds that read nothing and the leg parks nothing
+  forever (`tests/self57/the-round-parks-a-question-it-cannot-use.test.mjs`).
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.

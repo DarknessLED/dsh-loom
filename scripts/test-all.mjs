@@ -418,6 +418,12 @@ const standing = [
   // Both live rounds asked the same oldest ledger question, and nothing
   // would have stopped a third; the leg now skips what it already asked.
   'tests/self57/the-question-rotates.test.mjs',
+  // The reflection half of the ReAct step: a question this loop has read
+  // repeatedly without ever acting on is parked, and the round says so.
+  'tests/self57/the-round-parks-a-question-it-cannot-use.test.mjs',
+  // A question that has been read several times and never acted on is a
+  // statement about the reader, so it is parked with its count, not closed.
+  'tests/self57/a-question-that-never-helps-is-parked.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

@@ -340,6 +340,18 @@ export const DEFAULT_CONFIG = {
      * spent the allowance.
      */
     maxRounds: 3,
+    /**
+     * How many rounds may read the same ledger question and fail to act on it
+     * before the round parks it.
+     *
+     * Enforced by `reflectOnQuestions` in src/runtime/research-leg.js and written
+     * to the ledger by `src/runtime/round.js`. The ledger had seventeen open
+     * questions and zero closed ones, so every campaign started at the oldest
+     * and every campaign asked the same thing: reading repeatedly without ever
+     * acting is how a read becomes a ritual. Parking is a statement about this
+     * loop, not an answer to the question, which is why it does not close.
+     */
+    maxQuestionAsks: 3,
   },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: {

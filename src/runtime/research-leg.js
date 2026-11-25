@@ -295,3 +295,52 @@ export async function withDeadline(work, timeoutMs = 0) {
     if (timer) clearTimeout(timer)
   }
 }
+
+/**
+ * The reflection half of the ReAct step: which open questions this loop has read
+ * and still cannot act on.
+ *
+ * The ledger had 17 open questions and 0 closed ones on 2026-11-26, while the leg
+ * spent a round's reading budget on one of them every round. Rotation stopped a
+ * single campaign asking twice; nothing stopped the next campaign starting at the
+ * oldest entry again, and nothing asked whether reading ever helped. That is how
+ * a loop reads forever without learning — the question is the unit of reading and
+ * it never retires.
+ *
+ * `maxAsks` reads with no promotion is the bar. Reaching it parks the question:
+ * parking is honest about what was measured ("this reader, these rounds, no
+ * promotion") and is reversible, unlike closing, which asserts an answer nobody
+ * produced. A round an operator interrupted was never judged and does not count,
+ * for the same reason `plateauReached` skips it.
+ *
+ * A malformed bar parks nothing: retiring questions because a config value is a
+ * string is the failure mode that looks like judgement.
+ */
+export function reflectOnQuestions({ rounds = [], openQuestions = [], maxAsks = 3 } = {}) {
+  const bar = Number(maxAsks)
+  if (!Number.isFinite(bar) || bar <= 0) return { park: [], reads: {} }
+  const reads = {}
+  for (const round of Array.isArray(rounds) ? rounds : []) {
+    if (!round || typeof round !== 'object') continue
+    const research = round.research
+    if (!research || research.mode === 'off' || typeof research.question !== 'string' || !research.question.trim()) continue
+    if (round.status === 'interrupted') continue
+    const key = research.question.trim()
+    const entry = reads[key] || (reads[key] = { asked: 0, promoted: 0 })
+    entry.asked += 1
+    if (round.promoted === true) entry.promoted += 1
+  }
+  const park = []
+  for (const question of Array.isArray(openQuestions) ? openQuestions : []) {
+    if (!question || question.status !== 'open' || typeof question.question !== 'string') continue
+    const entry = reads[question.question.trim()]
+    if (!entry || entry.promoted > 0 || entry.asked < bar) continue
+    park.push({
+      id: question.id ?? null,
+      question: question.question.trim(),
+      asked: entry.asked,
+      reason: `read in ${entry.asked} round(s) with no promotion: this loop has not been able to act on it`,
+    })
+  }
+  return { park, reads }
+}

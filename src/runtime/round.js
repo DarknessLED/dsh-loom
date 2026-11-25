@@ -43,9 +43,9 @@ import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
-import { findingsFrom, legBudget, questionFor, reachedFor, researchSketch, withDeadline } from './research-leg.js'
+import { findingsFrom, legBudget, questionFor, reachedFor, reflectOnQuestions, researchSketch, withDeadline } from './research-leg.js'
 import { runResearch } from '../research/run.js'
-import { researchQuestions } from '../research/questions.js'
+import { parkQuestion, researchQuestions } from '../research/questions.js'
 import { svc } from '../core/services.js'
 import { oncePlateau } from './plateau.js'
 import { stallTrigger } from './stall.js'
@@ -3311,6 +3311,30 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         round: { n, taskId: task.id, chainVersion: state.chain.activeVersion, score },
       })
       if (counterfactual) runtime.append(view, 'chain.measured', counterfactual, 'system')
+    }
+
+    // The reflection half of the ReAct step: the round knows what it asked and
+    // whether it won, and a question that has now been read several times without
+    // ever being followed by a promotion is one this loop cannot act on. Parking
+    // says exactly that -- a statement about the reader, not about the question --
+    // and keeps it on the books. Closing would assert an answer nobody produced.
+    try {
+      const stillOpen = researchQuestions(runtime.home).filter((q) => q.status === 'open')
+      // Read the round from what `append` just folded, not from `view.state`: a
+      // runtime whose fold is partial never materializes the field, and then the
+      // reflection sees rounds that read nothing and parks nothing forever.
+      const reflection = reflectOnQuestions({
+        rounds: (finished && Array.isArray(finished.rounds) ? finished.rounds : view.state.rounds),
+        openQuestions: stillOpen,
+        maxAsks: Number(config.research?.maxQuestionAsks) || 3,
+      })
+      for (const item of reflection.park) {
+        if (!item.id) continue
+        parkQuestion(runtime.home, { id: item.id, reason: item.reason })
+        runtime.append(view, 'question.parked', { id: item.id, question: item.question, asked: item.asked, reason: item.reason, round: n }, 'system')
+      }
+    } catch (err) {
+      log('question reflection failed:', err?.message ?? err)
     }
 
     // A patch a person refused at the gate also owns a counterfactual. The
