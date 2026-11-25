@@ -43,7 +43,7 @@ import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
-import { findingsFrom, questionFor, reachedFor, researchSketch } from './research-leg.js'
+import { findingsFrom, legBudget, questionFor, reachedFor, researchSketch, withDeadline } from './research-leg.js'
 import { runResearch } from '../research/run.js'
 import { researchQuestions } from '../research/questions.js'
 import { svc } from '../core/services.js'
@@ -1545,7 +1545,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // verbatim into the brief, and nothing here may fail the round: a leg that can
   // fail a round is worse than no leg at all.
   let researchFindings = []
-  if (researchMode !== 'off') {
+  // The campaign's read allowance, not just this round's mode: a leg the worker
+  // never reaches for should stop being bought after a few rounds, and
+  // `config.research.maxRounds` was documented for that and read by nothing.
+  const legAllowance = legBudget({ mode: researchMode, rounds: state.rounds, config: config.research })
+  if (!legAllowance.buy && researchMode !== 'off') {
+    research = researchSketch({ ok: false, code: 'budget-spent' }, { mode: researchMode })
+    log(`research leg skipped: ${legAllowance.reason}`)
+  }
+  if (researchMode !== 'off' && legAllowance.buy) {
     const researchStartedAt = Date.now()
     try {
       const web = svc(runtime.ctx, 'web')
@@ -1568,7 +1576,8 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       } else if (!asked) {
         research = researchSketch({ ok: false, code: 'no-question' }, { mode: researchMode })
       } else {
-        const result = await runResearch(
+        const legTimeout = Number(config.research?.timeoutMs)
+        const bounded = await withDeadline(() => runResearch(
           {
             question: asked.question,
             depth: config.research?.depth ?? 'quick',
@@ -1580,7 +1589,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             search: (query, opts) => web.search({ query, maxResults: Math.max(1, Number(opts?.maxResults) || 8) }),
             fetchPage: (url) => web.fetch({ url }),
           },
-        )
+        ), legTimeout)
+        // A leg that ran out of clock and a leg that broke are different facts;
+        // reporting the first as the second sends the next round hunting a bug
+        // in code that is fine.
+        const result = bounded.ok ? bounded.value : { ok: false, code: bounded.timedOut ? 'leg-timeout' : 'leg-failed' }
+        if (!bounded.ok) log(`research leg ${bounded.timedOut ? 'timed out' : 'failed'}: ${bounded.reason}`)
         researchFindings = findingsFrom(result, { max: config.research?.maxFindings ?? 4 })
         research = researchSketch(result, {
           mode: researchMode,

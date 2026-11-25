@@ -418,6 +418,9 @@ const standing = [
   // Both live rounds asked the same oldest ledger question, and nothing
   // would have stopped a third; the leg now skips what it already asked.
   'tests/self57/the-question-rotates.test.mjs',
+  // `research.timeoutMs` and `research.maxRounds` were documented in the config
+  // and read by nothing; the leg now has a clock and an allowance.
+  'tests/self57/the-leg-has-a-clock.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

@@ -173,5 +173,47 @@ await ok('a web capability that throws does not fail the round', async () => {
   assert.ok(research.skipped, 'a throw is a skip with a reason, not a crash')
 })
 
+await ok('a campaign that spent its read allowance records why it stopped', async () => {
+  // `config.research.maxRounds` promised this and had no reader until 2026-11-26.
+  // The cap counts rounds that *bought* a read, so the history below spends all
+  // three even though none of them quoted anything.
+  const web = fakeWeb(PAGES)
+  const { runtime, view, config, dispatcher } = setup({ web })
+  view.state.rounds = [
+    { n: 1, status: 'no-gain', score: 0, research: { mode: 'full', question: 'q1', read: 1, used: false } },
+    { n: 2, status: 'no-gain', score: 0, research: { mode: 'full', question: 'q2', read: 1, used: false } },
+    { n: 3, status: 'no-gain', score: 0, research: { mode: 'full', question: 'q3', read: 1, used: false } },
+  ]
+  await runRound({ runtime, view, config, dispatcher, log: () => {}, notify: () => {} })
+  assert.equal(web.asked.length, 0, `a spent allowance still searched ${web.asked.length} time(s)`)
+  const research = lastFinish(runtime).data.research
+  assert.equal(research.skipped, 'budget-spent')
+  assert.equal(research.passages, 0)
+})
+
+await ok('a leg that runs out of clock says so, and the round still works', async () => {
+  // A hung transport must not hold the round: `config.research.timeoutMs` is the
+  // clock, and a timeout is recorded as `leg-timeout` rather than `leg-failed`,
+  // because the next round would otherwise go looking for a bug that is not
+  // there.
+  const web = {
+    async search() {
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      return { sources: [] }
+    },
+    async fetch() {
+      return { statusCode: 200, body: { kind: 'text', content: '' } }
+    },
+  }
+  const { runtime, view, config, dispatcher } = setup({ web })
+  config.research.timeoutMs = 50
+  const started = Date.now()
+  await runRound({ runtime, view, config, dispatcher, log: () => {}, notify: () => {} })
+  assert.ok(Date.now() - started < 4000, 'the leg waited for the work instead of its clock')
+  const finish = lastFinish(runtime)
+  assert.equal(finish.data.research.skipped, 'leg-timeout')
+  assert.equal(finish.data.verifierOk !== false, true, 'a slow leg must not fail the round')
+})
+
 console.log(`# pass ${pass} fail ${fail}`)
 process.exit(fail === 0 ? 0 : 1)

@@ -322,11 +322,23 @@ export const DEFAULT_CONFIG = {
     depth: 'quick',
     /** Pages the leg may read. `quick`'s own preset is 0; this is the override. */
     fetchTop: 2,
-    /** The leg's own deadline. It is not allowed to eat the attempt's cap. */
+    /**
+     * The leg's own deadline. It is not allowed to eat the attempt's cap.
+     *
+     * Enforced by `withDeadline` in src/runtime/research-leg.js: the leg awaits
+     * `web.search` and `web.fetch`, and one live leg took 17.8 s on 2026-11-26.
+     * A hung transport records `leg-timeout` and the round proceeds.
+     */
     timeoutMs: 90_000,
     /** Passages quoted into the brief. Four lines, each clipped; see research-leg.js. */
     maxFindings: 4,
-    /** How many rounds of the same campaign may buy a read before the mode stops it. */
+    /**
+     * How many rounds of the same campaign may buy a read before the mode stops it.
+     *
+     * Enforced by `legBudget` in src/runtime/research-leg.js. It counts rounds
+     * that bought a read, not rounds that ran: a round whose leg was off has not
+     * spent the allowance.
+     */
     maxRounds: 3,
   },
   /** L1: what evidence a chain version needs before it may replace the active one. */

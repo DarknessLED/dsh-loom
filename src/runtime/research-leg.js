@@ -229,3 +229,69 @@ export function researchSketch(result, { question = null, from = null, mode = nu
   }
   return sketch
 }
+
+/**
+ * Whether this round may buy a read, and why not.
+ *
+ * `config.research.maxRounds` was documented in `src/core/config.js` as "how many
+ * rounds of the same campaign may buy a read before the mode stops it" and read
+ * by nothing. A campaign that keeps buying a leg nobody uses is the exact failure
+ * the mode was added to prevent, so the cap has to live somewhere. It counts
+ * rounds that *bought* a read, not rounds that ran: a round whose leg was off has
+ * not spent the allowance.
+ *
+ * A malformed cap does not forbid reading. Silently turning the leg off because a
+ * knob is a string is indistinguishable, in the ledger, from "the loop decided
+ * not to read" — the wrong lesson to teach it.
+ */
+export function legBudget({ mode = null, rounds = [], config = {} } = {}) {
+  if (mode === 'off') return { buy: false, reason: 'mode is off' }
+  const list = Array.isArray(rounds) ? rounds : []
+  const bought = list.filter((r) => r && r.research && r.research.mode && r.research.mode !== 'off').length
+  const cap = Number(config?.maxRounds)
+  if (!Number.isFinite(cap) || cap <= 0) return { buy: true, reason: null }
+  if (bought >= cap) return { buy: false, reason: `already bought ${bought} rounds of reading (maxRounds ${cap})` }
+  return { buy: true, reason: null }
+}
+
+/**
+ * Run `work` under a clock, and report rather than throw.
+ *
+ * The leg awaits `web.search` and `web.fetch`. On 2026-11-26 one live leg took
+ * 17.8 s and recorded a fetch failure; nothing bounded how long a hung transport
+ * could hold the round, and the round's own attempt deadline starts afterwards.
+ * `config.research.timeoutMs` promised a deadline and had no reader.
+ *
+ * A timeout and a failure are different facts, so they are different fields:
+ * reporting a hung page as `leg-failed` would tell the next round to look for a
+ * bug in code that is fine. `timeoutMs <= 0` means no wrapper at all, so the
+ * unbounded path is the plain await and a regression in the wrapper cannot reach
+ * it.
+ */
+export async function withDeadline(work, timeoutMs = 0) {
+  const limit = Number(timeoutMs)
+  if (!Number.isFinite(limit) || limit <= 0) {
+    try {
+      return { ok: true, value: await work(), timedOut: false, reason: null }
+    } catch (err) {
+      return { ok: false, value: null, timedOut: false, reason: String(err?.message ?? err) }
+    }
+  }
+  let timer = null
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ ok: false, value: null, timedOut: true, reason: `exceeded its ${limit} ms deadline` }), limit)
+    if (typeof timer?.unref === 'function') timer.unref()
+  })
+  const run = (async () => {
+    try {
+      return { ok: true, value: await work(), timedOut: false, reason: null }
+    } catch (err) {
+      return { ok: false, value: null, timedOut: false, reason: String(err?.message ?? err) }
+    }
+  })()
+  try {
+    return await Promise.race([run, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
