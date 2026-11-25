@@ -33,6 +33,17 @@ export const DEFAULT_CONFIG = {
      */
     alpha: 0.05,
     efoldLambda: 0.5,
+    /**
+     * Whether the paired e-process decides instead of merely being recorded.
+     * Default `false` on purpose: the sequential rule has never driven a
+     * promotion (483 recorded rounds carry a decision nobody acted on), so
+     * turning it on changes what the loop can do — it can promote a round the
+     * noise bar refused when the e-value crossed 1/alpha, and refuse one the
+     * noise bar allowed when the e-value fell to alpha. A failed holdout still
+     * vetoes either way. Off means the old rule, byte for byte, including the
+     * absence of `decidedBy` on `gate.evaluated`.
+     */
+    sequentialDecides: false,
   },
   checkpoint: {
     on: ['gate', 'budget_50', 'anomaly', 'plateau', 'holdout', 'stuck', 'exhausted'],

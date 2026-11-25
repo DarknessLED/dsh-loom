@@ -354,6 +354,9 @@ const standing = [
   // The gate now names the pair it formed, the tie it measured, and the side it
   // was missing, and every gate.evaluated says how many pairs it contributed.
   'tests/self56/a-round-says-why-it-had-no-pair.test.mjs',
+  // The sequential e-process may drive the promotion, but only when the install
+  // asks for it: off is the shipped state, and the spec proves both directions.
+  'tests/self56/the-sequential-rule-can-decide.test.mjs',
   // A task whose objective is changing the gate could never promote: the oracle
   // check refused the very edit the task asked for. `verify.owns` releases the
   // apparatus the task declares, and the gate records what it released.

@@ -2728,16 +2728,6 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     } else {
       takeMetric(metricReading(), 'base-already-green')
     }
-    const basePass =
-      checks.verifierOk &&
-      checks.testsClean &&
-      checks.oracleClean &&
-      earned &&
-      checks.beatsIncumbent &&
-      (checks.hasPatch || checks.noop)
-    const promote = basePass && checks.holdout !== false
-    const rejectedByHoldout = basePass && checks.holdout === false
-
     // Two implementations of the same rule drift, and the one you measure is
     // the looser one. `decidePromotion` is the documented version; the block
     // above is the one that actually decides. Run the documented one here and
@@ -2797,6 +2787,30 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       // and the reason is the base pair's own verdict.
       pairReason: basePair.reason,
     })
+    // Everything the promotion needs *except* the comparison it is about to
+    // make. Kept separate because the two rules disagree on exactly one term --
+    // `beatsIncumbent` -- and a rule that also dropped the verifier or the
+    // oracle checks would be a different gate wearing this one's name.
+    const earnedAll =
+      checks.verifierOk &&
+      checks.testsClean &&
+      checks.oracleClean &&
+      earned &&
+      (checks.hasPatch || checks.noop)
+    const basePass = earnedAll && checks.beatsIncumbent
+    // The sequential rule may decide, but only when the install asked for it.
+    // Off is the shipped state: the e-process has never driven a promotion, so
+    // letting it decide by default would change what the loop can do without
+    // anyone measuring that change. On, `commit` and `reject` outrank the
+    // noise-bar comparison; `defer` has not decided anything, so the old
+    // comparison keeps the floor. A failed holdout is a veto under both rules.
+    const sequentialDecides = config.gate?.sequentialDecides === true
+    const bySequential = sequentialDecides && sequential.decision !== 'defer'
+    // The rule's answer *before* the holdout, so the veto and the "why was it
+    // rejected" status stay one decision rather than two paraphrases of it.
+    const passed = bySequential ? sequential.decision === 'commit' && earnedAll : basePass
+    const promote = passed && checks.holdout !== false
+    const rejectedByHoldout = passed && checks.holdout === false
     runtime.append(
       view,
       'gate.evaluated',
@@ -2827,6 +2841,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         alpha: sequential.alpha,
         lambda: sequential.lambda,
         sequential,
+        // Named only when the flag is on: with it off the event is the one the
+        // ledger already holds, and adding a field there would move every
+        // recorded shape for a rule that did not decide anything.
+        ...(sequentialDecides ? { decidedBy: bySequential ? 'sequential' : 'noise-bar' } : {}),
         shadow: { promote: shadow.promote, reason: shadow.reason },
       },
       'system',
