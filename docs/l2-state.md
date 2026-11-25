@@ -521,20 +521,77 @@ that failed first, and the full gate was run before every commit.
 
 ### What this does not claim
 
-- `verify.owns` is committed, specified (10 checks) and **has not run in a live
-  round**. The plugin instance executing these campaigns still holds the code
-  from before `591547b`: the guard-flake campaign declared
-  `verify.owns: ['scripts/guard-retry.mjs', 'scripts/test-all.mjs']` and its
+- `verify.owns` is committed and specified (10 checks), and it has since run in
+  a live round — see the section below. When this was written it had not: the
+  plugin instance executing these campaigns still held the code from before
+  `591547b`, and the guard-flake campaign declared
+  `verify.owns: ['scripts/guard-retry.mjs', 'scripts/test-all.mjs']` while its
   `gate.evaluated.checks` carried no `oracleOwns` key at all.
-  `plugin_manager set_plugin` answers `restart-required` in this session, so the
-  closure needs a host restart. Until then every campaign that edits the gate
-  still walks into the old refusal.
 - The halving patch's `perSurvivorUsd` never executed in a live round either:
   `halving-return` ran with screening off (`{"kind":"none","returnedUsd":0}`),
   because its task declared no `screen.cmd`.
 - Three campaigns were stopped by hand rather than by their own budget, because
   attempting to fix the oracle from inside a round the old oracle judges is a
   chicken-and-egg the loop cannot solve about itself.
+
+## 2026-11-25: `verify.owns` ran in a live round, and the gap moved
+
+The claim two sections up — "committed, specified, never run in a live round" —
+is now false, and what replaced it is narrower and more interesting.
+
+Campaign `owns-live` registered one task with
+`verify: { owns: ['scripts/test-all.mjs'] }`. Its round 1 `gate.evaluated.checks`
+carried:
+
+```
+oracleOwns:        ["scripts/test-all.mjs"]
+oracleReleased:    []
+oracleOwnedTouched: []
+oracleFiles:       ["scripts/test-all.mjs", "scripts/guard-retry.mjs"]
+oracleClean:       true
+```
+
+Three things follow, and only one of them is the thing I wanted to prove.
+
+1. **The plugin reads the declaration now.** Those three keys did not exist in
+   any `gate.evaluated` in this ledger before today. The host was restarted
+   between the previous campaign and this one, so the running instance finally
+   contains `591547b`.
+2. **The exception did not fire, because it did not need to.** `oracleClean` was
+   already `true`: the worker's patch touched `tests/self56/…` and nothing under
+   `scripts/`, so no apparatus path was edited and there was nothing to release.
+   An empty `oracleReleased` is the honest answer, not a failure of the feature.
+3. **The round still could not land, for an older reason.** `testsClean: false`
+   — the patch wrote a file under `tests/`, and the gate has refused test edits
+   since the first landing. The task said "add a spec and pin it"; a spec is a
+   test file. So `verify.owns` (which controls the scripts the verifier runs)
+   and `verify.scope.editable` (which controls the tests a task may write) are
+   two different permissions, and this task declared only the first.
+
+That is why the next campaign, `owns-scope-live`, declares both:
+
+```
+verify: {
+  cmd:   "<node> scripts/test-all.mjs",
+  owns:  ["scripts/test-all.mjs"],
+  scope: { editable: ["tests/"] }
+}
+```
+
+The chicken-and-egg I wrote up before was real, but it had two locks, not one.
+`591547b` turned the first. The second was already available
+(`src/gate/scope.js`, `parseScope` → `scopeVerdict`) and simply was not being
+declared by the campaigns whose work is a test file. Whether both locks open
+together in one round is what `owns-scope-live` is for.
+
+### What this still does not claim
+
+- No round has yet **released** an apparatus edit. `owns-live` recorded the
+  declaration and touched no owned path, so `oracleReleased: []` is evidence the
+  key exists, not evidence the exception grants anything.
+- A round that declares `scope.editable` is not restricted to its own new spec:
+  the scope is a directory (`tests/`), and the gate checks the patch stays
+  inside it, not that the patch is the file the task asked for.
 
 ## 2026-11-25: the held-back reading exists now
 
