@@ -2586,23 +2586,6 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // the findings are missing -- `researchModeFor` defunds reading on `false`,
     // and an absent report is not a measurement of "no".
     research = { ...research, used: reachedFor(research, { report: best?.report, findings: researchFindings }) }
-    // The ledger asked what came of the read. Written as its own event: the
-    // spend happened before the worker wrote, and an outcome that overwrote
-    // the count would let a question look unread because its read bore fruit.
-    if (researchQuestionId) {
-      try {
-        recordQuestionRead(runtime.home, {
-          id: researchQuestionId,
-          campaign: state.id,
-          round: n,
-          used: research.used,
-          promoted: promote === true,
-          outcome: true,
-        })
-      } catch (err) {
-        log('recording the read outcome failed:', err?.message ?? err)
-      }
-    }
     const score = best?.score ?? 0
     // The round's number came from the winning attempt, so its measurement kind
     // travels with it: a 0.6 kill rate and a binary 1 are both scores but not
@@ -3072,6 +3055,37 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // rejected" status stay one decision rather than two paraphrases of it.
     const passed = bySequential ? sequential.decision === 'commit' && earnedAll : basePass
     const promote = passed && checks.holdout !== false
+    // The ledger asked what came of the read, and the answer only exists after
+    // the gate has spoken: this block sat next to the `used` write-back first,
+    // where `promote` is not yet declared, and the resulting ReferenceError was
+    // caught silently -- so live rounds spent a read and never recorded its
+    // outcome. Written as its own event because the spend came first: an
+    // outcome that overwrote the count would let a question look unread
+    // precisely when its read bore fruit.
+    if (researchQuestionId) {
+      try {
+        recordQuestionRead(runtime.home, {
+          id: researchQuestionId,
+          campaign: state.id,
+          round: n,
+          used: research.used,
+          promoted: promote === true,
+          outcome: true,
+        })
+        runtime.append(view, 'question.read', {
+          id: researchQuestionId,
+          question: research.question ?? null,
+          campaign: state.id,
+          round: n,
+          read: research.read ?? 0,
+          used: research.used ?? null,
+          promoted: promote === true,
+          outcome: true,
+        }, 'system')
+      } catch (err) {
+        log('recording the read outcome failed:', err?.message ?? err)
+      }
+    }
     const rejectedByHoldout = passed && checks.holdout === false
     runtime.append(
       view,

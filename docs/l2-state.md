@@ -970,6 +970,28 @@ round is supposed to read again for.
   read did not help"; the leg's `costUsd` is still 0 because `ctx.web` is not in
   the pricing table, so "a read is cheap" is an assumption; and one campaign per
   mechanism is one measurement, not a distribution.
+
+- **Two write-backs were silently dropped, and one spec could not have seen it.**
+  The outcome half of `recordQuestionRead` was first placed beside the `used`
+  write-back, where `promote` is not declared yet. The `ReferenceError` was
+  caught by that block's own `try/catch`, logged as one line, and every live
+  round recorded the spend and never the result — `grep -c read-outcome` on the
+  live ledger was 0 while the rounds looked healthy. The spec that only checked
+  the spend passed. The one that checks `promotedAfterRead` is what moved it
+  after `promote` is computed
+  (`tests/self57/the-ledger-hears-about-the-read.test.mjs`). The same shape
+  appeared once before in this file: a write-back is only real when a spec asks
+  for the half that is easy to drop.
+
+  The second was in the fixture, not the product: the verify command named
+  `keep.txt` literally, so `oraclePathsFor` put the file under test inside the
+  verifier's own closure (`oracleClosure: ["check.mjs","keep.txt"]`) and the
+  round could never pass no matter what the worker wrote. Three probe
+  workspaces lost an afternoon to this. The shape that works passes the target
+  through `spec.json` and reads it with `process.cwd()`; it is pinned in the same
+  spec, and a worker's reply also has to say `stopReason: 'completed'` or
+  `gateOk` is false for a reason that has nothing to do with the patch.
+
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.
