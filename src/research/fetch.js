@@ -184,19 +184,50 @@ export function mergeSearchResults(batches, options = {}) {
 }
 
 /** The pages worth fetching: best-scored first, at most `maxPerHost` per host. */
+/**
+ * Whether a URL points at a PDF rather than a page.
+ *
+ * The host fetches through a text pipeline, and measured on 2026-11-26 it
+ * answers `/pdf/` with HTTP 404 (`export.arxiv.org/pdf/2607.19442`). A PDF is
+ * therefore a slot spent on something that cannot be read: nine rounds that
+ * bought a read ended with a fetch gap, and four of them read nothing at all —
+ * which leaves the worker no span to cite and `used` nothing to measure.
+ */
+export function looksLikePdf(url) {
+  const text = cleanText(url)
+  if (!text) return false
+  return /\.pdf(?:$|[?#])/i.test(text) || /\/pdf\//i.test(text)
+}
+
 export function selectFetchTargets(sources, options = {}) {
   const fetchTop = Math.max(0, Number.isFinite(options?.fetchTop) ? Math.floor(options.fetchTop) : 0)
   const maxPerHost = Math.max(1, Number.isFinite(options?.maxPerHost) ? Math.floor(options.maxPerHost) : MAX_PER_HOST)
   const targets = []
   if (fetchTop === 0) return targets
+  const list = Array.isArray(sources) ? sources : []
 
   const hostCounts = new Map()
-  for (const source of Array.isArray(sources) ? sources : []) {
-    if (targets.length >= fetchTop) break
+  const take = (source) => {
+    if (targets.length >= fetchTop) return false
     const host = cleanText(source?.domain) || domainOf(source?.url)
-    if ((hostCounts.get(host) ?? 0) >= maxPerHost) continue
+    if ((hostCounts.get(host) ?? 0) >= maxPerHost) return false
     hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1)
     targets.push(source)
+    return true
+  }
+  // Readable pages first, then PDFs. Search ranks by relevance, and relevance is
+  // not readability: a PDF that ranks first costs the round its whole budget
+  // when `fetchTop` is 2. Order inside each pass is untouched, because search
+  // order is the only ranking signal there is.
+  for (const source of list) {
+    if (targets.length >= fetchTop) break
+    if (looksLikePdf(source?.url)) continue
+    take(source)
+  }
+  for (const source of list) {
+    if (targets.length >= fetchTop) break
+    if (!looksLikePdf(source?.url)) continue
+    take(source)
   }
   return targets
 }

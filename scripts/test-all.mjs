@@ -433,6 +433,9 @@ const standing = [
   // part of the report: eighteen rounds carried a research record and `used`
   // never once came back true.
   'tests/self57/the-brief-asks-whether-the-notes-helped.test.mjs',
+  // A PDF is a slot spent on something the text pipeline answers with 404:
+  // nine rounds that bought a read ended on a fetch gap and four read nothing.
+  'tests/self57/a-pdf-is-a-slot-that-reads-nothing.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

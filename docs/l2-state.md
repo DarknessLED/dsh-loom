@@ -896,6 +896,54 @@ Three limits this does not claim away:
   it, not a distribution: the next campaign that reads and loses will buy again,
   and nothing here says how often that should happen.
 
+### `auto` defunds itself, twice, in one campaign (2026-11-26)
+
+`balance4-live` was two rounds. `queue-live3` was four trivial one-edit tasks on
+the instance applied at 22:42, with `researchMode: auto`, precisely so that a
+read could not pay for itself: the tasks are "write the word fixed three times
+into a file", and no page on the internet is about that.
+
+| round | mode | read | used | status |
+| --- | --- | --- | --- | --- |
+| 1 | `full` | 2 | `false` | promoted |
+| 2 | `off` | 0 | `null` (`not-run`) | promoted |
+| 3 | `off` | 0 | `null` (`not-run`) | promoted |
+| 4 | — | — | — | campaign finished, all tasks solved |
+
+Round one bought a read it did not use and won anyway; `researchModeFor` read
+that as "this campaign can hold its ground without reading" and answered `off`
+for every round after, including the one that finished the campaign.
+
+The costs did **not** fall, and the table above deliberately has no cost column
+for that reason: $0.009961 / $0.008294 / $0.009905 / $0.011222. Skipping the leg
+saves nothing visible because the leg's own cost is still recorded as 0 (see
+above) — search and fetch are not priced — so the only thing four rounds of
+"don't read" bought was four rounds that could not have used a note anyway. The
+mechanism works; the saving is unmeasured.
+
+This is the first time the knob moved on its own twice inside one campaign
+rather than once at the end of one. It is still not a distribution: the two
+later rounds had nothing left to learn from the first, which is a property of a
+four-task probe, not evidence about how often reading pays on real work.
+
+### The ledger rotates, live, and the last thing it needed was a question
+
+`queue-live2` (three one-edit tasks, `researchMode: full`) asked three
+different ledger questions in three rounds — the R2 variance question, then the
+R9 task-set question, then the R9 injected-lesson question — and wrote each
+read back against the question it was about:
+
+```
+question.read  q-a7ebd5decbd3  round 1  read 2  used null
+question.read  q-753e482b7e1d  round 2  read 2  used null
+question.read  q-599051419655  round 3  read 2  used null
+```
+
+Each was followed by an outcome event with `promoted: true` and `used: false`.
+The queue works, and the thing it made visible is the earlier problem: every one
+of those rounds won without quoting a note, which is what the brief now asks
+about (see "the measure nobody was told about" below).
+
 ### The leg ran in a live round
 
 Campaign `react-live`, round 1, 2026-11-26 (`candidates: 1`, `researchMode: full`):
@@ -1010,6 +1058,20 @@ round is supposed to read again for.
   campaign that reads and lands can still come back `used: false`, and that will
   then be a measurement rather than an absence — which is the whole difference
   between the eighteen rounds above and the rounds after this commit.
+
+- **Four of the nine gap rounds read nothing at all, and a PDF was why.** The
+  host fetches through a text pipeline that answers `/pdf/` with HTTP 404;
+  measured on 2026-11-26 the recurring gap shape was `export.arxiv.org/pdf/...`,
+  and on `fetchTop: 2` one PDF is half the round's reading. The queue now takes
+  readable pages first and PDFs only in the slots that remain, with per-host
+  spreading unchanged and search order preserved inside each pass — relevance is
+  the only ranking signal there is, and readability is a different question.
+  Pinned by `tests/self57/a-pdf-is-a-slot-that-reads-nothing.test.mjs`.
+
+  What this still does not claim: the server-side 404 is the host's pipeline, not
+  a property of PDFs, so a future fetcher that renders them would make this
+  ordering unnecessary rather than wrong; and a round that sets PDFs aside can
+  still read nothing, if the pages it picked were behind paywalls or stale links.
 
 - **Reading rounds promote less often, and that sentence is not a finding.**
   Re-counted over every campaign on 2026-11-26: 19 rounds that were allowed to
