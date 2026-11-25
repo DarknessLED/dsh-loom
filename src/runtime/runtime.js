@@ -519,6 +519,28 @@ export class Runtime {
     }
   }
 
+  /**
+   * Write off every round whose owner is gone, across all campaigns.
+   *
+   * This is reconciliation, not dispatch: it is what keeps a dead round from
+   * parking its campaign forever, and a dead round is not a round that "may
+   * start", so the master switch has no say over it. The switch decides whether
+   * *new* rounds run; a round nobody is driving is written off either way.
+   */
+  reconcileOrphans() {
+    for (const id of this.listCampaigns()) {
+      let v
+      try {
+        v = this.get(id)
+      } catch (err) {
+        this.log(`orphan scan: cannot open ${id}:`, err?.message ?? err)
+        continue
+      }
+      if (v.state.status !== 'running' || this.inflight.has(v.id)) continue
+      this.releaseOrphanedRounds(v)
+    }
+  }
+
   /** Called by the plugin ticker. Drives at most `maxConcurrent` rounds overall. */
   tick() {
     if (this.ticking || this.disposed) return
@@ -537,8 +559,14 @@ export class Runtime {
           return
         }
       }
+      // A round whose owner is gone must be released before the switch and before
+      // the slot count are consulted: otherwise one dead round parks its campaign
+      // forever, and the budget that would pay to fix it is never spent. The
+      // switch governs whether new rounds may start, not whether a dead one may
+      // be written off.
+      this.reconcileOrphans()
       // The switch stops dispatch, not the plugin: views stay fresh and every
-      // tool keeps working, but no campaign event is written while it is off.
+      // tool keeps working, but no *new* round is started while it is off.
       if (!this.enabled()) {
         this.flushAll()
         return
@@ -550,10 +578,6 @@ export class Runtime {
         // Held checkpoints leave on the same clock as rounds, even while every
         // dispatch slot is busy or the campaign is paused.
         this.flushHeld(v)
-        // A round whose owner is gone must be released before the slot count is
-        // consulted: otherwise one dead round parks its campaign forever, and the
-        // budget that would pay to fix it is never spent.
-        if (v.state.status === 'running' && !this.inflight.has(v.id)) this.releaseOrphanedRounds(v)
         if (this.inflight.size >= max) continue
         if (v.state.status !== 'running') continue
         this.tickCampaign(v)

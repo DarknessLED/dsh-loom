@@ -377,6 +377,11 @@ const standing = [
   // round whose child is still being watched.
   'tests/self56/an-orphaned-round-can-be-released.test.mjs',
   'tests/self56/the-release-reaches-the-runtime.test.mjs',
+  // The release lived after `tick`'s early return on the master switch, so an
+  // operator who turned the loop off while a round was going stale parked the
+  // campaign until a human asked for one round. Reconciliation now runs before
+  // the switch is consulted; the switch still starts nothing.
+  'tests/self56/recovery-runs-with-the-switch-off.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
