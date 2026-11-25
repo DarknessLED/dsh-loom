@@ -110,6 +110,35 @@ export function nodesFor(state, opts = {}) {
 }
 
 /**
+ * What the research legs bought, across a campaign's rounds.
+ *
+ * The leg records three numbers per round and nothing displayed any of them, so
+ * a reader could see a campaign pay for reading without seeing whether it read,
+ * how much came back, or whether the worker ever used it. `read` counts the
+ * rounds that were *allowed* to read (`mode !== 'off'`); a round with no
+ * `research` field at all is not a reading round and contributes to none of
+ * `read`/`pages`/`used`/`unused` (it still counts toward `rounds`).
+ *
+ * `used` is three-valued on purpose -- `null` means "not measured" -- so only
+ * an explicit `true`/`false` is counted; treating null as either would turn a
+ * missing measurement into a verdict.
+ */
+export function readSummary(rounds) {
+  const list = Array.isArray(rounds) ? rounds : []
+  const summary = { rounds: list.length, read: 0, pages: 0, used: 0, unused: 0 }
+  for (const round of list) {
+    const research = round && typeof round === 'object' ? round.research : null
+    if (!research || typeof research !== 'object') continue
+    if (research.mode !== 'off') summary.read += 1
+    const pages = Number(research.read)
+    if (Number.isFinite(pages) && pages > 0) summary.pages += pages
+    if (research.used === true) summary.used += 1
+    if (research.used === false) summary.unused += 1
+  }
+  return summary
+}
+
+/**
  * How long ago a moment was, in milliseconds, or `null`.
  *
  * `updatedAt` is `ev.t`: a number. `Date.parse` of a number is NaN, and a NaN
@@ -248,6 +277,10 @@ function campaignRow(view, now, campaignId, config) {
     // Efficiency / quality / cost, computed on the host so the sidebar, the
     // report and scripts/loom-metrics.mjs cannot disagree about the numbers.
     triangle: campaignTriangle(rounds),
+    // What the reads cost and returned: the leg records these three numbers per
+    // round and this is the one place the panel can show them without the
+    // browser having to know the leg's field names.
+    reads: readSummary(rounds),
     open: open.length,
     reviews,
     openCheckpoints: open.map((c) => ({

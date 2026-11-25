@@ -1363,6 +1363,22 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * What the research leg bought, as one line: rounds that read, pages that
+     * came back, and how many readings the worker used or ignored.
+     *
+     * The host computes the four counts (`reads` on a campaign row); this only
+     * formats them. `unused` is printed beside `used` rather than folded into
+     * it: a page nobody read is the number that says a leg is not paying for
+     * itself, and "used 2 of 3" would hide how many reads were never measured.
+     */
+    function readsLine(c) {
+      var r = c && c.reads
+      if (!r || num(r.rounds) <= 0) return ''
+      return 'reads ' + num(r.read) + ' · pages ' + num(r.pages) +
+        ' · used ' + num(r.used) + ' · unused ' + num(r.unused)
+    }
+
+    /**
      * The one line a folded campaign row carries.
      *
      * The folded row used to slice `campaignMeta`, which is empty for the most
@@ -3190,6 +3206,9 @@ window.__ModuleLoader__.load({
         var folded = props.folded === true
         var live = props.live || []
         var meta = campaignMeta(c)
+        // The read leg's counts are the same kind of fact as the round and
+        // score figures, so they hang off the same card body.
+        var readsText = readsLine(c)
         var chain = chainPath(c.chain)
         var armed = props.confirming === c.id + ':stop'
 
@@ -3418,6 +3437,10 @@ window.__ModuleLoader__.load({
             h('div', { className: 'loom-vitals' }, sparkWrap, metersNode),
             h('div', { className: 'loom-tri', title: tri.map(function (chip) { return chip.title }).join(' · ') }, triKids),
             metaLine,
+            // Reads get their own line under the meta row: the meta row is the
+            // campaign's artefacts and verdicts, while these are one leg's
+            // measurements, and appending them let a truncated line hide them.
+            when(readsText, h('div', { className: 'loom-meta', key: 'reads', title: readsText }, readsText)),
             endLine,
             when(nodeKids.length > 0, h('div', { className: 'loom-chips' }, nodeKids.map(function (chip) {
               return h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)

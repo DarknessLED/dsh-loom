@@ -848,11 +848,18 @@ round is supposed to read again for.
   names its URL or arXiv id, counts as having reached for it. A worker that used
   the notes without saying so is scored as not having used them, and that error
   runs one way.
-- The first live round could not exercise it: `used` was still `null` when that
-  ledger was written, because the write-back landed after the round. The rule it
-  feeds (`a win that did not read is not evidence for reading`) is pinned by
-  `tests/self57/the-round-writes-back-whether-it-was-used.test.mjs` and will
-  apply from the next campaign onward.
+- The live rounds above ran under the plugin instance applied at 02:29 local,
+  which predates the write-back commit, so `used` is `null` there: that is the
+  old code, not a failed measurement. The rule the field feeds (`a win that did
+  not read is not evidence for reading`) is pinned by
+  `tests/self57/the-round-writes-back-whether-it-was-used.test.mjs` and applies
+  from the first round any instance loaded after that commit runs.
+- The leg asks the oldest open ledger question, and it will ask it again next
+  round: nothing rotates the ledger. Both live rounds asked the same R1
+  question about a patch-level reward-hacking detector. Two rounds of one
+  campaign asking one question is right; two campaigns asking it forever is a
+  loop that has stopped reading and started repeating. Closing the question —
+  or taking the next one after a round has read it — is not implemented.
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.

@@ -412,6 +412,9 @@ const standing = [
   // reading" branch was unreachable. The measurement is now written back.
   'tests/self57/what-the-worker-reached-for.test.mjs',
   'tests/self57/the-round-writes-back-whether-it-was-used.test.mjs',
+  // The leg records rounds-read, pages-back and used/unused and nothing showed
+  // them; the panel now ships `reads` and the card prints one line of it.
+  'tests/self57/the-panel-can-see-the-reads.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
