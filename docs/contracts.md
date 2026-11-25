@@ -166,6 +166,12 @@
 - `src/runtime/quality.js` — 战役证据健康度：把回合账本折成通过率、增益、停滞等少数指标，供报告与面板给出同一结论。
 - `src/runtime/review.js` — 待决队列排序：按风险（holdout/anomaly 高、gate/policy 中、其余低）再按提出时间与 id 排列，为每条决策生成单行摘要与动词短语建议，供 `rsi_status` 渲染。
 - `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动；另外在启动时把「没有改动」这类旧 claim 退役（`noWorkLessons`），因为它们仍在被选进简报。
+
+- `src/runtime/orphans.js` — `orphanWindowMs(config)` and `findOrphans({state, events, liveRounds, now, afterMs})`.
+  两项事实都在一起，才允许释放一个轮次：本轮在这个进程里没有被 `watchdog` 看着（`liveRounds` 不含它），
+  且它最后一次写账本已经超过一个尝试预算加宽限（缺省 13 分钟 + 5 分钟，下限 15 分钟）。磁盘上的 lease 不是活着的证据——
+  重启之后每个 lease 都还写着 `running`。释放写 `round.abandoned`（不是改历史），`reduce` 把该轮标成 `abandoned` 并记原因；
+  已经有活 attempt 的轮永远不动，这是这个释放唯一不能犯的错。
 - `src/runtime/recon-reuse.js` — 规划复用：以基提交 sha、链版本、任务与节点提示拼出 key，缓存上一轮的侦察计划；树没动就直接复用（`reused:true`、耗时记 0）并照常把计划交给 worker，HEAD 一变即重新规划；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
 - `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点；`attemptOutcome` 把「被兄弟解题而中止」与真正的死亡分开记账。 `checks.oracleClean` 由 `oracleVerdict` 得出，`verify.owns` 非空时额外记 `checks.oracleOwns`（声明）与 `checks.oracleReleased`（本补丁真正用到的声明路径）；候选一个声明路径都没碰时 `oracleReleased` 为空数组，所以「声明了却没用到」不会看起来像用了例外。`checks.oracleOwnedTouched` 另记补丁碰到的全部声明路径（用于区分「声明了非 apparatus 文件」与「用了例外」：前者 touched 有、released 空）。没有声明时这些键都不写，旧形状逐字不变。 `gate.sequentialDecides` 为 true 时本文件让配对序贯门真正裁决（见 `src/gate/sequential.js`）：`earnedAll` 先算（verifier/tests/oracle/earned/有补丁或无操作），`beatsIncumbent` 只作为旧规则的项保留；`commit`/`reject` 覆盖它，`defer` 退回旧的 noise-bar 比较，holdout 失败仍然否决。`gate.evaluated.decidedBy` 记录这一次是 `sequential` 还是 `noise-bar` 决定的；开关关闭时该字段不写，判定与今日逐字相同。
 - `src/runtime/runtime.js` — `Runtime`：campaign 生命周期与 tick 派发，含所有权心跳、watchdog 看护、租约对账和状态缓存。

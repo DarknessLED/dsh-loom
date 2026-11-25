@@ -26,13 +26,17 @@ export class Watchdog {
     this.tracked = new Map()
   }
 
-  track({ attemptId, sessionId, abort = null, deadline = null, campaign = null }) {
+  track({ attemptId, sessionId, abort = null, deadline = null, campaign = null, round = null }) {
     if (!attemptId) throw new TypeError('track requires attemptId')
     const now = Date.now()
     this.tracked.set(String(attemptId), {
       attemptId: String(attemptId),
       sessionId: sessionId ? String(sessionId) : null,
       campaign: campaign ? String(campaign) : null,
+      // Which round this attempt belongs to. Liveness is per attempt, but the
+      // question "may I release this round?" is asked per round, and deriving it
+      // from an id's spelling (`r3a1`) is a naming convention, not a fact.
+      round: Number.isFinite(Number(round)) ? Number(round) : null,
       abort: typeof abort === 'function' ? abort : null,
       deadline: Number(deadline) > 0 ? Number(deadline) : null,
       startedAt: now,

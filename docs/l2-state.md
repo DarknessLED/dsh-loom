@@ -535,3 +535,73 @@ that failed first, and the full gate was run before every commit.
 - Three campaigns were stopped by hand rather than by their own budget, because
   attempting to fix the oracle from inside a round the old oracle judges is a
   chicken-and-egg the loop cannot solve about itself.
+
+## 2026-11-25: the held-back reading exists now
+
+P1-1 was written, specified and committed without ever producing a number: every
+recorded `gate.evaluated` event in the corpus had `holdoutScore: null`, because
+only three of 149 campaigns ever had a holdout pool and none of them ran after
+the field was added. That is no longer true.
+
+`holdout-live2` ran four rounds in `C:/Projects/RSI-live/holdout2` against a
+task whose held-back verifier reads a *different* file (`held.txt`, rate 0.55)
+and prints the same instrument the visible one does:
+
+| round | candidate | holdout | gain | promoted |
+| --- | --- | --- | --- | --- |
+| 1 | 0.90 | 0.55 | false | yes |
+| 2 | 0.92 | 0.55 | false | no |
+| 3 | 0.95 | 0.55 | false | yes |
+| 4 | 0.95 | 0.55 | false | no |
+
+Four things this settles, and one it does not:
+
+- The reading is **taken**, not skipped: `holdout.selected` appears every round
+  with `pool: ["t-held"]`, and `checks.holdout` is `true` rather than `skipped`.
+- The value is **real**: `holdoutScore: 0.55` matches `held.txt` exactly, and
+  `holdoutReason` says why the comparison is legitimate ("the held-back verifier
+  printed the same instrument the candidate used").
+- A held-back score **below** the candidate's is recorded as `holdoutGain: false`
+  and does **not** veto: rounds 1 and 3 promoted at 0.90 and 0.95 while the
+  held-back task sat at 0.55. That was the deliberate choice in the spec — the
+  pool is one or two tasks and one reading carries the 2.2–6.0 point spread from
+  `docs/research/r2-score-noise`, so it is evidence, not a hurdle. Rounds 2 and
+  4 failed to promote for a different reason (the visible rate did not clear the
+  incumbent by `minGain`), which is visible in `checks.beatsIncumbent`.
+- Corpus totals after this run: **34** `gate.evaluated` events carry the field at
+  all, **4** carry a number, and **97** rounds actually ran a holdout. So the
+  field is still empty for 93 of the 97 rounds that had every right to fill it —
+  they simply ran before the code that reads it existed. Only new campaigns can
+  fill it.
+
+What it does not settle: whether 0.55 against 0.90 should eventually veto. That
+needs a pool large enough to say the held-back task is measuring the same thing,
+and one task is not.
+
+## 2026-11-25: what the loop could not do about itself, demonstrated
+
+The bug written up in `inflight-recover` is not hypothetical — it is the state
+that campaign is in as I write this. Its round 1 has `round.started` and
+`attempt.deadline` at 11:16 and **nothing since**: no `attempt.finished`, no
+`verifier.finished`, an empty `artifacts/`, a lease still saying
+`state: "running"` with `lastAdvanceAt` frozen at 11:16, and `rsi_run` answering
+
+```
+Error: campaign inflight-recover already has a round in flight
+```
+
+The process that owned that attempt is gone (this session started it, and the
+attempt's session id no longer resolves), so `inflight` was rebuilt empty on
+boot and nothing released it. `recover()` does close `running` rounds on boot —
+but only ones it can see at boot time; a round that goes stale *while the host is
+alive* is never revisited, which is exactly the window this campaign fell into.
+
+Two lessons worth keeping:
+
+- The failure mode is the loop's own: a round that dies takes the campaign with
+  it, permanently, and the only trace is a lease nobody re-reads.
+- It cannot be fixed from inside a campaign, because the fix lives in the code
+  that decides whether a round may start. The next round cannot start to write
+  the fix. That is the fourth time this session hit the chicken-and-egg (after
+  `verify.owns`, the spec pin, and the oracle) and it is now the single largest
+  structural limit: **the loop cannot repair the rule it is being judged by.**

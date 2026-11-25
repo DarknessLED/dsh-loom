@@ -15,6 +15,7 @@ import { tailActivity } from './activity.js'
 import { probeLean } from '../lean/probe.js'
 import { sweepLeases } from './lease.js'
 import { noWorkLessons, planRecovery, repairWorkspace } from './recovery.js'
+import { findOrphans, orphanWindowMs } from './orphans.js'
 import { readSwitch, writeSwitch } from './switch.js'
 import { readSettings, roundConfigWithSettings, writeSettings } from '../core/settings.js'
 import { Dispatcher } from '../dispatch/session.js'
@@ -85,8 +86,69 @@ export class Runtime {
   }
 
   /** Track a live attempt so the watchdog can write it off if it goes silent. */
-  watchAttempt({ attemptId, sessionId, abort, deadline, campaign }) {
-    this.watchdog.track({ attemptId, sessionId, abort, deadline, campaign })
+  watchAttempt({ attemptId, sessionId, abort, deadline, campaign, round = null }) {
+    this.watchdog.track({ attemptId, sessionId, abort, deadline, campaign, round })
+  }
+
+  /**
+   * The rounds of one campaign that have a genuinely live attempt right now.
+   *
+   * "Genuinely live" means this process is tracking the child: the watchdog only
+   * ever learns about a session through `watchAttempt`, so an attempt in this set
+   * was started here and is still the one being observed. A lease on disk is not
+   * evidence of life -- after a restart every lease still says `running`.
+   */
+  liveRoundNumbers(campaignId) {
+    const out = new Set()
+    for (const entry of this.watchdog.list()) {
+      if (entry.campaign !== String(campaignId)) continue
+      if (Number.isFinite(Number(entry.round))) out.add(Number(entry.round))
+    }
+    return out
+  }
+
+  /**
+   * Release rounds whose owning process is gone, and say so in the ledger.
+   *
+   * Boot-time `recover()` closes rounds it can see when the host starts; this is
+   * the same reconciliation for a round that goes stale *while the host is
+   * alive*, which is the window that leaves a campaign permanently stuck behind
+   * "already has a round in flight" (campaign `inflight-recover`, 2026-11-25).
+   * The ledger is append-only, so this writes a closing event rather than editing
+   * history: `round.abandoned`, which also marks the attempt abandoned so a reader
+   * cannot mistake the round for one that is still running.
+   */
+  releaseOrphanedRounds(view, { now = Date.now() } = {}) {
+    if (!view || this.disposed) return []
+    let orphans = []
+    try {
+      orphans = findOrphans({
+        state: view.state,
+        events: view.ledger.all(),
+        liveRounds: this.liveRoundNumbers(view.id),
+        now,
+        afterMs: orphanWindowMs(this.config.session),
+      })
+    } catch (err) {
+      this.log(`orphan scan failed for ${view.id}:`, err?.message ?? err)
+      return []
+    }
+    const released = []
+    for (const orphan of orphans) {
+      try {
+        this.append(
+          view,
+          'round.abandoned',
+          { n: orphan.round, reason: orphan.reason, idleMs: orphan.idleMs, lastAt: orphan.lastAt },
+          'system',
+        )
+        released.push(orphan.round)
+        this.log(`released orphaned round ${view.id}/r${orphan.round}: ${orphan.reason}`)
+      } catch (err) {
+        this.log(`cannot release orphaned round ${orphan.round} of ${view.id}:`, err?.message ?? err)
+      }
+    }
+    return released
   }
 
   /**
@@ -488,6 +550,10 @@ export class Runtime {
         // Held checkpoints leave on the same clock as rounds, even while every
         // dispatch slot is busy or the campaign is paused.
         this.flushHeld(v)
+        // A round whose owner is gone must be released before the slot count is
+        // consulted: otherwise one dead round parks its campaign forever, and the
+        // budget that would pay to fix it is never spent.
+        if (v.state.status === 'running' && !this.inflight.has(v.id)) this.releaseOrphanedRounds(v)
         if (this.inflight.size >= max) continue
         if (v.state.status !== 'running') continue
         this.tickCampaign(v)
@@ -643,6 +709,10 @@ export class Runtime {
    */
   async runOnce(id) {
     const view = this.get(id)
+    // The operator asking for one round is asking *because* a previous one looks
+    // stuck. Reconciling first turns the refusal into a release; a genuinely live
+    // attempt is still refused below, by the same check.
+    if (!this.inflight.has(view.id)) this.releaseOrphanedRounds(view)
     if (this.inflight.has(view.id)) throw new Error(`campaign ${view.id} already has a round in flight`)
     if (this.allTasksSolved(view.state)) {
       return { id: view.id, status: 'done', reason: 'all-tasks-solved', round: null }

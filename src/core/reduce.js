@@ -255,6 +255,33 @@ function apply(s, ev) {
       }
       break
     }
+    case 'round.abandoned': {
+      // The round never closed and its owner is gone. Closing it here is not a
+      // verdict on the work -- the attempt record carries whatever the verifier
+      // said -- it is the fact that nothing is driving it any more. Without this,
+      // `rounds[i].status` stays 'running' forever and the campaign is skipped by
+      // every later tick, which is exactly the stall a release is meant to end.
+      const r = s.rounds.find((x) => x.n === d.n)
+      if (r) {
+        const wasRunning = r.status === 'running'
+        if (wasRunning) {
+          r.status = 'abandoned'
+          r.abandonedAt = ev.t
+          r.abandonedReason = d.reason ?? 'the round never closed and no attempt was live'
+          r.endedAt = r.endedAt ?? ev.t
+        }
+        // Recorded even when the round had already closed: a release that raced a
+        // real finish is still a fact worth being able to see.
+        r.abandoned = { reason: d.reason ?? null, idleMs: d.idleMs ?? null, lastAt: d.lastAt ?? null, at: ev.t }
+      }
+      // Attempts of that round cannot be live either. Marking them is what makes
+      // the state honest: an attempt left 'running' is the record a later reader
+      // would trust to mean "still working".
+      for (const node of s.nodes) {
+        if (node.round === d.n && node.status === 'running') node.status = 'lost'
+      }
+      break
+    }
     case 'node.started': {
       // The identity is written before the dispatch, so a crash between start
       // and finish leaves a name behind instead of only a missing round.

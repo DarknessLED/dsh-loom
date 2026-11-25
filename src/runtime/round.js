@@ -1702,7 +1702,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             if (key) deniedShellSessions.push(key)
           }
           aborts.set(attemptId, abort)
-          runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id })
+          runtime.watchAttempt({ attemptId, sessionId, abort, deadline, campaign: state.id, round: n })
           // The winner may have crossed the line while this session was still
           // starting; stop it now rather than pay for a run it cannot affect.
           if (solvedBy && solvedBy !== attemptId) stopForSibling(attemptId, abort)

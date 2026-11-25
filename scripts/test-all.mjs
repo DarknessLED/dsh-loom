@@ -370,6 +370,13 @@ const standing = [
   // the ledger with the gate's own `pairAgainstBase`/`commitDecision`, names a
   // ledger that predates the fields as unmeasured, and never writes to the home.
   'tests/self56/a-pair-audit-can-be-rerun.test.mjs',
+  // A round whose owning process went away is not a round still running: the
+  // ledger keeps saying `running` while `inflight` is rebuilt empty on boot, so
+  // the campaign is stuck behind "already has a round in flight" forever. The
+  // release must free that round, write `round.abandoned`, and refuse to touch a
+  // round whose child is still being watched.
+  'tests/self56/an-orphaned-round-can-be-released.test.mjs',
+  'tests/self56/the-release-reaches-the-runtime.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
