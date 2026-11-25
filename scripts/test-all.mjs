@@ -424,6 +424,11 @@ const standing = [
   // A question that has been read several times and never acted on is a
   // statement about the reader, so it is parked with its count, not closed.
   'tests/self57/a-question-that-never-helps-is-parked.test.mjs',
+  // The ledger had seventeen open questions and one of them was read thirteen
+  // times across seven campaigns: a read now counts against the question, and
+  // the leg prefers the ones nobody has touched.
+  'tests/self57/a-question-is-a-queue-not-a-loop.test.mjs',
+  'tests/self57/the-ledger-hears-about-the-read.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

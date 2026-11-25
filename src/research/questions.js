@@ -119,6 +119,25 @@ export function researchQuestions(home) {
       existing.status = 'parked'
       existing.parkReason = clean(ev.reason) || null
       existing.parkedAt = Number(ev.at) || null
+    } else if (ev.kind === 'read-outcome') {
+      // What came of a read, recorded separately because the answer arrives
+      // later than the spend: the leg buys before the worker writes, and a round
+      // that dies in between still spent it. This must never bump `reads`.
+      if (ev.used === true) existing.usedAtLeastOnce = true
+      if (ev.promoted === true) existing.promotedAfterRead = true
+      existing.lastOutcomeAt = Number(ev.at) || existing.lastOutcomeAt || null
+    } else if (ev.kind === 'read') {
+      // A read is not a verdict, so it does not change the status. It is a fact
+      // about the reader: this campaign spent a round's allowance asking it.
+      // Counting them is what turns the ledger from a loop into a queue -- on
+      // 2026-11-26 seven campaigns had read the same oldest entry thirteen times.
+      existing.reads = (Number(existing.reads) || 0) + 1
+      existing.readBy = Array.isArray(existing.readBy) ? existing.readBy : []
+      const who = clean(ev.campaign)
+      if (who && !existing.readBy.includes(who)) existing.readBy.push(who)
+      existing.lastReadAt = Number(ev.at) || existing.lastReadAt || null
+      if (ev.used === true) existing.usedAtLeastOnce = true
+      if (ev.promoted === true) existing.promotedAfterRead = true
     }
   }
   return [...byId.values()].sort((a, b) => (a.openedAt ?? 0) - (b.openedAt ?? 0))
@@ -180,6 +199,36 @@ export function parkQuestion(home, { id, reason } = {}) {
   if (!existing) throw new Error(`unknown question: ${key}`)
 
   append(home, { kind: 'parked', id: key, reason: clean(reason) || null, at: Date.now() })
+  return researchQuestions(home).find((q) => q.id === key)
+}
+
+/**
+ * Record that a round read this question.
+ *
+ * Not a status change and not a verdict: the question is still open, and the
+ * ledger still does not know the answer. What it knows is that somebody spent a
+ * read on it, which is what lets the leg prefer the questions nobody has touched
+ * instead of re-reading the oldest one in every campaign.
+ *
+ * An unknown id is refused rather than silently creating an entry: a read of a
+ * question that is not on the books is a bug in the caller, and inventing a
+ * record for it would hide the bug behind a plausible count.
+ */
+export function recordQuestionRead(home, { id, campaign, round, used, promoted, at, outcome = false } = {}) {
+  const key = clean(id)
+  if (!key) throw new Error('recording a read needs a question id')
+  const existing = researchQuestions(home).find((q) => q.id === key)
+  if (!existing) throw new Error(`unknown question: ${key}`)
+
+  append(home, {
+    kind: outcome ? 'read-outcome' : 'read',
+    id: key,
+    campaign: clean(campaign) || null,
+    round: Number.isFinite(Number(round)) ? Number(round) : null,
+    used: used === true ? true : used === false ? false : null,
+    promoted: promoted === true,
+    at: Number.isFinite(Number(at)) ? Number(at) : Date.now(),
+  })
   return researchQuestions(home).find((q) => q.id === key)
 }
 

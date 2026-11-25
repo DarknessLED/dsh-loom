@@ -948,6 +948,28 @@ round is supposed to read again for.
   fold of `round.finished` just produced, not `view.state`, because a runtime
   whose fold is partial shows rounds that read nothing and the leg parks nothing
   forever (`tests/self57/the-round-parks-a-question-it-cannot-use.test.mjs`).
+- **The ledger is a queue now, and the reading says why it was not.** Every
+  campaign that bought a read on 2026-11-26 asked the same question — the oldest
+  open entry — because `questionFor` looked at position, and rotation only
+  skipped what *this* campaign had asked. Thirteen rounds across seven campaigns
+  (`balance-live`, `balance2-live`, `balance3-live`, `balance4-live`,
+  `react-feedback`, `react-live`, `react-panel`) bought 26 page reads and 52
+  passages on that one prompt, and `used: true` never appeared once. A read is
+  now recorded against the question it was about (`recordQuestionRead`, two
+  events: the spend right after the leg returns, the `used`/`promoted` outcome
+  after the gate speaks, and the second one must not bump the count), and
+  `questionFor` prefers the least-read question with ledger order as tie-break.
+  The R1 question was parked by hand on the live ledger
+  (`parkReason`: read in 13 rounds across 7 campaigns with no promotion), so the
+  next campaign starts from the queue instead of reopening the same page.
+  Pinned by `tests/self57/a-question-is-a-queue-not-a-loop.test.mjs` and
+  `tests/self57/the-ledger-hears-about-the-read.test.mjs`.
+
+  What this still does not claim: `used` is a verbatim-span match, so
+  `used: false` means "the report never quoted a span or named its URL", not "the
+  read did not help"; the leg's `costUsd` is still 0 because `ctx.web` is not in
+  the pricing table, so "a read is cheap" is an assumption; and one campaign per
+  mechanism is one measurement, not a distribution.
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.

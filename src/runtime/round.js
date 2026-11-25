@@ -45,7 +45,7 @@ import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { findingsFrom, legBudget, questionFor, reachedFor, reflectOnQuestions, researchSketch, withDeadline } from './research-leg.js'
 import { runResearch } from '../research/run.js'
-import { parkQuestion, researchQuestions } from '../research/questions.js'
+import { parkQuestion, recordQuestionRead, researchQuestions } from '../research/questions.js'
 import { svc } from '../core/services.js'
 import { oncePlateau } from './plateau.js'
 import { stallTrigger } from './stall.js'
@@ -1545,6 +1545,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // verbatim into the brief, and nothing here may fail the round: a leg that can
   // fail a round is worse than no leg at all.
   let researchFindings = []
+  // Which ledger question this round's read was charged to, so the ledger
+  // can prefer the questions nobody has spent a read on (`questionFor`).
+  let researchQuestionId = null
   // The campaign's read allowance, not just this round's mode: a leg the worker
   // never reaches for should stop being bought after a few rounds, and
   // `config.research.maxRounds` was documented for that and read by nothing.
@@ -1568,6 +1571,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       // `rounds` lets the leg skip a ledger question an earlier round already
       // asked: two campaigns asked the same R1 question on 2026-11-26.
       const asked = questionFor({ task, lastRound, openQuestions: ledger, rounds: state.rounds })
+      researchQuestionId = asked?.id ?? null
       if (!canSearch) {
         research = researchSketch(
           { ok: false, code: 'web-unavailable' },
@@ -1611,6 +1615,30 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       log('research leg failed:', err?.message ?? err)
     }
     if (research.skipped) log(`research leg skipped: ${research.skipped}`)
+    // The spend is a fact even when the round dies later, so it is written
+    // here rather than with the outcome. `used` and `promoted` are filled
+    // in by a second event once the gate has spoken; a read counts once.
+    if (!research.skipped && research.mode !== 'off' && researchQuestionId) {
+      try {
+        recordQuestionRead(runtime.home, {
+          id: researchQuestionId,
+          campaign: state.id,
+          round: n,
+          used: research.used,
+          promoted: null,
+        })
+        runtime.append(view, 'question.read', {
+          id: researchQuestionId,
+          question: research.question ?? null,
+          campaign: state.id,
+          round: n,
+          read: research.read ?? 0,
+          used: research.used ?? null,
+        }, 'system')
+      } catch (err) {
+        log('recording the read failed:', err?.message ?? err)
+      }
+    }
   }
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
@@ -2558,6 +2586,23 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // the findings are missing -- `researchModeFor` defunds reading on `false`,
     // and an absent report is not a measurement of "no".
     research = { ...research, used: reachedFor(research, { report: best?.report, findings: researchFindings }) }
+    // The ledger asked what came of the read. Written as its own event: the
+    // spend happened before the worker wrote, and an outcome that overwrote
+    // the count would let a question look unread because its read bore fruit.
+    if (researchQuestionId) {
+      try {
+        recordQuestionRead(runtime.home, {
+          id: researchQuestionId,
+          campaign: state.id,
+          round: n,
+          used: research.used,
+          promoted: promote === true,
+          outcome: true,
+        })
+      } catch (err) {
+        log('recording the read outcome failed:', err?.message ?? err)
+      }
+    }
     const score = best?.score ?? 0
     // The round's number came from the winning attempt, so its measurement kind
     // travels with it: a 0.6 kill rate and a binary 1 are both scores but not

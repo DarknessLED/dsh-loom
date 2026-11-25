@@ -79,7 +79,7 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
       .map((r) => (r && r.research && r.research.mode !== 'off' && typeof r.research.question === 'string' ? r.research.question.trim() : ''))
       .filter(Boolean),
   )
-  const first = (Array.isArray(openQuestions) ? openQuestions : []).find(
+  const candidates = (Array.isArray(openQuestions) ? openQuestions : []).filter(
     (q) =>
       q &&
       typeof q.question === 'string' &&
@@ -88,7 +88,16 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
       q.status !== 'parked' &&
       !alreadyAsked.has(q.question.trim()),
   )
-  if (first) return { question: first.question.trim(), from: 'ledger' }
+  // Fewest reads first, and ledger order as the tie-break. Reading the oldest
+  // open entry every time is what made thirteen reads across seven campaigns all
+  // land on the same prompt: the ledger was a loop, not a queue. A question is
+  // credited to the ledger (see `recordQuestionRead`) rather than to this
+  // campaign's rounds, so a campaign that restarted does not re-read everything.
+  const byReads = candidates
+    .map((q, i) => ({ q, i, reads: Number(q.reads) || 0 }))
+    .sort((a, b) => (a.reads - b.reads) || (a.i - b.i))
+  const first = byReads.length ? byReads[0].q : null
+  if (first) return { question: first.question.trim(), id: first.id ?? null, from: 'ledger' }
   const prompt = typeof task?.prompt === 'string' ? task.prompt.trim() : ''
   if (prompt) {
     return {
