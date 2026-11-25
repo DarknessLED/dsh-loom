@@ -616,11 +616,30 @@ undeclared apparatus path is still refused, and a task with `owns` but no scope
 keeps the legacy answer. Four assertions in
 `tests/self56/an-owned-path-is-inside-the-scope.test.mjs`, full gate 367/367.
 
-**Not yet proven live.** Both campaigns were stopped rather than run again,
-because the plugin instance that would judge them still holds `src/gate/scope.js`
-from before `b3c072c`. The same staleness that made `verify.owns` look broken for
-a day now hides its complement: the code is committed and specified, and the
-first round that exercises it has not happened.
+**Now proven live.** Campaign `owns-discriminate` was built so it could not pass
+for any other reason: `scope.editable: ['tests/']` and `owns:
+['scripts/test-all.mjs']`, with a patch touching exactly one path of each. Its
+round 1 came back
+
+```
+verifierOk:    true
+testsClean:    true          <- the same patch shape was false before b3c072c
+oracleClean:   true
+oracleReleased: ["scripts/test-all.mjs"]
+scope: { editable: ["tests/"], checked: 2, violations: [] }
+```
+
+which is the fix doing its job in a real round, one commit after the same shape
+was refused. The worker's patch (spec + one-line pin, 74 lines) is in `794e2d0`
+unmodified; it did not *promote*, because `earnedReason: base-already-green` —
+the handling had already been fixed by hand, so there was nothing left for the
+round to earn. Landing it anyway keeps the thing that proved the point.
+
+The staleness that hid this for a day is worth naming precisely: `plugin_manager
+set_plugin` answers `restart-required` for a plugin loaded from the profile, and
+the module that decides a round is whatever was on disk when the host started —
+not what is committed now. Every "not yet proven live" line in this file should
+be read as "not yet proven on the codepath the running host loaded".
 
 ## 2026-11-25: the held-back reading exists now
 
