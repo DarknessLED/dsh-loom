@@ -75,7 +75,7 @@
 - `src/gate/earned.js` — 纯函数「这次绿是否由补丁挣来」：基线红→候选绿算挣到；基线已绿时只认指标提升（≥ minGain），指标没动或退步一律不算；基线没测出（`'skipped'`）保持放行，因为缺测不是证据。存在的理由：`loom-graded` 的验证器故意只打印 `QUALITY=<n>` 并恒 exit 0，只用退出码做差分会把三轮真实改进记成「没干活」。
 - `src/gate/scope.js` — 纯函数「这个补丁被允许改哪些路径」：`parseScope(verify.scope)` 读出声明的可编辑集，`inScope` 支持精确路径 / 目录前缀 / `*` 后缀（不是 glob 引擎），`diffPaths` 从 `diff --git` 两侧取路径（重命名两侧都算），`scopeVerdict` 把补丁文本与 diff-stat 的并集拿去比对，补丁读不出来时失败关闭。存在的理由：`testsClean` 原本拒绝**任何**测试改动，于是「给这个模块补测试」这类任务必然被拒 —— 而那条规则要保护的是「候选不能改掉衡量它的东西」，不是「不能碰 tests 目录」。没有声明 scope 时旧判定一字不变。
 - `src/gate/metrics.js` — 纯函数「验证器输出里的度量」：`parseMetrics(stdout)` 只认整行 `KILLRATE=<0..1>` / `MUTANTS=<非负整数>`，缺失、被别的文字包住或不是十进制数一律 `null`（绝不回落 0，否则「没测到」会被读成「0 杀死率」），`verifyMetrics({stdout,status})` 只把真正读到的度量交给调用方。存在的理由：变异杀死率 harness 一直打印 `KILLRATE=0.3114`，但没有任何回合读过它，判据只剩下二值退出码 —— 杀掉 31% 变异体的补丁和一个也没杀掉的补丁得分相同。
-- `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。验证器读的数据文件也是 apparatus：`oracleDataPaths` 从它跑的脚本里的相对字符串字面量取数据扩展名（json/jsonl/csv/tsv/yaml/toml/txt/ndjson），只有解析得到真实存在的工作区内文件才算，否则 `check.mjs` 读的 `fixtures/cases.json` 被改也能伪造绿。
+- `src/gate/oracle.js` — 纯函数「补丁有没有改到它自己的判据」：从验收命令里推出它实际 spawn 的文件（跳过解释器、`-e` 的内联源、不存在的 token），再从补丁的 `diff --git` 头取出改动路径，两者取交集。存在的理由：`testsClean` 只拒绝 `tests/` 目录，而 `loom-graded2` 的判据是仓库根目录的 `check.mjs` —— 实测把 `check.mjs` 改成直接打印 `QUALITY=1.000` 的候选会晋升。命令不跑任何文件（`node -e ...`）时该规则不适用；补丁读不出来时失败关闭。验证器读的数据文件也是 apparatus：`oracleDataPaths` 从它跑的脚本里的相对字符串字面量取数据扩展名（json/jsonl/csv/tsv/yaml/toml/txt/ndjson），只有解析得到真实存在的工作区内文件才算，否则 `check.mjs` 读的 `fixtures/cases.json` 被改也能伪造绿。任务可以声明 `verify.owns`（工作区相对 POSIX 路径的数组）来拥有它被要求改动的 apparatus：`parseOwns` 归一化并丢弃垃圾项，`oracleVerdict` 在 `oraclePaths` 之外额外返回 `released`（补丁真正改到的、属于声明的那些路径，排序去重），被声明覆盖的 apparatus 路径不再让 `clean` 变假，而未声明的 apparatus 路径照旧拒绝；目录条目覆盖其下文件，不存在的声明项不算数。没有 `owns` 时逐个字节等价于旧判定（`oracleClean(input) === oracleVerdict(input).clean`）。存在的理由：对 fixture 正确的规则对「改门本身」的任务是错的——实测最近三场战役里两场的正确补丁仅因这一条永远无法晋升。
 
 ### knowledge/ — 经验
 
@@ -167,7 +167,7 @@
 - `src/runtime/review.js` — 待决队列排序：按风险（holdout/anomaly 高、gate/policy 中、其余低）再按提出时间与 id 排列，为每条决策生成单行摘要与动词短语建议，供 `rsi_status` 渲染。
 - `src/runtime/recovery.js` — 重启恢复：找出「记了落地但其实没提交」的回合并显式撤回，只清理补丁自己新建的文件，绝不动用户原有的改动；另外在启动时把「没有改动」这类旧 claim 退役（`noWorkLessons`），因为它们仍在被选进简报。
 - `src/runtime/recon-reuse.js` — 规划复用：以基提交 sha、链版本、任务与节点提示拼出 key，缓存上一轮的侦察计划；树没动就直接复用（`reused:true`、耗时记 0）并照常把计划交给 worker，HEAD 一变即重新规划；缓存落在 campaign 目录，损坏或缺失时当作空缓存。
-- `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点；`attemptOutcome` 把「被兄弟解题而中止」与真正的死亡分开记账。
+- `src/runtime/round.js` — 回合引擎：选任务、起候选、跑验证器与 Lean 门、记分与计成本、执行晋升/回滚并 raise 各类检查点；`attemptOutcome` 把「被兄弟解题而中止」与真正的死亡分开记账。 `checks.oracleClean` 由 `oracleVerdict` 得出，`verify.owns` 非空时额外记 `checks.oracleOwns`（声明）与 `checks.oracleReleased`（本补丁真正用到的声明路径）；候选一个声明路径都没碰时 `oracleReleased` 为空数组，所以「声明了却没用到」不会看起来像用了例外。`checks.oracleOwnedTouched` 另记补丁碰到的全部声明路径（用于区分「声明了非 apparatus 文件」与「用了例外」：前者 touched 有、released 空）。没有声明时这些键都不写，旧形状逐字不变。
 - `src/runtime/runtime.js` — `Runtime`：campaign 生命周期与 tick 派发，含所有权心跳、watchdog 看护、租约对账和状态缓存。
 - `src/runtime/sampling.js` — 确定性选题：普通轮在未解决任务间轮转，每 `holdoutEvery` 轮消耗一个 holdout 任务，可重放。
 - `src/runtime/selector.js` — 选题策略：跳过已满分任务以免浪费回合，全部做满时报告 `allSolved` 让调度收尾。

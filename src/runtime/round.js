@@ -51,7 +51,7 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
-import { oracleClean, oraclePathsFor, oracleNamedPaths, oracleEnforcedPaths, oracleCandidates, patchPaths } from '../gate/oracle.js'
+import { oracleVerdict, parseOwns, oraclePathsFor, oracleNamedPaths, oracleEnforcedPaths, oracleCandidates, patchPaths } from '../gate/oracle.js'
 import { parseScope, scopeVerdict } from '../gate/scope.js'
 import { cardEvidence } from './review-card.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
@@ -2404,6 +2404,18 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         ? policy.noiseSpread
         : null
     const beatsNoise = incumbentDelta === null || noiseBar === null || incumbentDelta >= noiseBar - 1e-9
+    // A task may declare the apparatus it owns (`verify.owns`): the paths it was
+    // asked to change even though the verifier depends on them. Without a
+    // declaration this is byte-for-byte the old refusal; with one, an owned path
+    // is judged by the verifier instead of being refused, and the release is
+    // recorded so a reader sees the exception rather than guessing it.
+    const owns = parseOwns(acceptanceSpec?.owns)
+    const oracleDecision = oracleVerdict({
+      patchFile: best?.patch,
+      oraclePaths,
+      filesChanged: best?.diff?.filesChanged ?? null,
+      owns,
+    })
     const checks = {
       verifierOk: Boolean(best?.verifierOk),
       hasPatch: Boolean(best?.patch) && (best?.patchBytes ?? 0) > 0,
@@ -2413,7 +2425,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       ...(scope
         ? { scope: { editable: scope.editable, checked: scopeResult.checked, violations: scopeResult.violations } }
         : {}),
-      oracleClean: oracleClean({ patchFile: best?.patch, oraclePaths, filesChanged: best?.diff?.filesChanged ?? null }),
+      oracleClean: oracleDecision.clean,
+      // Only when a declaration exists: a task that declared nothing keeps
+      // exactly the checks shape it had before. `oracleReleased` names the
+      // apparatus paths this patch actually excused (a declared fixture it did
+      // not touch is not listed), and `oracleOwnedTouched` names every declared
+      // path it did touch, so the release is visible rather than guessed.
+      ...(owns.length > 0
+        ? { oracleOwns: owns, oracleReleased: oracleDecision.released, oracleOwnedTouched: oracleDecision.ownedTouched }
+        : {}),
       beatsIncumbent: taskBest === null || (score - taskBest >= policy.minGain - 1e-9 && beatsNoise),
     }
     // Recorded only when a bar was measured, so a campaign without a

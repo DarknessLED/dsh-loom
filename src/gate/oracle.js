@@ -204,6 +204,101 @@ export function touchesOracle(changedPaths, oraclePaths) {
   return changedPaths.some((p) => oracle.has(String(p).replace(/\\/g, '/').replace(/^\.\//, '')))
 }
 
+const normalisePath = (p) =>
+  String(p ?? '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .trim()
+
+/**
+ * A task's `verify.owns`: the apparatus paths it was asked to change.
+ *
+ * The rule this check encodes ("a candidate may not edit the file its verifier
+ * runs") is about *fixtures*: rewriting `fixtures/cases.json` fakes a green. It
+ * is the wrong rule for a task whose objective is the gate itself, where the
+ * instruction and the refusal contradict each other -- two of the last three
+ * campaigns produced correct patches that could never promote for this reason
+ * alone. So a task may declare the apparatus it owns; everything else about the
+ * check is unchanged.
+ *
+ * Entries are workspace-relative POSIX paths. An entry also covers files under
+ * it when it names a directory, and a trailing slash is the same entry. Junk is
+ * dropped rather than guessed at, because a malformed declaration must not
+ * silently widen the exception.
+ *
+ * @param {unknown} raw the task's `verify.owns`
+ * @returns {string[]} normalised, deduplicated paths (empty when nothing usable)
+ */
+export function parseOwns(raw) {
+  const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []
+  const out = []
+  const seen = new Set()
+  for (const entry of list) {
+    if (typeof entry !== 'string') continue
+    const p = normalisePath(entry)
+    if (!p || p === '.') continue
+    if (seen.has(p)) continue
+    seen.add(p)
+    out.push(p)
+  }
+  return out
+}
+
+function underEntry(path, entry) {
+  if (path === entry) return true
+  return path.startsWith(entry.endsWith('/') ? entry : `${entry}/`)
+}
+
+/**
+ * The declared paths a patch touched, split by whether anything was released.
+ *
+ * The exception is not free and it is not silent: the gate records the release,
+ * so a reader sees the exception instead of guessing it. An owned path the
+ * candidate did not touch is never listed -- otherwise a task could appear to
+ * have used an exception it did not need. An owned path that is not apparatus was
+ * not excused from anything, so it is reported separately from the release: the
+ * release is the set of oracle paths that would have been refused.
+ *
+ * @param {string[]} changedPaths workspace-relative paths the patch touched
+ * @param {string[]|unknown} owns the declaration (raw or normalised)
+ * @param {string[]} oraclePaths paths from `oraclePathsFor`/`oracleNamedPaths`
+ * @returns {{ownedTouched: string[], released: string[]}} sorted, deduplicated
+ */
+export function ownedPathsTouched(changedPaths, owns, oraclePaths = []) {
+  if (!Array.isArray(changedPaths) || changedPaths.length === 0) return { ownedTouched: [], released: [] }
+  const entries = parseOwns(owns)
+  if (entries.length === 0) return { ownedTouched: [], released: [] }
+  const oracle = new Set((Array.isArray(oraclePaths) ? oraclePaths : []).map((p) => normalisePath(p)))
+  const touched = new Set()
+  for (const raw of changedPaths) {
+    const path = normalisePath(raw)
+    if (!path) continue
+    for (const entry of entries) {
+      if (underEntry(path, entry)) {
+        touched.add(path)
+        break
+      }
+    }
+  }
+  const ownedTouched = [...touched].sort()
+  return { ownedTouched, released: ownedTouched.filter((p) => oracle.has(p)) }
+}
+
+/**
+ * Backwards-compatible name for the release set: the apparatus paths a patch
+ * actually used a declaration to excuse.
+ *
+ * @param {string[]} changedPaths
+ * @param {string[]|unknown} owns
+ * @param {string[]} oraclePaths
+ * @returns {string[]} sorted touched owned apparatus paths
+ */
+export function releasedPaths(changedPaths, owns, oraclePaths = []) {
+  return ownedPathsTouched(changedPaths, owns, oraclePaths).released
+}
+
 /**
  * The gate's check, as one pure decision.
  *
@@ -212,23 +307,47 @@ export function touchesOracle(changedPaths, oraclePaths) {
  *                           nothing a patch could rewrite; the rule does not apply.
  *   unreadable patch     -> false. `patchTouchesTests` already fails closed on this,
  *                           and a second check that answered "safe" would be a hole
- *                           in the same wall.
+ *                           in the same wall. (`released` is empty: nothing was
+ *                           shown to be released.)
  *   otherwise            -> the patch's paths and `filesChanged` must both be
- *                           disjoint from the oracle set.
+ *                           disjoint from the oracle set, except for paths the
+ *                           task declared in `owns`.
  *
- * @param {{patchFile?: string|null, oraclePaths?: string[], filesChanged?: string[]|null}} input
+ * `owns` absent or empty reproduces the old boolean exactly: every path that is
+ * not declared is refused, including all of them.
+ *
+ * @param {{patchFile?: string|null, oraclePaths?: string[], filesChanged?: string[]|null, owns?: string[]|null}} input
+ * @returns {{clean: boolean, released: string[], ownedTouched: string[]}}
+ */
+export function oracleVerdict(input) {
+  const oraclePaths = Array.isArray(input?.oraclePaths) ? input.oraclePaths : []
+  // Normalised here as well as by `parseOwns` at the call site, so the pure
+  // decision never depends on who prepared the declaration.
+  const owns = parseOwns(input?.owns)
+  if (oraclePaths.length === 0) return { clean: true, released: [], ownedTouched: [] }
+  const filesChanged = Array.isArray(input?.filesChanged) ? input.filesChanged : []
+  const fromPatch = patchPaths(input?.patchFile ?? null)
+  if (fromPatch === null) return { clean: false, released: [], ownedTouched: [] }
+  // The union of both views: the patch also carries untracked files, and the
+  // diff stat is the only place an already-tracked path can appear.
+  const changed = [...new Set([...fromPatch, ...filesChanged.map((p) => String(p ?? ''))])]
+  const { ownedTouched, released } = ownedPathsTouched(changed, owns, oraclePaths)
+  const ownedSet = new Set(ownedTouched)
+  const isOwned = (p) => ownedSet.has(normalisePath(p))
+  const refusals = changed.filter((p) => touchesOracle([p], oraclePaths) && !isOwned(p))
+  if (refusals.length > 0) return { clean: false, released: [], ownedTouched: [] }
+  return { clean: true, released, ownedTouched }
+}
+
+/**
+ * Booleans only, for callers that do not need the released list.
+ * @param {{patchFile?: string|null, oraclePaths?: string[], filesChanged?: string[]|null, owns?: string[]|null}} input
  * @returns {boolean}
  */
 export function oracleClean(input) {
-  const oraclePaths = Array.isArray(input?.oraclePaths) ? input.oraclePaths : []
-  if (oraclePaths.length === 0) return true
-  const filesChanged = Array.isArray(input?.filesChanged) ? input.filesChanged : []
-  const fromPatch = patchPaths(input?.patchFile ?? null)
-  if (fromPatch === null) return false
-  if (touchesOracle(fromPatch, oraclePaths)) return false
-  if (filesChanged.some((p) => touchesOracle([p], oraclePaths))) return false
-  return true
+  return oracleVerdict(input).clean
 }
+
 
 // A verifier is rarely one file. `node scripts/check.mjs` imports the rule it
 // enforces, and a candidate that edits that module changes the verdict without

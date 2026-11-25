@@ -354,6 +354,10 @@ const standing = [
   // The gate now names the pair it formed, the tie it measured, and the side it
   // was missing, and every gate.evaluated says how many pairs it contributed.
   'tests/self56/a-round-says-why-it-had-no-pair.test.mjs',
+  // A task whose objective is changing the gate could never promote: the oracle
+  // check refused the very edit the task asked for. `verify.owns` releases the
+  // apparatus the task declares, and the gate records what it released.
+  'tests/self56/an-owned-file-is-not-a-cheat.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
