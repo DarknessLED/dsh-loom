@@ -389,6 +389,10 @@ const standing = [
   // 26 of 267 promotions in the ledger were empty landings, and only the
   // artifact said so; the round now carries the flag it already computed.
   'tests/self56/a-noop-landing-says-so.test.mjs',
+  // A task whose deliverable is a spec plus its pin must edit tests/ (scope)
+  // and scripts/test-all.mjs (owns); judging one against the other refused
+  // the round with violations naming the very path the oracle had released.
+  'tests/self56/an-owned-path-is-inside-the-scope.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

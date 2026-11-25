@@ -78,10 +78,26 @@ export function diffPaths(text) {
  * carries paths git already tracks. A path missing from both would be invisible,
  * so the answer is the union, and an unreadable patch is a violation.
  *
- * @param {{patchText?: string|null, patchUnreadable?: boolean, filesChanged?: string[]|null, scope?: object|null}} input
+ * `owns` is the other half of the same declaration. A task whose deliverable is
+ * a spec plus its pin must edit `tests/…` (the scope) and `scripts/test-all.mjs`
+ * (the apparatus the verifier runs, `verify.owns`). Judging the second against
+ * the first asked the author to write the same sentence twice, and the round
+ * that did not was refused with `violations: ['scripts/test-all.mjs']` while the
+ * oracle check had already released that exact path. An owned path is part of
+ * the deliverable by declaration, so it is checked (it still counts) and not a
+ * violation. Undeclared scripts stay violations, and a task with no scope keeps
+ * the legacy answer untouched.
+ *
+ * @param {{patchText?: string|null, patchUnreadable?: boolean, filesChanged?: string[]|null, scope?: object|null, owns?: string[]}} input
  * @returns {{ok: boolean, violations: string[], checked: number}}
  */
-export function scopeVerdict({ patchText = null, patchUnreadable = false, filesChanged = null, scope = null } = {}) {
+export function scopeVerdict({
+  patchText = null,
+  patchUnreadable = false,
+  filesChanged = null,
+  scope = null,
+  owns = [],
+} = {}) {
   if (!scope) return { ok: true, violations: [], checked: 0 }
   if (patchUnreadable) return { ok: false, violations: ['<patch unreadable>'], checked: 0 }
   const paths = new Set(diffPaths(patchText))
@@ -89,6 +105,8 @@ export function scopeVerdict({ patchText = null, patchUnreadable = false, filesC
     const path = norm(p)
     if (path) paths.add(path)
   }
-  const violations = [...paths].filter((p) => !inScope(p, scope)).sort()
+  const owned = new Set((Array.isArray(owns) ? owns : []).map(norm).filter(Boolean))
+  const isOwned = (p) => owned.has(p) || [...owned].some((entry) => inScope(p, { editable: [entry] }))
+  const violations = [...paths].filter((p) => !inScope(p, scope) && !isOwned(p)).sort()
   return { ok: violations.length === 0, violations, checked: paths.size }
 }

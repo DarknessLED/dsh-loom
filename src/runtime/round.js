@@ -2391,6 +2391,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         patchUnreadable: Boolean(best?.patch) && text === null,
         filesChanged: best?.diff?.filesChanged ?? null,
         scope,
+        // A task asked to change a script it also names in `verify.owns`
+        // would otherwise be refused by its own scope: the same work is
+        // excused by one declaration and convicted by the other.
+        owns: acceptanceSpec?.owns,
       })
     }
     // Measured repetition noise is the error bar, not a tie-breaker: a delta
