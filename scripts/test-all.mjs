@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { retryPlan } from './guard-retry.mjs'
+import { guardReport, retryPlan } from './guard-retry.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const testsDir = join(root, 'tests')
@@ -358,6 +358,10 @@ const standing = [
   // check refused the very edit the task asked for. `verify.owns` releases the
   // apparatus the task declares, and the gate records what it released.
   'tests/self56/an-owned-file-is-not-a-cheat.test.mjs',
+  // A run the harness killed is not a verdict on the code: the guard names it
+  // as killed, retries it out of the same budget, and when the retries are all
+  // killed it says the code was never judged instead of reporting a failure.
+  'tests/self56/a-killed-run-is-not-a-failing-one.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
@@ -723,23 +727,41 @@ for (const file of files) {
   if (run.status === 0) {
     console.log(`ok   ${file.slice(root.length + 1)} (${ms}ms)`)
   } else {
+    // The full output is kept for the kill check: the runner's failing line is
+    // not always in the last twelve lines the reader is shown.
+    const output = `${run.stdout || ''}${run.stderr || ''}`
     results.push({
       file,
       ms,
       firstStatus: run.status,
+      firstOutput: output,
       retryStatus: null,
-      tail: `${run.stdout || ''}${run.stderr || ''}`.trim().split('\n').slice(-12).join('\n'),
+      retryOutput: null,
+      tail: output.trim().split('\n').slice(-12).join('\n'),
     })
   }
 }
 
-const owed = retryPlan(results.map((r) => ({ file: r.file, firstStatus: r.firstStatus, retryStatus: r.retryStatus })))
+// A killed run is retried like a failure (same one-retry budget), but it is
+// never reported as a verdict on the code: the runner was what died.
+const kills = guardReport(results)
+for (const name of kills.killedFirst) {
+  const entry = results.find((r) => r.file === name)
+  console.log(`killed  ${name.slice(root.length + 1)} (${entry.ms}ms, harness killed the run — retrying)`)
+}
+const owed = retryPlan(results)
 for (const name of owed.retry) {
   const entry = results.find((r) => r.file === name)
   const run = spawnSync(process.execPath, [entry.file], { cwd: root, encoding: 'utf8', timeout: 300000 })
   entry.retryStatus = run.status
+  entry.retryOutput = `${run.stdout || ''}${run.stderr || ''}`
 }
-const plan = retryPlan(results.map((r) => ({ file: r.file, firstStatus: r.firstStatus, retryStatus: r.retryStatus })))
+const plan = retryPlan(results)
+const judged = guardReport(results)
+for (const name of judged.recovered) {
+  const entry = results.find((r) => r.file === name)
+  console.log(`killed-then-passed ${name.slice(root.length + 1)} (${entry.ms}ms, first run was killed) — not counted`)
+}
 for (const name of plan.flaky) {
   const entry = results.find((r) => r.file === name)
   console.log(`flaky ${name.slice(root.length + 1)} (${entry.ms}ms then passed alone) — not counted`)
@@ -748,7 +770,25 @@ for (const name of plan.failed) {
   const entry = results.find((r) => r.file === name)
   console.log(`FAIL ${name.slice(root.length + 1)} (${entry.ms}ms, failed twice)\n${entry.tail}\n`)
 }
+for (const name of judged.killed) {
+  const entry = results.find((r) => r.file === name)
+  console.log(
+    `KILLED ${name.slice(root.length + 1)} (${entry.ms}ms, harness killed both runs — the code was never judged)\n${entry.tail}\n`,
+  )
+}
 if (plan.flaky.length) console.log(`\nflaky on retry (${plan.flaky.length}): ${plan.flaky.map((f) => f.slice(root.length + 1)).join(', ')}`)
+if (judged.recovered.length) {
+  console.log(`killed then passed (${judged.recovered.length}): ${judged.recovered.map((f) => f.slice(root.length + 1)).join(', ')}`)
+}
+if (judged.killed.length) {
+  console.log(
+    `\nnever judged (${judged.killed.length}): ${judged.killed.map((f) => f.slice(root.length + 1)).join(', ')}` +
+      ' — the harness killed these runs, so nothing here says the code is wrong',
+  )
+}
 const failed = plan.failed.length
-console.log(`\n${files.length - failed}/${files.length} suites passed`)
-if (failed) process.exitCode = 1
+console.log(`\n${files.length - failed - judged.killed.length}/${files.length} suites passed`)
+// Never judged is not a pass: a promotion must not land on a guard that did not
+// read the code. It is reported apart from a failure so the reader can retry
+// instead of chasing a break that does not exist.
+if (failed || judged.killed.length) process.exitCode = 1

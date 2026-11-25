@@ -488,3 +488,24 @@ verifyMetrics({ stdout, status }) -> { metrics, status }
 - `verifyMetrics` 只把非 `null` 的度量放进 `metrics`（什么也没打印就是 `{}`），并把 `status` 原样带回；它不替调用方决定晋升。
 
 用它晋升是之后独立的、要有测量的决定，不属于本模块。
+
+## 15. 守卫重试（killed ≠ failed）
+
+```js
+// scripts/guard-retry.mjs
+JOB_RUNNER_KILL_STATUS = 1073807364
+isKilledRun({ status, output }) -> boolean
+guardReport(results) -> { retry, killedFirst, recovered, flaky, killed, failed }
+retryPlan(results)  -> { retry, flaky, failed }   // 旧视图，由 guardReport 派生
+```
+
+语义：非零退出码有三种含义，守卫必须分清。**失败**是代码的判据；**被杀**是 harness 的 Windows job runner 把进程杀了（退出码 `1073807364`，stderr 带 `SUBPROCESS_RUNNER_FAILED`），它不构成对代码的判断。
+
+- 两个信号各自足够：退出码等于 `JOB_RUNNER_KILL_STATUS`，或输出里出现 `SUBPROCESS_RUNNER_FAILED`；`status === 0` 永远不算被杀。
+- `retry` 只包含还欠一次重试的 spec：首次失败或首次被杀都只有这一次预算，被杀不会换来额外重试。
+- `recovered` 是「首次被杀、重试通过」；`flaky` 是「首次失败、重试通过」。两者都不计失败。
+- `failed` 是「代码被判过且没过」，包括首次真失败、重试被杀（预算已用完，不给第三次）。
+- `killed` 是「两次都被杀」：重试预算耗尽但代码从未被判断，所以既不是通过也不是失败，汇总行把它从通过数里扣除，退出码仍为非零（晋升不能落在没读过代码的守卫上），报告用 `never judged` 单独列出。
+- `killedFirst` 记录首次被杀的所有 spec，`scripts/test-all.mjs` 用它打印 `killed` 行。
+
+由此报告里读得出区别：`FAIL` 是代码两次被判失败，`KILLED ... never judged` 是运行器死了而代码没被读过。
