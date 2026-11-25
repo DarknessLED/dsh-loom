@@ -436,6 +436,10 @@ const standing = [
   // A PDF is a slot spent on something the text pipeline answers with 404:
   // nine rounds that bought a read ended on a fetch gap and four read nothing.
   'tests/self57/a-pdf-is-a-slot-that-reads-nothing.test.mjs',
+  // The read/do balance as a measurement instead of a rule: a randomised arm
+  // assigned before the round, and the comparison that reads the arms back.
+  'tests/self57/the-balance-is-measured-not-ruled.test.mjs',
+  'tests/self57/the-trial-reaches-the-round.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

@@ -12,6 +12,7 @@ import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { summarizeCalibration } from '../chain/predict.js'
+import { compareResearchArms } from '../loop/research-trial.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
 import { runVerifier } from '../exec/verifier.js'
@@ -121,6 +122,11 @@ function readEvalSet(args) {
 
 function brief(s) {
   const calibration = summarizeCalibration(s.chain?.measurements ?? [])
+  // The read/do comparison, and only when the campaign actually ran a trial: a
+  // campaign on `auto` produces rounds whose arms were chosen by the previous
+  // outcome, and reporting a rate over them would be reporting the rule back to
+  // the reader as if it were a finding.
+  const researchTrial = compareResearchArms({ rounds: s.rounds })
   return {
     id: s.id,
     status: s.status,
@@ -132,6 +138,7 @@ function brief(s) {
     // Only when there is something to say: a campaign that never adopted a
     // forecast should not carry a zero row that reads like a measurement.
     ...(calibration.n ? { calibration } : {}),
+    ...(researchTrial.n ? { researchTrial } : {}),
   }
 }
 

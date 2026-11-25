@@ -23,12 +23,20 @@ export const POLICY_FIELDS = [
 const PLAN_MODES = ['off', 'full', 'auto']
 
 /**
- * The only modes reading can run in. Same three words as `planMode` on purpose:
- * reading and planning answer the same question one level apart -- whether this
- * round should spend money on finding out what to do before doing it -- and
- * giving them different vocabularies would make the two knobs look unrelated.
+ * The only modes reading can run in. Three of the four words match `planMode` on
+ * purpose: reading and planning answer the same question one level apart --
+ * whether this round should spend money on finding out what to do before doing
+ * it -- and giving them different vocabularies would make the two knobs look
+ * unrelated.
+ *
+ * `trial` is the fourth and has no planner twin because the planner has never
+ * been suspected of selecting its own arms. It assigns the arm by lot before the
+ * round runs, so the two arms are independent of the outcome. Every statistic
+ * computed over `auto` rounds is conditioned on the outcome -- `auto` stops
+ * reading *after a win* -- which is why no number from those rounds can answer
+ * whether reading helps. A trial costs real money, so it is never the default.
  */
-const RESEARCH_MODES = ['off', 'full', 'auto']
+const RESEARCH_MODES = ['off', 'full', 'auto', 'trial']
 
 export const POLICY_DEFAULTS = {
   minGain: 0.05,

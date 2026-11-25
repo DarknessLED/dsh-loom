@@ -1059,6 +1059,26 @@ round is supposed to read again for.
   then be a measurement rather than an absence — which is the whole difference
   between the eighteen rounds above and the rounds after this commit.
 
+  **It has now happened, once.** `queue-live5` round one (2026-11-26 07:07, the
+  instance applied at 23:05 the night before) came back `used: true`. The
+  worker's evidence carries the sentence that settles it:
+
+      wrote NOTES.md with quoted span from this round's notes
+      ('the file keeps history, recall does not')
+
+  and the record reads `{"mode":"full","from":"ledger","read":2,"passages":4,
+  "used":true}` with the round promoted. Round two — a different question from
+  the queue — came back `used: false` on 3 passages. So across two rounds on the
+  same instance the flag took both values, which is what makes it a measurement:
+  a flag that could only ever be false would still be unfalsifiable.
+
+  What this does not claim: one `true` is the existence proof, not a rate. The
+  census after it is 21 rounds that really read, `used: true` 1, `false` 13,
+  `null` 7 — and the 7 nulls are all rounds older than the write-back, so the
+  honest statement is "14 rounds could have answered and 1 did". Whether a note
+  *helped* is still not measured: a worker that quotes a span to satisfy the
+  brief and a worker that changes its patch because of it leave the same record.
+
 - **Four of the nine gap rounds read nothing at all, and a PDF was why.** The
   host fetches through a text pipeline that answers `/pdf/` with HTTP 404;
   measured on 2026-11-26 the recurring gap shape was `export.arxiv.org/pdf/...`,
@@ -1072,6 +1092,40 @@ round is supposed to read again for.
   a property of PDFs, so a future fetcher that renders them would make this
   ordering unnecessary rather than wrong; and a round that sets PDFs aside can
   still read nothing, if the pages it picked were behind paywalls or stale links.
+
+### 2026-11-26: the balance becomes a measurement, not a rule
+
+`researchModeFor` answers "read or not" from the previous round's outcome. That
+makes it useful and it makes every statistic computed over its rounds worthless:
+`auto` turns reading **off after a win**, so the "skipped" bucket is populated by
+campaigns that had already started landing and the "read" bucket by the ones that
+had not. The two arms are selected on the outcome. Nineteen read rounds promoted
+8 (42%), six skipped rounds promoted 6 (100%) — that number is the rule reading
+itself back, not a fact about reading.
+
+The design that can answer it assigns the arm **before** the round runs.
+`src/loop/research-trial.js`:
+
+- `assignArm({seed, campaign, round})` — FNV-1a over `seed|campaign|round`, so the
+  assignment is re-derivable from the ledger. Storing it in memory would mean a
+  restart silently re-randomises and no comparison could ever be reproduced.
+- `compareResearchArms({rounds})` — counts the arms from `researchTrial.arm`
+  rather than from `research.mode`, because a round assigned to the reading arm
+  can still fail to read (no web, no question) and must stay in the arm it was
+  assigned to. Reports Wilson intervals per arm, the MDE for the sample, and cost
+  per arm; under three rounds in an arm it refuses to name a direction, and a gap
+  below the MDE comes back `cannot-distinguish` with the words "Not "no effect"".
+
+`trial` is a fourth value for `researchMode`, and it is never the default: it
+genuinely costs money, because some rounds read when they did not need to. What
+it buys is the only number in this document that would be allowed to say whether
+reading helps.
+
+What this does not claim: the trial has been wired but no campaign has run under
+it yet, so the comparison currently reports "the trial has not started". A trial
+over a four-task probe will answer a question about that probe; whether reading
+pays on real work needs real tasks, and the arms have to be large enough for the
+MDE to be smaller than the effect anyone cares about.
 
 - **Reading rounds promote less often, and that sentence is not a finding.**
   Re-counted over every campaign on 2026-11-26: 19 rounds that were allowed to

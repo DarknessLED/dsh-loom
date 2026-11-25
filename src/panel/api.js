@@ -8,6 +8,7 @@ import { activeChain, policyFor } from '../runtime/round.js'
 import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
+import { compareResearchArms } from '../loop/research-trial.js'
 import { panelRoute } from './route.js'
 
 /**
@@ -281,6 +282,9 @@ function campaignRow(view, now, campaignId, config) {
     // round and this is the one place the panel can show them without the
     // browser having to know the leg's field names.
     reads: readSummary(rounds),
+    // The read/do trial, when one is running: the same comparison `rsi_status`
+    // reports, because a person and the loop should not be reading different numbers.
+    researchTrial: compareResearchArms({ rounds }),
     open: open.length,
     reviews,
     openCheckpoints: open.map((c) => ({

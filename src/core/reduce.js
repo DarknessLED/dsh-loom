@@ -258,7 +258,12 @@ function apply(s, ev) {
           // promotions), `screened`/`kept` (fidelityCheck), `halving`/`fidelity`,
           // `holdoutScore`/`holdoutReason`, `promotedId` (the streak reads it).
           'research', 'noop', 'screened', 'kept', 'halving', 'fidelity',
-          'holdoutScore', 'holdoutReason', 'promotedId']) {
+          'holdoutScore', 'holdoutReason', 'promotedId',
+          // The trial's arm is only useful if the comparison can see it on the
+          // folded round: `compareResearchArms` reads `state.rounds`, so an arm
+          // that lives only on the event makes every trial campaign report
+          // "not started" while it is running.
+          'researchTrial']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }

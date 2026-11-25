@@ -44,6 +44,7 @@ import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { findingsFrom, legBudget, questionFor, reachedFor, reflectOnQuestions, researchSketch, withDeadline } from './research-leg.js'
+import { assignArm } from '../loop/research-trial.js'
 import { runResearch } from '../research/run.js'
 import { parkQuestion, recordQuestionRead, researchQuestions } from '../research/questions.js'
 import { svc } from '../core/services.js'
@@ -387,6 +388,10 @@ export function policyFor({ config, campaign } = {}) {
     return fallback
   }
   const isPlanMode = (v) => v === 'off' || v === 'full' || v === 'auto'
+  // Reading has one word the planner does not: `trial`. Reusing `isPlanMode`
+  // here would reject it as a typo and fall back to the config, which reads as
+  // "the trial ran" while every round ran under `auto`.
+  const isResearchMode = (v) => v === 'off' || v === 'full' || v === 'auto' || v === 'trial'
   const isCandidateMode = (v) => v === 'cascade' || v === 'parallel'
   const isRatio = (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1
   const isPositiveInt = (v) => Number.isInteger(Number(v)) && Number(v) >= 1
@@ -397,7 +402,7 @@ export function policyFor({ config, campaign } = {}) {
     'researchMode',
     over.researchMode,
     config?.research?.enabled === false ? 'off' : loop.researchMode,
-    isPlanMode,
+    isResearchMode,
     'auto',
   )
   const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
@@ -576,6 +581,11 @@ export function planModeFor(rounds, policy) {
 export function researchModeFor(rounds, policy) {
   const mode = policy?.researchMode
   if (mode === 'off' || mode === 'full') return mode
+  // A trial's arm is not a decision about this round's history: it is a coin
+  // tossed before the round runs, so the two arms do not depend on the outcome.
+  // `trial` therefore leaves this function as 'trial' and the arm is resolved at
+  // the call site, which is the only place that knows the campaign and the number.
+  if (mode === 'trial') return 'trial'
   // A value that is not one of the three words is a typo, and a typo must not
   // quietly disarm the leg. Same reading as `planModeFor`.
   if (mode !== 'auto') return 'full'
@@ -1173,7 +1183,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // Whether this round buys a read before it writes. Decided once, beside the
   // planner, because both answer the same question one level apart and a round
   // that recorded a different number from the one it used cannot be audited.
-  const researchMode = researchModeFor(state.rounds, campaignPolicy)
+  const researchChoice = researchModeFor(state.rounds, campaignPolicy)
+  // A trial is the one mode whose arm is not a function of the round's history.
+  // It is still deterministic in (campaign, round), so the ledger can be replayed
+  // and the same arm comes back -- which is what makes the comparison auditable.
+  const trialArm = researchChoice === 'trial' ? assignArm({ campaign: state.id, round: n }) : null
+  const researchMode = trialArm ?? researchChoice
   // Which models the workers in this round may use — the campaign's chain when it
   // named one, otherwise the config's. Without an override `modelsFor` returns the
   // config chain itself, which is what the dispatcher would have resolved anyway.
@@ -1531,6 +1546,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // including the early exits, so "did not read" is a recorded fact and not
     // an absent field.
     research,
+    // The arm this round was assigned, when the campaign is running a trial. The
+    // arm is recorded rather than inferred from `research.mode`, because a round
+    // in the reading arm can fail to read (no web, no question) and it still has
+    // to count in the arm it was assigned to.
+    ...(trialArm ? { researchTrial: { arm: trialArm, seed: config.research?.trialSeed ?? 'research-trial' } } : {}),
     // The deadline the planner actually ran under, so a reader can tell "it ran
     // out of the time it was given" from "it was given a shorter leash today".
     planBudgetMs: planTimeoutMs,
@@ -3834,6 +3854,9 @@ function projectRound(state, round) {
     // exists on the event makes both read a round that never read -- which turns
     // the leg off for a reason that is not true.
     ...(round.research ? { research: round.research } : {}),
+    // Same reason as `research`: the arm has to survive the projection or the
+    // comparison runs over rounds that were never assigned to an arm.
+    ...(round.researchTrial ? { researchTrial: round.researchTrial } : {}),
   })
   if (!Array.isArray(r.attempts)) r.attempts = []
   const seen = new Set(r.attempts.map((a) => a?.id))
