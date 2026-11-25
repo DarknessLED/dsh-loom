@@ -1,195 +1,211 @@
 {
- "slug": "r1-verifier",
- "name": "R1 判决与验证器：奖励黑客、判决可靠性、验证器设计",
- "queries": [
-  {
-   "q": "\"reward hacking\"",
-   "per": 60
-  },
-  {
-   "q": "\"reward hacking\" AND agent",
-   "per": 60
-  },
-  {
-   "q": "\"specification gaming\"",
-   "per": 50
-  },
-  {
-   "q": "\"reward hacking\" AND benchmark",
-   "per": 50
-  },
-  {
-   "q": "\"test oracle\" AND \"large language model\"",
-   "per": 50
-  },
-  {
-   "q": "\"test oracle\" AND generation",
-   "per": 50
-  },
-  {
-   "q": "\"hidden test\" AND code",
-   "per": 40
-  },
-  {
-   "q": "\"test generation\" AND agent",
-   "per": 50
-  },
-  {
-   "q": "\"llm-as-a-judge\" AND bias",
-   "per": 50
-  },
-  {
-   "q": "\"llm-as-a-judge\" AND reliability",
-   "per": 40
-  },
-  {
-   "q": "\"judge\" AND \"self-preference\"",
-   "per": 40
-  },
-  {
-   "q": "\"process reward\" AND verifier",
-   "per": 50
-  },
-  {
-   "q": "\"outcome reward\" AND \"process reward\"",
-   "per": 40
-  },
-  {
-   "q": "\"sabotage\" AND \"language model\"",
-   "per": 40
-  },
-  {
-   "q": "\"sandbagging\" AND language model",
-   "per": 40
-  },
-  {
-   "q": "\"deceptive\" AND \"alignment\" AND agent",
-   "per": 40
-  },
-  {
-   "q": "\"reward model\" AND overoptimization",
-   "per": 50
-  },
-  {
-   "q": "\"goodhart\" AND \"language model\"",
-   "per": 30
-  },
-  {
-   "q": "\"benchmark\" AND \"contamination\" AND code",
-   "per": 40
-  },
-  {
-   "q": "\"hacker\" AND \"fixer\" AND verifier",
-   "per": 30
-  },
-  {
-   "q": "\"verifier\" AND \"reward hacking\"",
-   "per": 50,
-   "sort": "recent"
-  },
-  {
-   "q": "\"mutation testing\" AND \"test quality\"",
-   "per": 40
-  },
-  {
-   "q": "\"differential testing\" AND \"LLM\"",
-   "per": 40
-  },
-  {
-   "q": "\"acceptance test\" AND \"agent\" AND \"software\"",
-   "per": 40
-  },
-  {
-   "q": "\"flaky test\" AND agent",
-   "per": 30
-  },
-  {
-   "q": "\"code review\" AND \"automated\" AND defect",
-   "per": 40
-  },
-  {
-   "q": "\"RLVR\" AND \"noise\" AND \"verifier\"",
-   "max": 50
-  },
-  {
-   "q": "\"synthesis\" AND \"verifier\" AND \"robustness\"",
-   "max": 50
-  },
-  {
-   "q": "\"verifier\" AND \"noise\" AND \"robustness\"",
-   "max": 50
+  "slug": "r1-verifier",
+  "name": "R1 判决与验证器：奖励黑客、判决可靠性、验证器设计",
+  "queries": [
+    {
+      "q": "\"reward hacking\"",
+      "per": 60
+    },
+    {
+      "q": "\"reward hacking\" AND agent",
+      "per": 60
+    },
+    {
+      "q": "\"specification gaming\"",
+      "per": 50
+    },
+    {
+      "q": "\"reward hacking\" AND benchmark",
+      "per": 50
+    },
+    {
+      "q": "\"test oracle\" AND \"large language model\"",
+      "per": 50
+    },
+    {
+      "q": "\"test oracle\" AND generation",
+      "per": 50
+    },
+    {
+      "q": "\"hidden test\" AND code",
+      "per": 40
+    },
+    {
+      "q": "\"test generation\" AND agent",
+      "per": 50
+    },
+    {
+      "q": "\"llm-as-a-judge\" AND bias",
+      "per": 50
+    },
+    {
+      "q": "\"llm-as-a-judge\" AND reliability",
+      "per": 40
+    },
+    {
+      "q": "\"judge\" AND \"self-preference\"",
+      "per": 40
+    },
+    {
+      "q": "\"process reward\" AND verifier",
+      "per": 50
+    },
+    {
+      "q": "\"outcome reward\" AND \"process reward\"",
+      "per": 40
+    },
+    {
+      "q": "\"sabotage\" AND \"language model\"",
+      "per": 40
+    },
+    {
+      "q": "\"sandbagging\" AND language model",
+      "per": 40
+    },
+    {
+      "q": "\"deceptive\" AND \"alignment\" AND agent",
+      "per": 40
+    },
+    {
+      "q": "\"reward model\" AND overoptimization",
+      "per": 50
+    },
+    {
+      "q": "\"goodhart\" AND \"language model\"",
+      "per": 30
+    },
+    {
+      "q": "\"benchmark\" AND \"contamination\" AND code",
+      "per": 40
+    },
+    {
+      "q": "\"hacker\" AND \"fixer\" AND verifier",
+      "per": 30
+    },
+    {
+      "q": "\"verifier\" AND \"reward hacking\"",
+      "per": 50,
+      "sort": "recent"
+    },
+    {
+      "q": "\"mutation testing\" AND \"test quality\"",
+      "per": 40
+    },
+    {
+      "q": "\"differential testing\" AND \"LLM\"",
+      "per": 40
+    },
+    {
+      "q": "\"acceptance test\" AND \"agent\" AND \"software\"",
+      "per": 40
+    },
+    {
+      "q": "\"flaky test\" AND agent",
+      "per": 30
+    },
+    {
+      "q": "\"code review\" AND \"automated\" AND defect",
+      "per": 40
+    },
+    {
+      "q": "\"RLVR\" AND \"noise\" AND \"verifier\"",
+      "max": 50
+    },
+    {
+      "q": "\"synthesis\" AND \"verifier\" AND \"robustness\"",
+      "max": 50
+    },
+    {
+      "q": "\"verifier\" AND \"noise\" AND \"robustness\"",
+      "max": 50
+    }
+  ],
+  "seeds": [
+    "Darwin Godel Machine",
+    "AI-GAs",
+    "Automated Design of Agentic Systems",
+    "AlphaEvolve",
+    "A Self-Improving Coding Agent",
+    "SWE-bench",
+    "The Verification Horizon",
+    "EvilGenie",
+    "BadScientist",
+    "Concrete Problems in AI Safety",
+    "Scalable agent alignment via reward modeling",
+    "Let's Verify Step by Step",
+    "Judging LLM-as-a-Judge",
+    "Large Language Models Cannot Self-Correct Reasoning Yet",
+    "Specification gaming examples"
+  ],
+  "clusters": {
+    "reward hacking / specification gaming": [
+      "reward hack",
+      "specification gaming",
+      "goodhart",
+      "gaming the",
+      "exploit the verifier",
+      "shortcut",
+      "hacking"
+    ],
+    "verifier design / test oracle": [
+      "test oracle",
+      "oracle problem",
+      "verifier",
+      "hidden test",
+      "held-out",
+      "acceptance test"
+    ],
+    "test generation / repair": [
+      "test generation",
+      "test synthesis",
+      "unit test generation",
+      "test repair",
+      "fault localization"
+    ],
+    "judge reliability": [
+      "llm-as-a-judge",
+      "judge",
+      "self-preference",
+      "position bias",
+      "verbosity bias",
+      "agreement"
+    ],
+    "sabotage / sandbagging / deception": [
+      "sabotage",
+      "sandbagging",
+      "deceptive",
+      "strategic deception",
+      "backdoor"
+    ],
+    "process vs outcome supervision": [
+      "process reward",
+      "outcome reward",
+      "step-level",
+      "verifier model",
+      "process supervision"
+    ],
+    "benchmark validity": [
+      "contamination",
+      "benchmark",
+      "leaderboard",
+      "saturation",
+      "overfit"
+    ],
+    "instruction tuning & model reports": [
+      "instructgpt",
+      "follow instructions",
+      "rlhf",
+      "preference",
+      "model report",
+      "technical report"
+    ],
+    "agent scaffolds": [
+      "swe-agent",
+      "agent-computer interface",
+      "scaffold",
+      "tool use",
+      "react",
+      "function calling"
+    ]
   }
- ],
- "seeds": [
-  "Darwin Godel Machine",
-  "AI-GAs",
-  "Automated Design of Agentic Systems",
-  "AlphaEvolve",
-  "A Self-Improving Coding Agent",
-  "SWE-bench",
-  "The Verification Horizon",
-  "EvilGenie",
-  "BadScientist",
-  "Concrete Problems in AI Safety",
-  "Scalable agent alignment via reward modeling",
-  "Let's Verify Step by Step",
-  "Judging LLM-as-a-Judge",
-  "Large Language Models Cannot Self-Correct Reasoning Yet",
-  "Specification gaming examples"
- ],
- "clusters": {
-  "reward hacking / specification gaming": [
-   "reward hack",
-   "specification gaming",
-   "goodhart",
-   "gaming the",
-   "exploit the verifier",
-   "shortcut",
-   "hacking"
-  ],
-  "verifier design / test oracle": [
-   "test oracle",
-   "oracle problem",
-   "verifier",
-   "hidden test",
-   "held-out",
-   "acceptance test"
-  ],
-  "test generation / repair": [
-   "test generation",
-   "test synthesis",
-   "unit test generation",
-   "test repair",
-   "fault localization"
-  ],
-  "judge reliability": [
-   "llm-as-a-judge",
-   "judge",
-   "self-preference",
-   "position bias",
-   "verbosity bias",
-   "agreement"
-  ],
-  "sabotage / sandbagging / deception": [
-   "sabotage",
-   "sandbagging",
-   "deceptive",
-   "strategic deception",
-   "backdoor"
-  ],
-  "process vs outcome supervision": [
-   "process reward",
-   "outcome reward",
-   "step-level",
-   "verifier model",
-   "process supervision"
-  ],
-  "benchmark validity": [
-   "contamination",
-   "benchmark",
-   "leaderboard",
-   "saturation",
-   "overfit"
-  ]
- }
 }

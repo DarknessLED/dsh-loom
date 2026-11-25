@@ -89,6 +89,22 @@ function flatten(node, out = []) {
   return out
 }
 
+// A depth-first search for the first node matching a predicate: the diagram's
+// shape is what matters here, not its position in the tree.
+function find(node, want) {
+  if (node == null || node === false) return null
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const hit = find(child, want)
+      if (hit) return hit
+    }
+    return null
+  }
+  if (typeof node !== 'object') return null
+  if (want(node)) return node
+  return find(node.children, want)
+}
+
 test('the bundle still only requires react', () => {
   assert.deepEqual([...new Set(captured.required)], ['react'])
 })
@@ -172,4 +188,13 @@ test('one work renders the same five sections the Markdown page has', () => {
     assert.ok(text.includes(heading), `the panel shows the ${heading} section`)
   }
   assert.ok(text.includes('flowchart LR'), 'the diagram text is shown even though nothing renders it')
+  // Shown as a diagram source, not as a sentence: the block has its own node
+  // and a line that says the host draws nothing here. Before this, the mermaid
+  // lines were joined into a paragraph and `N0["§2 Method"] --> N1[...]` read
+  // like prose.
+  const pre = find(tree, (node) => node?.type === 'pre')
+  assert.ok(pre, 'the diagram is a <pre>, which is how source is shown')
+  assert.match(String(pre.children?.[0] ?? ''), /flowchart LR/)
+  assert.match(text, /没有图渲染器|no renderer/, 'the panel says the diagram is not drawn')
+  assert.ok(!/\bh\('div', \{ className: 'loom-wsec' \},[^)]*paragraphs\(/.test(String(captured.module.__panel.Research)), 'prose and diagram take different paths')
 })

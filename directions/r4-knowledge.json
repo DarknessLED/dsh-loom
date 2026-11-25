@@ -1,153 +1,160 @@
 {
- "slug": "r4-knowledge",
- "name": "R4 知识与迁移：经验积累、跨任务迁移、记忆与巩固",
- "queries": [
-  {
-   "q": "\"cross-task\" AND \"transfer\" AND \"agent\"",
-   "max": 60
-  },
-  {
-   "q": "\"memory\" AND \"agent\" AND \"long-term\"",
-   "max": 60
-  },
-  {
-   "q": "\"experience replay\" AND \"language model\" AND \"agent\"",
-   "max": 50
-  },
-  {
-   "q": "\"reflexion\" OR \"self-reflection\" AND abs:agent",
-   "max": 60
-  },
-  {
-   "q": "\"skill library\" AND \"agent\"",
-   "max": 50
-  },
-  {
-   "q": "\"voyager\" AND \"skill\"",
-   "max": 40
-  },
-  {
-   "q": "\"procedural knowledge\" AND \"language model\"",
-   "max": 50
-  },
-  {
-   "q": "\"knowledge consolidation\" AND \"memory\"",
-   "max": 50
-  },
-  {
-   "q": "\"catastrophic forgetting\" AND \"fine-tuning\" AND \"LLM\"",
-   "max": 60
-  },
-  {
-   "q": "\"continual learning\" AND \"agent\" AND \"LLM\"",
-   "max": 60
-  },
-  {
-   "q": "\"retrieval augmented\" AND \"agent\" AND \"memory\"",
-   "max": 50
-  },
-  {
-   "q": "\"analogy\" AND \"transfer\" AND \"representation\"",
-   "max": 40
-  },
-  {
-   "q": "\"far transfer\" OR \"near transfer\" AND \"learning\"",
-   "max": 40
-  },
-  {
-   "q": "\"curriculum\" AND \"transfer\" AND \"agent\"",
-   "max": 40
-  },
-  {
-   "q": "\"in-context learning\" AND \"skill acquisition\"",
-   "max": 50
-  },
-  {
-   "q": "\"memory\" AND \"agent\" AND \"consolidation\"",
-   "sort": "recent",
-   "max": 60
-  },
-  {
-   "q": "\"experience\" AND \"reuse\" AND \"coding agent\"",
-   "max": 40
-  },
-  {
-   "q": "\"sleep-time\" AND (\"memory\" OR \"replay\")",
-   "max": 50
-  },
-  {
-   "q": "\"dreaming\" AND (\"memory\" OR \"agent\")",
-   "max": 50
-  },
-  {
-   "q": "\"offline\" AND \"memory\" AND \"consolidation\"",
-   "sort": "recent",
-   "max": 50
+  "slug": "r4-knowledge",
+  "name": "R4 知识与迁移：经验积累、跨任务迁移、记忆与巩固",
+  "queries": [
+    {
+      "q": "\"cross-task\" AND \"transfer\" AND \"agent\"",
+      "max": 60
+    },
+    {
+      "q": "\"memory\" AND \"agent\" AND \"long-term\"",
+      "max": 60
+    },
+    {
+      "q": "\"experience replay\" AND \"language model\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"reflexion\" OR \"self-reflection\" AND abs:agent",
+      "max": 60
+    },
+    {
+      "q": "\"skill library\" AND \"agent\"",
+      "max": 50
+    },
+    {
+      "q": "\"voyager\" AND \"skill\"",
+      "max": 40
+    },
+    {
+      "q": "\"procedural knowledge\" AND \"language model\"",
+      "max": 50
+    },
+    {
+      "q": "\"knowledge consolidation\" AND \"memory\"",
+      "max": 50
+    },
+    {
+      "q": "\"catastrophic forgetting\" AND \"fine-tuning\" AND \"LLM\"",
+      "max": 60
+    },
+    {
+      "q": "\"continual learning\" AND \"agent\" AND \"LLM\"",
+      "max": 60
+    },
+    {
+      "q": "\"retrieval augmented\" AND \"agent\" AND \"memory\"",
+      "max": 50
+    },
+    {
+      "q": "\"analogy\" AND \"transfer\" AND \"representation\"",
+      "max": 40
+    },
+    {
+      "q": "\"far transfer\" OR \"near transfer\" AND \"learning\"",
+      "max": 40
+    },
+    {
+      "q": "\"curriculum\" AND \"transfer\" AND \"agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"in-context learning\" AND \"skill acquisition\"",
+      "max": 50
+    },
+    {
+      "q": "\"memory\" AND \"agent\" AND \"consolidation\"",
+      "sort": "recent",
+      "max": 60
+    },
+    {
+      "q": "\"experience\" AND \"reuse\" AND \"coding agent\"",
+      "max": 40
+    },
+    {
+      "q": "\"sleep-time\" AND (\"memory\" OR \"replay\")",
+      "max": 50
+    },
+    {
+      "q": "\"dreaming\" AND (\"memory\" OR \"agent\")",
+      "max": 50
+    },
+    {
+      "q": "\"offline\" AND \"memory\" AND \"consolidation\"",
+      "sort": "recent",
+      "max": 50
+    }
+  ],
+  "seeds": [
+    "Voyager",
+    "Reflexion",
+    "Generative Agents",
+    "MemGPT",
+    "ENGRAM",
+    "Trace2Skill",
+    "ExpeL",
+    "Agent Workflow Memory",
+    "A-MEM",
+    "Continual Learning of Large Language Models",
+    "Gick and McGarry analogical transfer",
+    "Learning to Learn by Gradient Descent"
+  ],
+  "clusters": {
+    "memory architecture": [
+      "memory",
+      "memgpt",
+      "long-term memory",
+      "working memory",
+      "episodic",
+      "semantic memory"
+    ],
+    "experience reuse": [
+      "experience",
+      "replay",
+      "reflexion",
+      "trial",
+      "lesson",
+      "self-reflection"
+    ],
+    "skill library / procedural": [
+      "skill",
+      "library",
+      "procedural",
+      "tool use",
+      "repertoire",
+      "macro"
+    ],
+    "forgetting / stability": [
+      "forgetting",
+      "continual",
+      "stability",
+      "interference",
+      "drift"
+    ],
+    "transfer & analogy": [
+      "transfer",
+      "analogy",
+      "analogical",
+      "generalization",
+      "cross-domain",
+      "cross-task"
+    ],
+    "sleep-time replay / dreaming": [
+      "sleep-time",
+      "sleep time",
+      "dreaming",
+      "dream",
+      "offline replay",
+      "consolidation window",
+      "idle time",
+      "between sessions"
+    ],
+    "agent loops that consume memory": [
+      "react",
+      "agent loop",
+      "tool use",
+      "scaffold",
+      "prompt"
+    ]
   }
- ],
- "seeds": [
-  "Voyager",
-  "Reflexion",
-  "Generative Agents",
-  "MemGPT",
-  "ENGRAM",
-  "Trace2Skill",
-  "ExpeL",
-  "Agent Workflow Memory",
-  "A-MEM",
-  "Continual Learning of Large Language Models",
-  "Gick and McGarry analogical transfer",
-  "Learning to Learn by Gradient Descent"
- ],
- "clusters": {
-  "memory architecture": [
-   "memory",
-   "memgpt",
-   "long-term memory",
-   "working memory",
-   "episodic",
-   "semantic memory"
-  ],
-  "experience reuse": [
-   "experience",
-   "replay",
-   "reflexion",
-   "trial",
-   "lesson",
-   "self-reflection"
-  ],
-  "skill library / procedural": [
-   "skill",
-   "library",
-   "procedural",
-   "tool use",
-   "repertoire",
-   "macro"
-  ],
-  "forgetting / stability": [
-   "forgetting",
-   "continual",
-   "stability",
-   "interference",
-   "drift"
-  ],
-  "transfer & analogy": [
-   "transfer",
-   "analogy",
-   "analogical",
-   "generalization",
-   "cross-domain",
-   "cross-task"
-  ],
-  "sleep-time replay / dreaming": [
-   "sleep-time",
-   "sleep time",
-   "dreaming",
-   "dream",
-   "offline replay",
-   "consolidation window",
-   "idle time",
-   "between sessions"
-  ]
- }
 }

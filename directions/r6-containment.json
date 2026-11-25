@@ -126,6 +126,20 @@
       "adversarial",
       "exploit",
       "vulnerability"
+    ],
+    "agent capability as attack surface": [
+      "react",
+      "tool use",
+      "toolformer",
+      "function calling",
+      "capabilit"
+    ],
+    "benchmarks and environments": [
+      "web environment",
+      "webarena",
+      "environment for building",
+      "testbed",
+      "benchmark"
     ]
   }
 }

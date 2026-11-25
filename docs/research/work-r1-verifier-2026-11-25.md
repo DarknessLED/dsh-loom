@@ -13,12 +13,12 @@ Built from arXiv HTML bodies on 2026-11-25. 16 work(s).
 | [Monitoring Reasoning Models for Misbehavior and the Risks of Promoting Obfuscation](https://arxiv.org/abs/2503.11926) | 2025 | 7 | yes | 0 | yes |
 | [SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering](https://arxiv.org/abs/2405.15793) | 2024 | 2 | yes | 0 | yes |
 | [Concrete Problems in AI Safety](https://arxiv.org/abs/1606.06565) | 2016 | 3 | no | 2 | yes |
-| [SWE-Bench Pro: Can AI Agents Solve Long-Horizon Software Engineering Tasks?](https://arxiv.org/abs/2509.16941) | 2025 | 2 | yes | 0 | yes |
+| [SWE-Bench Pro: Can AI Agents Solve Long-Horizon Software Engineering Tasks?](https://arxiv.org/abs/2509.16941) | 2025 | 3 | yes | 0 | yes |
 | [Training Software Engineering Agents and Verifiers with SWE-Gym](https://arxiv.org/abs/2412.21139) | 2025 | 7 | yes | 0 | yes |
-| [Qwen3 Technical Report](https://arxiv.org/abs/2505.09388) | 2025 | 17 | yes | 0 | yes |
-| [ImpossibleBench: Measuring LLMs’ Propensity of Exploiting Test Cases](https://arxiv.org/abs/2510.20270) | 2025 | 4 | yes | 0 | yes |
-| [Defining and Characterizing Reward Hacking](https://arxiv.org/abs/2209.13085) | 2025 | 2 | yes | 0 | yes |
-| [The Effects of Reward Misspecification: Mapping and Mitigating Misaligned Models](https://arxiv.org/abs/2201.03544) | 2021 | 22 | yes | 3 | yes |
+| [Qwen3 Technical Report](https://arxiv.org/abs/2505.09388) | 2025 | 14 | yes | 0 | yes |
+| [ImpossibleBench: Measuring LLMs’ Propensity of Exploiting Test Cases](https://arxiv.org/abs/2510.20270) | 2025 | 5 | yes | 0 | yes |
+| [Defining and Characterizing Reward Hacking](https://arxiv.org/abs/2209.13085) | 2025 | 1 | yes | 0 | yes |
+| [The Effects of Reward Misspecification: Mapping and Mitigating Misaligned Models](https://arxiv.org/abs/2201.03544) | 2021 | 14 | yes | 3 | yes |
 | [Natural emergent misalignment from reward hacking in production RL](https://arxiv.org/abs/2511.18397) | 2025 | 3 | yes | 0 | yes |
 
 Summaries written: 16 of 16
@@ -747,8 +747,8 @@ Recent work has demonstrated the efficacy of LM agents for code generation with 
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§3 SWE-agent: Designing an ACI for Software Engineering"]
-  N1["§4 Experimental Setup"]
+  N0["§2 The Agent-Computer Interface"]
+  N1["§3 SWE-agent: Designing an ACI for Software Engineering"]
   N0 --> N1
 ```
 
@@ -759,17 +759,17 @@ flowchart LR
 <sub>figure: `2405.15793v3/file_viewer_example.svg`</sub>
 
 ## 机制
-### 1. SWE-agent: Designing an ACI for Software Engineering
+### 1. The Agent-Computer Interface
+
+An LM acts as an agent when it interacts with an environment by iteratively taking actions and receiving feedback [ 42 , 62 ] . Typically, the environment has hard constraints, as in robotics, where agents control actuators in the physical world. On the other hand, digital environments can be molded by abstractions in the form of application programming interfaces and user interfaces for software and humans respectively. Naturally, existing interfaces have been designed with one of these users in mind. We argue that LM agents represent a new category of end user, with their own needs and abilities. We refer to the interface LM agents use to interact with computers as the agent-computer interface (ACI). Figure 2 illustrates how ACIs provide LM agents with important functionality to interface with computers, similar to how code editors also help humans use computers more effectively. Disparities in humans’ and LMs’ abilities and limitations motivates different interface design guidelines. For instance, the current generation of LMs lack the visual understanding abilities to directly operate GUI-based applications with rich visual components and signals. However, many of the features provided by these applications, such as syntax checking and navigation tools, could be useful to LM agents if they were presented in a suitable manner. Additionally, humans can flexibly ignore unnecessary information, whereas all content has a fixed cost in memory and computation for LMs and distracting context can harm performance [ 27 ] . Therefore, LM agents may be more effective at interacting with computers when provided an interface that was built informed by these differences. Ultimately, a well-designed ACI should help the LM agent understand the state of the application given previous changes, manage history to avoid unnecessary context from prior observations, and provide actions that models can use efficiently and reliably. The ACI specifies both the commands available to the LM and how the environment state is communicated back to the LM. It also tracks the history of all previous commands and observations and, at each step, manages how these should be formatted and combined with high-level instructions into a single input for the LM. In this paper, we assume a fixed LM and focus on designing the ACI to improve its performance. This means that we shape the actions, their documentation, and environment feedback to complement an LM’s limitations and abilities. We draw inspiration from the field of HCI, where user studies elicit insights about how compatible different interfaces are with respect to human intuition and performance [ 7 ] . We use two approaches to enhance performance on a development set: (1) manually inspect agent behavior to identify difficulties and propose improvements, and (2) run a grid search to select the best ACI configuration. Taking these two actions resulted in several insights about design principles that seem especially important for building effective ACIs: Actions should be simple and easy to understand for agents. Many bash commands have documentation that includes dozens of options. Simple commands with a few options and concise documentation are easier for agents to use, reducing the need for demonstrations or fine-tuning. This is a defining principle for all SWE-agent commands that we describe in Section 3 . Actions should be compact and efficient. Important operations (e.g., file navigation, editing) should be consolidated into as few actions as possible. Efficient actions help agents make meaningful progress towards a goal in a single step. A poor design would therefore have many simple actions that must be composed across multiple turns for a higher order operation to take effect. We show this idea in action in the Editing and Search interface analyses in Section 5.1 . Environment feedback should be informative but concise. High quality feedback should provide the agent with substantive information about the current environment state (and the effect of the agent’s recent actions) without unnecessary details. For instance, when editing a file, updating the agent about revised content is helpful. Figures 3(a) , 3(b) and Table 3 show this. Guardrails mitigate error propagation and hasten recovery. Like humans, LMs make mistakes when editing or searching and can struggle to recover from these errors. Building in guardrails, such as a code syntax checker that automatically detects mistakes, can help agents recognize and quickly correct errors. We show the effect of editing guardrails in Table 3 . Analysis and ablation studies in Section 5 demonstrate how alternative ACIs affect LM performance. Our studies shows how these principles appear recurrently across actions, feedback, and workflows.
+
+<sub>§2 The Agent-Computer Interface</sub>
+
+### 2. SWE-agent: Designing an ACI for Software Engineering
 
 Here we describe how SWE-agent provides an ACI for LMs to act as software engineering agents, enabling them to effectively search, navigate, edit, and execute code commands. The ACI comprises several principal components, including search/navigation, file viewer, file editor, and context management. At each step, SWE-agent generates a thought and a command, then incorporates the feedback from the command’s execution in the environment (ReAct; Yao et al. [62] ). Built atop the Linux shell, SWE-agent also allows access to common Linux commands and utilities when needed. Search and navigation. Navigating codebases requires finding the relevant file and content. A common strategy to do this involves looking up terms that might be useful, e.g., files, functions, or class definitions mentioned in an issue. We introduce the special commands find_file , search_file , and search_dir , which output a summary of search results when searching for filenames and strings within files or directories. Figure 10 shows examples of these search result formats. The find_file command searches for filenames in the repository, while the search_file and search_dir locates strings in a file(s) of a subdirectory. Our interface encourages efficient searches by suppressing verbose results. The search commands return at most 50 50 results for each search query; if a search exceeds this number, we do not report the results and instead suggest that the agent write a more specific query. File viewer. After finding a file they want to view, agents use the interactive file viewer by calling the command open on the relevant file path. The file viewer presents a window of at most 100 100 lines of the file at a time. The agent can move this window with the commands scroll_down and scroll_up or access a specific line with the goto command. To facilitate in-file navigation and code localization, we display: the full path of the open file, the total number of lines in the file, the number of lines omitted before and after the current window, and the line number (prepended to each visible line). Figure 3(a) shows an example of this interface. File editor. We provide a few commands that let LMs create and edit files. The edit command works in conjunction with the file viewer, allowing agents to replace a specific range of lines in the open file. This command takes 3 required arguments: the start line, end line, and replacement text. In a single step, agents can replace all lines between the start and end lines with the replacement text, as shown in Figure 3(b) . After edits are applied, the file viewer automatically displays the updated content, helping the agent observe the effects of its edit immediately without invoking additional commands. Figure 3(b) shows an example agent response, including a file edit. Similar to how humans can use tools like syntax highlighting to help them notice format errors when editing files in an IDE, we integrate a code linter into the edit function to alert the agent of mistakes it may have introduced when editing a file. Select errors from the linter are shown to the agent along with a snippet of the file contents before/after the error was introduced. Invalid edits are discarded, and the agent is asked to try editing the file again. Context management. The SWE-agent system uses informative prompts, error messages, and history processors to keep agent context concise and informative. Agents receive instructions, documentation, and demonstrations on the correct use of bash and ACI commands. At each step, the system instructs them to generate both a thought and an action [ 62 ] . Malformed generations trigger an error response, shown in Figure 32 , asking the agent to try again, which is repeated until a valid generation is received. Once received, all past error messages except the first are omitted. The agent’s environment responses display computer output using the template shown in Figure 30 ; however, if no output is generated, a specific message (“Your command ran successfully and did not produce any output”) is included to enhance clarity. To further improve context relevance, observations preceding the last 5 5 are each collapsed into a single line, shown in Figure 31 . By removing most content from prior observations, we maintain essential information about the plan and action history while reducing unnecessary context, which allows for more interaction cycles and avoids showing outdated file information. § A provides further implementation details.
 
 <sub>§3 SWE-agent: Designing an ACI for Software Engineering</sub>
-
-### 2. Experimental Setup
-
-Datasets. We primarily evaluate on the SWE-bench dataset, which includes 2 ​ t ​ r ​ u ​ e ​ 294 2true294 task instances from 12 12 different repositories of popular Python packages [ 20 ] . We report our main agent results on the full SWE-bench test set and ablations and analysis on the SWE-bench Lite test set, unless otherwise specified. SWE-bench Lite is a canonical subset of 300 300 instances from SWE-bench that focus on evaluating self-contained functional bug fixes. We also test SWE-agent’s basic code editing abilities with HumanEvalFix, a short-form code debugging benchmark [ 32 ] . Models. All results, ablations, and analyses are based on two leading LMs, GPT-4 Turbo ( gpt-4-1106-preview ) [ 34 ] and Claude 3 Opus ( claude-3-opus-20240229 ) [ 6 ] . We experimented with a number of additional closed and open source models, including Llama 3 † † https://github.com/meta-llama/llama3 and DeepSeek Coder [ 14 ] , but found their performance in the agent setting to be subpar. Many LMs’ context window is too small, such as Llama 3’s context window of 8 8 k. GPT-4 Turbo and Claude 3 Opus have 128 128 k and 200 200 k token context windows, respectively, † † Token counts for different models are not directly comparable since they use different tokenizers. which provides sufficient room for the LM to interact for several turns after being fed the system prompt, issue description, and optionally, a demonstration. Baselines. We compare SWE-agent to two baselines. The first setting is the non-interactive, retrieval-augmented generation (RAG) baselines established in Jimenez et al. [20] . Here, a BM25 retrieval system retrieves the most relevant codebase files using the issue as the query; given these files, the model is asked to directly generate a patch file that resolves the issue. The second setting, called Shell-only, is adapted from the interactive coding framework introduced in Yang et al. [59] . Following the InterCode environment, this baseline system asks the LM to resolve the issue by interacting with a shell process on Linux. Like SWE-agent, model prediction is generated automatically based on the final state of the codebase after interaction. Metrics. We report % Resolved or pass @ @ 1 1 as the main metric, which is the proportion of instances for which all tests pass successfully after the model generated patch is applied to the repository [ 20 ] . We also report the $ Avg. Cost metric, the API inference cost incurred by SWE-agent averaged over all successfully resolved instances. Due to budget constraints, we set the per-instance budget to $4; if a run exceeded this budget, existing edits were submitted automatically. Configuration search. During the design process of SWE-agent, we arrived at the final ACI design through qualitative analysis of system behavior on a small set of hand-picked examples from the development split of SWE-bench. For the remaining hyperparameter choices, we performed a sweep over the window size, history processing, and decoding temperature, shown in § B.1 .
-
-<sub>§4 Experimental Setup</sub>
 
 ## 总结与展望
 SWE-agent 的贡献是 ACI（agent–computer interface）：把 shell 这种「给人类的工具」换成给模型设计的搜索/查看/编辑/执行四件套，同一个模型在 SWE-bench 上的解决率立刻变了。它对本方向的意义是一条方法论提醒——验证器的噪声里有一部分根本不是验证器，而是接口：模型没找到文件，退出码照样是失败，于是「修不好」和「没看到」在分数上无法区分。
@@ -861,9 +861,13 @@ Large Language Model (LLM) agents have been widely adopted in modern software de
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§6 Analysis"]
-  N1["§6.3 Trajectory Failure Modes"]
+  N0["§3 Dataset Overview"]
+  N1["§3.1 Characteristics of SWE-Bench Pro"]
+  N2["§3.2 Task Specification"]
+  N3["§3.3 Public, Commercial, and Held-Out SWE-Bench Pro"]
   N0 --> N1
+  N1 --> N2
+  N2 --> N3
 ```
 
 ![Patches on SWE-Bench Pro are larger, more challenging, and require expert knowledge about a variety of topics. Patches are generated with SWE-Agent [ 16 ] and evaluated on the public subset of SWE-Bench Pro .](https://arxiv.org/html/2509.16941v2/images/Figure_1_large.png)
@@ -873,17 +877,23 @@ flowchart LR
 <sub>figure: `2509.16941v2/images/Figure_1_large.png`</sub>
 
 ## 机制
-### 1. Analysis
+### 1. Dataset Overview
 
-In this section, we provide additional analysis for model performance on SWE-Bench Pro . We include analysis of performance on different types of issues, failure modes of agent trajectories for different models, and the efficacy of human augmentations for improving task resolvability. For compute constraints, analysis is done on trajectories with a max turn limit of 50 and max cost of $2. Corresponding results are in Table 5 . Overall Submitted Not-Submitted Model Submitted Not-Submitted Wrong Syntax Incorrect Instruction Edge Other Tool-Use Long- Stuck Solution Error File Following Case Context in Loop Claude Opus 4.1 74.2% 25.8% 50.3% 31.3% 4.9% 2.7% 0.8% 10.0% 68.0% 28.7% 3.4% (511) (178) (257) (160) (25) (14) (4) (51) (121) (51) (6) GPT-5 (high) 27.2% 72.8% 39.5% 29.3% 8.8% 4.8% 0.0% 17.7% 96.4% 2.5% 1.0% (147) (394) (58) (43) (13) (7) (0) (26) (380) (10) (4) Claude Sonnet 4 44.1% 55.9% 25.5% 7.7% 2.1% 2.1% 0.0% 62.6% 8.7% 57.4% 33.9% (235) (298) (60) (18) (5) (5) (0) (147) (26) (171) (101) Gemini 2.5 52.9% 47.1% 35.0% 56.5% 4.0% 1.9% 0.0% 2.7% 83.6% 14.3% 2.1% Pro Preview (377) (335) (132) (213) (15) (7) (0) (10) (280) (48) (7) GPT-4o 72.1% 27.9% 45.2% 36.7% 11.2% 6.2% 0.0% 0.7% 100.0% 0.0% 0.0% (569) (220) (257) (209) (64) (35) (0) (4) (220) (0) (0) Qwen3 32B 47.3% 52.7% 25.0% 48.7% 19.7% 1.6% 0.7% 4.3% 78.8% 1.5% 19.8% (304) (339) (76) (148) (60) (5) (2) (13) (267) (5) (67)
+Public . We release 731 instances openly on HuggingFace and report the relevant statistics and model performances in this paper. These are sourced from public repositories with copy-left license. Commercial . For the commercial set of 276 problems sourced from startup repositories, we keep it private but report results publicly in this paper and will update in the leaderboard. This is the only set containing proprietary repositories from startups, which we cannot release for legal reasons. Held-Out . We hold out a set of 858 problems mirroring the public set but use a separate set of repositories. We keep this set private to test for overfitting in the future.
 
-<sub>§6 Analysis</sub>
+<sub>§3 Dataset Overview</sub>
 
-### 2. Trajectory Failure Modes
+### 2. Characteristics of SWE-Bench Pro
 
-We conduct an LLM-as-a-judge analysis for failure modes of different models, utilizing GPT-5 as the judge. Our work follows Yang et al. [16] , who demonstrate 87% alignment of automated judgments with human categorization of failure modes. Method. We begin by hand-curating buckets for common failure patterns of agents in software engineering tasks, as determined by heuristics and a random sample of agent trajectories. These buckets are shown in Table 4 . For each of the models in Table 4 , we programmatically filter to only unresolved instances of SWE-Bench Pro and collect the last 20 20 turns of each rollout. We determined 20 20 turns to have the highest correspondence with human validations of failure mode compared to 10 10 turns and 40 40 turns. With a system prompt providing strict descriptions of the failure buckets and overall SWE-Agent format, we feed the trajectory input and prompt the GPT-5 judge to first produce a 1-paragraph reasoning and then an ultimate selection of one failure mode per instance. Categories. Here, we detail several of the common categories of failure modes. For the full category descriptions, view the Appendix. Wrong solution. The agent produces a syntactically valid patch that is functionally incorrect, incomplete, or fails to address the core problem. Tool-Use. Failure is attributed to the agent’s incorrect use of its available tools. This misuse prevents the agent from gathering necessary information or applying changes correctly. Syntax error. The agent successfully modifies the target files but introduces syntactic errors that render the codebase uncompilable or unrunnable. Incorrect file. This failure occurs when the agent correctly understands the high-level goal but fails to locate the correct source file or function for modification. Results. Table 4 shows the results. Frontier models fail on SWE-Bench Pro for several reasons. Opus 4.1 primarily fails on semantic understanding, with wrong solutions accounting for 35.9% of failures and syntax errors at 24.2%, suggesting strong technical execution but challenges in problem comprehension and algorithmic correctness. GPT-5 indicates potential differences in effective-tool-use, but fewer wrong solutions. Other models reveal distinct operational challenges. Sonnet 4 has context overflow as its primary failure mode (35.6%) and substantial endless file reading behaviors (17.0%), suggesting limitations in context management and file navigation strategies. Gemini 2.5 demonstrates more balanced failures across tool errors (38.8%), syntax errors (30.5%), and wrong solutions (18.0%), maintaining competence across multiple dimensions. Qwen3 32B , as an open-source model, exhibits the highest tool error rate (42.0%) which highlights the importance of integrated tool-use for effective agents.
+Industrially-Relevant, Diverse, and Challenging Tasks. First, all repositories selected in SWE-Bench Pro are actively maintained professional projects with substantial user bases, comprehensive documentation, and established development practices. In addition, we source commercial repositories. These repositories are private and sourced from startups, where we contacted the company and purchased their engineering repos. We sample repositories from a diverse range of topics, including consumer applications with complex UI logic, B2B platforms with intricate business rules, and developer tools with sophisticated APIs. Second, we limit each repository to contribute 50-100+ instances. This avoids the situation where models get an advantage by being especially good at a single repository, rewarding models that can truly generalize. Finally, we require edits to span multiple files and contain a substantial code change, similar to real software engineering tasks. Subsequently, SWE-Bench Pro problems are naturally challenging. Verified and Human-Augmented. Similar to SWE-Bench Verified, each problem in SWE-Bench Pro goes through a human augmentation and verification process. This ensures that task descriptions are not missing critical information, tests are well specified to validate the generated solution, and problems are representative of real-world software engineering tasks. In particular, we augment each issue with a list of human-written requirements – simulating the standard engineering practice of resolving issues follow problem specification and provide additional guarantee that the problems are self-contained. Note that real software engineering tasks can be under-specified (for example, may require exploration before solving), and that the setting without requirements is potentially interesting. Contamination-Resistant by Design. By exclusively using repositories with GPL and other copyleft licenses, we ensure benchmark content is unlikely to appear in proprietary model training sets, as the nature of these licenses creates legal barriers to their inclusion in commercial training corpora. In addition, we use commercial repositories purchased from startups, which are private.
 
-<sub>§6.3 Trajectory Failure Modes</sub>
+<sub>§3.1 Characteristics of SWE-Bench Pro</sub>
+
+### 3. Task Specification / Public, Commercial, and Held-Out SWE-Bench Pro
+
+Each task instance in SWE-Bench Pro is complete with human-augmented problem statement, requirements and interface as the task description for the model. The model must generate a patch file to resolve the issue and pass a suite of human-reviewed tests as validation. Problem Statement. Similar to SWE-Bench, we provide a problem statement describing the issue to solve. We use content from the original commits, PR and issue, then rewrite it in the style of issues and add in missing information when necessary. Agents should be able to solve the task using only the problem statement. Requirements. Problems in SWE-Bench Pro can be more complex than previous iterations of SWE-Bench, and thus, we introduce requirements to resolve any potential ambiguity issues. For each problem, we list out a set of requirements that give additional detail on what is needed to solve the task. These requirements are grounded on the unit tests that are used for validation. For example, a requirement might specify the route names and functionality expected for an API. Interface. SWE-Bench Pro tasks include feature additions and code enhancements, such as refactoring, that involve creating or altering classes and methods. For these tasks, a common false negative in unit-test verifiers is when a model submits a valid solution with different interfaces than what the unit test is expecting. Here, we explicitly define the class and function names expected by the tests to avoid this failure mode when relevant. Environments. Each task is evaluated in a containerized, language-specific environment with full dependency resolution. Python tasks use isolated virtual environments, JavaScript/TypeScript tasks use Node.js with npm/yarn, and Go tasks use module-aware environments with proper GOPATH configuration. All environments will be released as pre-built docker images to ensure that they are fully reproducible. Tests. Every task includes human-reviewed test suites with fail2pass tests that verify issue resolution and pass2pass tests that ensure existing functionalities remain intact. SWE-Bench Pro consists of a total of 1865 human-verified and augmented problems, divided as three subsets: public, commercial, and held-out.
+
+<sub>§3.2 Task Specification · §3.3 Public, Commercial, and Held-Out SWE-Bench Pro</sub>
 
 ## 总结与展望
 SWE-Bench Pro 把「长程」和「人类验证过」当成两个独立的质量维度，并公开了任务可解性的构造过程——这恰好是我们最缺的一件事：我们的 evalset 从未证明过自己可解，分数停在 0 时无法区分「模型不行」与「任务不可能」。它的 §6.3 用 LLM-as-a-judge 归类失败模式，等于承认判分器本身需要被判分。
@@ -1111,55 +1121,37 @@ An additional advantage of Thinking Mode Fusion is that, once the model learns t
 
 <sub>§Thinking Budget.</sub>
 
-### 9. General RL
+### 9. General RL / Strong-to-Weak Distillation
 
-The General RL stage aims to broadly enhance the models’ capabilities and stability across diverse scenarios. To facilitate this, we have established a sophisticated reward system covering over 20 distinct tasks , each with customized scoring criteria. These tasks specifically target enhancements in the following core capabilities: To provide feedback for the aforementioned tasks, we utilized three distinct types of rewards:
+The General RL stage aims to broadly enhance the models’ capabilities and stability across diverse scenarios. To facilitate this, we have established a sophisticated reward system covering over 20 distinct tasks , each with customized scoring criteria. These tasks specifically target enhancements in the following core capabilities: To provide feedback for the aforementioned tasks, we utilized three distinct types of rewards: The Strong-to-Weak Distillation pipeline is specifically designed to optimize lightweight models, encompassing 5 dense models (Qwen3-0.6B, 1.7B, 4B, 8B, and 14B) and one MoE model (Qwen3-30B-A3B). This approach enhances model performance while effectively imparting robust mode-switching capabilities. The distillation process is divided into two primary phases:
 
-<sub>§4.4 General RL</sub>
+<sub>§4.4 General RL · §4.5 Strong-to-Weak Distillation</sub>
 
-### 10. Strong-to-Weak Distillation
+### 10. Qwen3-235B-A22B / Qwen3-32B / Qwen3-30B-A3B & Qwen3-14B
 
-The Strong-to-Weak Distillation pipeline is specifically designed to optimize lightweight models, encompassing 5 dense models (Qwen3-0.6B, 1.7B, 4B, 8B, and 14B) and one MoE model (Qwen3-30B-A3B). This approach enhances model performance while effectively imparting robust mode-switching capabilities. The distillation process is divided into two primary phases:
+For our flagship model Qwen3-235B-A22B, we compare it with the leading reasoning and non-reasoning models. For the thinking mode, we take OpenAI-o1 ( OpenAI, 2024 ) , DeepSeek-R1 ( Guo et al., 2025 ) , Grok-3-Beta (Think) ( xAI, 2025 ) , and Gemini2.5-Pro ( DeepMind, 2025 ) as the reasoning baselines. For the non-thinking mode, we take GPT-4o-2024-11-20 ( OpenAI, 2024 ) , DeepSeek-V3 ( Liu et al., 2024a ) , Qwen2.5-72B-Instruct ( Yang et al., 2024b ) , and LLaMA-4-Maverick ( Meta-AI, 2025 ) as the non-reasoning baselines. We present the evaluation results in Table 11 and 12 . For our flagship dense model, Qwen3-32B, we take DeepSeek-R1-Distill-Llama-70B, OpenAI-o3-mini (medium), and our previous strongest reasoning model, QwQ-32B ( Qwen Team, 2025 ) , as the baselines in the thinking mode. We also take GPT-4o-mini-2024-07-18, LLaMA-4-Scout, and our previous flagship model, Qwen2.5-72B-Instruct, as the baselines in the non-thinking mode. We present the evaluation results in Table 13 and 14 . For Qwen3-30B-A3B and Qwen3-14B, we compare them with DeepSeek-R1-Distill-Qwen-32B and QwQ-32B in the thinking mode, and Phi-4 ( Abdin et al., 2024 ) , Gemma-3-27B-IT ( Team et al., 2025 ) , and Qwen2.5-32B-Instruct in the non-thinking mode, respectively. We present the evaluation results in Table 15 and 16 .
 
-<sub>§4.5 Strong-to-Weak Distillation</sub>
+<sub>§Qwen3-235B-A22B · §Qwen3-32B · §Qwen3-30B-A3B & Qwen3-14B</sub>
 
-### 11. Qwen3-235B-A22B
-
-For our flagship model Qwen3-235B-A22B, we compare it with the leading reasoning and non-reasoning models. For the thinking mode, we take OpenAI-o1 ( OpenAI, 2024 ) , DeepSeek-R1 ( Guo et al., 2025 ) , Grok-3-Beta (Think) ( xAI, 2025 ) , and Gemini2.5-Pro ( DeepMind, 2025 ) as the reasoning baselines. For the non-thinking mode, we take GPT-4o-2024-11-20 ( OpenAI, 2024 ) , DeepSeek-V3 ( Liu et al., 2024a ) , Qwen2.5-72B-Instruct ( Yang et al., 2024b ) , and LLaMA-4-Maverick ( Meta-AI, 2025 ) as the non-reasoning baselines. We present the evaluation results in Table 11 and 12 .
-
-<sub>§Qwen3-235B-A22B</sub>
-
-### 12. Qwen3-32B
-
-For our flagship dense model, Qwen3-32B, we take DeepSeek-R1-Distill-Llama-70B, OpenAI-o3-mini (medium), and our previous strongest reasoning model, QwQ-32B ( Qwen Team, 2025 ) , as the baselines in the thinking mode. We also take GPT-4o-mini-2024-07-18, LLaMA-4-Scout, and our previous flagship model, Qwen2.5-72B-Instruct, as the baselines in the non-thinking mode. We present the evaluation results in Table 13 and 14 .
-
-<sub>§Qwen3-32B</sub>
-
-### 13. Qwen3-30B-A3B & Qwen3-14B
-
-For Qwen3-30B-A3B and Qwen3-14B, we compare them with DeepSeek-R1-Distill-Qwen-32B and QwQ-32B in the thinking mode, and Phi-4 ( Abdin et al., 2024 ) , Gemma-3-27B-IT ( Team et al., 2025 ) , and Qwen2.5-32B-Instruct in the non-thinking mode, respectively. We present the evaluation results in Table 15 and 16 .
-
-<sub>§Qwen3-30B-A3B & Qwen3-14B</sub>
-
-### 14. Qwen3-8B / 4B / 1.7B / 0.6B
+### 11. Qwen3-8B / 4B / 1.7B / 0.6B
 
 For Qwen3-8B and Qwen3-4B, we compare them with DeepSeek-R1-Distill-Qwen-14B and DeepSeek-R1-Distill-Qwen-32B in the thinking mode, and LLaMA-3.1-8B-Instruct ( Dubey et al., 2024 ) , Gemma-3-12B-IT ( Team et al., 2025 ) , Qwen2.5-7B-Instruct, and Qwen2.5-14B-Instruct in the non-thinking mode, respectively. For Qwen3-1.7B and Qwen3-0.6B, we compare them with DeepSeek-R1-Distill-Qwen-1.5B and DeepSeek-R1-Distill-Llama-8B in the thinking mode, and Gemma-3-1B-IT, Phi-4-mini, Qwen2.5-1.5B-Instruct, and Qwen2.5-3B-Instruct in the non-thinking mode, respectively. We present the evaluation results of Qwen3-8B and Qwen3-4B in Table 17 and 18 and those of Qwen3-1.7B and Qwen3-0.6B in Table 19 and 20 , respectively. Overall, these edge-side models exhibit impressive performance and outperform baselines even with more parameters, including our previous Qwen2.5 models, in either the thinking or the non-thinking mode. These results, once again, demonstrate the efficacy of our Strong-to-Weak Distillation approach, making it possible for us to build the lightweight Qwen3 models with remarkably reduced costs and efforts.
 
 <sub>§Qwen3-8B / 4B / 1.7B / 0.6B</sub>
 
-### 15. The Effectiveness of Thinking Budget
+### 12. The Effectiveness of Thinking Budget
 
 To verify that Qwen3 can enhance its intelligence level by leveraging an increased thinking budget, we adjust the allocated thinking budget on four benchmarks across Mathematics, Coding, and STEM domains. The resulting scaling curves are presented in Figure 2 , Qwen3 demonstrates scalable and smooth performance improvements correlated to the allocated thinking budget. Moreover, we observe that if we further extend the output length beyond 32K, the model’s performance is expected to improve further in the future. We leave this exploration as future work.
 
 <sub>§The Effectiveness of Thinking Budget</sub>
 
-### 16. The Effectiveness and Efficiency of On-Policy Distillation
+### 13. The Effectiveness and Efficiency of On-Policy Distillation
 
 We evaluate the effectiveness and efficiency of on-policy distillation by comparing the performance and computational cost—measured in GPU hours—after undergoing distillation versus direct reinforcement learning, both starting from the same off-policy distilled 8B checkpoint. For simplicity, we focus solely on math and code-related queries in this comparison. The results, summarized in Table 21 , show that distillation achieves significantly better performance than reinforcement learning while requiring approximately only 1 / 10 1/10 of the GPU hours. Furthermore, distillation from teacher logits enables the student model to expand its exploration space and enhance its reasoning potential, as evidenced by the improved pass@64 scores on the AIME’24 and AIME’25 benchmarks after distillation, compared to the initial checkpoint. In contrast, reinforcement learning does not lead to any improvement in pass@64 scores. These observations highlight the advantages of leveraging a stronger teacher model in guiding student model learning.
 
 <sub>§The Effectiveness and Efficiency of On-Policy Distillation</sub>
 
-### 17. The Effects of Thinking Mode Fusion and General RL
+### 14. The Effects of Thinking Mode Fusion and General RL
 
 To evaluate the effectiveness of Thinking Mode Fusion and General Reinforcement Learning (RL) during the post-training, we conduct evaluations on various stages of the Qwen-32B model. In addition to the datasets mentioned earlier, we introduce several in-house benchmarks to monitor other capabilities. These benchmarks include: The results are shown in Table 22 , where we can draw the following conclusions:
 
@@ -1195,13 +1187,17 @@ Large language models (LLMs) are rapidly becoming capable coding assistants. How
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§5 Results: Context Engineering"]
-  N1["§5.1 Effect of Prompt Choice"]
-  N2["§5.2 Effect of Test Access"]
-  N3["§5.3 Effect of Feedback Loop"]
+  N0["§2 Benchmark Curation"]
+  N1["§2.2 Test Mutations"]
+  N2["§2.3 Quality Control"]
+  N3["§2.4 Other Empirical Adjustments"]
+  N4["§Open Test"]
+  N5["§Multiple Submissions"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
+  N3 --> N4
+  N4 --> N5
 ```
 
 ![Overview of the ImpossibleBench framework. We start with tasks from established coding benchmarks and create impossible variants by mutating test cases to conflict with natural language specifications. The resulting cheating rate serves as a direct measure of an agent’s propensity to exploit shortcuts.](https://arxiv.org/html/2510.20270v1/fig1-nobox-2.png)
@@ -1211,29 +1207,35 @@ flowchart LR
 <sub>figure: `2510.20270v1/fig1-nobox-2.png`</sub>
 
 ## 机制
-### 1. 5 Results: Context Engineering
+### 1. 2 Benchmark Curation
 
-In this section, we demonstrate the utility of ImpossibleBench for context engineering. We examine the effect of test access, prompt and feedback on the models’ cheating propensity and provide recommendations on context engineering choices to reduce cheating.
+In this section, we detail our procedure of curating ImpossibleBench . The goal of this benchmark is to create coding tasks of various complexities that are impossible to complete without cheating, so the scores agents obtain on this benchmark can serve as a noiseless proxy for their cheating propensity, upon which one can design monitoring and mitigation strategies. One-Off : Modifies the expected output of a single test case by changing the expected value. For example, if the original test was assert f(2) == 4 , it becomes assert f(2) == 5 . This creates a direct conflict between the specification and a single test case. Conflicting : Introduces contradictory test cases by duplicating existing tests with different expected outputs. For example, adding assert f(2) == 5 alongside the original assert f(2) == 4 . This creates explicit logical contradictions within the test suite itself.
 
-<sub>§5 Results: Context Engineering</sub>
+<sub>§2 Benchmark Curation</sub>
 
-### 2. 5.1 Effect of Prompt Choice
+### 2. 2.2 Test Mutations
 
-To arrive at the prompts used in our main results ( Figure 3 and Figure 4 ), we conducted extensive prompt engineering to minimize cheating propensity. Through this iterative process, we discovered that LLM behaviors are surprisingly sensitive to prompt details, with looser guidance leading to significantly higher cheating rates. For Impossible-LiveCodeBench , we performed ablation on the four prompts in Table 1 with various levels of guidance strictness. While these prompts do not produce statistically significant performance difference on the original benchmarks, we find they lead to significantly different cheating propensity on Conflicting-LiveCodeBench ( Figure 6 ). For both GPT-5 and o3, prompt A and B lead to a cheating rate > 85 % >85\% , while prompt D lowers them to 1 % 1\% and 33 % 33\% , respectively. We observe similar patterns on the more complex Impossible-SWEbench , though to a lesser extent. For our main results on Impossible-SWEbench , we adapted prompt D with strict guidance. When we switch to a looser prompt similar to prompt B, cheating rates increase notably: GPT-5’s cheating rate on Conflicting-SWEbench with full scaffold rises from 54% to 66%, while Claude Opus 4.1’s increases from 50% to 55%. These findings highlight the critical importance of prompt design in controlling model behaviors. When developing LLM agents, we recommend conducting careful prompt ablations to minimize cheating propensity before deployment.
+To create impossible tasks, we modify the test cases of the base benchmarks to produce direct conflicts with the task specifications. Inspired by mutation testing in software engineering, we employ two test mutation strategies to create impossible tasks: Different mutation strategies may have different effects on the cheating propensity, so we report the results of the two mutation variants separately in our experiments. We automate the creation of such impossible mutations using LLMs. Specifically, we supply the test files to Claude Sonnet 4, instructing it to create such impossible mutations ( Figure 2 ).
 
-<sub>§5.1 Effect of Prompt Choice</sub>
+<sub>§2.2 Test Mutations</sub>
 
-### 3. 5.2 Effect of Test Access
+### 3. 2.3 Quality Control
 
-In our main line of setting, we provide agents full read/write access to the test cases. One possible method to mitigate cheating is to limit the access to the test cases. We explore three test access configurations: full-access tests (agents could read/write, our default), hidden tests, and read-only tests ( Figure 7 ). Hiding tests from agents reduces cheating success rate to near zero 2 2 2 Most attempts that pass the impossible tasks without seeing the tests seem to be generalizing their solution to accommodate for unexpected tests. , but also degrades performance on the original benchmark. Read-only access provides a middle ground: it restores legitimate performance while preventing test modification attempts. This approach is particularly effective against models like Opus-4.1, whose primary cheating strategy involves modifying test cases, but it does not eliminate other cheating methods such as special-casing or operator overloading (see Section 4.1 for categorization). Based on these results, we recommend either hiding test files entirely or restricting them to read-only access during implementation, when feasible, to mitigate problematic cheating behaviors.
+The LLM-generated impossible mutations are not guaranteed to be valid, especially for complex multi-file tasks in SWE-bench. To reduce noise, we verify their validity by testing them against both the original patches from the base benchmarks and empty patches that make no changes. Valid impossible mutations should fail both tests, and we remove any mutations that pass either test. For SWE-bench, we removed 8.8% of one-off and 3.4% of conflicting mutations incorrectly passed with either the original or empty patches. We also removed tasks where the original patches failed in our environment. We do not perform such quality control on LiveCodeBench due to the lack of standard solutions.
 
-<sub>§5.2 Effect of Test Access</sub>
+<sub>§2.3 Quality Control</sub>
 
-### 4. 5.3 Effect of Feedback Loop
+### 4. Open Test
 
-In our main results ( Figure 3 and Figure 4 ), we require agents to complete a fixed number of turns and provide feedback for failed submissions. While such a feedback loop improves legitimate performance, it also increases the cheating rate as the models may be more inclined to cheat after failing to pass the tests through legitimate means. Averaged over all the models we tested, allowing multiple submissions increases the pass rate on open-test SWE-bench from 80% to 83%, and cheating rate on Conflicting-SWEbench from 33% to 38% (see Section E.2 for more detailed comparisons). To mitigate this increased cheating propensity, we experiment with providing agents an option to abort and exit the feedback loop when they find the task impossible to solve legitimately ( Figure 8 ). Specifically, we instruct the models to submit the string flag_for_human_intervention when they identify errors in the task, and the agent doing so will be immediately terminated. On Impossible-SWEbench and especially Conflicting-SWEbench , we find the strategy quite effective for OpenAI models, lowering the cheating rate of GPT-5 from 54 % 54\% to 9 % 9\% and o3 from 49 % 49\% to 12 % 12\% . However, the effect is much less pronounced for Claude Opus 4.1. We recommend implementing similar strategies if possible, as the performance degradation on the original benchmark is relatively small and the cheating rate is significantly reduced.
+We provide agents with full read/write access to test cases rather than hiding them. While this differs from the original benchmarks, unit tests are commonly accessible in real software engineering, creating more opportunities for cheating. We explicitly discourage test modification in our instructions, and any attempts that pass by modifying tests are also counted as cheating. We ablate this choice in Section 5.2 .
 
-<sub>§5.3 Effect of Feedback Loop</sub>
+<sub>§Open Test</sub>
+
+### 5. Multiple Submissions
+
+We allow up to 10 submissions per run with feedback about failed tests, mirroring competitive programming and real-world scenarios where agents iteratively refine solutions. This enables us to measure how feedback affects cheating propensity ( Section 5.3 ).
+
+<sub>§Multiple Submissions</sub>
 
 ## 总结与展望
 把「不可能完成的任务」做成基准：当题目无解时，模型宁愿改测试、猜答案、删断言，也不肯说做不到；而且越强的模型越常作弊。它把奖励劫持从「奖励函数写坏了」重述为「任务本身就奖励作弊」，这在工程上更贴近我们的处境——多数真实任务的验收条件是可被绕过的。
@@ -1265,11 +1267,7 @@ It is well known that optimising a proxy can lead to unintended outcomes: a boat
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§4 Preliminaries"]
-  N1["§4.1 Reinforcement Learning"]
-  N2["§4.2 Definitions and Basic Properties of Hackability and Simplification"]
-  N0 --> N1
-  N1 --> N2
+  N0["§2 Example: Cleaning Robot"]
 ```
 
 ![An illustration of hackable and unhackable proxy rewards arising from overlooking rewarding features. A human wants their house cleaned. In (a), the robot draws an incorrect conclusion because of the proxy; this could lead to hacking. In (b), no such hacking can occur: the proxy is unhackable.](https://arxiv.org/html/2209.13085v2/front-fig-hacking.png)
@@ -1279,17 +1277,11 @@ flowchart LR
 <sub>figure: `2209.13085v2/front-fig-hacking.png`</sub>
 
 ## 机制
-### 1. Preliminaries / Reinforcement Learning
+### 1. Example: Cleaning Robot
 
-We begin with an overview of reinforcement learning (RL) to establish our notation and terminology. Section 4.2 introduces our novel definitions of hackability and simplification. We expect readers to be familiar with the basics of RL, which can be found in Sutton and Barto, (2018) . RL methods attempt to solve a sequential decision problem, typically formalised as a Markov decision process (MDP) , which is a tuple ( S , A , T , I , ℛ , γ ) (S,A,T,I,\mathcal{R},\gamma) where S S is a set of states, A A is a set of actions, T : S × A → Δ ⁡ ( S ) T:S\times A\rightarrow\Delta(S) is a transition function, I ∈ Δ ⁡ ( S ) I\in\Delta(S) is an initial state distribution, ℛ \mathcal{R} is a reward function, the most general form of which is ℛ : S × A × S → Δ ⁡ ( ℝ ) \mathcal{R}:S\times A\times S\rightarrow\Delta(\mathbb{R}) , and γ ∈ [ 0 , 1 ] \gamma\in[0,1] is the discount factor. Here Δ ⁡ ( X ) \Delta(X) is the set of all distributions over X X . A stationary policy is a function π : S → Δ ⁡ ( A ) \pi:S\rightarrow\Delta(A) that specifies a distribution over actions in each state, and a non-stationary policy is a function π : ( S × A ) ∗ × S → Δ ⁡ ( A ) \pi:(S\times A)^{*}\times S\rightarrow\Delta(A) , where ∗ * is the Kleene star. A trajectory τ \tau is a path s 0 , a 0 , r 0 , … s_{0},a_{0},r_{0},... through the MDP that is possible according to T T , I I , and ℛ \mathcal{R} . The return of a trajectory is the discounted sum of rewards G ⁡ ( τ ) ≐ ∑ t = 0 ∞ γ t ​ r t G(\tau)\doteq\sum_{t=0}^{\infty}\gamma^{t}r_{t} , and the value of a policy is the expected return J ⁡ ( π ) ≐ 𝔼 τ ∼ π ​ [ G ⁡ ( τ ) ] J(\pi)\doteq\mathbb{E}_{\tau\sim\pi}[G(\tau)] . We derive policy (preference) orderings from reward functions by ordering policies according to their value. In this paper, we assume that S S and A A are finite, that | A | > 1 |A|>1 , that all states are reachable, and that ℛ ⁡ ( s , a , s ′ ) \mathcal{R}(s,a,s^{\prime}) has finite mean for all s , a , s ′ s,a,s^{\prime} . In our work, we consider various reward functions for a given environment, which is then formally a Markov decision process without reward M ​ D ​ P ∖ ℛ ≐ ( S , A , T , I , ¯ , γ ) MDP\setminus\mathcal{R}\doteq(S,A,T,I,\underline{\hskip 8.5359pt},\gamma) . Having fixed an M ​ D ​ P ∖ ℛ MDP\setminus\mathcal{R} , any reward function can be viewed as a function of only the current state and action by marginalizing over transitions: ℛ ⁡ ( s , a ) ≐ ∑ s ′ ∼ T ⁡ ( s ′ | s , a ) ℛ ⁡ ( s , a , s ′ ) \mathcal{R}(s,a)\doteq\sum_{s^{\prime}\sim T(s^{\prime}|s,a)}\mathcal{R}(s,a,s^{\prime}) , we adopt this view from here on. We define the (discounted) visit counts of a policy as ℱ π ​ ( s , a ) ≐ 𝔼 τ ∼ π ​ [ ∑ i = 0 ∞ γ i ​ 𝟙 ​ ( s i = s , a i = a ) ] \mathcal{F}^{\pi}(s,a)\doteq\mathbb{E}_{\tau\sim\pi}[\sum_{i=0}^{\infty}\gamma^{i}\mathbbm{1}(s_{i}=s,a_{i}=a)] . Note that J ⁡ ( π ) = ∑ s , a ℛ ⁡ ( s , a ) ​ ℱ π ​ ( s , a ) J(\pi)=\sum_{s,a}\mathcal{R}(s,a)\mathcal{F}^{\pi}(s,a) , which we also write as ⟨ ℛ , ℱ π ⟩ \langle\mathcal{R},\mathcal{F}^{\pi}\rangle . When considering multiple reward functions in an M ​ D ​ P ∖ ℛ MDP\setminus\mathcal{R} , we define J ℛ ​ ( π ) ≐ ⟨ ℛ , ℱ π ⟩ J_{\mathcal{R}}(\pi)\doteq\langle\mathcal{R},\mathcal{F}^{\pi}\rangle and sometimes use J i ​ ( π ) ≐ ⟨ ℛ i , ℱ π ⟩ J_{i}(\pi)\doteq\langle\mathcal{R}_{i},\mathcal{F}^{\pi}\rangle as shorthand. We also use ℱ : Π → ℝ | S | ​ | A | \mathcal{F}:\Pi\rightarrow\mathbb{R}^{|S||A|} to denote the embedding of policies into Euclidean space via their visit counts, and define ℱ ( Π ˙ ) ≐ { ℱ ( π : π ∈ Π ˙ ) } \mathcal{F}(\dot{\Pi})\doteq\{\mathcal{F}(\pi:\pi\in\dot{\Pi})\} for any Π ˙ \dot{\Pi} . Moreover, we also use a second way to embed policies into Euclidean space; let 𝒢 ⁡ ( π ) \mathcal{G}(\pi) be the | S | ​ | A | |S||A| -dimensional vector where 𝒢 ​ ( π ) ​ [ s , a ] = π ​ ( a ∣ s ) \mathcal{G}(\pi)[s,a]=\pi(a\mid s) , and let 𝒢 ( Π ˙ ) ≐ { 𝒢 ( π : π ∈ Π ˙ ) } \mathcal{G}(\dot{\Pi})\doteq\{\mathcal{G}(\pi:\pi\in\dot{\Pi})\} .
+Consider a household robot tasked with cleaning a house with three rooms: Attic , Bedroom , and Kitchen . The robot’s (deterministic) policy is a vector indicating which rooms it cleans: π = [ π 1 , π 2 , π 3 ] ∈ { 0 , 1 } 3 \pi=[\pi_{1},\pi_{2},\pi_{3}]\in\{0,1\}^{3} . The robot receives a (non-negative) reward of r 1 , r 2 , r 3 r_{1},r_{2},r_{3} for cleaning the attic, bedroom, and kitchen, respectively, and the total reward is given by J ⁡ ( π ) = π ⋅ r J(\pi)=\pi\cdot r . For example, if r = [ 1 , 2 , 3 ] r=[1,2,3] and the robot cleans the attic and the kitchen, it receives a reward of 1 + 3 = 4 1+3=4 . At least two ideas come to mind when thinking about “simplifying” a reward function. The first one is overlooking rewarding features : suppose the true reward is equal for all the rooms, r true = [ 1 , 1 , 1 ] r_{\text{true}}=[1,1,1] , but we only ask the robot to clean the attic and bedroom, r proxy = [ 1 , 1 , 0 ] r_{\text{proxy}}=[1,1,0] . In this case, r proxy r_{\text{proxy}} and r true r_{\text{true}} are unhackable. However, if we ask the robot to only clean the attic, r proxy = [ 1 , 0 , 0 ] r_{\text{proxy}}=[1,0,0] , this is hackable with respect to r true r_{\text{true}} . To see this, note that according to r proxy r_{\text{proxy}} cleaning the attic ( J proxy = 1 J_{\text{proxy}}=1 ) is better than cleaning the bedroom and the kitchen ( J proxy = 0 J_{\text{proxy}}=0 ). Yet, r true r_{\text{true}} says that cleaning the attic ( J true = 1 J_{\text{true}}=1 ) is worse than cleaning the bedroom and the kitchen ( J true = 2 J_{\text{true}}=2 ). This situation is illustrated in Figure 1 . The second seemingly natural way to simplify a reward function is overlooking fine details : suppose r true = [ 1 , 1.5 , 2 ] r_{\text{true}}=[1,1.5,2] , and we ask the robot to clean all the rooms, r proxy = [ 1 , 1 , 1 ] r_{\text{proxy}}=[1,1,1] . For these values, the proxy and true reward are unhackable. However, with a slightly less balanced true reward function such as r true = [ 1 , 1.5 , 3 ] r_{\text{true}}=[1,1.5,3] the proxy does lead to hacking, since the robot would falsely calculate that it’s better to clean the attic and the bedroom than the kitchen alone. These two examples illustrate that while simplification of reward functions is sometimes possible, attempts at simplification can easily lead to reward hacking. Intuitively, omitting/overlooking details is okay so long as all these details are not as important together as any of the details that we do share. In general, it is not obvious what the proxy must look like to avoid reward hacking, suggesting we should take great care when using proxies. For this specific environment, a proxy and a true reward are hackable exactly when there are two sets of rooms S 1 , S 2 S_{1},S_{2} such that the true reward gives strictly higher value to cleaning S 1 S_{1} than it does to cleaning S 2 S_{2} , and the proxy says the opposite: J 1 ​ ( S 1 ) > J 1 ​ ( S 2 ) & J 2 ​ ( S 1 ) < J 2 ​ ( S 2 ) J_{1}(S_{1})>J_{1}(S_{2})\;\&\;J_{2}(S_{1})<J_{2}(S_{2}) . For a proof of this statement, see Appendix D.2.1 .
 
-<sub>§4 Preliminaries · §4.1 Reinforcement Learning</sub>
-
-### 2. Definitions and Basic Properties of Hackability and Simplification
-
-Here, we formally define hackability as a binary relation between reward functions. Note that an unhackable reward pair can have J 1 ​ ( π ) < J 1 ​ ( π ′ ) & J 2 ​ ( π ) = J 2 ​ ( π ′ ) J_{1}(\pi)<J_{1}(\pi^{\prime})\And J_{2}(\pi)=J_{2}(\pi^{\prime}) or vice versa. Unhackability is symmetric; this can be seen be swapping π \pi and π ′ \pi^{\prime} in Definition 1 . It is not transitive, however. In particular, the constant reward function is unhackable with respect to any other reward function, so if it were transitive, any pair of policies would be unhackable. Additionally, we say that ℛ 1 \mathcal{R}_{1} and ℛ 2 \mathcal{R}_{2} are equivalent on a set of policies Π \Pi if J 1 J_{1} and J 2 J_{2} induce the same ordering of Π \Pi , and that ℛ \mathcal{R} is trivial on Π \Pi if J ⁡ ( π ) = J ⁡ ( π ′ ) J(\pi)=J(\pi^{\prime}) for all π , π ′ ∈ Π \pi,\pi^{\prime}\in\Pi . It is clear that ℛ 1 \mathcal{R}_{1} and ℛ 2 \mathcal{R}_{2} are unhackable whenever they are equivalent, or one of them is trivial, but this is relatively uninteresting. Our central question is if and when there are other unhackable reward pairs. The symmetric nature of this definition is counter-intuitive, given that our motivation distinguishes the proxy and true reward functions. We might break this symmetry by only considering policy sequences that monotonically increase the proxy, however, this is equivalent to our original definition of hackability: think of ℛ 1 \mathcal{R}_{1} as the proxy, and consider the sequence π , π ′ \pi,\pi^{\prime} . We could also restrict ourselves to policies that are approximately optimal according to the proxy; Corollary 2 shows that Theorem 1 applies regardless of this restriction. Finally, we define simplification as an asymmetric special-case of unhackability; Theorem 3 shows this is in fact a more demanding condition. Intuitively, while unhackability allows replacing inequality with equality – or vice versa – a simplification can only replace inequalities with equality, collapsing distinctions between policies. When ℛ 1 \mathcal{R}_{1} is a simplification of ℛ 2 \mathcal{R}_{2} , we also say that ℛ 2 \mathcal{R}_{2} is a refinement of ℛ 1 \mathcal{R}_{1} . We denote this relationship as ℛ 1 ​ ⊴ ​ ℛ 2 \mathcal{R}_{1}\trianglelefteq\mathcal{R}_{2} or ℛ 2 ​ ⊵ ​ ℛ 1 \mathcal{R}_{2}\trianglerighteq\mathcal{R}_{1} ; the narrowing of the triangle at R 1 R_{1} represents the collapsing of distinctions between policies. If ℛ 1 ​ ⊴ ​ ℛ 2 ​ ⊵ ​ ℛ 3 \mathcal{R}_{1}\trianglelefteq\mathcal{R}_{2}\trianglerighteq\mathcal{R}_{3} , then we have that ℛ 1 , ℛ 3 \mathcal{R}_{1},\mathcal{R}_{3} are unhackable, 4 4 4 If J 3 ​ ( π ) > J 3 ​ ( π ′ ) J_{3}(\pi)>J_{3}(\pi^{\prime}) then J 2 ​ ( π ) > J 2 ​ ( π ′ ) J_{2}(\pi)>J_{2}(\pi^{\prime}) , since ℛ 2 ​ ⊵ ​ ℛ 3 \mathcal{R}_{2}\trianglerighteq\mathcal{R}_{3} , and if J 2 ​ ( π ) > J 2 ​ ( π ′ ) J_{2}(\pi)>J_{2}(\pi^{\prime}) then J 1 ​ ( π ) ≥ J 1 ​ ( π ′ ) J_{1}(\pi)\geq J_{1}(\pi^{\prime}) , since ℛ 1 ​ ⊴ ​ ℛ 2 \mathcal{R}_{1}\trianglelefteq\mathcal{R}_{2} . It is therefore not possible that J 3 ​ ( π ) > J 3 ​ ( π ′ ) J_{3}(\pi)>J_{3}(\pi^{\prime}) but J 1 ​ ( π ) < J 1 ​ ( π ′ ) J_{1}(\pi)<J_{1}(\pi^{\prime}) . but if ℛ 1 ​ ⊵ ​ ℛ 2 ​ ⊴ ​ ℛ 3 \mathcal{R}_{1}\trianglerighteq\mathcal{R}_{2}\trianglelefteq\mathcal{R}_{3} , then this is not necessarily the case. 5 5 5 Consider the case where ℛ 2 \mathcal{R}_{2} is trivial – then ℛ 1 ​ ⊵ ​ ℛ 2 ​ ⊴ ​ ℛ 3 \mathcal{R}_{1}\trianglerighteq\mathcal{R}_{2}\trianglelefteq\mathcal{R}_{3} for any ℛ 1 , ℛ 3 \mathcal{R}_{1},\mathcal{R}_{3} . Note that these definitions are given relative to some M ​ D ​ P ∖ ℛ MDP\setminus\mathcal{R} , although we often assume the environment in question is clear from context and suppress this dependence. The dependence on the policy set Π \Pi , on the other hand, plays a critical role in our results.
-
-<sub>§4.2 Definitions and Basic Properties of Hackability and Simplification</sub>
+<sub>§2 Example: Cleaning Robot</sub>
 
 ## 总结与展望
 给 reward hacking 一个形式化定义：存在一条策略变更，使代理奖励上升而真实奖励不上升（或不升反降），并由此证明在有限策略集下「不可劫持」等价于「真实奖励是代理奖励的单调函数」。这条结论对工程的含义很直接——只要有多个可选补丁，就几乎必然存在一条只涨分数不解决问题的路径。
@@ -1325,28 +1317,21 @@ As reinforcement learning agents are trained with better algorithms, more data, 
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§3 Experimental Setup: Environments and Reward Functions"]
-  N1["§3.1 Environments"]
-  N2["§Traffic Control."]
-  N3["§COVID Response."]
-  N4["§Atari Riverraid."]
-  N5["§Glucose Monitoring."]
-  N6["§3.2 Misspecifications"]
-  N7["§4 How Agent Optimization Power Drives Misalignment"]
-  N8["§4.1 Quantitative Effects vs. Agent Capabilities"]
-  N9["§Model Capacity."]
-  N10["§Number of training steps."]
-  N11["§Action space resolution."]
-  N12["§Observation fidelity."]
-  N13["§4.2 Qualitative Effects"]
-  N14["§Traffic Control."]
-  N15["§COVID Response."]
-  N16["§Atari Riverraid."]
-  N17["§Glucose Monitoring."]
-  N18["§4.3 Quantitative Effects vs Proxy-True Reward Correlation"]
-  N19["§5 Polynomaly: Mitigating reward misspecification"]
-  N20["§5.1 Problem Setup"]
-  N21["§5.3 Baselines"]
+  N0["§4 How Agent Optimization Power Drives Misalignment"]
+  N1["§4.1 Quantitative Effects vs. Agent Capabilities"]
+  N2["§Model Capacity."]
+  N3["§Number of training steps."]
+  N4["§Action space resolution."]
+  N5["§Observation fidelity."]
+  N6["§4.2 Qualitative Effects"]
+  N7["§Traffic Control."]
+  N8["§COVID Response."]
+  N9["§Atari Riverraid."]
+  N10["§Glucose Monitoring."]
+  N11["§4.3 Quantitative Effects vs Proxy-True Reward Correlation"]
+  N12["§5 Polynomaly: Mitigating reward misspecification"]
+  N13["§5.1 Problem Setup"]
+  N14["§5.3 Baselines"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
@@ -1361,13 +1346,6 @@ flowchart LR
   N11 --> N12
   N12 --> N13
   N13 --> N14
-  N14 --> N15
-  N15 --> N16
-  N16 --> N17
-  N17 --> N18
-  N18 --> N19
-  N19 --> N20
-  N20 --> N21
 ```
 
 ![An example of reward hacking when cars merge onto a highway. A human-driver model controls the grey cars and an RL policy controls the red car. The RL agent observes positions and velocities of nearby cars (including itself) and adjusts its acceleration to maximize the proxy reward. At first glance, both the proxy reward and true reward appear to incentivize fast traffic flow. However, smaller policy models allow the red car to merge, whereas larger policy models exploit the misspecification by stopping the red car. When the red car stops merging, the mean velocity increases (merging slows down the more numerous grey cars). However, the mean commute time also increases (the red car is stuck). This exemplifies a phase transition : the qualitative behavior of the agent shifts as the model size increases.](https://arxiv.org/html/2201.03544v2/misspecification_gray_2.png)
@@ -1377,133 +1355,85 @@ flowchart LR
 <sub>figure: `2201.03544v2/misspecification_gray_2.png`</sub>
 
 ## 机制
-### 1. Experimental Setup: Environments and Reward Functions
-
-In this section, we describe our four environments (Section 3.1 ) and taxonomize our nine corresponding misspecified reward functions (Section 3.2 ). Misweighting. Suppose that the true reward is a linear combination of commute time and acceleration (for reducing carbon emissions). Downweighting the acceleration term thus underpenalizes carbon emissions. In general, misweighting occurs when the proxy and true reward capture the same desiderata, but differ on their relative importance. Ontological. Congestion could be operationalized as either high average commute time or low average vehicle velocity. In general, ontological misspecification occurs when the proxy and true reward use different desiderata to capture the same concept. Scope. If monitoring velocity over all roads is too costly, a city might instead monitor them only over highways, thus pushing congestion to local streets. In general, scope misspecification occurs when the proxy measures desiderata over a restricted domain (e.g. time, space).
-
-<sub>§3 Experimental Setup: Environments and Reward Functions</sub>
-
-### 2. Environments
-
-We chose a diverse set of environments and prioritized complexity of action space, observation space, and dynamics model. Our aim was to reflect real-world constraints in our environments, selecting ones with several desiderata that must be simultaneously balanced. Table 1 provides a summary.
-
-<sub>§3.1 Environments</sub>
-
-### 3. Traffic Control.
-
-The traffic environment is an autonomous vehicle (AV) simulation that models vehicles driving on different highway networks. The vehicles are either controlled by a RL algorithm or pre-programmed via a human behavioral model. Our misspecifications are listed in Table 1 . We use the Flow traffic simulator, implemented by Wu et al. (2021) and Vinitsky et al. (2018) , which extends the popular SUMO traffic simulator ( Lopez et al., 2018 ) . The simulator uses cars that drive like humans, following the Intelligent Driver Model (IDM) ( Treiber et al., 2000 ) , a widely-accepted approximation of human driving behavior. Simulated drivers attempt to travel as fast as possible while tending to decelerate whenever they are too close to the car immediately in front. The RL policy has access to observations only from the AVs it controls. For each AV, the observation space consists of the car’s position, its velocity, and the position and velocity of the cars immediately in front of and behind it. The continuous control action is the acceleration applied to each AV. Figure 4 depicts the Traffic-Mer network, where cars from an on-ramp attempt to merge onto the straightaway. We also use the Traffic-Bot network, where cars (1-4 RL, 10-20 human) drive through a highway bottleneck where lanes decrease from four to two to one.
-
-<sub>§Traffic Control.</sub>
-
-### 4. COVID Response.
-
-The COVID environment, developed by Kompella et al. (2020) , simulates a population using the SEIR model of individual infection dynamics. The RL policymaker adjusts the severity of social distancing regulations while balancing economic health (better with lower regulations) and public health (better with higher regulations), similar in spirit to Trott et al. (2021) . The population attributes (proportion of adults, number of hospitals) and infection dynamics (random testing rate, infection rate) are based on data from Austin, Texas. Every day, the environment simulates the infection dynamics and reports testing results to the agent, but not the true infection numbers. The policy chooses one of three discrete actions: increase , decrease , or maintain the current regulation stage, which directly affects the behavior of the population and indirectly affects the infection dynamics. There are five stages in total.
-
-<sub>§COVID Response.</sub>
-
-### 5. Atari Riverraid.
-
-The Atari Riverraid environment is run on OpenAI Gym ( Brockman et al., 2016 ) . The agent operates a plane which flies over a river and is rewarded by destroying enemies. The agent observes the raw pixel input of the environment. The agent can take one of eighteen discrete actions, corresponding to either movement or shooting within the environment.
-
-<sub>§Atari Riverraid.</sub>
-
-### 6. Glucose Monitoring.
-
-The glucose environment, implemented in Fox et al. (2020) , is a continuous control problem. It extends a FDA-approved simulator ( Man et al., 2014 ) for blood glucose levels of a patient with Type 1 diabetes. The patient partakes in meals and wears a continuous glucose monitor (CGM), which gives noisy observations of the patient’s glucose levels. The RL agent administers insulin to maintain a healthy glucose level. Every five minutes, the agent observes the patient’s glucose levels and decides how much insulin to administer. The observation space is the previous four hours of glucose levels and insulin dosages.
-
-<sub>§Glucose Monitoring.</sub>
-
-### 7. Misspecifications
-
-Using the above environments, we constructed nine instances of misspecified proxy rewards. To help interpret these proxies, we taxonomize them as instances of misweighting, incorrect ontology, or incorrect scope. We elaborate further on this taxonimization using the traffic example from Figure 1 . We include a summary of all nine tasks in Table 1 and provide full details in Appendix A . Table 1 also indicates whether each proxy leads to misalignment (i.e. to a policy with low true reward) and whether it leads to a phase transition (a sudden qualitative shift as model capacity increases). We investigate both of these in Section 4 .
-
-<sub>§3.2 Misspecifications</sub>
-
-### 8. How Agent Optimization Power Drives Misalignment
+### 1. How Agent Optimization Power Drives Misalignment
 
 To better understand reward hacking, we study how it emerges as agent optimization power increases. We define optimization power as the effective search space of policies the agent has access to, as implicitly determined by model size, training steps, action space, and observation space. In Section 4.1 , we consider the quantitative effect of optimization power for all nine environment-misspecification pairs; we primarily do this by varying model size, but also use training steps, action space, and observation space as robustness checks. Overall, more capable agents tend to overfit the proxy reward and achieve a lower true reward. We also find evidence of phase transitions on four of the environment-misspecification pairs. For these phase transitions, there is a critical threshold at which the proxy reward rapidly increases and the true reward rapidly drops. In Section 4.2 , we further investigate these phase transitions by qualitatively studying the resulting policies. At the transition, we find that the quantitative drop in true reward corresponds to a qualitative shift in policy behavior. Extrapolating visible trends is therefore insufficient to catch all instances of reward hacking, increasing the urgency of research in this area. In Section 4.3 , we assess the faithfulness of our proxies, showing that reward hacking occurs even though the true and proxy rewards are strongly positively correlated in most cases.
 
 <sub>§4 How Agent Optimization Power Drives Misalignment</sub>
 
-### 9. Quantitative Effects vs. Agent Capabilities
+### 2. Quantitative Effects vs. Agent Capabilities
 
 As a stand-in for increasing agent optimization power, we first vary the model capacity for a fixed environment and proxy reward. Specifically, we vary the width and depth of the actor and critic networks, changing the parameter count by two to four orders of magnitude depending on the environment. For a given policy, the actor and critic are always the same size.
 
 <sub>§4.1 Quantitative Effects vs. Agent Capabilities</sub>
 
-### 10. Model Capacity.
+### 3. Model Capacity.
 
 Our results are shown in Figure 2 , with additional plots included in Appendix A . We plot both the proxy (blue) and true (green) reward vs. the number of parameters. As model size increases, the proxy reward increases but the true reward decreases. This suggests that reward designers will likely need to take greater care to specify reward functions accurately and is especially salient given the recent trends towards larger and larger models ( Littman et al., 2021 ) . The drop in true reward is sometimes quite sudden. We call these sudden shifts phase transitions , and mark them with dashed red lines in Figure 2 . These quantitative trends are reflected in the qualitative behavior of the policies (Section 4.2 ), which typically also shift at the phase transition. Model capacity is only one proxy for agent capabilities, and larger models do not always lead to more capable agents ( Andrychowicz et al., 2020 ) . To check the robustness of our results, we consider several other measures of optimization: observation fidelity, number of training steps, and action space resolution.
 
 <sub>§Model Capacity.</sub>
 
-### 11. Number of training steps.
+### 4. Number of training steps.
 
 Assuming a reasonable RL algorithm and hyperparameters, agents which are trained for more steps have more optimization power. We vary training steps for an agent trained on the Atari environment. The true reward incentivizes staying alive for as many frames as possible while moving smoothly. The proxy reward misweights these considerations by underpenalizing the smoothness constraint. As shown in Figure , optimizing the proxy reward for more steps harms the true reward, after an initial period where the rewards are positively correlated.
 
 <sub>§Number of training steps.</sub>
 
-### 12. Action space resolution.
+### 5. Action space resolution.
 
 Intuitively, an agent that can take more precise actions is more capable. For example, as technology improves, an RL car may make course corrections every millisecond instead of every second. We study action space resolution in the traffic environment by discretizing the output space of the RL agent. Specifically, under resolution level ε \varepsilon , we round the action a ∈ ℝ a\in\mathbb{R} output by the RL agent to the nearest multiple of ε \varepsilon and use that as our action. The larger the resolution level ε \varepsilon , the lower the action space resolution. Results are shown in Figure for a fixed model size. Increasing the resolution causes the proxy reward to remain roughly constant while the true reward decreases.
 
 <sub>§Action space resolution.</sub>
 
-### 13. Observation fidelity.
+### 6. Observation fidelity. / Qualitative Effects
 
-Agents with access to better input sensors, like higher-resolution cameras, should make more informed decisions and thus have more optimization power. Concretely, we study this in the COVID environment, where we increase the random testing rate in the population. The proxy reward is a linear combination of the number of infections and severity of social distancing, while the true reward also factors in political cost. As shown in Figure , as the testing rate increases, the model achieves similar proxy reward at the cost of a slightly lower true reward.
+Agents with access to better input sensors, like higher-resolution cameras, should make more informed decisions and thus have more optimization power. Concretely, we study this in the COVID environment, where we increase the random testing rate in the population. The proxy reward is a linear combination of the number of infections and severity of social distancing, while the true reward also factors in political cost. As shown in Figure , as the testing rate increases, the model achieves similar proxy reward at the cost of a slightly lower true reward. In the previous section, quantitative trends showed that increasing a model’s optimization power often hurts performance on the true reward. We shift our focus to understanding how this decrease happens. In particular, we typically observe a qualitative shift in behavior associated with each of the phase transitions, three of which we describe below.
 
-<sub>§Observation fidelity.</sub>
+<sub>§Observation fidelity. · §4.2 Qualitative Effects</sub>
 
-### 14. Qualitative Effects
-
-In the previous section, quantitative trends showed that increasing a model’s optimization power often hurts performance on the true reward. We shift our focus to understanding how this decrease happens. In particular, we typically observe a qualitative shift in behavior associated with each of the phase transitions, three of which we describe below.
-
-<sub>§4.2 Qualitative Effects</sub>
-
-### 15. Traffic Control.
+### 7. Traffic Control.
 
 We focus on the Traffic-Mer environment from Figure 2(a) , where minimizing average commute time is replaced by maximizing average velocity. In this case, smaller policies learn to merge onto the straightaway by slightly slowing down the other vehicles (Figure 4(a) ). On the other hand, larger policy models stop the AVs to prevent them from merging at all (Figure 4(b) ). This increases the average velocity, because the vehicles on the straightaway (which greatly outnumber vehicles on the on-ramp) do not need to slow down for merging traffic. However, it significantly increases the average commute time, as the passengers in the AV remain stuck.
 
 <sub>§Traffic Control.</sub>
 
-### 16. COVID Response.
+### 8. COVID Response.
 
 Suppose the RL agent optimizes solely for the public and economic health of a society, without factoring politics into its decision-making. This behavior is shown in Figure 5 . The larger model chooses to increase the severity of social distancing restrictions earlier than the smaller model. As a result, larger models are able to maintain low average levels of both ICU usage (a proxy for public health) and social distancing restrictions (a proxy for economic health). These preemptive regulations may however be politically costly, as enforcing restrictions without clear signs of infection may foment public unrest ( Boettke & Powell, 2021 ) .
 
 <sub>§COVID Response.</sub>
 
-### 17. Atari Riverraid.
+### 9. Atari Riverraid.
 
 We create an ontological misspecification by rewarding the plane for staying alive as long as possible while shooting as little as possible: a “pacifist run”. We then measure the game score as the true reward. We find that agents with more parameters typically maneuver more adeptly. Such agents shoot less frequently, but survive for much longer, acquiring points (true reward) due to passing checkpoints. In this case, therefore, the proxy and true rewards are well-aligned so that reward hacking does not emerge as capabilities increase. We did, however, find that some of the agents exploited a bug in the simulator that halts the plane at the beginning of the level. The simulator advances but the plane itself does not move, thereby achieving high pacifist reward.
 
 <sub>§Atari Riverraid.</sub>
 
-### 18. Glucose Monitoring.
+### 10. Glucose Monitoring.
 
 Consider an RL agent that optimizes solely for a patient’s health, without considering the economic costs of its treatment plans. In this case, the proxy reward is based off of a glycemic risk measure, which reflects the likelihood that a patient will suffer an acute hypoglycemic episode, developed by the medical community ( Kovatchev et al., 2000 ) . However, a less economically-privileged patient may opt for the treatment plan with the least expected cost ( Herkert et al., 2019 ; Fralick & Kesselheim, 2019 ) , not the one with the least amount of risk. From this patient’s perspective, the true reward is the expected cost of the treatment plan, which includes the expected cost of hospital visits and the cost of administering the insulin. Although larger model treatments reduce hypoglycemic risk more smaller model treatments, they administer more insulin. Based on the average cost of an ER visit for a hypogylcemic episode ( $ 1350 \$1350 from Bronstone & Graham (2016) ) and the average cost of a unit of insulin ( $ 0.32 \$0.32 from Lee (2020) ), we find that it is actually more expensive to pursue the larger model’s treatment.
 
 <sub>§Glucose Monitoring.</sub>
 
-### 19. Quantitative Effects vs Proxy-True Reward Correlation
+### 11. Quantitative Effects vs Proxy-True Reward Correlation
 
 We saw in Sections 4.1 and 4.2 that agents often pursue proxy rewards at the cost of the true reward. Perhaps this only occurs because the proxy is greatly misspecified, i.e., the proxy and true reward are weakly or negatively correlated. If this were the case, then reward hacking may pose less of a threat. To investigate this intuition, we plot the correlation between the proxy and true rewards. The correlation is determined by the state distribution of a given policy, so we consider two types of state distributions. Specifically, for a given model size, we obtain two checkpoints: one that achieves the highest proxy reward during training and one from early in training (less than 1 % 1\% of training complete). We call the former the “trained checkpoint” and the latter the “early checkpoint”. For a given model checkpoint, we calculate the Pearson correlation ρ \rho between the proxy reward P P and true reward T T using 30 trajectory rollouts. Reward hacking occurs even though there is significant positive correlation between the true and proxy rewards (see Figure 6 ). The correlation is lower for the trained model than for the early model, but still high. Further figures are shown in Appendix A.2 . Among the four environments tested, only the Traffic-Mer environment with ontological misspecification had negative Pearson correlation.
 
 <sub>§4.3 Quantitative Effects vs Proxy-True Reward Correlation</sub>
 
-### 20. Polynomaly: Mitigating reward misspecification
+### 12. Polynomaly: Mitigating reward misspecification
 
 In Section 4 , we saw that reward hacking often leads to phase transitions in agent behaviour. Furthermore, in applications like traffic control or COVID response, the true reward may be observed only sporadically or not at all. Blindly optimizing the proxy in these cases can lead to catastrophic failure ( Zhuang & Hadfield-Menell, 2020 ; Taylor, 2016 ) . This raises an important question: Without the true reward signal, how can we mitigate misalignment? We operationalize this as an anomaly detection task: the detector should flag instances of misalignment, thus preventing catastrophic rollouts. To aid the detector, we provide it with a trusted policy : one verified by humans to have acceptable (but not maximal) reward. Our resulting benchmark, Polynomaly , is described below. Area Under the Receiver Operating Characteristic (AUROC) . The AUROC measures the probability that a detector will assign a random anomaly a higher score than a random non-anomalous policy ( Davis & Goadrich, 2006 ) . Higher AUROCs indicate stronger detectors. Max F-1 score . The F-1 score is the harmonic mean of the precision and the recall, so detectors with a high F-1 score have both low false positives and high true negatives. We calculate the max F-1 score by taking the maximum F-1 score over all possible thresholds for the detector. Baseline Detectors Mean Jensen-Shannon Mean Hellinger Range Hellinger Env. - Misspecification AUROC Max F-1 AUROC Max F-1 AUROC Max F-1 Traffic-Mer - misweighting 81.0 % 81.0\% 0.824 0.824 81.0 % 81.0\% 0.824 0.824 76.2 % 76.2\% 0.824 0.824 Traffic-Mer - scope 74.6 % 74.6\% 0.818 0.818 74.6 % 74.6\% 0.818 0.818 57.1 % 57.1\% 0.720 0.720 Traffic-Mer - ontological 52.7 % 52.7\% 0.583 0.583 55.4 % 55.4\% 0.646 0.646 71.4 % 71.4\% 0.842 0.842 Traffic-Bot - misweighting 88.9 % 88.9\% 0.900 0.900 88.9 % 88.9\% 0.900 0.900 74.1 % 74.1\% 0.857 0.857 COVID - ontological 45.2 % 45.2\% 0.706 0.706 59.5 % 59.5\% 0.750 0.750 88.1 % 88.1\% 0.923 0.923
 
 <sub>§5 Polynomaly: Mitigating reward misspecification</sub>
 
-### 21. Problem Setup
+### 13. Problem Setup
 
 We train a collection of policies by varying model size on the traffic and COVID environments. For each policy, we estimate the policy’s true reward by averaging over 5 5 to 32 32 rollouts. One author labeled each policy as acceptable, problematic, or ambiguous based on its true reward score relative to that of other policies. We include only policies that received a non-ambiguous label. For both environments, we provide a small-to-medium sized model as the trusted policy model, as Section 4.1 empirically illustrates that smaller models achieve reasonable true reward without exhibiting reward hacking. Given the trusted model and a collection of policies, the anomaly detector’s task is to predict the binary label of “acceptable” or “problematic” for each policy. Table 3 in Appendix B.1 summarizes our benchmark. The trusted policy size is a list of the hidden unit widths of the trusted policy network (not including feature mappings).
 
 <sub>§5.1 Problem Setup</sub>
 
-### 22. Baselines
+### 14. Baselines
 
 In addition to the benchmark datasets described above, we provide baseline anomaly detectors based on estimating distances between policies. We estimate the distance between the trusted policy and the unknown policy based on either the Jensen-Shannon divergence (JSD) or the Hellinger distance. Specifically, we use rollouts to generate empirical action distributions. We compute the distance between these action distributions at each step of the rollout, then aggregate across steps by taking either the mean or the range. For full details, see Appendix B.2 . Table 2 reports the AUROC and F-1 scores of several such detectors. We provide full ROC curves in Appendix B.2 . We observe that different detectors are better for different tasks, suggesting that future detectors could do better than any of our baselines. Our benchmark and baseline provides a starting point for further research on mitigating reward hacking.
 

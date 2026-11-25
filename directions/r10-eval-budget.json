@@ -123,6 +123,21 @@
       "seed",
       "repeat",
       "reliab"
+    ],
+    "what gets measured": [
+      "benchmark",
+      "metric",
+      "accuracy",
+      "pass@",
+      "evaluat",
+      "score"
+    ],
+    "prompting methods under test": [
+      "self-consistency",
+      "chain-of-thought",
+      "reflective prompt",
+      "prompt evolution",
+      "verifier"
     ]
   }
 }

@@ -198,3 +198,36 @@ r3 的清单第一名按语料内被引数是"Hyperband"，arXiv id 写作 `1903
 
 已知边界：`mermaid` 在面板里是**等宽文本**，不是渲染出来的图（客户端 bundle 只允许依赖
 `react`，这条是规格钉住的）；146 张图里我们能保证的是 URL 可解析，不是内容正确。
+
+## 第六种看法：把「没做成」的清单逐条兑现（2026-11-25 追加）
+
+上一次交付里我自己列了四条打折项，这一轮把它们都做了，并且做的时候又抓到四个真缺陷。
+
+| 上次说的 | 这一轮的结果 |
+| --- | --- |
+| 面板没在真实窗口验证过 | `scripts/panel-preview.mjs` 的 fixture 里加了书架与一篇打开的页面，`docs/panel-preview.html` 由它逐字节重生成；`scripts/panel-audit.mjs` 在 headless Chrome 里量三种宽度（320/400/720）——没有横向溢出、没有裁切、对比度过线。这是**可复算的替代品**，不是真窗口截图 |
+| mermaid 是等宽文本 | 仍然是文本，但不再是「混在正文里的段落」：` ```mermaid ` 里的内容现在进独立的 `<pre>`，下面一行写「宿主没有图渲染器，这是它的源码」。上一版把它当段落渲染，读起来像句子 |
+| 17 篇没年份、`1605.07079` 没标题 | 153 篇里 **0 篇**缺年份、0 篇缺标题。做法是抓 arXiv abs 页的 `citation_date` / `citation_title`，**只填未知字段**（正文说过的年份永不覆盖），结果按 id 缓存进 `research/out/.cache/meta/`，失败也缓存（404 不重试）。全库 19 篇靠它补齐 |
+| 分类里 51 篇是 unclustered | 拆成两桶：**apparatus 4 篇**（技术报告、benchmark、综述——它们是仪器，不是被争论的观点），真漏检只剩 **3 篇**。同时给九个方向各补了 1–3 个 cluster 关键词 |
+
+这一轮抓到的四个真缺陷（都属于「字段在，值是错的」）：
+
+1. **52/153 篇把 Results/Evaluation 章当成了方法章。** 旧的关键词表认「Method/Approach/Architecture」，认不出
+   「GEPA: Reflective Prompt Evolution」这种把方法写在名字里的章节，于是按体量最大取胜——而 §4 Evaluation
+   有 334 段、方法只有 69 段。改成**文档序**规则：第一个 results 章之前的章节就是方法。`results` 的判定
+   还必须锚在标题开头，否则「Benchmark Curation」「Benchmark Construction」这类把方法写进章节名的论文
+   会被判成整篇只有测量（4 篇因此零机制）。修完：机制段落里**0 处在 Introduction 或 Results 章**。
+2. **技术报告的机制列表变成了目录。** 有的报告有三十来个带编号小节，全列出来不是机制。
+   加了 `MECHANISM_MAX_POINTS = 14`，反复合并**相邻两点里总字符最短**的一对（永不重排，`merged` 记下合并了几个）。
+   第一版写成 `for (i < out.length)` 配 `slice(bestAt, bestAt+2)`，长度 1 时 `splice` 不缩短 →
+   **死循环**，规格跑 120 秒被移到后台才发现。
+3. **「unclustered」在回答两个不同问题**（见上表）。
+4. **年份与标题**（见上表）。
+
+修完全库的现状：**153 篇 / 146 张图 / 1 missing（PPO 只有 PDF 指针）/ 1108 个机制点 / 153 篇全部有人写过总结**。
+
+没做成或要打折的：方法章识别仍是三条经验规则（文档序 + 体积比例 + 关键词），`RESULTS` 锚定也可能误判
+「Analysis of Algorithms」这类章节名；apparatus 是标题正则，`HarmBench` 这类落进了 cluster 而不是 apparatus；
+`MECHANISM_MAX_POINTS = 14` 是我定的，没有文献依据；abs 页给的是 arXiv 的提交年份，不是论文首页印的年份。
+
+补一处：mermaid 那个 `<pre>` 第一次写成了 `background: color-mix(in srgb, currentColor 4%, transparent)`，被 `tests/panel-view.test.mjs` 的调色板规则挡住——调色板只允许对 `--loom-base`（挂载时量出来的不透明墨色）混色，对 `currentColor` 混会让嵌套标签的 alpha 相乘。改成 `var(--loom-base)`。

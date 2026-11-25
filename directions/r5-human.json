@@ -118,6 +118,24 @@
       "guardrail",
       "compliance",
       "audit"
+    ],
+    "weak-to-strong supervision": [
+      "weak-to-strong",
+      "amplif",
+      "weak supervision",
+      "supervis"
+    ],
+    "debate & critique": [
+      "debate",
+      "critique",
+      "judge",
+      "argu"
+    ],
+    "elicitation of reasoning": [
+      "chain-of-thought",
+      "reasoning",
+      "prompting",
+      "elicits"
     ]
   }
 }

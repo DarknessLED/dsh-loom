@@ -9,18 +9,18 @@ Built from arXiv HTML bodies on 2026-11-25. 18 work(s).
 | [BrowseComp: A Simple Yet Challenging Benchmark for Browsing Agents](https://arxiv.org/abs/2504.12516) | 2025 | 6 | no | 3 | yes |
 | [Search-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning](https://arxiv.org/abs/2503.09516) | 2025 | 4 | yes | 3 | yes |
 | [WebGPT: Browser-assisted question-answering with human feedback](https://arxiv.org/abs/2112.09332) | 2021 | 4 | yes | 4 | yes |
-| [Self-Refine : Iterative Refinement with Self-Feedback](https://arxiv.org/abs/2303.17651) | 2023 | 3 | yes | 1 | yes |
+| [Self-Refine : Iterative Refinement with Self-Feedback](https://arxiv.org/abs/2303.17651) | 2023 | 4 | yes | 1 | yes |
 | [ResearchRubrics : A Benchmark of Prompts and Rubrics For Evaluating Deep Research Agents](https://arxiv.org/abs/2511.07685) | 2025 | 4 | yes | 0 | yes |
-| [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | 2023 | 4 | yes | 1 | yes |
-| [BrowseComp-Plus: A More Fair and Transparent Evaluation Benchmark of Deep-Research Agent](https://arxiv.org/abs/2508.06600) | 2025 | 13 | yes | 0 | yes |
-| [WebSailor: Navigating Super-human Reasoning for Web Agent](https://arxiv.org/abs/2507.02592) | 2025 | 12 | yes | 1 | yes |
+| [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | 2023 | 6 | yes | 1 | yes |
+| [BrowseComp-Plus: A More Fair and Transparent Evaluation Benchmark of Deep-Research Agent](https://arxiv.org/abs/2508.06600) | 2025 | 7 | yes | 0 | yes |
+| [WebSailor: Navigating Super-human Reasoning for Web Agent](https://arxiv.org/abs/2507.02592) | 2025 | 10 | yes | 1 | yes |
 | [DeepResearcher: Scaling Deep Research via Reinforcement Learning in Real-world Environments](https://arxiv.org/abs/2504.03160) | 2025 | 11 | yes | 0 | yes |
 | [Survey of Hallucination in Natural Language Generation](https://arxiv.org/abs/2202.03629) | 2023 | 7 | yes | 0 | yes |
-| [Evaluating Verifiability in Generative Search Engines](https://arxiv.org/abs/2304.09848) | ? | 8 | yes | 0 | yes |
-| [Qwen3 Technical Report](https://arxiv.org/abs/2505.09388) | 2025 | 17 | yes | 1 | yes |
-| [Search-o1: Agentic Search-Enhanced Large Reasoning Models](https://arxiv.org/abs/2501.05366) | ? | 7 | yes | 3 | yes |
+| [Evaluating Verifiability in Generative Search Engines](https://arxiv.org/abs/2304.09848) | 2023 | 8 | yes | 0 | yes |
+| [Qwen3 Technical Report](https://arxiv.org/abs/2505.09388) | 2025 | 14 | yes | 1 | yes |
+| [Search-o1: Agentic Search-Enhanced Large Reasoning Models](https://arxiv.org/abs/2501.05366) | 2025 | 7 | yes | 3 | yes |
 | [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903) | 2022 | 3 | yes | 3 | yes |
-| [The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery](https://arxiv.org/abs/2408.06292) | 2024 | 3 | yes | 0 | yes |
+| [The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery](https://arxiv.org/abs/2408.06292) | 2024 | 2 | yes | 0 | yes |
 | [GAIA : A Benchmark for G eneral AI A ssistants](https://arxiv.org/abs/2311.12983) | 2024 | 9 | yes | 0 | yes |
 
 Summaries written: 18 of 18
@@ -489,10 +489,10 @@ Although large language models ( LLM s) can generate coherent outputs, they ofte
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§3 Evaluation"]
-  N1["§3.1 Instantiating Self-Refine"]
-  N2["§Base LLMs"]
-  N3["§3.2 Metrics"]
+  N0["§2 Iterative Refinement with Self-Refine"]
+  N1["§Initial generation"]
+  N2["§feedback"]
+  N3["§refine"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
@@ -505,23 +505,29 @@ flowchart LR
 <sub>figure: `2303.17651v2/autofb_figv3.png`</sub>
 
 ## 机制
-### 1. Evaluation
+### 1. Iterative Refinement with Self-Refine
 
-We evaluate Self-Refine on 7 diverse tasks: Dialogue Response Generation ( Mehri and Eskenazi, 2020 , Appendix M ; ) , Code Optimization ( Madaan et al., 2023 , Appendix N ; ) , Code Readability Improvement ( Puri et al., 2021 , Appendix L ; ) , Math Reasoning ( Cobbe et al., 2021 , Appendix O ; ) , Sentiment Reversal ( Zhang et al., 2015 , Appendix P ; ) , and we introduce two new tasks: Acronym Generation ( Appendix Q ) and Constrained Generation (a harder version of Lin et al. (2020) with 20-30 keyword constraints instead of 3-5; Appendix R ) Examples for all tasks and dataset statistics are provided in Table 4 ( Appendix A ). Task specific metric: When available, we use automated metrics from prior work (Math Reasoning: % solve rate; Code Optimization: % programs optimized; Constrained Gen: coverage %) Human-pref: In Dialogue Response Generation, Code Readability Improvement, Sentiment Reversal, and Acronym Generation, since no automated metrics are available, we perform a blind human A/B evaluation on a subset of the outputs to select the preferred output. Additional details are provided in Appendix C . GPT-4 -pref: In addition to human-pref, we use GPT-4 as a proxy for human preference following prior work ( Fu et al., 2023 ; Chiang et al., 2023 ; Geng et al., 2023 ; Sun et al., 2023 ) , and found high correlation (82% for Sentiment Reversal, 68% for Acronym Generation, and 71% for Dialogue Response Generation) with human-pref. For Code Readability Improvement, we prompt GPT-4 to calculate fraction of the variables that are appropriately named given the context (e.g., x = [] → input_buffer = [] \texttt{x = []}\rightarrow\texttt{input\_buffer = []} ). Additional details are provided in Appendix D .
+Given an input sequence, Self-Refine generates an initial output, provides feedback on the output, and refines the output according to the feedback. Self-Refine iterates between feedback and refinement until a desired condition is met. Self-Refine relies on a suitable language model and three prompts (for initial generation, feedback, and refinement), and does not require training. Self-Refine is shown in Figure 1 and Algorithm 1 . Next, we describe Self-Refine in more detail.
 
-<sub>§3 Evaluation</sub>
+<sub>§2 Iterative Refinement with Self-Refine</sub>
 
-### 2. Instantiating Self-Refine
+### 2. Initial generation
 
-We instantiate Self-Refine following the high-level description in Section 2 . The feedback - refine iterations continue until the desired output quality or task-specific criterion is reached, up to a maximum of 4 iterations. To make our evaluation consistent across different models, we implemented both feedback and refine as few-shot prompts even with models that respond well to instructions, such as ChatGPT and GPT-4 .
+Given an input x x , prompt p gen p_{\text{gen}} , and model ℳ \mathcal{M} , Self-Refine generates an initial output y 0 y_{0} : For example, in Figure 2(d) , the model generates functionally correct code for the given input. Here, p gen p_{\text{gen}} is a task-specific few-shot prompt (or instruction) for an initial generation, and ∥ \| denotes concatenation. The few-shot prompt contains input-output pairs ⟨ x ( k ) , y ( k ) ⟩ \langle x^{(k)},y^{(k)}\rangle for the task. 2 2 2 Few-shot prompting (also referred to as “in-context learning”) provides a model with a prompt consisting of k k in-context examples of the target task, each in the form of input-output pairs ⟨ x i , y i ⟩ \langle x_{i},y_{i}\rangle ( Brown et al., 2020 ) .
 
-<sub>§3.1 Instantiating Self-Refine</sub>
+<sub>§Initial generation</sub>
 
-### 3. Base LLMs
+### 3. feedback
 
-Our main goal is to evaluate whether we can improve the performance of any strong base LLMs using Self-Refine . Therefore, we compare Self-Refine to the same base LLMs but without feedback-refine iterations. We used three main strong base LLM across all tasks: GPT-3.5 ( text-davinci-003 ), ChatGPT ( gpt-3.5-turbo ), and GPT-4 ( OpenAI, 2023 ) . For code-based tasks, we also experimented with Codex ( code-davinci-002 ). In all tasks, either GPT-3.5 or GPT-4 is the previous state-of-the-art. 3 3 3 A comparison with other few-shot and fine-tuned approaches is provided in Appendix F We used the same prompts from previous work when available (such as for Code Optimization and Math Reasoning); otherwise, we created prompts as detailed in Appendix S . We use greedy decoding with a temperature of 0.7 for all setups.
+Next, Self-Refine uses the same model ℳ \mathcal{M} to provide feedback f ​ b t fb_{t} on its own output, given a task-specific prompt p fb p_{\text{fb}} for generating feedback: Intuitively, the feedback may address multiple aspects of the output. For example, in code optimization, the feedback might address the efficiency, readability, and overall quality of the code. Here, the prompt p fb p_{\text{fb}} provides examples of feedback in the form of input-output-feedback triples ⟨ x ( k ) , y ( k ) , f ​ b ( k ) ⟩ \langle x^{(k)},y^{(k)},fb^{(k)}\rangle . We prompt the model to write feedback that is actionable and specific via f ​ b ( k ) fb^{(k)} . By ‘actionable’, we mean the feedback should contain a concrete action that would likely improve the output. By ‘specific’, we mean the feedback should identify concrete phrases in the output to change. For example, the feedback in Figure 2(e) is “ This code is slow as it uses a for loop which is brute force. A better approach is to use the formula … (n(n+1))/2 ”. This feedback is actionable, since it suggests the action ‘use the formula…’. The feedback is specific since it mentions the ‘for loop’.
 
-<sub>§Base LLMs</sub>
+<sub>§feedback</sub>
+
+### 4. refine
+
+Next, Self-Refine uses ℳ \mathcal{M} to refine its most recent output, given its own feedback: For example, in Figure 2(f) , given the initial output and the generated feedback, the model generates a re-implementation that is shorter and runs much faster than the initial implementation. The prompt p refine p_{\text{refine}} provides examples of improving the output based on the feedback, in the form of input-output-feedback-refined quadruples ⟨ x ( k ) , y t ( k ) , f ​ b t ( k ) , y t + 1 ( k ) ⟩ \langle x^{(k)},y_{t}^{(k)},fb_{t}^{(k)},y_{t+1}^{(k)}\rangle . Iterating Self-Refine Self-Refine alternates between feedback and refine steps until a stopping condition is met. The stopping condition stop ⁡ ( f ​ b t , t ) \mathrm{stop}(fb_{t},t) either stops at a specified timestep t t , or extracts a stopping indicator (e.g. a scalar stop score) from the feedback. In practice, the model can be prompted to generate a stopping indicator in p fb p_{\text{fb}} , and the condition is determined per-task. To inform the model about the previous iterations, we retain the history of previous feedback and outputs by appending them to the prompt. Intuitively, this allows the model to learn from past mistakes and avoid repeating them. More precisely, Equation 3 is in fact instantiated as: Finally, we use the last refinement y t y_{t} as the output of Self-Refine . Algorithm 1 summarizes Self-Refine , and Figure 2 shows an example of Self-Refine in the Dialogue Response Generation ( Mehri and Eskenazi, 2020 ) and Code Optimization ( Madaan et al., 2023 ) tasks. Appendix S provides examples of the p gen p_{\text{gen}} , p fb p_{\text{fb}} , p refine p_{\text{refine}} prompts for various tasks. The key idea is that Self-Refine uses the same underlying LLM to generate, get feedback, and refine its outputs given its own feedback. It relies only on supervision present in the few-shot examples.
+
+<sub>§refine</sub>
 
 ## 总结与展望
 Self-Refine 是自改进宣称的标准阴性对照：同一个模型给自己反馈、自己改，最多四轮，七个任务上都有效果。它对我们的意义有两层——一层是正面的，说明「自我批评」确实能带来提升；另一层更重要：后面 2607.12227 用它证明「自动 harness 进化打不过简单的 test-time scaling」，也就是说这种提升很容易被更便宜的办法复制。我们做调研时如果只读到前者，会高估自改进的稀缺性。
@@ -630,13 +636,17 @@ Recent works such as ReAct [ 30 ] , SayCan [ 1 ] , Toolformer [ 22 ] , HuggingGP
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§4 Experiments"]
-  N1["§4.1 Sequential decision making: ALFWorld"]
-  N2["§4.2 Reasoning: HotpotQA"]
-  N3["§4.3 Programming"]
+  N0["§3 Reflexion: reinforcement via verbal reflection"]
+  N1["§Actor"]
+  N2["§Evaluator"]
+  N3["§Self-reflection"]
+  N4["§Memory"]
+  N5["§The Reflexion process"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
+  N3 --> N4
+  N4 --> N5
 ```
 
 ![Reflexion works on decision-making 4.1 , programming 4.3 , and reasoning 4.2 tasks.](https://arxiv.org/html/2303.11366v4/reflexion_tasks.svg)
@@ -646,29 +656,41 @@ flowchart LR
 <sub>figure: `2303.11366v4/reflexion_tasks.svg`</sub>
 
 ## 机制
-### 1. Experiments
+### 1. Reflexion: reinforcement via verbal reflection
 
-We evaluate various natural language RL setups on decision-making, reasoning, and code generation tasks. Specifically, we challenge an agent to perform search-based question answering on HotPotQA [ 28 ] , multi-step tasks in common household environments in AlfWorld [ 24 ] , and code writing tasks in competition-like environments with interpreters and compilers in HumanEval [ 6 ] , MBPP [ 2 ] , and LeetcodeHard, a new benchmark. Most notably, Reflexion improves performance over strong baselines by 22% in AlfWorld, 20% in HotPotQA, and 11% on HumanEval.
+We develop a modular formulation for Reflexion, utilizing three distinct models: an Actor , denoted as M a M_{a} , which generates text and actions; an Evaluator model, represented by M e M_{e} , that scores the outputs produced by M a M_{a} ; and a Self-Reflection model, denoted as M s ​ r M_{sr} , which generates verbal reinforcement cues to assist the Actor in self-improvement. We provide a detailed description of each of these models and subsequently elucidate their collaborative functioning within the Reflexion framework.
 
-<sub>§4 Experiments</sub>
+<sub>§3 Reflexion: reinforcement via verbal reflection</sub>
 
-### 2. Sequential decision making: ALFWorld
+### 2. Actor
 
-AlfWorld is a suite of text-based environments that challenge an agent to solve multi-step tasks in a variety of interactive environments based on TextWorld [ 8 ] . Following Yao et al., [30] , we run the agent in 134 AlfWorld environments across six different tasks, including finding hidden objects (e.g., finding a spatula in a drawer), moving objects (e.g., moving a knife to the cutting board), and manipulating objects with other objects (e.g., chilling a tomato in the fridge). We use ReAct [ 30 ] as the action generator as Yao et al., [30] has shown success in long trajectory decision-making using explicit intermediate thoughts. AlfWorld tasks naturally require a self-evaluation step as the environment can only signal if a task is complete. To achieve fully autonomous behavior, we implement two self-evaluation techniques: natural language classification using an LLM and a hand-written heuristic. The heuristic is simple: if the agent executes the same action and receives the same response for more than 3 cycles, or if the number of actions taken in the current environment exceeds 30 (inefficient planning), we self-reflect. In the baseline runs, if self-reflection is suggested, we skip the self-reflection process, reset the environment, and start a new trial. In the Reflexion runs, the agent uses self-reflection to find its mistake, update its memory, reset the environment, and start a new trial. To avoid very long prompt windows that may exceed the maximum limit, we truncate the agent’s memory to the last 3 self-reflections (experiences). To avoid syntactic errors, we provide two domain-specific few-shot trajectories to the agent. We use the same few-shot trajectory examples as Yao et al., [30] with GPT-3 for the LLM. AlfWorld tasks, ReAct few-shot prompts, and Reflexion examples are included in the appendix.
+The Actor is built upon a large language model (LLM) that is specifically prompted to generate the necessary text and actions conditioned on the state observations. Analogous to traditional policy-based RL setups, we sample an action or generation, a t a_{t} , from the current policy π θ \pi_{\theta} at time t t , receive an observation from the environment o t o_{t} . We explore various Actor models, including Chain of Thought [ 26 ] and ReAct [ 30 ] . These diverse generation models allow us to explore different aspects of text and action generation within the Reflexion framework, providing valuable insights into their performance and effectiveness. In addition, we also add a memory component mem that provides additional context to this agent. This adaption was inspired by Brooks et al., [3] , who suggest a policy iteration approach using in-context learning. Details on how this is populated are provided below.
 
-<sub>§4.1 Sequential decision making: ALFWorld</sub>
+<sub>§Actor</sub>
 
-### 3. Reasoning: HotpotQA
+### 3. Evaluator
 
-HotPotQA [ 28 ] is a Wikipedia-based dataset with 113k question-and-answer pairs that challenge agents to parse content and reason over several supporting documents. To test improvement in reasoning only ability, we implement Reflexion + Chain-of-Thought (CoT) [ 26 ] for step-by-step Q → A Q\rightarrow A and Q Q , C g ​ t → A C_{gt}\rightarrow A implementations, where Q Q is the question, C g ​ t C_{gt} is the ground truth context from the dataset, and A A is the final answer. Since CoT is not a multi-step decision-making technique, we give C g ​ t C_{gt} to the agent so that we can isolate the reasoning behavior over large sections of the provided text. To test holistic question and answering ability, which requires reasoning and action choice, we implement a Reflexion + ReAct [ 30 ] agent that can retrieve relevant context using a Wikipedia API and infer answers using step-by-step explicit thinking. For CoT implementations, we use 6-shot prompting; for ReAct, we use 2-shot prompting, and for self-reflection, we use 2-shot prompting. All examples can be found in the appendix. Robustly evaluating natural language answers is a long-standing problem in NLP. Therefore, between trials, we use exact match answer grading using the environment to give a binary success signal to the agent. After each trial, the self-reflection loop is employed to amplify the binary signal, similar to the decision-making setup 4.1 in AlfWorld with a memory size of 3 experiences.
+The Evaluator component of the Reflexion framework plays a crucial role in assessing the quality of the generated outputs produced by the Actor. It takes as input a generated trajectory and computes a reward score that reflects its performance within the given task context. Defining effective value and reward functions that apply to semantic spaces is difficult, so we investigate several variants of the Evaluator model. For reasoning tasks, we explore reward functions based on exact match (EM) grading, ensuring that the generated output aligns closely with the expected solution. In decision-making tasks, we employ pre-defined heuristic functions that are tailored to specific evaluation criteria. Additionally, we experiment with using a different instantiation of an LLM itself as an Evaluator, generating rewards for decision-making and programming tasks. This multi-faceted approach to Evaluator design allows us to examine different strategies for scoring generated outputs, offering insights into their effectiveness and suitability across a range of tasks.
 
-<sub>§4.2 Reasoning: HotpotQA</sub>
+<sub>§Evaluator</sub>
 
-### 4. Programming
+### 4. Self-reflection
 
-We evaluate the baseline and Reflexion approaches on Python and Rust code writing on MBPP [ 2 ] , HumanEval [ 6 ] , and LeetcodeHardGym, our new dataset. MBPP and HumanEval measure function body generation accuracy given natural language descriptions. We use a benchmark language compiler, MultiPL-E [ 4 ] , to translate subsets of HumanEval and MBPP to the Rust language. MultiPL-E is a collection of small compilers that can be used to translate Python benchmark questions to 18 other languages. We include experiments for Rust code generation to demonstrate that Reflexion implementations for code generation are language-agnostic and can be used for interpreted and compiled languages. Lastly, we introduce a new benchmark, LeetcodeHardGym, which is an interactive programming gym that contains 40 Leetcode hard-rated questions that have been released after October 8, 2022, which is the pre-training cutoff date of GPT-4 [ 18 ] . The task of programming presents a unique opportunity to use more grounded self-evaluation practices such as self-generated unit test suites. Thus, our Reflexion-based programming task implementation is eligible for pass@1 accuracy reporting. To generate a test suite, we use Chain-of-Thought prompting [ 26 ] to produce diverse, extensive tests with corresponding natural language descriptions. Then, we filter for syntactically valid test statements by attempting to construct a valid abstract syntax tree (AST) for each proposed test. Finally, we sample n n tests from the collection of generated unit tests to produce a test suite T T , denoted as { t 0 , t 1 , … , t n } \{t_{0},t_{1},\dots,t_{n}\} . We set n n to a maximum of 6 unit tests. Aside from the unit test suite component, the setup for the learning loop for a Reflexion programming agent is identical to the reasoning and decision-making agents with a max memory limit of 1 experience.
+The Self-Reflection model instantiated as an LLM, plays a crucial role in the Reflexion framework by generating verbal self-reflections to provide valuable feedback for future trials. Given a sparse reward signal, such as a binary success status (success/fail), the current trajectory, and its persistent memory mem , the self-reflection model generates nuanced and specific feedback. This feedback, which is more informative than scalar rewards, is then stored in the agent’s memory ( mem ). For instance, in a multi-step decision-making task, when the agent receives a failure signal, it can infer that a specific action a i a_{i} led to subsequent incorrect actions a i + 1 a_{i+1} and a i + 2 a_{i+2} . The agent can then verbally state that it should have taken a different action, a i ′ a_{i}^{\prime} , which would have resulted in a i + 1 ′ a_{i+1}^{\prime} and a i + 2 ′ a_{i+2}^{\prime} , and store this experience in its memory. In subsequent trials, the agent can leverage its past experiences to adapt its decision-making approach at time t t by choosing action a i ′ a_{i}^{\prime} . This iterative process of trial, error, self-reflection, and persisting memory enables the agent to rapidly improve its decision-making ability in various environments by utilizing informative feedback signals.
 
-<sub>§4.3 Programming</sub>
+<sub>§Self-reflection</sub>
+
+### 5. Memory
+
+Core components of the Reflexion process are the notion of short-term and long-term memory. At inference time, the Actor conditions its decisions on short and long-term memory, similar to the way that humans remember fine-grain recent details while also recalling distilled important experiences from long-term memory. In the RL setup, the trajectory history serves as the short-term memory while outputs from the Self-Reflection model are stored in long-term memory. These two memory components work together to provide context that is specific but also influenced by lessons learned over several trials, which is a key advantage of Reflexion agents over other LLM action choice works.
+
+<sub>§Memory</sub>
+
+### 6. The Reflexion process
+
+Reflexion is formalized as an iterative optimization process in 1 . In the first trial, the Actor produces a trajectory τ 0 \tau_{0} by interacting with the environment. The Evaluator then produces a score r 0 r_{0} which is computed as r t = M e ​ ( τ 0 ) r_{t}=M_{e}(\tau_{0}) . r t r_{t} is only a scalar reward for trial t t that improves as task-specific performance increases. After the first trial, to amplify r 0 r_{0} to a feedback form that can be used for improvement by an LLM, the Self-Reflection model analyzes the set of { τ 0 , r 0 } \{\tau_{0},r_{0}\} to produce a summary s ​ r 0 sr_{0} which is stored in the memory mem . s ​ r t sr_{t} is a verbal experience feedback for trial t t . The Actor, Evaluator, and Self-Reflection models work together through trials in a loop until the Evaluator deems τ t \tau_{t} to be correct. As mentioned in 3 , the memory component of Reflexion is crucial to its effectiveness. After each trial t t , s ​ r t sr_{t} , is appended mem . In practice, we bound mem by a maximum number of stored experiences, Ω \Omega (usually set to 1-3) to adhere to max context LLM limitations.
+
+<sub>§The Reflexion process</sub>
 
 ## 总结与展望
 Reflexion 把「反思」变成一种不更新权重的强化学习：失败后写一段语言反思存进情景记忆，下次遇到同类任务时读出来。它对本方向的意义是给出了「经验如何被沉淀」的最小实现，也暴露了最小实现的弱点——论文自己在局限里说它可能陷入非最优的局部极小。我们的 knowledge.json 是同一结构的放大版，却没有对应的「陷在局部」的检测。
@@ -704,31 +726,19 @@ Recent benchmarks for evaluating Deep-Research Agents, such as BrowseComp [ 1 ] 
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§4 Experiments"]
-  N1["§4.1 Baselines: LLM Search Agents"]
-  N2["§4.2 Baselines: Retriever"]
-  N3["§Search Agents"]
-  N4["§Retriever"]
-  N5["§Deep Research Effectiveness"]
-  N6["§Retrieval Effectiveness"]
-  N7["§4.6 End-to-End Deep-Research Performance"]
-  N8["§4.7 Effect of Retrieval Quality"]
-  N9["§4.8.1 Oracle Retrieval"]
-  N10["§4.8.2 Impact of Reasoning Effort"]
-  N11["§4.8.3 Effect of Document Reading Strategy"]
-  N12["§4.8.4 Effect of Corpus Size"]
+  N0["§3 BrowseComp-Plus"]
+  N1["§3.1 Preliminary: BrowseComp"]
+  N2["§3.2 Building the Document Corpus"]
+  N3["§3.2.1 Evidence Document Gathering"]
+  N4["§3.2.2 Evidence Document Verification"]
+  N5["§3.3 Hard Negative Mining"]
+  N6["§3.4 Final Corpus Statistics"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
   N3 --> N4
   N4 --> N5
   N5 --> N6
-  N6 --> N7
-  N7 --> N8
-  N8 --> N9
-  N9 --> N10
-  N10 --> N11
-  N11 --> N12
 ```
 
 ![Accuracy vs. number of search calls for Deep-Research agents with different retrievers. GPT5, o3, gpt-oss are evaluated with high reasoning effort. The figure shows that Deep Research agents mostly improve the final accuracy at a cost of more search calls, whereas better retrieval systems not only improve the overall accuracy but also reduce the number of search calls .](https://arxiv.org/html/2508.06600v1/figures/teaser.png)
@@ -738,83 +748,47 @@ flowchart LR
 <sub>figure: `2508.06600v1/figures/teaser.png`</sub>
 
 ## 机制
-### 1. Experiments
+### 1. BrowseComp-Plus
 
-BM25 [ 35 ] : The classic sparse lexical retriever, which matches queries to documents based on term statistics. Qwen3-Embedding [ 26 ] : A dense embedding retriever, available in sizes 0.6B, 4B, and 8B, built on the Qwen3 foundation model family [ 14 ] . It achieves state - of - the - art performance on retrieval benchmarks such as MTEB [ 36 ] . ReasonIR [ 22 ] : A dense embedding specifically trained for reasoning - intensive retrieval via synthetic data generation, setting a new state - of - the - art on reasoning-intensive information retrieval benchmark BRIGHT [ 37 ] .
+In this section, we provide details on the construction of the proposed BrowseComp-Plus dataset, which builds upon BrowseComp [ 1 ] to further enable independent evaluation of the retrieval and LLM components within the Deep-Research framework. Comprehensive coverage: The corpus must provide complete evidence to support the entire reasoning chain required to answer each question. Retrieval difficulty: It should contain enough distracting negative documents so that search agents and retrievers are challenged in locating the correct evidence. Practical size: The corpus should be large enough to yield reliable research insights, but avoid too-large computation costs for research purposes. Confirm that each clue is sufficiently justified by the supporting documents. Instead of simply confirming the match, annotators must label the text spans in the documents that justify each clue, as this explicit step encourages high-quality verification. Determine whether the combination of clues and supporting evidence enables a human to answer the entirety of the question correctly. For instance, if a query asks for an individual matching five characteristics, all five must be verifiable from the documents.
 
-<sub>§4 Experiments</sub>
+<sub>§3 BrowseComp-Plus</sub>
 
-### 2. Baselines: LLM Search Agents
+### 2. Preliminary: BrowseComp
 
-We evaluate several representative commercial models with strong agentic search capabilities, ranging from the most advanced reasoning models to cost-effective ones: o3, gpt-4.1 [ 9 ] , gpt-5, claude-opus-4, claude-sonnet-4 [ 8 ] , gemini-2.5-pro, gemini-2.5-flash [ 7 ] . We also assess leading open-source efforts. This includes Qwen3-32B [ 14 ] , a popular open-source reasoning LLM, and Search-R1 [ 12 , 34 ] , a model fine-tuned for agentic search based on the Qwen backbone. Specifically, we use the 32B checkpoint released in [ 34 ] . Finally, we evaluate the recent advanced gpt-oss 20B and 120B [ 10 ] , which are reasoning LLMs optimized for search tool usage and offer multiple reasoning effort settings, ranging from low to high.
+The BrowseComp benchmark comprises 1,266 challenging fact-seeking questions specifically designed to assess the capability of Deep-Research AI agents to interactively and creatively navigate the web for complex, hard-to-find information [ 1 ] . The questions are deliberately constructed to be difficult for both humans and LLMs, yet they feature verifiable, concise answers, enabling straightforward evaluation through simple answer matching. While effective and widely employed for end-to-end evaluation of integrated deep research systems, this approach complicates the isolated measurement of retrieval effectiveness within these frameworks.
 
-<sub>§4.1 Baselines: LLM Search Agents</sub>
+<sub>§3.1 Preliminary: BrowseComp</sub>
 
-### 3. Baselines: Retriever
+### 3. Building the Document Corpus
 
-In our study, we compared a range of retrieval methods from a traditional lexical baseline to modern state - of - the - art dense embedding retrievers: We use the Pyserini IR toolkit [ 38 ] to serve the BM25 retriever, and the Tevatron dense retrieval toolkit [ 39 ] to serve Qwen3-Embedding and ReasonIR.
+Constructing a corpus for BrowseComp questions is non-trivial. Three key challenges must be addressed: To meet these criteria, we curate evidence documents through a two-stage pipeline involving automated evidence mining followed by human verification, and perform hard-negative mining via web search to attach challenging, distracting documents to each query. The sections below describe this process in detail and present a 100k-document corpus that effectively supports the study of the Deep Research framework.
 
-<sub>§4.2 Baselines: Retriever</sub>
+<sub>§3.2 Building the Document Corpus</sub>
 
-### 4. Search Agents
+### 4. Evidence Document Gathering
 
-To perform agentic search with the LLMs, we provide the LLM with a retriever tool as tool use. We follow the original prompt from BrowseComp [ 1 ] , which instructs the model to answer a given question along with a confidence estimate (expressed as a percentage). There are two revisions of the original prompts: (1) We explicitly prompt the LLM to use the provided tools to adapt our custom search tool; (2) We instruct the model to cite the sources when generating the final answer, enabling the evaluation of citation quality. The complete prompt is included in Appendix E . We use this prompt across all models except Search-R1, which uses the prompt aligned with its original fine-tuning.
+The original BrowseComp dataset contains only question-answer pairs, without the URLs of the web pages that support these answers. To build a document collection with supporting evidence, the first step involves retrieving relevant web pages for each question. To achieve this, we leverage the OpenAI o3 model with web search enabled. We provide the question-answer pairs as input prompts and instruct the model to search online for web pages containing evidence that supports the answers. We also ask the model to structure the output in a table format with three columns: (1) Clue: the part of the question that can help derive the answer; (2) URL: the web page link containing evidence supporting the clue; and (3) Evidence: the content from the web page that supports the clue. The purpose of this table format is to facilitate human annotators in verifying each clue and its corresponding web page in the next step. An example prompt for this step is provided in Appendix A . Of the 1,266 original question-answer pairs in BrowseComp, the OpenAI o3 model fails to provide supporting evidence for 124 pairs, either due to output formatting errors or because the model abstains from answering due to low confidence. For the remaining 1,142 pairs, we scrape the URLs cited as evidence using Selenium 1 1 1 https://www.selenium.dev/documentation , and parse them with Trafilatura [ 31 ] . However, a combination of hallucinated URLs and scraping challenges prevents us from successfully scraping all of them. As a result, we exclude 137 question-answer pairs that contain at least one URL that we are unable to scrape, as missing a URL for a clue will make the question incomplete to answer. This leaves us with 1,005 queries for the next stage: human verification.
 
-<sub>§Search Agents</sub>
+<sub>§3.2.1 Evidence Document Gathering</sub>
 
-### 5. Retriever
+### 5. Evidence Document Verification
 
-The retriever tool is set to retrieve the top k = 5 k=5 search results, where each result is truncated to the first 512 token of the corresponding document. This truncation is due to budget constraints, which prevent us from providing full document content. To assess the impact of this design choice, we analyze the distribution of the number of tokens required to include the ground-truth answer for each query. As illustrated in Figure 4 (b), when documents are truncated to the first 512 tokens, 86.5% of queries still contain the ground-truth answer in at least one of their gold documents. Further ablations exploring alternative tool configurations are discussed in Section 4.8.3 .
+In this stage, we aim to verify documents that contain evidence for each clue in the questions. For each question-answer pair, we present human annotators with the output table from OpenAI o3 in the previous stage, with URLs replaced by the corresponding processed documents. If the original output from OpenAI o3 fails to meet both criteria, annotators are instructed to revise the clues and search the web for additional supporting documents for at least 20 minutes, before concluding that the desired evidence documents cannot be collected. In addition to constructing the evidence document set, annotators also label which documents directly contain the final answer; these are designated as gold documents . Note that a gold document is not defined merely by containing the ground-truth answer as an exact substring; in some cases, the answer is included in the document in an implicit way. For example, a question might ask for the number of publications by a particular author, with the ground-truth answer being “7”. A gold document in this case could be the author’s personal webpage listing their publications; while it may not contain the string “7” explicitly, it logically contains the answer. Similarly, there are many cases where the answer appears in the document in a variant form, such as a different date format or a paraphrased phrase, rather than an exact string match. Our goal in constructing the gold document set is to provide a more robust and semantically meaningful alternative to the simple substring-based approach in identifying documents that contain the final answer. Figure 2 illustrates the complete evidence document collection process. A detailed example, including a screenshot of the labeling interface shown to human annotators, is provided in Appendix B . For quality control, we sample each annotator’s labeled data and cross-validate them among annotators, showing over 80% of agreement on average. Overall, of the 1,005 question-answer pairs from the previous stage, 830 passed human verification. The most common failure mode occurs when the documents provided by OpenAI o3 do not satisfy the two verification criteria, and human annotators are unable to gather sufficient additional evidence within a reasonable effort. In addition to these, we identify and exclude several other categories of problematic cases as detailed in Appendix C . The entire labeling process involved 14 university student annotators and required over 400 hours of manual effort.
 
-<sub>§Retriever</sub>
+<sub>§3.2.2 Evidence Document Verification</sub>
 
-### 6. Deep Research Effectiveness
+### 6. Hard Negative Mining
 
-We report end-to-end effectiveness of the deep research systems with four metrics: Accuracy, Recall, and Search Calls. Accuracy follows BrowseComp: an LLM-as-judge (gpt-4.1) compares the model’s final answer against the ground truth using the evaluation prompt listed in Appendix F . Recall measures how many human-verified evidence documents the agent retrieved during its entire interaction. Search Calls is the average number of search API invocations per query. In addition, following BrowseComp, we compute calibration error using the confidence estimates produced by the search agents, in the same way as Humanity’s Last Exam [ 40 ] . It measures how closely a model’s predicted confidence matches the actual accuracy of its predictions. For Search-R1, we do not report calibration error because the input and output format of this model are fixed without a confidence source output.
+To ensure the collected corpus remains a reasonable size while still being challenging enough for search systems to identify correct answers among distracting documents, we mine hard negative documents via web search to form the corpus. This approach has been proven effective in evaluating information retrieval systems using a small sub-sampled corpus [ 32 , 33 ] . Specifically, we take each question from BrowseComp and prompt GPT-4o to break it down into simpler, self-contained sub-queries. On average, this results in about seven sub-queries per original query. Each sub-query is then sent to a Google Search API provider (SerpAPI), which returns up to 100 search results. We scrape these results using the same process used for collecting documents during positive example construction. We illustrate this hard negative document collecting process in Figure 3 . The prompt used to create these sub-queries is provided in Appendix D .
 
-<sub>§Deep Research Effectiveness</sub>
+<sub>§3.3 Hard Negative Mining</sub>
 
-### 7. Retrieval Effectiveness
+### 7. Final Corpus Statistics
 
-For evaluating retriever effectiveness, our BrowseComp-Plus benchmark provides human-verified evidence documents and gold documents, along with a fixed test document collection, enabling evaluation under the Cranfield paradigm [ 6 ] . Specifically, we follow standard TREC practice to create a query-document relevance label file 2 2 2 Known as a qrel file. for both evidence documents and gold documents separately, and then compute Recall@k and nDCG@k to assess the effectiveness of retrievers.
+After deduplicating the positive and negative documents collected as above, we arrive at a corpus of 100,195 documents, along with 830 queries. On average, each query contains 6.1 evidence documents, 76.28 negatives, and 2.9 gold documents. Each document averages 5179.2 words and 32296.2 characters.
 
-<sub>§Retrieval Effectiveness</sub>
-
-### 8. End-to-End Deep-Research Performance
-
-Table 1 summarizes the overall Deep-Research Performance across different LLMs and retrievers. Proprietary models (gpt-4.1, o3, gpt-5, Sonnet-4, Opus-4, Gemini) demonstrate high answer accuracy, with OpenAI’s gpt-5 achieving the highest accuracy (70.12%) when paired with the Qwen3-Embedding-8B retriever. Open-source models such as Qwen3-32B and SearchR1-32B lag significantly behind proprietary models. With Qwen3-Embedding-8B as the retriever, Qwen3-32B achieves only 10.36% accuracy, compared to 35.42% for gpt-4.1 and 63.49% for o3. Notably, the only high-performing open-source model we studied is gpt-oss-120B in its high reasoning mode, which achieves 42.89% accuracy, surpassing Opus 4 when both are paired with Qwen3-Embedding-8B. In general, closed-source agents call the search tool more frequently than open-source models. For instance, OpenAI’s gpt-5 and o3 issue an average of more than 20 search calls per query, while Qwen3-32B and SearchR1-32B make fewer than 2, despite being explicitly prompted to use the tool. This reflects a test-time scaling effect: more exhaustive search correlates with better outcomes and aligns with prior findings that reasoning-intensive queries benefit from multi-turn, exploratory retrieval. These results illustrate current limitations in the interleaved reasoning and tool-use capabilities of open-source LLMs, despite their comparable performance when directly given relevant documents (as shown in Section 4.8.1 ).
-
-<sub>§4.6 End-to-End Deep-Research Performance</sub>
-
-### 9. Effect of Retrieval Quality
-
-A consistent trend observed across all models is that stronger retrieval leads to higher final accuracy. First, consider the retriever’s effectiveness on our dataset. We evaluate retrieval performance using the original BrowseComp queries, with results shown in Table 2 . Compared to BM25, Qwen3-Embedding-8B and ReasonIR-8B achieve substantially higher recall and nDCG for both evidence document retrieval and gold document retrieval. Notably, we observe a model size scaling law within the Qwen3 embedding family; larger models consistently perform better, with Qwen3-8B surpassing ReasonIR-8B at the 8B scale. Now, as indicated in Table 1 , replacing the BM25 retriever with a stronger retriever leads to significant accuracy gains across all LLM agents. For instance, OpenAI’s gpt-5 accuracy improves from 55.9% to 70.12%, while Sonnet 4 and Opus 4 both more than double their accuracy. This suggests a strong positive correlation between retrieval effectiveness and research agent accuracy. Moreover, stronger retrievers potentially reduce the number of search calls. For most proprietary models, Qwen3-Embedding-8B reduces search calls by approximately 1–3 compared to BM25. This shows that better retrieval not only improves effectiveness (accuracy) but also efficiency (fewer tool calls). In Appendix H , we also report differences in proprietary agent API cost when using different retrievers. Agents using Qwen3-Embedding-8B incur lower costs due to fewer input and output tokens, further supporting the efficiency gains enabled by stronger retrieval. These results are likely due to the higher precision of early search results, which reduces the need for follow-up queries. This is supported by the Recall metric in Table 1 , where stronger retrievers yield higher recall for retrieved documents. In addition, Table 3 reports the coverage, average number, precision, and recall of the document citations attributed by the agent during answer generation. As the results show, although agents using BM25 issue more search calls, nearly all metrics are lower than those achieved with Qwen3-Embedding-8B. This indicates that documents returned by BM25 are less useful in the iterative deep research process, whereas Qwen3-Embedding-8B provides more relevant and informative documents.
-
-<sub>§4.7 Effect of Retrieval Quality</sub>
-
-### 10. Oracle Retrieval
-
-In addition to comparing progressively stronger retrievers, we also evaluate effectiveness in an extreme oracle setting, where search agents are prompted with all labeled positive documents to answer the questions. In this setup, gpt-4.1 achieves an accuracy of 93.49%. This highlights two key points. First, it showcases the importance of the retriever: if the retriever is of perfect quality, search agents can attain substantially high accuracy on complex reasoning tasks in BrowseComp-Plus , in contrast to the 14.58% baseline accuracy of gpt-4.1 when using BM25 as the retriever. Second, it validates the quality of the BrowseComp-Plus corpus itself: gpt-4.1 , a non-reasoning model, is able to correctly answer 93.49% of questions using only the evidence documents in the corpus. For the remaining 6.51% of cases, human annotators reviewed each instance and confirmed that the answers are indeed answerable from the positive documents; the errors stem solely from gpt-4.1 ’s failure to reason correctly. A similar evaluation with Qwen3-32B yields an accuracy of 83.25% in the oracle setting; among its errors, 50 (6%) result from the positive documents exceeding the model’s context window. The effectiveness gap between Qwen3-32B and gpt-4.1 in this setting is notably smaller than the gap observed in the non-oracle setting. This suggests that open-source models do not substantially lag behind proprietary models in their ability to answer questions when provided with sufficient evidence. Instead, their primary limitation lies in performing interleaved reasoning with the search tool, causing the bigger effectiveness gap observed in Table 1 .
-
-<sub>§4.8.1 Oracle Retrieval</sub>
-
-### 11. Impact of Reasoning Effort
-
-We evaluate how the reasoning effort of LLMs influences answer quality and retrieval behavior. To isolate this effect, we focus on the gpt-oss family, which offers three reasoning modes: low , medium , and high . These modes differ in the amount of computational effort and deliberation the model applies before producing an answer, with higher modes generally involving longer intermediate reasoning steps. We report results in Table 4 . Overall, increasing the reasoning effort leads to substantial improvements in both accuracy and recall for all model sizes and retrievers. For example, oss-20b with Qwen3-Embed-8B improves accuracy from 13.37% in low mode to 34.58% in high mode, accompanied by a recall jump from 17.37% to 49.29%. Similarly, oss-120b with Qwen3-Embed-8B rises from 24.94% to 42.89% accuracy across the same progression. These gains, however, come with a trade-off: higher reasoning modes dramatically increase the average number of search calls (e.g., from ≈ \approx 2 to ≈ \approx 24 for oss-20b with Qwen3-Embed-8B), implying higher computational and latency costs. Interestingly, calibration error tends to decrease with higher reasoning effort, suggesting that the models become more aligned between confidence and correctness as they reason more extensively. Qwen3-Embed-8B consistently outperforms BM25 across all reasoning settings, highlighting the importance of retriever choice alongside reasoning depth. These findings indicate that increasing reasoning effort can significantly boost answer quality, but at the cost of retrieval overhead, an important consideration when balancing accuracy and efficiency in deep-research generation systems.
-
-<sub>§4.8.2 Impact of Reasoning Effort</sub>
-
-### 12. Effect of Document Reading Strategy
-
-In previous experiments, we always presented only the first 512 tokens of each retrieved document as a preview to the LLM during each round of search and reasoning, due to token budget constraints. However, in realistic deep research scenarios, agents often have access to a document reader tool that enables reading the full content of a document. To evaluate the potential benefit of such a tool, we conduct experiments with gpt-4.1 and Qwen3-32B, both with and without access to a whole-document reader (referred to as the get-document tool). Appendix G contains the revised prompt used when the get-document tool is added. Results are shown in Table 5 . For gpt-4.1, enabling the get-document tool improves answer accuracy from 35.42% to 43.61%, with a modest increase in search calls (from 8.67 to 10.03) and an average of 1.85 full-document reads per query. This confirms that having access to full documents provides additional useful context that enhances final decision-making. For Qwen3-32B, which performs worse overall, the benefit is more modest. Accuracy improves slightly from 10.36% to 11.69%, and the number of get-document calls remains low (0.27 per query on average). This suggests that while the tool can help, the model’s limited reasoning and tool-use ability constrain its ability to exploit the additional information. These results show that the whole-document reading tool can improve performance, especially for strong models like gpt-4.1, by providing access to richer context beyond truncated previews. However, its effectiveness depends heavily on the agent’s capability to recognize when and how to use the tool, highlighting once again the importance of model quality in effective tool integration. This also highlights the value of context engineering in optimizing how retrieval results are presented to the LLM agent.
-
-<sub>§4.8.3 Effect of Document Reading Strategy</sub>
-
-### 13. Effect of Corpus Size
-
-The corpus in BrowseComp-Plus contains approximately 100K documents. While real-world agents often operate over much larger, web-scale corpora, we aim to assess whether our designed corpus size is sufficient to support valid experimental observations. To this end, we augment our benchmark corpus with the Fineweb-edu [ 41 ] document collection (10 billion tokens) 3 3 3 https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/viewer/sample-10BT , deduplicated by URL. This expansion results in a significantly larger corpus of 9,771,311 documents-roughly 10 times larger than the original. Table 6 shows retrieval performance before and after adding Fineweb documents. For BM25, retrieval effectiveness improves across all metrics, likely due to better inverse document frequency (IDF) estimation in the larger corpus, which strengthens BM25’s lexical scoring. In contrast, neural retrievers (Qwen3-Embedding-8B and ReasonIR-8B) show degraded performance on the Fineweb-augmented corpus. This drop is theoretically expected: the relative ranking of documents from the original small corpus remains unchanged, but the newly added Fineweb documents can now appear in the top ranks. Since these additional documents are unjudged, they are treated as non-relevant under standard TREC-style evaluation, inevitably lowering measured retrieval effectiveness. It is important to note that lower retrieval scores for embedding models on Fineweb do not necessarily indicate worse final answers, some unjudged, top-ranked Fineweb documents may be “false negatives” that still provide useful evidence. However, as shown in Table 7 , adding Fineweb does not improve answer accuracy for embedding-based retrievers. For example, Qwen3-32B with Qwen3-Embedding-8B drops from 10.36% to 7.11% accuracy. Overall, expanding the corpus size by a factor of 10 does not lead to different conclusions about the ranking or effectiveness level among the retrievers and LLM search agents, supporting our claim that the original 100K corpus offers both strong positive coverage and sufficient challenge for robust evaluation.
-
-<sub>§4.8.4 Effect of Corpus Size</sub>
+<sub>§3.4 Final Corpus Statistics</sub>
 
 ## 总结与展望
 BrowseComp-Plus 指出原基准的答案可能出现在训练数据里，于是构造了「答案不在预训练语料」的版本，并公开了检索索引。它的方法论贡献是：基准的可信度需要证明，而不是声明。
@@ -849,20 +823,17 @@ Information seeking, the fundamental human drive to resolve uncertainty, has bee
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§5 Experiments"]
-  N1["§5.1 Setup"]
-  N2["§Baselines"]
-  N3["§Metric and Hyper-parameters"]
-  N4["§The Inadequacy of Direct Inference for Complex Information Seeking"]
-  N5["§Superior Reasoning Models Show a Glimmer of Potential"]
-  N6["§WebSailor Establishes a New State-of-the-Art for Open-Source Agents"]
-  N7["§Achieving Parity with Proprietary Systems"]
-  N8["§Complexity of SailorFog-QA"]
-  N9["§Pass rate of SailorFog-QA"]
-  N10["§Compatibility with simple tasks"]
-  N11["§Pass@1 vs Pass@3"]
-  N12["§With/without cold start"]
-  N13["§5.4 Limitations and Future Work"]
+  N0["§3 Large-scale Training Data Synthesis for Complex Reasoning"]
+  N1["§3.1 SailorFog-QA: Scalable Graph-Synthesized QA"]
+  N2["§Constructing the Structural Foundation for Hard-to-Reduce Uncertainty"]
+  N3["§Generating High-Uncertainty Questions via Subgraph Sampling and Obfuscation"]
+  N4["§3.2 Reconstructing Reasoning from Expert LRM Trajectories"]
+  N5["§4 Reinforcement Learning with Cold Start"]
+  N6["§4.1 Rejection Sampling Fine-Tuning"]
+  N7["§Setup"]
+  N8["§Filtering"]
+  N9["§Training objective"]
+  N10["§4.2 Duplicating Sampling Policy Optimization"]
   N0 --> N1
   N1 --> N2
   N2 --> N3
@@ -873,9 +844,6 @@ flowchart LR
   N7 --> N8
   N8 --> N9
   N9 --> N10
-  N10 --> N11
-  N11 --> N12
-  N12 --> N13
 ```
 
 ![Performance on the BrowseComp-en/zh benchmarks. DeepSeek-R1-Browse is DeepSeek-R1 equipped with browsing tools via the ReAct framework, sharing the same implementation as our model, WebSailor. Doubao-Search and Grok-3 are proprietary web-based products (marked by ∗ * ). The result for GPT-4o with browsing is taken from OpenAI’s official publication.](https://arxiv.org/html/2507.02592v1/abs_fig_bc.svg)
@@ -885,77 +853,65 @@ flowchart LR
 <sub>figure: `2507.02592v1/abs_fig_bc.svg`</sub>
 
 ## 机制
-### 1. Experiments
+### 1. Large-scale Training Data Synthesis for Complex Reasoning
 
-BrowseComp-en ( Wei et al., 2025 ) : one of the most challenging benchmarks introduced by OpenAI to evaluate the proficiency of AI agents in locating hard-to-find, often multi-faceted, information across the internet, which demands sophisticated browsing strategies and reasoning capabilities. BrowseComp-zh ( Zhou et al., 2025 ) : Similar to BrowseComp-en, but the QAs are in Chinese. GAIA ( Mialon et al., 2023 ) : A benchmark that requires multi-modality and tool-use abilities. We only use a subset of 103 cases from the text-only validation subset ( Li et al., 2025c ; Wu et al., 2025a ) . XbenchDeepSearch ( Xbench-Team, 2025 ) : A new, dynamic, professionally-aligned benchmark that focuses on evaluating AI agents’ tool usage capabilities, specifically in deep information retrieval and complex search tasks. Direct Inference : Models answer questions based on its internal knowledge. For the non-reasoning model, we choose Qwen-2.5-32B, Qwen-2.5-72B ( Yang et al., 2024 ) , GPT-4o ( OpenAI, 2024 ) , GPT-4.1 ( OpenAI, 2025b ) , and for the reasoning models, we select QWQ-32B ( Qwen Team, 2025 ) , o4-mini ( OpenAI, 2025c ) , and DeepSeek-R1 ( Guo et al., 2025 ) . We do not consider smaller models because their scores on BrowseComp are essentially zero. Proprietary Browsing Agents : We test OpenAI DeepResearch ( OpenAI, 2025a ) , Grok-DeepResearch ( x.ai, 2025 ) , and Doubao with Deep Think and Search ( Doubao, 2025 ) ; however, as not all of them are fully accessible via API, they were not tested across all benchmarks and experiments. Open-source Agents : We compare our method with recent open-source web/search agents, including Search-o1 ( Li et al., 2025b ) , WebThinker ( Li et al., 2025c ) , R1-Searcher ( Song et al., 2025 ) , and WebDancer ( Wu et al., 2025a ) .
+In this section, we present our training data construction from two perspectives: QA construction and reasoning trajectory generation. Level 1: tasks exhibit low uncertainty that is easily reduced. These include questions answerable by the model’s internal knowledge or through a single, straightforward web search. Level 2: tasks, such as multi-hop QA, present high initial uncertainty but follow a clear path to resolution. Even with many steps, the entities are linked by well-defined logic, allowing uncertainty to be systematically reduced through a structured sequence of actions. Level 3: the focus of our work, involves problems with both high uncertainty and high difficulty in its reduction. Here, entities are coupled in complex, emergent ways, lacking a pre-defined reasoning path. Solving these problems demands creative exploration and novel reasoning patterns that are difficult to specify manually. The data is grounded in the real-world internet, mirroring the challenges agents face in practice. The diverse subgraph topologies naturally produce problems requiring a spectrum of complex reasoning patterns, from multi-step deduction to compositional and comparative analysis. The approach is highly scalable, as the number of potential subgraphs—and thus challenging questions—grows non-linearly with the graph size, enabling efficient large-scale data synthesis. Stylistic Contamination: These LRMs possess strong, often verbose, stylistic priors in their reasoning. Directly fine-tuning on these outputs can be overly prescriptive, stifling the agent’s ability to develop its own exploratory strategies and generalize to unseen problems. Context Overload: The verbosity of their reasoning chains is a practical barrier for complex web agent tasks. A trajectory with dozens of tool calls can easily generate a history that exceeds the context limits, degrading performance and making the reasoning process intractable.
 
-<sub>§5 Experiments</sub>
+<sub>§3 Large-scale Training Data Synthesis for Complex Reasoning</sub>
 
-### 2. Baselines / Metric and Hyper-parameters
+### 2. SailorFog-QA: Scalable Graph-Synthesized QA
 
-We compare our method with the following paradigms: We default to pass@ k k evaluation ( Chen et al., 2021 ) and report pass@1 using non-zero temperature, and temperature and top-p are set to 0.6 and 0.95. For accuracy, we use LLM as a judge ( Liu et al., 2024 ; Wang et al., 2024 ) . The pass@1 is computed as: where p i p_{i} denotes the correctness of the i i -th response. For pass@k that k > 1 k>1 we repeatedly generate for k k times.
+The reasoning patterns required to answer a question are dictated by its intrinsic uncertainty and the complexity of reducing that uncertainty. As shown in Fig. 2 , we classify information-seeking QAs into three levels based on these two dimensions.
 
-<sub>§Baselines · §Metric and Hyper-parameters</sub>
+<sub>§3.1 SailorFog-QA: Scalable Graph-Synthesized QA</sub>
 
-### 3. The Inadequacy of Direct Inference for Complex Information Seeking
+### 3. Constructing the Structural Foundation for Hard-to-Reduce Uncertainty
 
-Relying solely on a model’s internal knowledge and reasoning capabilities is insufficient for solving complex information retrieval tasks. Across the board, all models, including strong proprietary model like GPT-4.1, exhibit poor performance on BrowseComp-en/zh, with accuracy scores often near zero. This starkly demonstrates that these tasks require dynamic interaction with an external information source—the web—to gather the necessary evidence. The inherent uncertainty and specificity of the questions far exceed the scope of pre-trained knowledge, underscoring the necessity of an agentic, tool-using framework.
+To generate Level 3 tasks, we first construct a complex informational landscape where uncertainty is inherently difficult to reduce. Our process, inspired by random walks, builds knowledge graphs with emergent, non-linear structures. We begin by seeding the graph with a fuzzy entity retrieved from Wikidata’s SPARQL service to ensure a challenging starting point. Using simulated web browsing, we gather unstructured text and features about this entity from the internet. From this raw information, we extract related entities and the relationships connecting them, forming the initial nodes and edges. The crucial step is the iterative expansion: we probabilistically select existing nodes and seek out new, distinct entities to connect. This stochastic process discourages simple linear chains (characteristic of Level 2 tasks) and instead fosters a densely interconnected graph with intricate, overlapping relational paths. The resulting graph serves as a structural foundation for problems that lack a pre-defined reasoning path, compelling an agent to navigate a complex web of information rather than follow a straight line.
 
-<sub>§The Inadequacy of Direct Inference for Complex Information Seeking</sub>
+<sub>§Constructing the Structural Foundation for Hard-to-Reduce Uncertainty</sub>
 
-### 4. Superior Reasoning Models Show a Glimmer of Potential
+### 4. Generating High-Uncertainty Questions via Subgraph Sampling and Obfuscation
 
-Within the direct inference paradigm, a notable exception is the superior performance of leading reasoning models like DeepSeek-R1 and o4-mini compared to other base models. For instance, DeepSeek-R1 achieves a score of 26.3 on BrowseComp-zh, significantly higher than other models in its category. This suggests that their advanced intrinsic reasoning capabilities allow them to better decompose complex questions and reduce uncertainty to some extent, even without external tools.
+With these complex graphs as a foundation, we generate questions characterized by high initial uncertainty. This is achieved by sampling subgraphs with diverse topologies, each representing a unique constellation of coupled entities and relations. We then formulate a question and an answer based on the subgraph. Critically, we introduce ambiguity through deliberate information obfuscation. Instead of presenting clear facts, we obfuscate features and relationships within the question. For example, a precise date is transformed into a vague period ("in the early 2010s"), a name is partially masked ("an institution founded by someone with the initial ’F’"), or a quantitative attribute is described qualitatively ("a market share of less than 1%"). This obfuscation directly increases the initial uncertainty, forcing the agent to reason, compare, and synthesize information rather than simply executing a lookup. We name our synthetic training data SailorFog-QA , which has three key advantages: To illustrate the characteristics of our generated Level 3 tasks, two examples are presented below. These questions epitomize our methodology: they feature multiple, intricately coupled entities and deliberately obfuscated information, such as vague time references ("around the mid-5th century", "early 21st century") and non-specific descriptors ("a prominent South American capital", "a respected arts institution"). This combination of structural complexity and informational ambiguity creates a high degree of initial uncertainty that is exceptionally difficult to reduce. In fact, our manual evaluations confirm that these problems are intractable for human researchers under typical time constraints (e.g., within two hours), as they lack clear starting points for search and require extensive, non-linear exploration. Further details on our QA generation process are available in Appendix A.2 .
 
-<sub>§Superior Reasoning Models Show a Glimmer of Potential</sub>
+<sub>§Generating High-Uncertainty Questions via Subgraph Sampling and Obfuscation</sub>
 
-### 5. WebSailor Establishes a New State-of-the-Art for Open-Source Agents
+### 5. Reconstructing Reasoning from Expert LRM Trajectories
 
-WebSailor sets a new state-of-the-art for open-source agents, with its advantage being most pronounced on the exceptionally challenging BrowseComp-en and BrowseComp-zh benchmarks. This result validates our core hypothesis: training on data synthesized to embody complex, hard-to-reduce uncertainty endows an agent with robust and generalizable reasoning strategies. The efficacy of our approach is strikingly demonstrated by WebSailor-3B and WebSailor-7B. Despite their modest size, WebSailor-7B achieves an accuracy of 6.7 on BrowseComp-en, decisively outperforming agents built on much larger 32B models, such as WebDancer-32B (2.5) and WebThinker-RL (2.8). This underscores that the performance gains are driven by our novel training paradigm—sophisticated data synthesis and targeted reinforcement learning—rather than being a mere artifact of model scale. While WebSailor performs strongly across all benchmarks, its margin on GAIA is more modest. Our manual inspection reveals this is because a significant portion of GAIA tasks requires mathematical and computational abilities, for which WebSailor was not specifically optimized. However, its accuracy on the purely information-retrieval subsets of GAIA remains exceptionally high, reaffirming its specialized expertise.
+Having synthesized complex QA pairs, the next challenge is to generate corresponding solution trajectories for cold-start supervision. While powerful open-source LRMs like QwQ-32B ( Qwen Team, 2025 ) can provide some correct trajectories, directly using their full output for fine-tuning is counterproductive. We identify two critical issues: The process is as follows: first, we prompt an expert open-source LRM to generate a complete solution trajectory, including its native thoughts. From this full trajectory, we selectively discard the LRM’s original, verbose thoughts, retaining only the successful action-observation sequence ( a 0 , o 0 , a 1 , o 1 , … ) (a_{0},o_{0},a_{1},o_{1},\dots) . This trace represents the "what" and "how" of the solution path, but not the "why". Next, we reconstruct the missing "why". For each step t t in the action trace, we possess the history up to the previous step, ℋ t − 1 = ( τ ^ 0 , a 0 , o 0 , … , τ ^ t − 1 , a t − 1 , o t − 1 ) \mathcal{H}_{t-1}=(\hat{\tau}_{0},a_{0},o_{0},\dots,\hat{\tau}_{t-1},a_{t-1},o_{t-1}) , along with the expert’s chosen action a t a_{t} and the subsequent observation o t o_{t} . We then prompt a separate, powerful instruction-following model, π ∗ \pi^{*} , to generate a new thought τ ^ t \hat{\tau}_{t} that serves as a concise, logical justification for taking action a t a_{t} : By iteratively applying this for every step, we synthesize a complete, high-quality reasoning trajectory ℋ ^ T = ( τ ^ 0 , a 0 , o 0 , … , τ ^ T , a T , o T ) \hat{\mathcal{H}}_{T}=(\hat{\tau}_{0},a_{0},o_{0},\dots,\hat{\tau}_{T},a_{T},o_{T}) where the reasoning is clean and goal-oriented. For this reconstruction, we use another LLM and enforce a "short-CoT" style. This is a critical design choice, ensuring the final reasoning chain is compact enough for long-horizon tasks. This method allows us to scalably generate supervision data that instills complex reasoning patterns without the negative side effects of direct imitation.
 
-<sub>§WebSailor Establishes a New State-of-the-Art for Open-Source Agents</sub>
+<sub>§3.2 Reconstructing Reasoning from Expert LRM Trajectories</sub>
 
-### 6. Achieving Parity with Proprietary Systems
+### 6. Reinforcement Learning with Cold Start
 
-Perhaps the most significant finding is that WebSailor closes the gap between open-source and leading proprietary systems. On BrowseComp-zh, WebSailor-72B achieves performance on par with Doubao, a top-tier proprietary agent. While the SOTA system DeepResearch still holds a lead, WebSailor’s performance represents a major milestone, demonstrating that with sophisticated data synthesis and targeted training strategies like DUPO, open-source models can be elevated to a level of capability previously exclusive to closed, proprietary systems.
+Our training methodology is a two-stage process. Inspired by recent advancements in post-training ( Chu et al., 2025 ; Swamy et al., 2025 ; Ye et al., 2025 ) which highlight the efficacy of targeted fine-tuning before more complex learning, we first employ a modest RFT phase as a "cold start". This initial phase aims to equip the model with fundamental tool-use capabilities and adherence to the long-horizon reasoning skeleton. Subsequently, we leverage RL to further refine the agent’s reasoning abilities, enhance its sample efficiency ( Yue et al., 2025 ) , and enable fuller utilization of our high-quality, complex training data.
 
-<sub>§Achieving Parity with Proprietary Systems</sub>
+<sub>§4 Reinforcement Learning with Cold Start</sub>
 
-### 7. Complexity of SailorFog-QA
+### 7. Setup
 
-Figure 3 provides a quantitative analysis of task complexity by plotting the distribution of tool call counts for our expert-generated training data against both the BrowseComp-en benchmark and the WebDancer training set. We use the number of tool calls as a proxy for problem difficulty. This analysis is based on unfiltered but correct trajectories from rejection sampling. The WebDancer dataset is heavily skewed towards simplicity, with over 50% of its trajectories requiring only two tool calls and virtually none exceeding ten. In sharp contrast, our synthesized data exhibits a long-tail distribution, with a significant concentration of samples requiring more than five tool calls and extending to trajectories with over twenty interactions. Crucially, this distribution closely mirrors the complexity profile of the BrowseComp-en benchmark itself. It is important to note that the figure displays our data before our final filtering stage, where we retain only trajectories with more than five tool calls. This strategic data construction ensures that our model is trained on problems that are not only complex but also structurally representative of the hard reasoning tasks, thereby equipping it with the robust, multi-step reasoning capabilities necessary for success.
+Within a complete trajectory ℋ T \mathcal{H}_{T} , the agent’s thoughts ( τ i \tau_{i} ) are enclosed by <think> and </think> tags. Actions ( a i a_{i} ) are demarcated by <tool_call> and </tool_call> for function calls, or <answer> and </answer> for final responses. The environment’s observations ( o i o_{i} ) resulting from tool calls are wrapped with <tool_response> and </tool_response> tags. Different segments are separated by these special tokens.
 
-<sub>§Complexity of SailorFog-QA</sub>
+<sub>§Setup</sub>
 
-### 8. Pass rate of SailorFog-QA
+### 8. Filtering
 
-To further understand the difficulty of our synthetic data, Table 2 presents the pass@1 accuracy of SailorFog-QA before filtering. DeepSeek-R1 and o4-mini are equipped with browsing tools and ReAct framework. We observe that, before filtering, our data is significantly more difficult than the WebDancer training set. Although the difficulty is lower than BrowseComp-en, it is worth noting that BrowseComp-en filters out simple cases ( Wei et al., 2025 ) . Upon manual inspection, we find that the low accuracy in our data is partly due to its inherent difficulty, but also because there may not always be a unique answer. Ambiguity in the information can result in multiple intersections of conditions that do not yield a single definitive answer—this is similar to the situation in BrowseComp-en. However, we can ensure the correctness of the conditions relative to the answer, i.e., the answer always satisfies the constraints specified in the question.
+We apply a three-stage filtering process to the expert-generated trajectories. Firstly, to guarantee the correctness of the supervisory signal, we conduct rejection sampling that only trajectories culminating in a correct final answer are retained. Secondly, acknowledging that the expert models possess superior long-context processing capabilities compared to our policy model, we discard any trajectory exceeding 32k tokens in length. Thirdly, we filter for task complexity by retaining those trajectories with more than 5 5 tool calls, as intricate reasoning patterns and effective planning strategies typically manifest through a more extended sequence of decision-making steps.
 
-<sub>§Pass rate of SailorFog-QA</sub>
+<sub>§Filtering</sub>
 
-### 9. Compatibility with simple tasks
+### 9. Training objective
 
-WebSailor is trained exclusively on high-difficulty data, while BrowseComp-en/zh, GAIA, and Xbench can all be considered as level-2 or level-3 tasks according to our definition. To verify whether WebSailor still performs strongly on simpler level-1 tasks, we evaluate its performance on a subset of SimpleQA benchmark ( Wei et al., 2024 ) . The complete SimpleQA dataset contains 4,326 QA pairs. Since testing on the entire set would be too time-consuming, we randomly sample 200 QA pairs for evaluation. This benchmark is characterized by high correctness and fact-based questions with simple conditions, and it is challenging for frontier LLMs to answer directly. The results, as shown in Figure 4 , indicate that almost all agent-based methods outperform direct answering. WebSailor surpasses all other methods, demonstrating its compatibility and effectiveness even on simpler tasks.
+The training objective is to specifically enhance the agent’s decision-making capability—that is, its ability to generate effective thoughts and actions. Consequently, the tokens corresponding to the environment’s observations ( o i o_{i} ) are masked out from the loss calculation ( Chen et al., 2023 ) .
 
-<sub>§Compatibility with simple tasks</sub>
+<sub>§Training objective</sub>
 
-### 10. Pass@1 vs Pass@3
+### 10. Duplicating Sampling Policy Optimization
 
-We analyze the impact of our RL training by comparing the Pass@1 and Pass@3 performance of WebSailor before and after the RL stage (Fig. 5 ). The results reveal that RL brings notable improvements across all benchmarks, with the most significant gains observed on the highly difficult BrowseComp-en/zh tasks. This disparity is telling: the extreme complexity of BrowseComp requires agents to generate exceptionally long and intricate trajectories, making stable, repeatable success challenging ( Sun et al., 2025 ) . This instability is evident in the wide initial gap between Pass@1 and Pass@3 scores for BrowseComp. RL training directly addresses this issue by reinforcing successful strategies and pruning ineffective ones, which significantly improves the model’s ability to converge on a coherent solution path. Consequently, the model’s stability is enhanced, leading to greater gains on harder benchmarks. Moreover, we observe that the improvement in Pass@1 is proportionally much larger than in Pass@3, indicating that RL substantially enhances sample efficiency ( Yue et al., 2025 ) , allowing the model to achieve near its full potential with just a single sample.
+Following the RFT cold-start phase, which equips the model with fundamental tool-use capabilities and adherence to a reasoning skeleton, we propose Duplicating Sampling Policy Optimization (DUPO) to further refine the reasoning abilities, enhance the sample efficiency ( Yue et al., 2025 ) and ultimately elicit its intrinsic potential to discover and internalize sophisticated problem-solving strategies beyond direct imitation. The main difference between RL for agents and conventional reasoning tasks is that rollout is a multi-turn process involving interaction with the environment (tool responses) ( Sun et al., 2024 ) . However, the interaction with the environment causes the rollout speed of agent RL to be much slower compared to standard RL. DAPO ( Yu et al., 2025 ) employs dynamic sampling to filter out rollouts that are entirely correct or incorrect, subsequently filling the batch to its target size with new QAs. While this is effective for data curation, it may necessitate sequential rollouts for different cases within the same batch. This sequential processing further exacerbates the slow training speeds characteristic of agentic RL. To solve this issue, we first filter out overly simple cases (those with all 8 8 rollouts correct) before training. During training, instead of using padding to expand the batch, we duplicate samples from the same batch that have a non-zero standard deviation. Compared to DAPO’s dynamic sampling, this approach achieves approximately 2–3 times speedup. Similar to SFT, it is also necessary to mask observations when calculating the policy loss ( Jin et al., 2025 ) . We follow GPRO ( Shao et al., 2024 ) to estimate the advantage in a group-relative manner. We also utilize the token-level policy gradient loss and higher clip techniques in DAPO. The training objective of DUPO is defined as follows: where ( q , y ) (q,y) is the question-answer pair, r i , t ​ ( θ ) r_{i,t}(\theta) is the importance sampling ratio, and A ^ i , t \hat{A}_{i,t} is an estimator of the advantage at time step t t : Notably, in Eq. 4 , o i o_{i} represents the tokens generated by the model but not the whole trajectory. Meanwhile, context comprises the model generation and tool response. Cases with a standard deviation of 0 (i.e., all roll-out answers are either completely correct or completely incorrect) are removed. These slots in the batch were then filled by randomly duplicating other cases within the same batch whose standard deviation was not 0. To avoid reward hacking ( Amodei et al., 2016 ; OpenAI, 2025c ) , we adopt a rule-based reward that combines both format validation and answer validation: Specifically, the format score verifies whether the rollout trajectory follows the predefined format, such as whether different content segments are correctly wrapped with tags like <think> and <tool_call> , and whether the sequence complies with the ReAct framework. The answer score uses an LLM as a judge to determine whether the final prediction is correct.
 
-<sub>§Pass@1 vs Pass@3</sub>
-
-### 11. With/without cold start
-
-To evaluate the efficacy of our RFT cold-start strategy, we compare it against a direct RL training baseline, with results presented in Figure 6 . We observe that while the direct RL approach exhibits a larger increase in Pass@1 accuracy, the final converged performance of the model that underwent an RFT cold start is significantly superior. This performance gap is also reflected in the models’ tool usage patterns. The tool call count for the cold-started model remains high and stable throughout RL training, whereas the tool call count for the direct RL model, despite a steady increase, remains substantially lower, indicating an inability to master long-horizon reasoning. Critically, the performance disparity between the cold-started WebSailor and the direct RL model is much wider on the BrowseComp-en. This suggests that without an RFT cold start, it is extremely difficult for a model to acquire the sophisticated reasoning patterns—often found only in powerful LRMs—through self-exploration alone. The cold start is essential for bootstrapping the model with these complex strategies, which are necessary to solve exceptionally challenging tasks.
-
-<sub>§With/without cold start</sub>
-
-### 12. Limitations and Future Work
-
-First, our decision to filter training trajectories to under 32k tokens, while pragmatic, may cap the model’s ability to tackle even more complex problems. Our analysis of failed cases reveals that many errors stem from exceeding the context limit, and we observe that performance can degrade as inference length increases. Furthermore, WebSailor can exhibit a tendency for "over-thinking", applying multi-step tool calls even to seemingly simple questions. However, this is not a clear-cut drawback; our qualitative analysis suggests that in many such instances, the agent is not aimlessly exploring but performing cross-verification, using different information sources to validate an initial finding. Finally, on the training front, our RL process is limited to 50 steps. This is primarily due to the inherent inefficiency of the synchronous RL framework; even with the optimizations from DUPO, the training speed remains a bottleneck. Future work will focus on migrating to an asynchronous training framework to improve efficiency and enable more extensive RL training.
-
-<sub>§5.4 Limitations and Future Work</sub>
+<sub>§4.2 Duplicating Sampling Policy Optimization</sub>
 
 ## 总结与展望
 WebSailor 是「训练一个调研 agent」这条路线的代表：构造高不确定性的合成任务、过滤掉超过 32k token 的轨迹、在 BrowseComp 这类「难找」的基准上评估，并用 LLM 当裁判、用 pass@1（非零温度）。它对我们的意义是给出了两个可比的锚点——轨迹长度上限与裁判方式——而我们的调研两者都没有显式记录（读多少篇是参数，判得好不好是人写的）。
@@ -1218,7 +1174,7 @@ Post-processing methods can correct hallucinations in the output, and this stand
 
 # Evaluating Verifiability in Generative Search Engines
 
-arXiv:2304.09848 · [source](https://arxiv.org/html/2304.09848)
+arXiv:2304.09848 · 2023 · [source](https://arxiv.org/html/2304.09848)
 
 > Written by an agent that read the body (DeepSeek Harness, 2026-11-24) after reading the paper; the mechanism quotes are the paper’s own words.
 
@@ -1426,55 +1382,37 @@ An additional advantage of Thinking Mode Fusion is that, once the model learns t
 
 <sub>§Thinking Budget.</sub>
 
-### 9. General RL
+### 9. General RL / Strong-to-Weak Distillation
 
-The General RL stage aims to broadly enhance the models’ capabilities and stability across diverse scenarios. To facilitate this, we have established a sophisticated reward system covering over 20 distinct tasks , each with customized scoring criteria. These tasks specifically target enhancements in the following core capabilities: To provide feedback for the aforementioned tasks, we utilized three distinct types of rewards:
+The General RL stage aims to broadly enhance the models’ capabilities and stability across diverse scenarios. To facilitate this, we have established a sophisticated reward system covering over 20 distinct tasks , each with customized scoring criteria. These tasks specifically target enhancements in the following core capabilities: To provide feedback for the aforementioned tasks, we utilized three distinct types of rewards: The Strong-to-Weak Distillation pipeline is specifically designed to optimize lightweight models, encompassing 5 dense models (Qwen3-0.6B, 1.7B, 4B, 8B, and 14B) and one MoE model (Qwen3-30B-A3B). This approach enhances model performance while effectively imparting robust mode-switching capabilities. The distillation process is divided into two primary phases:
 
-<sub>§4.4 General RL</sub>
+<sub>§4.4 General RL · §4.5 Strong-to-Weak Distillation</sub>
 
-### 10. Strong-to-Weak Distillation
+### 10. Qwen3-235B-A22B / Qwen3-32B / Qwen3-30B-A3B & Qwen3-14B
 
-The Strong-to-Weak Distillation pipeline is specifically designed to optimize lightweight models, encompassing 5 dense models (Qwen3-0.6B, 1.7B, 4B, 8B, and 14B) and one MoE model (Qwen3-30B-A3B). This approach enhances model performance while effectively imparting robust mode-switching capabilities. The distillation process is divided into two primary phases:
+For our flagship model Qwen3-235B-A22B, we compare it with the leading reasoning and non-reasoning models. For the thinking mode, we take OpenAI-o1 ( OpenAI, 2024 ) , DeepSeek-R1 ( Guo et al., 2025 ) , Grok-3-Beta (Think) ( xAI, 2025 ) , and Gemini2.5-Pro ( DeepMind, 2025 ) as the reasoning baselines. For the non-thinking mode, we take GPT-4o-2024-11-20 ( OpenAI, 2024 ) , DeepSeek-V3 ( Liu et al., 2024a ) , Qwen2.5-72B-Instruct ( Yang et al., 2024b ) , and LLaMA-4-Maverick ( Meta-AI, 2025 ) as the non-reasoning baselines. We present the evaluation results in Table 11 and 12 . For our flagship dense model, Qwen3-32B, we take DeepSeek-R1-Distill-Llama-70B, OpenAI-o3-mini (medium), and our previous strongest reasoning model, QwQ-32B ( Qwen Team, 2025 ) , as the baselines in the thinking mode. We also take GPT-4o-mini-2024-07-18, LLaMA-4-Scout, and our previous flagship model, Qwen2.5-72B-Instruct, as the baselines in the non-thinking mode. We present the evaluation results in Table 13 and 14 . For Qwen3-30B-A3B and Qwen3-14B, we compare them with DeepSeek-R1-Distill-Qwen-32B and QwQ-32B in the thinking mode, and Phi-4 ( Abdin et al., 2024 ) , Gemma-3-27B-IT ( Team et al., 2025 ) , and Qwen2.5-32B-Instruct in the non-thinking mode, respectively. We present the evaluation results in Table 15 and 16 .
 
-<sub>§4.5 Strong-to-Weak Distillation</sub>
+<sub>§Qwen3-235B-A22B · §Qwen3-32B · §Qwen3-30B-A3B & Qwen3-14B</sub>
 
-### 11. Qwen3-235B-A22B
-
-For our flagship model Qwen3-235B-A22B, we compare it with the leading reasoning and non-reasoning models. For the thinking mode, we take OpenAI-o1 ( OpenAI, 2024 ) , DeepSeek-R1 ( Guo et al., 2025 ) , Grok-3-Beta (Think) ( xAI, 2025 ) , and Gemini2.5-Pro ( DeepMind, 2025 ) as the reasoning baselines. For the non-thinking mode, we take GPT-4o-2024-11-20 ( OpenAI, 2024 ) , DeepSeek-V3 ( Liu et al., 2024a ) , Qwen2.5-72B-Instruct ( Yang et al., 2024b ) , and LLaMA-4-Maverick ( Meta-AI, 2025 ) as the non-reasoning baselines. We present the evaluation results in Table 11 and 12 .
-
-<sub>§Qwen3-235B-A22B</sub>
-
-### 12. Qwen3-32B
-
-For our flagship dense model, Qwen3-32B, we take DeepSeek-R1-Distill-Llama-70B, OpenAI-o3-mini (medium), and our previous strongest reasoning model, QwQ-32B ( Qwen Team, 2025 ) , as the baselines in the thinking mode. We also take GPT-4o-mini-2024-07-18, LLaMA-4-Scout, and our previous flagship model, Qwen2.5-72B-Instruct, as the baselines in the non-thinking mode. We present the evaluation results in Table 13 and 14 .
-
-<sub>§Qwen3-32B</sub>
-
-### 13. Qwen3-30B-A3B & Qwen3-14B
-
-For Qwen3-30B-A3B and Qwen3-14B, we compare them with DeepSeek-R1-Distill-Qwen-32B and QwQ-32B in the thinking mode, and Phi-4 ( Abdin et al., 2024 ) , Gemma-3-27B-IT ( Team et al., 2025 ) , and Qwen2.5-32B-Instruct in the non-thinking mode, respectively. We present the evaluation results in Table 15 and 16 .
-
-<sub>§Qwen3-30B-A3B & Qwen3-14B</sub>
-
-### 14. Qwen3-8B / 4B / 1.7B / 0.6B
+### 11. Qwen3-8B / 4B / 1.7B / 0.6B
 
 For Qwen3-8B and Qwen3-4B, we compare them with DeepSeek-R1-Distill-Qwen-14B and DeepSeek-R1-Distill-Qwen-32B in the thinking mode, and LLaMA-3.1-8B-Instruct ( Dubey et al., 2024 ) , Gemma-3-12B-IT ( Team et al., 2025 ) , Qwen2.5-7B-Instruct, and Qwen2.5-14B-Instruct in the non-thinking mode, respectively. For Qwen3-1.7B and Qwen3-0.6B, we compare them with DeepSeek-R1-Distill-Qwen-1.5B and DeepSeek-R1-Distill-Llama-8B in the thinking mode, and Gemma-3-1B-IT, Phi-4-mini, Qwen2.5-1.5B-Instruct, and Qwen2.5-3B-Instruct in the non-thinking mode, respectively. We present the evaluation results of Qwen3-8B and Qwen3-4B in Table 17 and 18 and those of Qwen3-1.7B and Qwen3-0.6B in Table 19 and 20 , respectively. Overall, these edge-side models exhibit impressive performance and outperform baselines even with more parameters, including our previous Qwen2.5 models, in either the thinking or the non-thinking mode. These results, once again, demonstrate the efficacy of our Strong-to-Weak Distillation approach, making it possible for us to build the lightweight Qwen3 models with remarkably reduced costs and efforts.
 
 <sub>§Qwen3-8B / 4B / 1.7B / 0.6B</sub>
 
-### 15. The Effectiveness of Thinking Budget
+### 12. The Effectiveness of Thinking Budget
 
 To verify that Qwen3 can enhance its intelligence level by leveraging an increased thinking budget, we adjust the allocated thinking budget on four benchmarks across Mathematics, Coding, and STEM domains. The resulting scaling curves are presented in Figure 2 , Qwen3 demonstrates scalable and smooth performance improvements correlated to the allocated thinking budget. Moreover, we observe that if we further extend the output length beyond 32K, the model’s performance is expected to improve further in the future. We leave this exploration as future work.
 
 <sub>§The Effectiveness of Thinking Budget</sub>
 
-### 16. The Effectiveness and Efficiency of On-Policy Distillation
+### 13. The Effectiveness and Efficiency of On-Policy Distillation
 
 We evaluate the effectiveness and efficiency of on-policy distillation by comparing the performance and computational cost—measured in GPU hours—after undergoing distillation versus direct reinforcement learning, both starting from the same off-policy distilled 8B checkpoint. For simplicity, we focus solely on math and code-related queries in this comparison. The results, summarized in Table 21 , show that distillation achieves significantly better performance than reinforcement learning while requiring approximately only 1 / 10 1/10 of the GPU hours. Furthermore, distillation from teacher logits enables the student model to expand its exploration space and enhance its reasoning potential, as evidenced by the improved pass@64 scores on the AIME’24 and AIME’25 benchmarks after distillation, compared to the initial checkpoint. In contrast, reinforcement learning does not lead to any improvement in pass@64 scores. These observations highlight the advantages of leveraging a stronger teacher model in guiding student model learning.
 
 <sub>§The Effectiveness and Efficiency of On-Policy Distillation</sub>
 
-### 17. The Effects of Thinking Mode Fusion and General RL
+### 14. The Effects of Thinking Mode Fusion and General RL
 
 To evaluate the effectiveness of Thinking Mode Fusion and General Reinforcement Learning (RL) during the post-training, we conduct evaluations on various stages of the Qwen-32B model. In addition to the datasets mentioned earlier, we introduce several in-house benchmarks to monitor other capabilities. These benchmarks include: The results are shown in Table 22 , where we can draw the following conclusions:
 
@@ -1496,7 +1434,7 @@ Qwen3 报告在调研方法方向里是个提醒：它的附录提到开启思�
 
 # Search-o1: Agentic Search-Enhanced Large Reasoning Models
 
-arXiv:2501.05366 · [source](https://arxiv.org/html/2501.05366)
+arXiv:2501.05366 · 2025 · [source](https://arxiv.org/html/2501.05366)
 
 > Written by an agent that read the body (DeepSeek Harness, 2026-11-24) after reading the paper; the mechanism quotes are the paper’s own words.
 
@@ -1666,11 +1604,9 @@ The modern scientific method ( Chalmers, 2013 ; Jevons, 1877 ; Dewey, 1910 ) is 
 ## Pipeline
 ```mermaid
 flowchart LR
-  N0["§6 Experiments"]
-  N1["§6.1 Diffusion Modeling"]
-  N2["§6.2 Language Modeling"]
+  N0["§4 Automated Paper Reviewing"]
+  N1["§5 In-Depth Case Study"]
   N0 --> N1
-  N1 --> N2
 ```
 
 ![Conceptual illustration of The AI Scientist , an end-to-end LLM-driven scientific discovery process. The AI Scientist first invents and assesses the novelty of a set of ideas. It then determines how to test the hypotheses, including writing the necessary code by editing a codebase powered by recent advances in automated code generation. Afterward, the experiments are automatically executed to collect a set of results consisting of both numerical scores and visual summaries (e.g. plots or tables). The results are motivated, explained, and summarized in a LaTeX report. Finally, The AI Scientist generates an automated review, according to current practice at standard machine learning conferences. The review can be used to either improve the project or as feedback to future generations for open-ended scientific discovery.](https://arxiv.org/html/2408.06292v3/figures/conceptual.png)
@@ -1680,23 +1616,17 @@ flowchart LR
 <sub>figure: `2408.06292v3/figures/conceptual.png`</sub>
 
 ## 机制
-### 1. Experiments
+### 1. Automated Paper Reviewing
 
-We extensively evaluate The AI Scientist on three templates (as described in Section 3 ) across different publicly available LLMs: Claude Sonnet 3.5 ( Anthropic, 2024 ) , GPT-4o ( OpenAI, 2023 ) , DeepSeek Coder ( Zhu et al., 2024 ) , and Llama-3.1 405b ( Llama Team, 2024 ) . The first two models are only available by a public API, whilst the second two models are open-weight. For each run, we provide 1-2 basic seed ideas as examples (e.g. modifying the learning rate or batch size) and have it generate another 50 new ideas. We visualize an example progression of proposed ideas in Appendix C . Each run of around fifty ideas in total takes approximately 12 hours on 8 × 8\times NVIDIA H100s 2 2 2 Note that the experiment templates are very small-scale and are not compute-intensive. They would likely take a similar amount of time on cheaper GPUs, as we do not achieve high utilization. . We report the number of ideas that pass the automated novelty check, successfully complete experiments, and result in valid compilable manuscripts. Note that the automated novelty check and search are self-assessed by each model for its own ideas, making relative “novelty” comparisons challenging. Additionally, we provide the mean and max reviewer scores of the generated papers and the total cost of the run. Finally, we select and briefly analyze some of the generated papers, which are listed below. The full papers can be found in Appendix D , alongside the generated reviews and code. In practice, we make one departure from the formal description of The AI Scientist , and generate ideas without waiting for paper evaluations to be appended to the archive in order to parallelize more effectively. This allowed us to pay the cost of the idea generation phase only once and iterate faster; furthermore, we did not observe any reduction in the quality of the papers generated as measured by the average review score with this modification. From manual inspection, we find that Claude Sonnet 3.5 consistently produces the highest quality papers, with GPT-4o coming in second. We provide a link to all papers, run files, and logs in our GitHub repository , and recommend viewing the uploaded Claude papers for a qualitative analysis. This observation is also validated by the scores obtained from the LLM reviewer ( Figure 4 ). When dividing the number of generated papers by the total cost, we end up at a cost of around $10-15 per paper. Notably, GPT-4o struggles with writing LaTeX, which prevents it from completing many of its papers. For the open-weight models, DeepSeek Coder is significantly cheaper but often fails to correctly call the Aider tools. Llama-3.1 405b performed the worst overall but was the most convenient to work with, as we were frequently rate-limited by other providers. Both DeepSeek Coder and Llama-3.1 405b often had missing sections and results in their generated papers. In the following subsections, we will describe each template, its corresponding results, and specific papers.
+An LLM Reviewer Agent. A key component of an effective scientific community is its reviewing system, which evaluates and improves the quality of scientific papers. To mimic such a process using large language models, we design a GPT-4o-based agent ( OpenAI, 2023 ) to conduct paper reviews based on the Neural Information Processing Systems (NeurIPS) conference review guidelines . The review agent processes the raw text of the PDF manuscript using the PyMuPDF parsing library. The output contains numerical scores (soundness, presentation, contribution, overall, confidence), lists of weaknesses and strengths as well as a preliminary binary decision ( accept or reject ). These decisions may then be post-calibrated by thresholding using the reviewer score. We leverage this automated reviewing process to obtain an initial evaluation of the papers generated by The AI Scientist . We provide the entire reviewing prompt template in Section A.4 . Evaluating the Automated Reviewer. To evaluate the LLM-based reviewer’s performance, we compared the artificially generated decisions with ground truth data for 500 ICLR 2022 papers extracted from the publicly available OpenReview dataset ( Berto, 2024 ) . Similar to the previous section, we combine many recent advancements in LLM agents to make the decision-making process robust. More specifically, we improve the base LLM’s decision-making process by leveraging self-reflection ( Shinn et al., 2024 ) , providing few-shot examples ( Wei et al., 2022 ) and response ensembling ( Wang et al., 2022 ) . With GPT-4o, The AI Scientist ’s reviewing procedure achieves 70% accuracy when combining 5 rounds of self-reflection, 5 ensembled reviews, and a 1-shot review example taken from the ICLR 2022 review guidelines . Afterward, we perform an LLM-based meta-review, which prompts the agent to act as an Area Chair ( Wang et al., 2022 ) (full prompts in Section A.4 ). While this number is lower than the 73% accuracy that was reported for humans in the NeurIPS 2021 consistency experiment ( Beygelzimer et al., 2021 ) , the automated reviewer achieves superhuman F1 Scores (0.57 vs. 0.49) and human-level AUC (0.65 for both) when thresholding the decision at a score of 6 (a “Weak Accept” in the NeurIPS review guidelines). This choice corresponds roughly to the average score of accepted papers. The considered ICLR 2022 paper dataset is very class-imbalanced, i.e. it contains many more rejected papers. When considering a balanced dataset of papers, The AI Scientist ’s reviewing process achieves human-level accuracy (0.65% vs. 0.66%). Furthermore, the False Negative Rate (FNR) is much lower than the human baseline (0.39 vs. 0.52). Hence, the LLM-based review agent rejects fewer high-quality papers. The False Positive Rate (FNR), on the other hand, is higher (0.31 vs. 0.17) highlighting room for potential future improvements. To further validate the performance of the automated reviewer, we compare the consistency of the overall paper scores between anonymous OpenReview reviewers randomly sampled pairwise per paper ( Figure 2 , bottom-left) and between the average of all reviewers and the LLM score ( Figure 2 , bottom-middle). For the set of 500 ICLR 2022 papers, we find that the correlation between the score of two human reviewers is smaller (0.14) than the correlation between the LLM score and the average score across the reviewers (0.18). Overall, across all metrics, the results suggest that LLM-based reviews can not only provide valuable feedback ( D’Arcy et al., 2024 ) but also align more closely with the average human reviewer score than individual human reviewers align with each other. Each review is generated for $0.25 to $0.50 in API costs. We additionally compared the reviewing performance of various other foundation models. While Claude Sonnet 3.5 ( Anthropic, 2024 ) and GPT-4o-mini provide a more cost-efficient approach, their performance was substantially worse ( Table 1 ). Moreover, we had to threshold scores at 8 for Sonnet 3.5 to obtain calibrated results, due to persistent over-optimism bias. Llama 3.1 405B ( Llama Team, 2024 ) struggled to follow the reviewer output template consistently. We open-source our code, providing a new and interesting LLM benchmark for the community. LLM Reviewer Ablations. We compare various prompt configurations for GPT-4o and find that both Reflexion (+2%) and one-shot prompting (+2%) substantially help with performing more accurate reviewing ( Figure 2 , top and bottom-right). On the other hand, using review ensembling does not appear to improve the reviewer’s performance substantially but can reduce variance. In the following sections, we used our best overall reviewer: GPT-4o with 5 rounds of self-reflection, 5 ensembled reviews, a meta-aggregation step, and 1 few-shot example.
 
-<sub>§6 Experiments</sub>
+<sub>§4 Automated Paper Reviewing</sub>
 
-### 2. Diffusion Modeling
+### 2. In-Depth Case Study
 
-General Description: This template studies improving the performance of diffusion generative models ( Sohl-Dickstein et al., 2015 ; Ho et al., 2020 ) on low-dimensional datasets. Compared to image generation, low-dimensional diffusion is much less well-studied, and thus there may be interesting algorithmic contributions to be made here. Code Template: We base this template on a modified version of the popular ‘tanelp/tiny-diffusion’ repository ( Pärnamaa, 2023 ) with additional minor hyperparameter tuning added and exponential moving average on the weights. The diffusion models are DDPM ( Ho et al., 2020 ) models trained to generate samples from four distributions including geometric shapes, the two moons dataset, and a 2D dinosaur. The denoiser network is parameterized as an MLP with sinusoidal embeddings for the diffusion timestep and input data. The plotting script visualizes generated samples and plots training loss by default. Estimated KL is provided as an additional metric for sample quality via non-parametric entropy estimation. Highlighted Generated Paper 1: DualScale Diffusion: Adaptive Feature Balancing for Low-Dimensional Generative Models. We analyze this paper in-depth in Section 5 . This paper proposes a dual-scale denoising approach that splits the traditional diffusion denoiser into a global and a local processing branch. The network input is upscaled before being fed into the local branch. The outputs of the branches are then combined using a learnable time-conditioned weighting. It achieves impressive quantitative and qualitative results. It further manages to plot the evolution of the weighting across time, which requires very significant deviation from the provided code. Highlighted Generated Paper 2: Multi-scale Grid Noise Adaptation: Enhancing Diffusion Models For Low-dimensional Data. This paper proposes to dynamically scale the standard diffusion noise schedule with a learned multiplicative factor based on where a particular input is in 2D space. The multiplicative factor is set by two grids that cover the input space, one coarse 5x5 grid and one more fine-grained 20x20 grid. This creative approach allows the diffusion model to dramatically improve performance across the datasets. Highlighted Generated Paper 3: GAN-Enhanced Diffusion: Boosting Sample Quality and Diversity. This paper, inspired by GANs, proposes adding a discriminator to the diffusion model to guide the generation. It achieves comparable quantitative performance to the baseline, however, the final generated figures appear to have fewer out-of-distribution points. This is notable as the current version of The AI Scientist is unable to view them (a problem that can be remedied by using multi-modal models in the future). Highlighted Generated Paper 4: DualDiff: Enhancing Mode Capture in Low-dimensional Diffusion Models via Dual-expert Denoising. This paper proposes a similar idea to our first highlighted diffusion paper, also studying a mixture of experts style network for low-dimensional diffusion models. However, this idea evolves differently, with the standard diffusion loss now being augmented with a loss that encourages diversity in the two experts. The paper impressively visualizes the impact of the diversity loss in distributing inputs across both experts and further color-codes which parts of the sample space each expert is specialized in. We were particularly impressed by The AI Scientist ’s ability to perform a radically different take on a similar idea.
+Before we present extensive experiments and metrics for The AI Scientist ’s generated papers in Section 6 , we first visualize a representative sample from a run of the The AI Scientist which illustrates both its strengths and shortcomings , followed by a broader discussion of its potential. The selected paper “Adaptive Dual-Scale Denoising” is generated from a run where The AI Scientist is asked to do research on diffusion modeling, which is fully detailed in Section 6.1 . The base foundation model was Claude Sonnet 3.5 ( Anthropic, 2024 ) . Generated Idea. As discussed in Section 3 , The AI Scientist first generates an idea based on the provided template and its previous archive of discoveries. The idea in the selected paper was proposed in the 6th iteration of the algorithm and aims to improve the ability of diffusion models to capture both global structure and local details in a 2D dataset, by proposing two branches in the standard denoiser network. This is a well-motivated direction that has been the primary reason for researchers adopting diffusion models over prior styles of generative models such as VAEs ( Kingma and Welling, 2014 ) and GANs ( Goodfellow et al., 2014 ) , and to the best of our knowledge has not been widely studied. We highlight that The AI Scientist generates an impressive experimental plan that includes the proposed code modification, comparison to baselines, evaluation metrics, and the design of additional plots . As has been previously observed in the literature, judgments by LLMs can often have bias ( Zheng et al., 2024 ) which we can observe in over-estimation of an idea’s interestingness, feasibility, or novelty. The “novel” flag at the end indicates The AI Scientist believes the idea is novel after searching for related papers using the Semantic Scholar API. Generated Experiments. We display the generated code diff (deletions are in red , and additions are in green ) for the substantial algorithmic changes below. The code matches the experimental description and is well-commented. The AI Scientist is able to iterate on the code with results from intermediate experiments in the loop, and it eventually ends up with interesting design choices for the adaptive weight network, e.g. a LeakyReLU. Importantly, this network has a well-behaved output that is guaranteed to be between 0 and 1. We additionally note that The AI Scientist changed the output of the network to return the adaptive weights to make new visualizations. Generated Paper. The AI Scientist generates an 11-page scientific manuscript in the style of a standard machine learning conference submission complete with visualizations and all standard sections. We display a preview of the completely AI-generated paper in Figure 3 , with the full-sized version available in Section D.1 . We highlight specific things that were particularly impressive in the paper: Precise Mathematical Description of the Algorithm. The algorithmic changes in the code above are described precisely, with new notation introduced where necessary, using LaTeX math packages. The overall training process is also described exactly. Comprehensive Write-up of Experiments. The hyperparameters, baselines, and datasets are listed in the paper. As an essential sanity check, we verified that the main numerical results in Table 1 of the generated paper exactly match the experimental logs. Impressively, while the recorded numbers are in long-form floats, The AI Scientist chooses to round them all to 3 decimal places without error. Even more impressively, the results are accurately compared to the baseline (e.g. 12.8% reduction in KL on the dinosaur dataset). Good Empirical Results. Qualitatively, the sample quality looks much improved from the baseline. Fewer points are greatly out-of-distribution with the ground truth. Quantitatively, there are improvements to the approximate KL divergence between true and estimated distribution. New Visualizations. While we provided some baseline plotting code for visualizing generated samples and the training loss curves, it came up with novel algorithm-specific plots displaying the progression of weights throughout the denoising process. Interesting Future Work Section. Building on the success of the current experiments, the future work section lists relevant next steps such as scaling to higher-dimensional problems, more sophisticated adaptive mechanisms, and better theoretical foundations. On the other hand, there are also pathologies in this paper: Subtle Error in Upscaling Network. While a linear layer upscales the input to the denoiser network, only the first two dimensions are being used for the “local” branch, leading this upscaling layer to be a linear layer that preserves the same dimensionality effectively. Hallucination of Experimental Details. The paper claims that V100 GPUs were used, even though the agent couldn’t have known the actual hardware used. In reality, H100 GPUs were used. It also guesses the PyTorch version without checking. Positive Interpretation of Results. The paper tends to take a positive spin even on its negative results, which leads to slightly humorous outcomes. For example, while it summarizes its positive results as: “Dino: 12.8% reduction (from 0.989 to 0.862)” (lower KL is better), the negative results are reported as “Moons: 3.3% improvement (from 0.090 to 0.093)”. Describing a negative result as an improvement is certainly a stretch of the imagination. Artifacts from Experimental Logs. While each change to the algorithm is usually descriptively labeled, it occasionally refers to results as “Run 2”, which is a by-product from its experimental log and should not be presented as such in a professional write-up. Presentation of Intermediate Results. The paper contains results for every single experiment that was run. While this is useful and insightful for us to see the evolution of the idea during execution, it is unusual for standard papers to present intermediate results like this. Minimal References. While additional references have been sourced from Semantic Scholar, including two papers in the related work that are very relevant comparisons, overall the bibliography is small at only 9 entries. Review. The automated reviewer points out valid concerns in the generated manuscript. The review recognizes the experiments were with simple, 2D datasets only, however, this is because we externally constrained the system to use these datasets, and in its current form, The AI Scientist cannot download higher-dimensional datasets from the internet. On the other hand, limitations such as the proposed algorithm’s increased computational cost of the algorithm are mentioned in the actual paper, which shows that The AI Scientist is often up-front about the drawbacks of its idea. The reviewer also lists many relevant questions about the paper, such as: explaining the variability of performance across datasets, and explaining in more detail how the upscaling process affects the local branch’s input. Final Comments. Drawing from our domain knowledge in diffusion modeling—which, while not our primary research focus, is an area in which we have published papers—we present our overall opinions on the paper generated by The AI Scientist below. The AI Scientist correctly identifies an interesting and well-motivated direction in diffusion modeling research, e.g. previous work has studied modified attention mechanisms ( Hatamizadeh et al., 2024 ) for the same purpose in higher-dimensional problems. It proposes a comprehensive experimental plan to investigate its idea, and successfully implements it all, achieving good results. We were particularly impressed at how it responded to subpar earlier results and iteratively adjusted its code (e.g. refining the weight network). The full progression of the idea can be viewed in the paper. While the paper’s idea improves performance and the quality of generated diffusion samples, the reasons for its success may not be as explained in the paper. In particular, there is no obvious inductive bias beyond an upscaling layer (effectively just an additional linear layer) for the splitting of global or local features. However, we do see progression in weights (and thus a preference for the global or local branch) across diffusion timesteps which suggests that something non-trivial is happening. Our interpretation is instead that the network that The AI Scientist has implemented for this idea resembles a mixture-of-expert (MoE, Yuksel et al. (2012) ; Fedus et al. (2022) ) structure that is prevalent across LLMs ( Jiang et al., 2024 ) . An MoE could indeed lead to the diffusion model learning separate branches for global and local features, as the paper claims, but this statement requires more rigorous investigation. Interestingly, the true shortcomings of this paper described above certainly require some level of domain knowledge to identify and were only partially captured by the automated reviewer (i.e., when asking for more details on the upscaling layer). At the current capabilities of The AI Scientist , this can be resolved by human feedback. However, future generations of foundation models may propose ideas that are challenging for humans to reason about and evaluate. This links to the field of “superalignment” ( Burns et al., 2023 ) or supervising AI systems that may be smarter than us, which is an active area of research. Overall, we judge the performance of The AI Scientist to be about the level of an early-stage ML researcher who can competently execute an idea but may not have the full background knowledge to fully interpret the reasons behind an algorithm’s success. If a human supervisor was presented with these results, a reasonable next course of action could be to advise The AI Scientist to re-scope the project to further investigate MoEs for diffusion. Finally, we naturally expect that many of the flaws of the The AI Scientist will improve, if not be eliminated, as foundation models continue to improve dramatically.
 
-<sub>§6.1 Diffusion Modeling</sub>
-
-### 3. Language Modeling
-
-General Description: This template investigates transformer-based ( Vaswani et al., 2017 ) autoregressive next-token prediction tasks. Because this task is widely studied and optimized, it is difficult for The AI Scientist to find significant improvements. There are some common failure modes for this template that result in impressive-looking, but deceptive results. For example, a few of its ideas effectively cheat by subtly leaking information from future tokens, which results in lower perplexity. Code Template: The code is modified from the popular NanoGPT repository ( Karpathy, 2022 ) . The provided script template trains a small transformer language model on the character-level Shakespeare dataset ( Karpathy, 2015 ) , the enwik8 dataset ( Hutter, 2006 ) , and the text8 dataset ( Mahoney, 2011 ) . It runs three seeds on the Shakespeare dataset, and one each on the remaining ones. The code saves the runtime, validation losses, and train losses. The plotting script visualizes training curves by default. Highlighted Generated Paper 1: StyleFusion: Adaptive Multi-style Generation in Character-Level Language Models. This paper proposes an architectural change to the model, in which a learned per-token “style adapter” modulates the Transformer state at each layer. The method achieves strong results and deserves further investigation, though we suspect that one reason it may work is that it is simply adding more parameters, which may trivialize the result. Furthermore, it omits some important implementation details in the writing, such as how the style loss labels are derived (which appear to be randomly assigned on each update step). Highlighted Generated Paper 2: Adaptive Learning Rates in Transformers via Q-Learning. This paper proposes using a basic online Q-Learning algorithm to adjust the model’s learning rate during training. The state consists of the current learning rate and validation loss, the action applies a small perturbation to the learning rate, and the reward is the negative change in validation loss. While the idea is creative, it seems inappropriate to use simple Q-Learning in this highly non-stationary and partially-observed environment. Nonetheless, it happens to achieve effective results.
-
-<sub>§6.2 Language Modeling</sub>
+<sub>§5 In-Depth Case Study</sub>
 
 ## 总结与展望
 The AI Scientist 把「提出想法、写代码、跑实验、写论文、评审」串成一个自动流程，并让模型给自己评审。它在方法方向的地位是把「研究」整体当作可自动化对象；也是它让「评审也是模型」这个偏差第一次以系统形态出现。

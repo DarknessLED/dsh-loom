@@ -88,11 +88,21 @@ function html(node) {
   // and a regression in it could never fail this script.
   const attrs = []
   if (props.className) attrs.push(`class="${escape(props.className)}"`)
+  // The research page is the first thing in the panel that links out and shows
+  // an image. Without href/src the preview has a picture placeholder and a link
+  // that goes nowhere, and an audit of it would be an audit of nothing.
+  if (props.href) attrs.push(`href="${escape(props.href)}"`)
+  if (props.src) attrs.push(`src="${escape(props.src)}"`)
+  if (props.alt) attrs.push(`alt="${escape(props.alt)}"`)
+  if (props.rel) attrs.push(`rel="${escape(props.rel)}"`)
+  if (props.target) attrs.push(`target="${escape(props.target)}"`)
+  if (props.loading) attrs.push(`loading="${escape(props.loading)}"`)
   if (props.title) attrs.push(`title="${escape(props.title)}"`)
   if (props.style) attrs.push(`style="${styleOf(props.style)}"`)
   if (props.disabled) attrs.push('disabled')
   for (const key of Object.keys(props)) {
     if (key === 'className' || key === 'title' || key === 'style' || key === 'disabled') continue
+    if (key === 'href' || key === 'src' || key === 'alt' || key === 'rel' || key === 'target' || key === 'loading') continue
     if (key === 'children' || key === 'key' || key === 'ref') continue
     if (!(key.startsWith('aria-') || key.startsWith('data-') || key === 'role' || key === 'tabIndex' || key === 'type')) continue
     const value = props[key]
@@ -103,7 +113,22 @@ function html(node) {
     if (value === true && !key.startsWith('aria-')) attrs.push(name)
     else attrs.push(`${name}="${escape(String(value))}"`)
   }
-  const tag = type === 'code' ? 'code' : type === 'button' ? 'button' : type === 'span' ? 'span' : type === 'b' ? 'b' : 'div'
+  const tag =
+    type === 'pre'
+      ? 'pre'
+      : type === 'a'
+        ? 'a'
+        : type === 'img'
+          ? 'img'
+          : type === 'code'
+            ? 'code'
+            : type === 'button'
+              ? 'button'
+              : type === 'span'
+                ? 'span'
+                : type === 'b'
+                  ? 'b'
+                  : 'div'
   return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>${html(children)}</${tag}>`
 }
 
@@ -423,9 +448,88 @@ const pendingPayload = LIVE || NO_PENDING ? (emptyPayload || payload) : {
   ],
 }
 
+// The shelf, and one page open on it.
+//
+// The research section is the newest thing in the panel and the only one with a
+// second route behind it, so a preview that shows it as "正在读取调研库…" measures
+// the loading sentence and nothing else. The fixture is small and hand-written
+// rather than read from `research/out/`: the audit asks whether the five
+// sections, the figure and the row grid read on a 320px canvas, not whether a
+// particular paper is in the library.
+const SHELF_FIXTURE = {
+  loading: false,
+  error: null,
+  total: { directions: 2, works: 5, figures: 4 },
+  directions: [
+    { slug: 'r1-verifier', name: 'R1 判决与验证器：奖励黑客、判决可靠性、验证器设计', works: 3, figures: 2, summaries: 3, missing: 0, edges: 2 },
+    { slug: 'r3-budget-stop', name: 'R3 预算与停止：多保真、早停、预算分配', works: 2, figures: 2, summaries: 0, missing: 1, edges: 1 },
+  ],
+  clusters: [
+    { label: 'reward hacking', count: 2 },
+    { label: 'apparatus (reports, benchmarks, surveys)', count: 1 },
+  ],
+  works: [
+    { id: '2210.10760', title: 'Scaling Laws for Reward Model Overoptimization', year: 2022, mechanisms: 3, hasFigure: true, citedBy: 22, hasSummary: true, cluster: 'reward hacking' },
+    { id: '2503.11926', title: 'Chain-of-Thought Monitoring', year: 2025, mechanisms: 7, hasFigure: true, citedBy: 15, hasSummary: true, cluster: 'reward hacking' },
+    { id: '2505.09388', title: 'Qwen3 Technical Report', year: 2025, mechanisms: 14, hasFigure: false, citedBy: 7, hasSummary: true, cluster: 'apparatus (reports, benchmarks, surveys)' },
+  ],
+  // The controlled door: a page handed in is rendered without a click.
+  open: {
+    loading: false,
+    error: null,
+    record: {
+      id: '2210.10760',
+      title: 'Scaling Laws for Reward Model Overoptimization',
+      pipeline: {
+        figure: {
+          url: 'https://arxiv.org/html/2210.10760v1/figs/goodharting.drawio_4.png',
+          caption: 'Diagram of the real and synthetic RM training setups, and the proxy reward each produces.',
+        },
+      },
+    },
+    markdown: [
+      '## 出发点',
+      '',
+      '论文关心的是：当我们用一个代理奖励去优化策略时，真实奖励会在哪一点开始下降。它把这个过程写成优化力在真实奖励与噪声之间的分配。',
+      '',
+      '## Pipeline',
+      '',
+      '```mermaid',
+      'flowchart LR',
+      'N0["§3 Synthetic setup"] --> N1["§4 Real setup"]',
+      '```',
+      '',
+      '## 机制',
+      '',
+      '代理奖励与真实奖励的差值随 KL 距离先升后降，峰值位置由噪声方差与优化力的比例决定；作者给出经验函数形式，并验证它在不同规模下成立。',
+      '',
+      '## 总结与展望',
+      '',
+      '有效的原因不是模型更强，而是代理指标与真实目标在低优化力时同向、在高优化力时分叉。这一条能直接解释我们账本里 killRate 上涨而真实修复不涨的那几轮。',
+      '',
+      '## 不足之处',
+      '',
+      '实验只覆盖 helpfulness；作者的合成设置假设 RM 噪声是同方差的，而真实标注偏差通常不是。',
+    ].join('\n'),
+  },
+}
+
+const shelfPayload = SHELF_FIXTURE
 const client = loadClient()
 const { Panel, Card, CSS } = client.__panel
-const react = shimReact([{ loading: false, data: pendingPayload, error: null, busy: null }, {}, null])
+// The shim hands out one state per hook call, in call order. The panel takes
+// four (payload, folded, shelf, confirming) and the research section takes four
+// more (chosen direction, that direction's rows, the open page, its id).
+const react = shimReact([
+  { loading: false, data: pendingPayload, error: null, busy: null },
+  {},
+  shelfPayload,
+  null,
+  'r1-verifier',
+  { loading: false, error: null, works: shelfPayload.works, clusters: shelfPayload.clusters },
+  null,
+  null,
+])
 const CardView = Card(react)
 const PanelView = Panel(react, CardView)
 const tree = PanelView()

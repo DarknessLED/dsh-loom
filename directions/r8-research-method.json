@@ -120,6 +120,16 @@
       "research agent",
       "deep research",
       "report quality"
+    ],
+    "agentic search scaffolding": [
+      "search-r1",
+      "webgpt",
+      "toolformer",
+      "self-refine",
+      "ai scientist",
+      "scaffold",
+      "tool use",
+      "brows"
     ]
   }
 }

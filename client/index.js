@@ -433,6 +433,11 @@ window.__ModuleLoader__.load({
       ' letter-spacing:0;color:var(--loom-faint)}',
       '.loom-workhit .f{margin-left:auto}',
       '.loom-workpage{padding:8px 10px 12px;border-left:1px solid var(--loom-line);margin:2px 0 6px 10px;min-width:0}',
+      '.loom-mermaid{margin:2px 0 10px}',
+      '.loom-mermaid pre{margin:0;font-family:var(--loom-mono);font-size:11.5px;line-height:1.5;',
+      ' white-space:pre-wrap;overflow-wrap:anywhere;padding:8px 10px;border-radius:8px;border:1px solid var(--loom-line);',
+      ' background:color-mix(in srgb,var(--loom-base) 4%,transparent)}',
+      '.loom-mermaid .note{display:block;margin-top:4px;opacity:.6;font-size:11px;line-height:1.5}',
       '.loom-fig{display:block;margin:0 0 10px;text-decoration:none}',
       '.loom-fig img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--loom-line);',
       ' background:var(--loom-surface)}',
@@ -2272,16 +2277,49 @@ window.__ModuleLoader__.load({
         return out
       }
 
-      function paragraphs(body) {
-        return body
-          .replace(/^\s*\u0060\u0060\u0060\s*mermaid\s*$/gm, '')
-          .replace(/^\s*\u0060\u0060\u0060\s*$/gm, '')
-          .trim()
-          .split(/\n{2,}/)
-          .map(function (part) {
-            return part.trim()
-          })
-          .filter(Boolean)
+      // Prose and diagram source are different things to a reader: the diagram is
+      // the paper's own section map and reads as a picture, the prose reads as
+      // paragraphs. The bundle may require only `react`, so nothing here draws
+      // the diagram -- it is shown as its source in a <pre>, under a line that
+      // says so. Printing it as a paragraph, which is what this used to do,
+      // made `N0["§2 Method"] --> N1["§2.1 ..."]` look like a sentence.
+      function blocks(body) {
+        var out = []
+        var lines = String(body || '').split('\n')
+        var prose = []
+        var mermaid = null
+        var flush = function () {
+          var text = prose.join('\n').trim()
+          prose = []
+          if (!text) return
+          text
+            .split(/\n{2,}/)
+            .map(function (part) {
+              return part.trim()
+            })
+            .filter(Boolean)
+            .forEach(function (part) {
+              out.push({ kind: 'text', text: part })
+            })
+        }
+        for (var i = 0; i < lines.length; i += 1) {
+          var line = lines[i]
+          if (!mermaid && /^\s*\u0060\u0060\u0060\s*mermaid\s*$/.test(line)) {
+            flush()
+            mermaid = []
+            continue
+          }
+          if (mermaid && /^\s*\u0060\u0060\u0060\s*$/.test(line)) {
+            out.push({ kind: 'mermaid', text: mermaid.join('\n') })
+            mermaid = null
+            continue
+          }
+          if (mermaid) mermaid.push(line)
+          else prose.push(line)
+        }
+        if (mermaid) out.push({ kind: 'mermaid', text: mermaid.join('\n') })
+        flush()
+        return out
       }
 
       function workPage(state) {
@@ -2305,8 +2343,16 @@ window.__ModuleLoader__.load({
               'div',
               { key: section.name, className: 'loom-wsec' },
               h('div', { className: 'loom-wsec-head' }, section.name),
-              paragraphs(section.lines.join('\n')).map(function (part, index) {
-                return h('p', { key: index }, part)
+              blocks(section.lines.join('\n')).map(function (part, index) {
+                if (part.kind === 'mermaid') {
+                  return h(
+                    'div',
+                    { key: index, className: 'loom-mermaid' },
+                    h('pre', null, part.text),
+                    h('span', { className: 'note' }, '论文自己的小节地图（宿主没有图渲染器，这是它的源码）'),
+                  )
+                }
+                return h('p', { key: index }, part.text)
               }),
             )
           }),

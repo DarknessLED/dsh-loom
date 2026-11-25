@@ -50,16 +50,26 @@ const INTRO_RE = /introduction|motivation|problem statement/
 // Sections that are never the pipeline: they frame the work or add to it, and
 // taking the longest of them would draw a diagram of the related-work page.
 const NOT_METHOD_RE =
-  /introduction|motivation|related work|prior work|background|conclusion|discussion|references|acknowledg|appendix|author|ethic|broader impact|reproducib/
+  /introduction|motivation|related work|prior work|background|conclusion|discussion|references|acknowledg|appendix|author|ethic|broader impact|reproducib|limitation|problem statement|preliminar/
 // Sub-parts of a method section that are about judging it rather than being
 // it. A technical report's "Post-training Evaluation" is a result table; it is
 // not a mechanism, and merging it into the mechanism list puts numbers where a
 // reader expects a design.
 const NOT_METHOD_SUB_RE = /evaluation|experiments?\b|results?\b|analysis|ablation|comparison|benchmark|what we did not|discussion/
-// The same words, applied to whole chapters: a top-level "Results" is where the
-// measurements live, and a mechanism list built from it would be a list of
-// numbers presented as a design.
-const NOT_METHOD_ROOT_RE = /results?\b|evaluation\b|experiments?\b|ablation|analysis\b|benchmark/
+// Where a paper stops describing what it built and starts measuring it. Papers
+// are written in one order almost universally -- introduction, the thing,
+// experiments -- so the chapters before the first results chapter are the method
+// even when their titles are names ("GEPA: Reflective Prompt Evolution") that no
+// keyword list would recognise.
+//
+// The pattern is anchored at the start of the heading on purpose. Searching the
+// whole heading for "benchmark" or "evaluation" made benchmark papers -- whose
+// method chapter is literally "Benchmark Curation" or "Benchmark Construction" --
+// look like nothing but measurements, and four of them came out with zero
+// mechanisms. A chapter is a results chapter when it *is* results ("§4 Results:
+// Model Behaviors"), not when the thing it builds happens to be a benchmark.
+const RESULT_HEADING_RE =
+  /^\s*(?:§?\s*[0-9]+(?:\.[0-9]+)*\s*)?(?:results?\b|experiments?\b|experimental\b|evaluations?\b|analysis\b|ablations?\b|measurements?\b|empirical\b)/
 
 function stripToBody(html) {
   if (typeof html !== 'string' || !html) return ''
@@ -137,6 +147,46 @@ function combine(points) {
  * stand alone is folded into the point before it rather than published as a
  * stub.
  */
+/** A record is a page a person reads, not a dump of every subsection. */
+export const MECHANISM_MAX_POINTS = 14
+
+/**
+ * Fold the shortest neighbouring pair until at most `max` points remain.
+ *
+ * A technical report's method really is thirty subsections, and listing all of
+ * them turns the "mechanisms" list into a table of contents with paragraphs. The
+ * fold is always between neighbours and always records itself in `merged`, so a
+ * reader can see that two subsections became one point rather than that one of
+ * them disappeared.
+ */
+export function mergeToAtMost(points, max = MECHANISM_MAX_POINTS) {
+  const out = (Array.isArray(points) ? points : []).map((point) => ({ ...point }))
+  while (out.length > max && out.length > 1) {
+    // Pairs only: folding the last point into nothing would delete a mechanism
+    // instead of merging two, and `length - 1` is the last index that has a
+    // right-hand neighbour to merge with.
+    let bestAt = 0
+    let bestSize = Infinity
+    for (let i = 0; i < out.length - 1; i += 1) {
+      const size = (out[i].text ?? '').length + (out[i + 1]?.text ?? '').length
+      if (size < bestSize) {
+        bestSize = size
+        bestAt = i
+      }
+    }
+    const merged = out.slice(bestAt, bestAt + 2)
+    const joined = {
+      locator: merged[0].locator,
+      title: merged.map((point) => point.title).join(' / '),
+      text: merged.map((point) => point.text).join(' '),
+      sections: merged.flatMap((point) => point.sections ?? []),
+      merged: merged.reduce((n, point) => n + (point.merged ?? 1), 0),
+    }
+    out.splice(bestAt, merged.length, joined)
+  }
+  return out
+}
+
 export function mergeToMinimum(points, min = MECHANISM_MIN_CHARS) {
   const list = Array.isArray(points) ? points.filter((point) => point && typeof point.text === 'string') : []
   const out = []
@@ -312,13 +362,13 @@ function firstLimitation(region, sections) {
 // subsection cut and leave a 9,700-character method chapter with one mechanism.
 const PLACEHOLDER_RE = /^(?:SS0|SSS0)$/
 
-function depthOf(id) {
+export function depthOf(id) {
   return String(id || '')
     .split('.')
     .filter((part) => part && !PLACEHOLDER_RE.test(part)).length
 }
 
-function methodSections(sections, region = '') {
+export function methodSections(sections, region = '') {
   const list = Array.isArray(sections) ? sections : []
   // A section is framing if it, or any ancestor, is one of the sections a
   // method is never in. Without the ancestor check, DeepSeekMath's appendix
@@ -327,11 +377,17 @@ function methodSections(sections, region = '') {
   // called an appendix subsection the paper's method.
   const framing = (section) => {
     const parts = String(section.id || '').split('.')
-    for (let i = 1; i <= parts.length; i += 1) {
+    // An ancestor settles it: a subsection of "Appendix A" is an appendix.
+    for (let i = 1; i < parts.length; i += 1) {
       const prefix = parts.slice(0, i).join('.')
       const ancestor = list.find((other) => other.id === prefix)
       if (ancestor && pattern2(NOT_METHOD_RE, ancestor.locator)) return true
     }
+    // The chapter's own heading can say both. "§2 Preliminaries and Method" is
+    // where PPO's reward model is defined, and reading "preliminaries" as
+    // framing cost that paper its whole method: the word that says what the
+    // chapter is for wins over the word that says where it sits.
+    if (pattern2(METHOD_RE, section.locator)) return false
     return pattern2(NOT_METHOD_RE, section.locator)
   }
   const weigh = (section) => {
@@ -358,20 +414,38 @@ function methodSections(sections, region = '') {
   // kept, and any other top-level section nearly as large is added -- a paper
   // that writes 25k characters about post-training has a method there whatever
   // its heading says.
-  const named = ranked.filter((entry) => pattern2(METHOD_RE, entry.section.locator))
+  // Document order, which `ranked` no longer carries once it is sorted by size.
+  const ordered = top.map((section) => ({ section, weight: weigh(section) }))
+  const firstResults = ordered.findIndex((entry) => pattern2(RESULT_HEADING_RE, entry.section.locator))
+  // The chapters before the first results chapter are the ones that describe
+  // the work. When a paper puts its results chapter first (an evaluation paper
+  // opens with "Evaluation Framework"), there is nothing before it, and every
+  // non-results chapter is a candidate instead -- which for that paper is
+  // exactly the fine-tuning sections that follow.
+  const buildable = ordered.filter((entry) => !pattern2(RESULT_HEADING_RE, entry.section.locator))
+  const before = firstResults > 0 ? ordered.slice(0, firstResults) : []
+  const pool = (before.length ? before : buildable.length ? buildable : ordered).filter(
+    (entry) => !pattern2(RESULT_HEADING_RE, entry.section.locator),
+  )
+  const largest = pool.reduce((best, entry) => (entry.weight > (best?.weight ?? -1) ? entry : best), null)
+  if (!largest) return []
+
+  // Named method sections first. Inside a technical report the design is not
+  // one section: DeepSeekMath spends its method across pre-training, SFT and RL
+  // (GRPO is the whole contribution and lives in §4), and Qwen3 across
+  // architecture, pre-training and post-training. So the keyword sections are
+  // kept, and any other top-level section nearly as large is added -- a paper
+  // that writes 25k characters about post-training has a method there whatever
+  // its heading says.
+  const named = pool.filter((entry) => pattern2(METHOD_RE, entry.section.locator))
   const chosen = []
   for (const entry of named) chosen.push(entry)
-  for (const entry of ranked) {
+  for (const entry of pool) {
     if (chosen.some((pick) => pick.section.id === entry.section.id)) continue
-    if (entry.weight < biggest.weight * 0.5) continue
-    // A results chapter is not a method chapter even when it is long: adding it
-    // puts a table of numbers under "mechanisms" where a reader expects a
-    // design. A named section is trusted whatever it is called -- a benchmark
-    // paper's method chapter is literally "Benchmark Curation".
-    if (pattern2(NOT_METHOD_ROOT_RE, entry.section.locator)) continue
+    if (entry.weight < largest.weight * 0.5) continue
     chosen.push(entry)
   }
-  if (!chosen.length) chosen.push(biggest)
+  if (!chosen.length) chosen.push(largest)
   chosen.sort((a, b) => a.section.id.localeCompare(b.section.id, undefined, { numeric: true }))
 
   const out = []
@@ -546,7 +620,9 @@ export function buildWorkRecord(input = {}) {
       merged: 1,
     })
   }
-  const mechanisms = mergeToMinimum(points.map((point) => ({ ...point, chars: point.text.length })))
+  const mechanisms = mergeToMinimum(
+    mergeToAtMost(points, MECHANISM_MAX_POINTS).map((point) => ({ ...point, chars: point.text.length })),
+  )
 
   const figure = figureOf(region, base, sections)
   // Every method section is a stage in the order the paper writes it. Dropping

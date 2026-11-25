@@ -113,6 +113,28 @@ export function readingCount(readings, ids = null) {
  * every rebuild; a work no keyword reaches is `unclustered`, printed rather than
  * dropped.
  */
+/**
+ * The works that are instruments rather than arguments.
+ *
+ * A direction's clusters name the questions the field argues about. A technical
+ * report, a benchmark, a dataset and a survey are none of those: they are the
+ * thing everyone measures on, and every direction cites the same handful. Left
+ * out, "unclustered" grew to a third of the library and meant two different
+ * things -- "this paper is apparatus" and "our keywords missed it" -- so they
+ * are separated here, and the panel prints them under their own heading.
+ */
+const APPARATUS_RE =
+  /technical report|herd of models|tech report|system card|model card|\bbench\b|[\s:]benchmark|benchmarking|benchmark for|a benchmark|evaluation suite|evaluation framework|leaderboard|\bsurvey\b|\bdataset\b|corpus of|toolkit|\bplayground\b|leaderboards/i
+
+export function clusterWork(work, clusters) {
+  const label = classifyWork(work, clusters)
+  if (label !== 'unclustered') return label
+  return APPARATUS_RE.test(String(work?.title ?? '')) ? APPARATUS_LABEL : 'unclustered'
+}
+
+/** The label apparatus works are filed under; not a cluster in the direction file. */
+export const APPARATUS_LABEL = 'apparatus (reports, benchmarks, surveys)'
+
 export function classifyWork(work, clusters) {
   const text = `${work?.title ?? ''} ${work?.abstract ?? ''}`.toLowerCase()
   if (!text.trim() || !clusters || typeof clusters !== 'object') return 'unclustered'
@@ -203,7 +225,7 @@ export function loadDirection(options = {}) {
   const cited = citedByCounts(lib.edges)
   const counts = new Map()
   const works = (Array.isArray(lib.works) ? lib.works : []).map((work) => {
-    const cluster = classifyWork(work, clusters)
+    const cluster = clusterWork(work, clusters)
     counts.set(cluster, (counts.get(cluster) ?? 0) + 1)
     return {
       id: work?.id ?? '',
@@ -223,6 +245,9 @@ export function loadDirection(options = {}) {
   for (const label of Object.keys(clusters)) {
     if (counts.get(label)) ordered.push({ label, count: counts.get(label) })
   }
+  // Apparatus next: it is the same in every direction, so it reads as a shelf of
+  // instruments rather than as another research question.
+  if (counts.get(APPARATUS_LABEL)) ordered.push({ label: APPARATUS_LABEL, count: counts.get(APPARATUS_LABEL) })
   if (counts.get('unclustered')) ordered.push({ label: 'unclustered', count: counts.get('unclustered') })
   return {
     slug,

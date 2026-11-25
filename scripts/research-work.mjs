@@ -22,13 +22,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { buildWorkRecord, indexOfWorks, similarTo } from '../src/research/workrecord.js'
+import { buildWorkRecord, cosine, indexOfWorks, similarTo, workVector } from '../src/research/workrecord.js'
 import { agentDigest, renderLibraryMarkdown } from '../src/research/workview.js'
 import { bodyIsUnrendered } from '../src/research/deepread.js'
+import { parseAbsPage } from './research-cites.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..')
 const CACHE = join(ROOT, 'research', 'out', '.cache', 'deep')
+const META = join(ROOT, 'research', 'out', '.cache', 'meta')
 const UA = 'dsh-loom-research/0.1 (+https://github.com/darkness/dsh-loom)'
 
 export function usage() {
@@ -46,11 +48,12 @@ export function usage() {
     '  --figures <dir>    also save each pipeline figure under this directory',
     '  --no-fetch         never touch the network; report missing bodies instead',
     '  --date <ymd>       date stamp for the document (default: today, locale-free)',
+    '  --no-meta          never ask arXiv for the abs page (year/title backfill)',
   ].join('\n')
 }
 
 export function parseArgs(argv) {
-  const out = { ids: [], fetch: true }
+  const out = { ids: [], fetch: true, meta: true }
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i]
     const next = argv[i + 1]
@@ -65,6 +68,7 @@ export function parseArgs(argv) {
     else if (flag === '--figures') { out.figures = next; i += 1 }
     else if (flag === '--date') { out.date = next; i += 1 }
     else if (flag === '--no-fetch') out.fetch = false
+    else if (flag === '--no-meta') out.meta = false
     else if (flag === '--help' || flag === '-h') out.help = true
   }
   return out
@@ -146,6 +150,79 @@ export function lookupInSurvey(survey, id) {
   return null
 }
 
+/**
+ * The abs page, as a metadata source.
+ *
+ * A work enters the library through one of three doors, and two of them carry
+ * no year: a reading file is hand-written prose keyed by id, and a survey row of
+ * a foundation carries a title but not its date. `Number(null)` is 0, so before
+ * this the record claimed to be 2,026 years old. The body does not always help
+ * either -- some arXiv HTML has no document date at all -- so the abs page is
+ * asked once per id and its answer is cached next to the body cache.
+ */
+export function metaFile(dir, id) {
+  return join(dir, `${String(id).replace(/[^0-9a-zA-Z._-]/g, '_')}.json`)
+}
+
+export function readCachedMeta(dir, id) {
+  const file = metaFile(dir, id)
+  if (!existsSync(file)) return null
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+/** `2016/05/23` -> 2016. A date without a leading year is not a year. */
+export function yearOfDate(date) {
+  const match = /^((?:19|20)\d{2})/.exec(String(date || '').trim())
+  return match ? Number(match[1]) : null
+}
+
+/**
+ * Fill the fields the record could not fill itself.
+ *
+ * Only unknown fields are written: a year the body stated is not overwritten by
+ * a cached abs page, and a title the body carried stays the title. Returns the
+ * record plus what was borrowed, so the caller can say where a number came from.
+ */
+export function applyMetadata(record, meta, { basis = 'arxiv-abs' } = {}) {
+  if (!record || !meta) return { record, borrowed: [] }
+  const borrowed = []
+  if (record.year === null || record.year === undefined) {
+    const year = yearOfDate(meta.date) ?? (Number(meta.year) > 1000 ? Number(meta.year) : null)
+    if (year) {
+      record.year = year
+      record.yearBasis = basis
+      borrowed.push('year')
+    }
+  }
+  if (record.titleBasis === 'id' && typeof meta.title === 'string' && meta.title.trim()) {
+    record.title = meta.title.trim()
+    record.titleBasis = basis
+    borrowed.push('title')
+  }
+  if (!record.abstract && typeof meta.abstract === 'string' && meta.abstract.trim()) {
+    record.abstract = meta.abstract.trim()
+    record.vector = workVector({ ...record, abstract: record.abstract })
+    borrowed.push('abstract')
+  }
+  return { record, borrowed }
+}
+
+async function fetchMeta(id) {
+  const response = await fetch(`https://arxiv.org/abs/${id}`, {
+    headers: { 'user-agent': UA, accept: 'text/html' },
+    signal: AbortSignal.timeout(60000),
+  })
+  if (!response.ok) return { error: `HTTP ${response.status}` }
+  const parsed = parseAbsPage(await response.text())
+  if (!parsed) return { error: 'no citation metadata' }
+  return { meta: { title: parsed.title, date: parsed.date, abstract: parsed.abstract } }
+}
+
 function cacheFile(cache, id) {
   return join(cache, `${String(id).replace(/[^0-9a-zA-Z._-]/g, '_')}.html`)
 }
@@ -176,10 +253,11 @@ async function fetchBody(id) {
  * locally, when asked). A paper missing from `records` is never a silent
  * omission -- it is in `missing` with the reason.
  */
-export async function buildLibrary({ ids = [], cache = CACHE, fetch: allowFetch = true, figuresDir = null, fetchImpl = fetchBody } = {}) {
+export async function buildLibrary({ ids = [], cache = CACHE, fetch: allowFetch = true, figuresDir = null, metaDir = null, meta: allowMeta = true, fetchImpl = fetchBody, metaImpl = fetchMeta } = {}) {
   const records = []
   const missing = []
   const figures = []
+  const metadata = []
   for (const entry of ids) {
     const id = typeof entry === 'string' ? entry : entry?.id
     if (!id) continue
@@ -220,6 +298,32 @@ export async function buildLibrary({ ids = [], cache = CACHE, fetch: allowFetch 
       year: typeof entry === 'object' ? entry.year ?? null : null,
       title: typeof entry === 'object' ? entry.title ?? '' : '',
     })
+    // Three doors into the library, and two carry no date. Ask the abs page for
+    // the fields the body could not supply -- once, cached next to the body, so
+    // a rebuild is offline and reproducible.
+    if (metaDir && allowMeta && (record.year === null || record.titleBasis === 'id' || !record.abstract)) {
+      let meta = readCachedMeta(metaDir, id)
+      if (!meta) {
+        try {
+          const result = await metaImpl(id)
+          if (result?.meta) {
+            meta = result.meta
+            mkdirSync(metaDir, { recursive: true })
+            writeFileSync(metaFile(metaDir, id), `${JSON.stringify(meta, null, 2)}\n`, 'utf8')
+          } else if (result?.error) {
+            meta = { error: result.error }
+            mkdirSync(metaDir, { recursive: true })
+            writeFileSync(metaFile(metaDir, id), `${JSON.stringify(meta, null, 2)}\n`, 'utf8')
+          }
+        } catch (err) {
+          meta = { error: `${err?.message ?? err}` }
+        }
+      }
+      if (meta && !meta.error) {
+        const filled = applyMetadata(record, meta)
+        if (filled.borrowed.length) metadata.push({ id, from: 'arxiv-abs', fields: filled.borrowed })
+      }
+    }
     records.push(record)
     if (figuresDir && record.pipeline?.figure?.url) {
       const saved = await saveFigure(figuresDir, record, fetchImpl)
@@ -230,7 +334,7 @@ export async function buildLibrary({ ids = [], cache = CACHE, fetch: allowFetch 
   for (const record of records) {
     record.similar = similarTo(index, record.id, { k: 5 })
   }
-  return { records, missing, figures, index }
+  return { records, missing, figures, metadata, index }
 }
 
 /** Download one pipeline figure so the page works offline. */
@@ -322,6 +426,8 @@ async function main() {
     cache,
     fetch: args.fetch,
     figuresDir: args.figures ? resolve(ROOT, args.figures) : null,
+    meta: args.meta !== false,
+    metaDir: META,
   })
   const date = args.date || localDate()
 
@@ -332,6 +438,7 @@ async function main() {
     built: date,
     works: result.records,
     missing: result.missing,
+    metadata: result.metadata ?? [],
     edges: result.index.edges,
     agent: agentDigest(result.records, { index: result.index }),
   }, null, 2)}\n`, 'utf8')

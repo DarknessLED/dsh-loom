@@ -324,6 +324,12 @@ const standing = [
   'tests/self54/workrecord.test.mjs',
   'tests/self54/workview.test.mjs',
   'tests/self54/research-work.test.mjs',
+  // Which chapter counts as the method, and how many of its points survive: a
+  // named method before the results chapter, not the 334-paragraph evaluation.
+  'tests/self54/method-chapters-before-results.test.mjs',
+  // The year and the title when the body never states them: abs page, cached, and
+  // only fields that were unknown -- an unknown year stays null, never 0.
+  'tests/self54/a-year-the-body-never-said.test.mjs',
   // The library gets a door: a read-only prefix route, the panel section that
   // reads it, a figure URL that is not a 404, and the abstract walker that was
   // cutting every abstract at its first highlighted word.
@@ -334,6 +340,9 @@ const standing = [
   'tests/self55/abstract-not-cut-at-a-highlight.test.mjs',
   'tests/self55/a-record-has-its-abstract.test.mjs',
   'tests/self55/a-pdf-pointer-is-not-a-record.test.mjs',
+  // A technical report or a benchmark is an instrument, not a missed cluster:
+  // the leftover bucket says which of the two it is.
+  'tests/self55/apparatus-is-not-unclustered.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

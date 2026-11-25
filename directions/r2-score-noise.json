@@ -131,6 +131,35 @@
       "flakiness",
       "test reliability",
       "retry"
+    ],
+    "instrument validity": [
+      "measurement",
+      "metric validity",
+      "what the score",
+      "construct",
+      "proxy",
+      "validity",
+      "benchmark design",
+      "leakage",
+      "contamination",
+      "memorization",
+      "saturation"
+    ],
+    "what the score measures": [
+      "evaluat",
+      "measur",
+      "metric",
+      "benchmark",
+      "score",
+      "pass@"
+    ],
+    "training-side variance": [
+      "low-rank",
+      "finetun",
+      "fine-tun",
+      "pretrain",
+      "optimization stability",
+      "rlhf"
     ]
   }
 }

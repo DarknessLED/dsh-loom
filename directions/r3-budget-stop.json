@@ -126,6 +126,22 @@
       "when to stop",
       "give up",
       "budget exhausted"
+    ],
+    "search methods that spend budget": [
+      "neural architecture search",
+      "architecture search",
+      "hyperparameter",
+      "bayesian optimization",
+      "regularized evolution",
+      "darts",
+      "nas"
+    ],
+    "agent loop cost": [
+      "react",
+      "tool",
+      "agent loop",
+      "inference cost",
+      "scaffold"
     ]
   }
 }
