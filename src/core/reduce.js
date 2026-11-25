@@ -250,7 +250,15 @@ function apply(s, ev) {
         // `planMode`/`planTimedOut` travel too: `planMode: 'auto'` reads the
         // last two rounds' planTimedOut, so a projected state that dropped it
         // would make every round look like it had planned successfully.
-        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'scoreSource', 'progress', 'shape', 'chainVersion', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable']) {
+        for (const key of ['durationMs', 'planMs', 'planTimedOut', 'planUsable', 'planMode', 'holdout', 'holdoutMs', 'holdoutRuns', 'holdoutId', 'attemptCount', 'attemptMs', 'verifierRuns', 'verifierMs', 'tokens', 'costUsd', 'scoreSource', 'progress', 'shape', 'chainVersion', 'candidateMode', 'candidateModeSource', 'candidatesPlanned', 'skippedCandidates', 'abortedCandidates', 'salvagedCandidates', 'planBudgetMs', 'reason', 'retryable',
+          // Fields a *later round* reads back. Each was added to `round.finished`
+          // and to `projectRound` and never here, so the fold dropped it and the
+          // reader saw a round that had never measured anything: `research`
+          // (researchModeFor/legBudget, 2026-11-26), `noop` (267 vs 241
+          // promotions), `screened`/`kept` (fidelityCheck), `halving`/`fidelity`,
+          // `holdoutScore`/`holdoutReason`, `promotedId` (the streak reads it).
+          'research', 'noop', 'screened', 'kept', 'halving', 'fidelity',
+          'holdoutScore', 'holdoutReason', 'promotedId']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }

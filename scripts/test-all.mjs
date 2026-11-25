@@ -424,6 +424,9 @@ const standing = [
   // The leg's record stopped at the event: `rsi_status` showed three rounds with
   // no `research` field while the events had it, so the mode rule saw "never read".
   'tests/self57/what-a-round-carries-back.test.mjs',
+  // The real path is the fold, not `projectRound`: `views/state.json` had no
+  // `research` on either round while both events carried it.
+  'tests/self57/what-the-fold-keeps.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

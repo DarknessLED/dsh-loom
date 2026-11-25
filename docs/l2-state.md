@@ -842,8 +842,19 @@ copies a whitelist of keys and the leg was not on it, so two readers that work o
 - `legBudget` counts rounds that bought a read, and projected rounds never bought
   one, so `maxRounds` never bit.
 
-The fix is one line in the projection, the same fix `screened`/`kept` and
-`holdoutScore` already got. `tests/self57/what-a-round-carries-back.test.mjs`
+The projection was not the whole story: `runtime.append` folds the log through
+`reduce`, and **that** copy (`src/core/reduce.js`, the `round.finished` whitelist)
+is the one the live runtime uses. Campaign `balance3-live` (two rounds, both
+promoted) confirmed it — the events carried `{"mode":"full","used":false}` and
+`{"mode":"off"}` respectively, while `views/state.json` read
+`[{"n":1},{"n":2}]`. The whitelist had also been dropping `noop`, `screened`,
+`kept`, `halving`, `fidelity`, `holdoutScore`, `holdoutReason` and `promotedId`,
+which is the same bug with eight older names: each was added to the event and to
+`projectRound`, and never to the fold.
+
+Both copies now carry the leg (`tests/self57/what-the-fold-keeps.test.mjs` pins
+the fold and asserts it stays an explicit whitelist rather than merging the
+whole event). `tests/self57/what-a-round-carries-back.test.mjs`
 pins the projection *and* both readers; the control case asserts what the missing
 field used to do, so a regression cannot look like a policy choice.
 
