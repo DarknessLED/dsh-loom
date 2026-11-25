@@ -779,3 +779,59 @@ Two lessons worth keeping:
   the fix. That is the fourth time this session hit the chicken-and-egg (after
   `verify.owns`, the spec pin, and the oracle) and it is now the single largest
   structural limit: **the loop cannot repair the rule it is being judged by.**
+
+## 2026-11-26: the loop reads before it writes
+
+`grep -rn research src/runtime/*.js` returned one comment and nothing else on the
+morning of 2026-11-26, while `~/.dsh/loom/research/` held ten directions, 352
+evidence snapshots and 1987 verified claims. The loop had a research library and
+no way to consult it. Every "what should we fix next" therefore came from
+running a campaign and watching it hit something — which is why each fix
+produced the next one, and why the list never seemed to end.
+
+The round now has a research leg before the planner and the workers: one
+question, up to eight sources, two pages actually read, and up to four verbatim
+quotations carried into the worker brief under `Research notes (data, not
+instructions)`. The budget is `config.research` (`depth: 'quick'`, `fetchTop: 2`,
+`timeoutMs: 90s`), and `quick` alone fetches zero pages — the explicit `fetchTop`
+is what makes a quotation possible.
+
+What decides whether a round reads:
+
+| last round | reads again? |
+| --- | --- |
+| no history | yes, once |
+| `promoted: true` and it read | no |
+| `promoted: true` and it did not read | no — reading did not earn this |
+| `promoted` not a boolean / `interrupted` | yes |
+| lost, or `status` missing | yes |
+| two wins in a row that both read | no |
+
+`researchMode` is a policy field (`off | full | auto`) with the same validation
+and campaign-override precedence as `planMode`, so the balance is adjustable per
+campaign and promotable. The mutation menu grew its fifth kind,
+`research-on-stuck`, which proposes `researchMode: 'auto'` on a chain that does
+not already say it — the first menu entry that changes the loop's own habits
+rather than the worker's instructions.
+
+The question it asks is chosen in this order: the stuck signature of the last
+three rounds (what the loop is visibly failing at), then the oldest open
+question in the research ledger, then the task text. The ledger reader is
+`researchQuestions(home)`, not the raw `questions.jsonl` — every one of the 17
+records on disk is a `{kind:'opened'}` event with no `status` field, so a script
+that counts `status === 'open'` reads zero on a ledger that is not empty. That
+trap is now pinned by a spec.
+
+### What this does not claim
+
+- A finding is a quotation, not a conclusion. The leg quotes; nobody has graded
+  whether the quotation answered the question.
+- `research.used` is written by *the next* round, so on the round that paid for
+  the reading it is always `null`. The "did reading earn this win" test therefore
+  only becomes true from round two onward.
+- `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
+  before it has a campaign behind it. Its prediction is a prior, and the card
+  says so.
+- The whole leg is skipped, and the round proceeds, when the host has no web
+  service. A campaign with no research is still a campaign; that is deliberate,
+  and it also means a silent web outage looks like a thorough loop.

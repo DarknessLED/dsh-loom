@@ -17,7 +17,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { proposeMutations } from '../src/chain/mutate.js'
+import { MUTATION_KINDS, proposeMutations } from '../src/chain/mutate.js'
 import { registerTools } from '../src/tools/index.js'
 import { Ledger } from '../src/core/ledger.js'
 import { reduce } from '../src/core/reduce.js'
@@ -75,9 +75,17 @@ const base = {
     decided: [{ kind: 'candidates+1', decision: 'reject:budget-mismatch' }],
     scopeEditable: true,
   })
-  assert.equal(out.length, 4, 'blocked proposals are reported, not dropped')
-  assert.deepEqual(out.map((m) => m.status), ['already-decided', 'fresh', 'conflicts-with-scope', 'fresh'], 'each with its own reason')
-  assert.deepEqual(out.map((m) => m.spec.version), [2, 3, 4, 5], 'and every applicable kind keeps a version number')
+  // The menu grew a fifth kind on 2026-11-26 (`research-on-stuck`), so this
+  // counts against the menu rather than the number four: every applicable kind
+  // is listed, blocked ones included, and only the fresh ones are capped.
+  assert.equal(out.length, MUTATION_KINDS.length, 'blocked proposals are reported, not dropped')
+  assert.deepEqual(
+    out.map((m) => m.status),
+    ['already-decided', 'fresh', 'conflicts-with-scope', 'fresh', 'fresh'],
+    'each with its own reason',
+  )
+  assert.deepEqual(out.map((m) => m.spec.version), [2, 3, 4, 5, 6], 'and every applicable kind keeps a version number')
+  assert.equal(out.filter((m) => m.status === 'fresh').length, 3, 'max caps the fresh ones, not the list')
   ok('blocked proposals are listed with reasons instead of disappearing')
 }
 
@@ -155,7 +163,13 @@ const v1 = {
     }, 'human')
     return h.tools.get('rsi_chain').execute({ id: 'c', action: 'auto' })
   })
-  assert.deepEqual(answer.proposed.map((p) => p.kind), ['minimal-change', 'state-your-uncertainty'], 'only the fresh hypotheses are offered')
+  // Two kinds are blocked and the cap is three fresh, so the three that remain
+  // are offered -- the fifth kind took the slot that used to be empty.
+  assert.deepEqual(
+    answer.proposed.map((p) => p.kind),
+    ['minimal-change', 'state-your-uncertainty', 'research-on-stuck'],
+    'only the fresh hypotheses are offered, up to the cap',
+  )
   assert.equal(answer.proposed[0].version, 3, 'and their versions keep their place in the menu')
   assert.deepEqual(answer.blocked.map((b) => b.kind).sort(), ['candidates+1', 'no-test-edits'], 'both blocked kinds are reported')
   assert.equal(answer.blocked.find((b) => b.kind === 'candidates+1').status, 'already-decided', 'one because it was measured')

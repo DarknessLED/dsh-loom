@@ -66,6 +66,22 @@ export function mutateChain(base, { kind, version, rationale } = {}) {
       rationale: rationale ?? `one more candidate per round (${cur} → ${cur + 1}): more shots at a passing patch per unit of human attention`,
     }
   }
+  if (kind === 'research-on-stuck') {
+    // The loop's own habit, not the worker's instructions: `auto` means "read
+    // when the last round lost, skip when the campaign is already landing". The
+    // policy default is the same word, so a chain without the field and a chain
+    // with `auto` behave identically -- which is why this is a no-op proposal on
+    // a chain that already says it.
+    if (spec.params?.researchMode === 'auto') return null
+    spec.params = { ...(spec.params || {}), researchMode: 'auto' }
+    return {
+      spec,
+      kind,
+      rationale:
+        rationale ??
+        'let each round decide whether to read before writing (researchMode: auto): a read costs minutes, a failed round costs seventeen',
+    }
+  }
   if (kind && GUIDANCE[kind]) {
     if (!appendGuidance(spec, GUIDANCE[kind])) return null
     return { spec, kind, rationale: rationale ?? `${kind}: ${GUIDANCE[kind].slice(0, 120)}` }
@@ -107,6 +123,12 @@ export const MUTATION_REGISTRY = [
     since: '2026-11-09',
     evidence: ['loom-mut'],
     note: 'addresses the overconfident-report failure the loop kept seeing',
+  },
+  {
+    kind: 'research-on-stuck',
+    since: '2026-11-26',
+    evidence: ['no-round-yet'],
+    note: 'lets the loop decide per round whether to read before it writes; the first kind that changes the loop rather than the worker',
   },
 ]
 

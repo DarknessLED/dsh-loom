@@ -306,6 +306,29 @@ export const DEFAULT_CONFIG = {
     // repeatability inherits this figure instead of promoting at minGain alone.
     noiseSpread: 0.1,
   },
+  /**
+   * The research leg: whether a round may spend money on reading before it writes.
+   *
+   * `researchMode` in the loop policy decides per round (`off | full | auto`);
+   * this block is the install-level floor and the budget the leg runs inside.
+   * `depth: 'quick'` with `fetchTop: 2` is deliberate for the first version: a
+   * deep run reads five pages of body text and costs about as much as a worker,
+   * and the leg's whole claim is that a cheap read beats an expensive failed
+   * round. `quick` alone fetches nothing, which would leave the brief quoting
+   * search snippets rather than the pages they came from.
+   */
+  research: {
+    enabled: true,
+    depth: 'quick',
+    /** Pages the leg may read. `quick`'s own preset is 0; this is the override. */
+    fetchTop: 2,
+    /** The leg's own deadline. It is not allowed to eat the attempt's cap. */
+    timeoutMs: 90_000,
+    /** Passages quoted into the brief. Four lines, each clipped; see research-leg.js. */
+    maxFindings: 4,
+    /** How many rounds of the same campaign may buy a read before the mode stops it. */
+    maxRounds: 3,
+  },
   /** L1: what evidence a chain version needs before it may replace the active one. */
   chain: {
     minTasks: 6,
@@ -346,5 +369,6 @@ export function normalizeConfig(raw) {
     lean: { ...DEFAULT_CONFIG.lean, ...(c.lean || {}) },
     loopPolicy: { ...DEFAULT_CONFIG.loopPolicy, ...(c.loopPolicy || {}) },
     chain: { ...DEFAULT_CONFIG.chain, ...(c.chain || {}) },
+    research: { ...DEFAULT_CONFIG.research, ...(c.research || {}) },
   }
 }

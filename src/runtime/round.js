@@ -43,6 +43,10 @@ import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
+import { findingsFrom, questionFor, researchSketch } from './research-leg.js'
+import { runResearch } from '../research/run.js'
+import { researchQuestions } from '../research/questions.js'
+import { svc } from '../core/services.js'
 import { oncePlateau } from './plateau.js'
 import { stallTrigger } from './stall.js'
 import { proposeMutations } from '../chain/mutate.js'
@@ -387,6 +391,15 @@ export function policyFor({ config, campaign } = {}) {
   const isRatio = (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1
   const isPositiveInt = (v) => Number.isInteger(Number(v)) && Number(v) >= 1
   const planMode = decide('planMode', over.planMode, loop.planMode, isPlanMode, 'full')
+  // Reading is bought per round the same way planning is. Config may switch it
+  // off install-wide (`research.enabled`); a campaign may name its own mode.
+  const researchMode = decide(
+    'researchMode',
+    over.researchMode,
+    config?.research?.enabled === false ? 'off' : loop.researchMode,
+    isPlanMode,
+    'auto',
+  )
   const candidateMode = decide('candidateMode', over.candidateMode, loop.candidateMode, isCandidateMode, 'parallel')
   // `minGain` is a fraction, so a negative or >1 override cannot be a policy.
   const minGain = Number(decide('minGain', over.minGain, config?.gate?.minGain, isRatio, 0.05))
@@ -446,7 +459,7 @@ export function policyFor({ config, campaign } = {}) {
       }
     }
   }
-  return { planMode, candidateMode, minGain, noiseSpread, infraPauseAfter, models, sources, rejected }
+  return { planMode, researchMode, candidateMode, minGain, noiseSpread, infraPauseAfter, models, sources, rejected }
 }
 
 /**
@@ -543,6 +556,52 @@ export function planModeFor(rounds, policy) {
     return wasted(prev) && wasted(last) ? 'off' : 'full'
   }
   return wasted(prev) && won(prev) && wasted(last) && won(last) ? 'off' : 'full'
+}
+
+/**
+ * Whether this round pays for reading before it writes.
+ *
+ * Same question as `planModeFor` one level out: planning asks "what should this
+ * round do", reading asks "what do we already know about the thing it keeps
+ * failing at". The loop has never asked either question — measured 2026-11-26,
+ * `grep -rn "research" src/runtime/*.js` is comments only — so every gap it has
+ * found cost a round to find. A read is cheaper than a wasted round, and a read
+ * on a campaign that is already landing is money for nothing.
+ *
+ * Three states, and the uncertain ones resolve to reading rather than to
+ * silence: a missing `promoted` means the record cannot answer, and reading an
+ * absence as a loss would leave the knob disarmed on every campaign that ran
+ * before this commit.
+ */
+export function researchModeFor(rounds, policy) {
+  const mode = policy?.researchMode
+  if (mode === 'off' || mode === 'full') return mode
+  // A value that is not one of the three words is a typo, and a typo must not
+  // quietly disarm the leg. Same reading as `planModeFor`.
+  if (mode !== 'auto') return 'full'
+  const history = Array.isArray(rounds) ? rounds : []
+  if (!history.length) return 'full'
+  const last = history[history.length - 1]
+  const prev = history.length > 1 ? history[history.length - 2] : null
+  const answered = (r) => typeof r?.promoted === 'boolean'
+  const readIt = (r) => Boolean(r?.research) && r.research.mode !== 'off'
+  if (!answered(last)) return 'full'
+  // A round a person stopped was never judged, so it is not evidence against
+  // reading. Same reason `plateauReached` skips it.
+  if (last.status === 'interrupted') return 'full'
+  // Losing is the condition reading exists for.
+  if (last.promoted !== true) return 'full'
+  // Won without reading: the loop is moving, and reading now would be a cost
+  // with no question behind it.
+  if (!readIt(last)) return 'off'
+  // Read and did not use it: the read was affordable and useless, which is the
+  // one combination that should defund itself immediately.
+  if (last.research.used === false) return 'off'
+  // One win while reading is not enough: the read may be what caused it. Two in
+  // a row says the campaign can hold its ground, and the next round can try
+  // without.
+  if (prev && answered(prev) && prev.promoted === true && prev.status !== 'interrupted' && readIt(prev)) return 'off'
+  return 'full'
 }
 
 /**
@@ -815,7 +874,7 @@ export function abandonedVerdict(reason, cwd) {
  * sibling history beyond a handful of notes, no knowledge the round has not
  * earned yet.
  */
-function attemptBrief({ chain, state, task, verifyCmd, verifyHidden = false, worktree, attemptId, index, total, notes, lessons, plan = [], maxChars, budgetMs }) {
+function attemptBrief({ chain, state, task, verifyCmd, verifyHidden = false, worktree, attemptId, index, total, notes, lessons, plan = [], research = [], maxChars, budgetMs }) {
   const mapNode = (chain.nodes || []).find((n) => n.type === 'map')
   const rolePrompt =
     mapNode?.of?.prompt ||
@@ -842,6 +901,7 @@ function attemptBrief({ chain, state, task, verifyCmd, verifyHidden = false, wor
     notes,
     lessons,
     plan,
+    research,
     previousFailure: lastFailure(state),
     workspace: { branch: `loom/${state.id}/${attemptId}`, cwd: worktree },
     ...(maxChars ? { maxChars } : {}),
@@ -1110,6 +1170,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   }
   // Per campaign, per policy: whether this round pays for planning at all.
   const planMode = planModeFor(state.rounds, campaignPolicy)
+  // Whether this round buys a read before it writes. Decided once, beside the
+  // planner, because both answer the same question one level apart and a round
+  // that recorded a different number from the one it used cannot be audited.
+  const researchMode = researchModeFor(state.rounds, campaignPolicy)
   // Which models the workers in this round may use — the campaign's chain when it
   // named one, otherwise the config's. Without an override `modelsFor` returns the
   // config chain itself, which is what the dispatcher would have resolved anyway.
@@ -1402,6 +1466,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // rounds here, that silent bucket is 46 rounds (39%), larger than the timed-out
   // one everyone was watching.
   let planUsable = null
+  // What the research leg did this round. Declared up here so the early exits
+  // (exhausted, budget, error) record the same shape as a normal finish: a leg
+  // that only appears on successful rounds is a leg no ledger can audit.
+  let research = researchSketch({ ok: false, code: 'not-run' }, { mode: researchMode })
 
   const attempts = []
   const board = boardPath(view.dir, n)
@@ -1459,6 +1527,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     skippedCandidates,
     abortedCandidates,
     planMode,
+    // The read this round bought (or the reason it did not). On every finish,
+    // including the early exits, so "did not read" is a recorded fact and not
+    // an absent field.
+    research,
     // The deadline the planner actually ran under, so a reader can tell "it ran
     // out of the time it was given" from "it was given a shorter leash today".
     planBudgetMs: planTimeoutMs,
@@ -1467,6 +1539,63 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // which constraint bought the refusal rather than leaving it to inference.
     ...(candidatePlan ? { candidatePlan } : {}),
   })
+
+  // ReAct's first half: read before writing. The question comes from the record
+  // (a stuck signature, an open question, or the task), the answer is quoted
+  // verbatim into the brief, and nothing here may fail the round: a leg that can
+  // fail a round is worse than no leg at all.
+  let researchFindings = []
+  if (researchMode !== 'off') {
+    const researchStartedAt = Date.now()
+    try {
+      const web = svc(runtime.ctx, 'web')
+      const canSearch = web && typeof web.search === 'function'
+      const lastRound = (state.rounds || []).filter((r) => r && r.taskId === task.id).at(-1) ?? null
+      let ledger = []
+      try {
+        ledger = researchQuestions(runtime.home).filter((q) => q.status === 'open')
+      } catch {
+        ledger = []
+      }
+      const asked = questionFor({ task, lastRound, openQuestions: ledger })
+      if (!canSearch) {
+        research = researchSketch(
+          { ok: false, code: 'web-unavailable' },
+          { mode: researchMode, question: asked?.question, from: asked?.from },
+        )
+      } else if (!asked) {
+        research = researchSketch({ ok: false, code: 'no-question' }, { mode: researchMode })
+      } else {
+        const result = await runResearch(
+          {
+            question: asked.question,
+            depth: config.research?.depth ?? 'quick',
+            // `quick` fetches nothing on its own; a read that quotes snippets is
+            // a search, not a read. The leg overrides the page count explicitly.
+            fetchTop: Number.isFinite(Number(config.research?.fetchTop)) ? Number(config.research.fetchTop) : 2,
+          },
+          {
+            search: (query, opts) => web.search({ query, maxResults: Math.max(1, Number(opts?.maxResults) || 8) }),
+            fetchPage: (url) => web.fetch({ url }),
+          },
+        )
+        researchFindings = findingsFrom(result, { max: config.research?.maxFindings ?? 4 })
+        research = researchSketch(result, {
+          mode: researchMode,
+          question: asked.question,
+          from: asked.from,
+          ms: Date.now() - researchStartedAt,
+        })
+      }
+    } catch (err) {
+      research = researchSketch(
+        { ok: false, code: 'leg-failed' },
+        { mode: researchMode, ms: Date.now() - researchStartedAt },
+      )
+      log('research leg failed:', err?.message ?? err)
+    }
+    if (research.skipped) log(`research leg skipped: ${research.skipped}`)
+  }
   try {
     // Shared reconnaissance first: these nodes are the work that makes the
     // parallel attempts smart, and their findings reach every worker brief.
@@ -1679,6 +1808,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           notes,
           lessons,
           plan: planFindings,
+          research: researchFindings,
           budgetMs: timeoutMs,
           nodePath: nodeHintPath,
         })

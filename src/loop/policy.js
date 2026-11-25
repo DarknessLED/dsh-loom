@@ -8,10 +8,27 @@
  * re-decided under a different policy without calling a model.
  */
 
-export const POLICY_FIELDS = ['minGain', 'candidates', 'knowledge', 'halving', 'holdoutSlack', 'planMode', 'secondCandidate']
+export const POLICY_FIELDS = [
+  'minGain',
+  'candidates',
+  'knowledge',
+  'halving',
+  'holdoutSlack',
+  'planMode',
+  'researchMode',
+  'secondCandidate',
+]
 
 /** The only modes a planner can run in; anything else is not a mode. */
 const PLAN_MODES = ['off', 'full', 'auto']
+
+/**
+ * The only modes reading can run in. Same three words as `planMode` on purpose:
+ * reading and planning answer the same question one level apart -- whether this
+ * round should spend money on finding out what to do before doing it -- and
+ * giving them different vocabularies would make the two knobs look unrelated.
+ */
+const RESEARCH_MODES = ['off', 'full', 'auto']
 
 export const POLICY_DEFAULTS = {
   minGain: 0.05,
@@ -22,6 +39,14 @@ export const POLICY_DEFAULTS = {
   holdoutSlack: 0.02,
   /** 'off' | 'full' | 'auto' — see `planModeFor` in runtime/round.js. */
   planMode: 'full',
+  /**
+   * 'off' | 'full' | 'auto' — see `researchModeFor` in runtime/round.js.
+   * Defaults to 'auto', not 'off': measured 2026-11-26, not one line of
+   * `src/runtime/*.js` called the research system, so the loop has only ever
+   * learned by paying a round to fail. 'auto' buys a read when the last round
+   * lost and skips it when the loop is already moving.
+   */
+  researchMode: 'auto',
   /** null = price the second candidate; 'always' = an instruction not to. */
   secondCandidate: null,
 }
@@ -41,6 +66,7 @@ function num(x, fallback) {
  */
 const OVERRIDE_RULES = {
   planMode: { valid: (v) => PLAN_MODES.includes(v), why: PLAN_MODES.join(' | ') },
+  researchMode: { valid: (v) => RESEARCH_MODES.includes(v), why: RESEARCH_MODES.join(' | ') },
   candidateMode: { valid: (v) => v === 'cascade' || v === 'parallel', why: 'cascade | parallel' },
   minGain: { valid: (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1, why: 'number in [0, 1]' },
   holdoutSlack: { valid: (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1, why: 'number in [0, 1]' },
@@ -114,6 +140,7 @@ export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
     halving: typeof p.halving === 'boolean' ? p.halving : base.halving,
     holdoutSlack: Math.max(0, Math.min(1, num(p.holdoutSlack, base.holdoutSlack))),
     planMode: PLAN_MODES.includes(p.planMode) ? p.planMode : base.planMode,
+    researchMode: RESEARCH_MODES.includes(p.researchMode) ? p.researchMode : base.researchMode,
     secondCandidate:
       p.secondCandidate === 'always' || p.secondCandidate === 'auto' ? p.secondCandidate : base.secondCandidate ?? null,
   }
@@ -133,6 +160,7 @@ export function effectivePolicy({ state, config } = {}) {
       halving: config?.halving?.enabled,
       holdoutSlack: config?.gate?.holdoutSlack,
       planMode: config?.loopPolicy?.planMode,
+      researchMode: config?.research?.enabled === false ? 'off' : config?.loopPolicy?.researchMode,
       secondCandidate: config?.loopPolicy?.secondCandidate ?? null,
     },
     POLICY_DEFAULTS,

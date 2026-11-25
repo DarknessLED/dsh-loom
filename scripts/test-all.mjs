@@ -398,6 +398,15 @@ const standing = [
   // this ledger closed as `no-gain` with `score: 0` after the verifier had
   // been skipped, and plateau detection read them as flat.
   'tests/self56/a-stopped-round-is-not-a-flat-round.test.mjs',
+  // The loop now reads before it writes: a research leg that asks one question,
+  // quotes what it found, and is skipped when the last round already landed. The
+  // balance (off | full | auto) is a policy field, and the menu can propose it.
+  'tests/self57/research-mode-is-a-policy.test.mjs',
+  'tests/self57/when-to-read-and-when-to-work.test.mjs',
+  'tests/self57/what-the-leg-asks-and-quotes.test.mjs',
+  'tests/self57/the-round-reads-before-it-writes.test.mjs',
+  'tests/self57/the-balance-is-in-the-menu.test.mjs',
+  'tests/self57/a-question-from-a-round-reaches-the-ledger.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
