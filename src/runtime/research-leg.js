@@ -62,7 +62,7 @@ function finite(x) {
  *
  * @returns {{question: string, from: 'stuck'|'ledger'|'task'}|null}
  */
-export function questionFor({ task, lastRound, openQuestions } = {}) {
+export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
   const signature = typeof lastRound?.stuckSignature === 'string' ? lastRound.stuckSignature.trim() : ''
   if (signature) {
     return {
@@ -70,8 +70,23 @@ export function questionFor({ task, lastRound, openQuestions } = {}) {
       from: 'stuck',
     }
   }
+  // A question already asked is not a question worth asking again. A loop that
+  // repeats the oldest open entry every round is reading the first page of one
+  // book, and the leg's own budget is what pays for it. Rotation is by text, not
+  // by position: anything that rewrites the ledger may reorder it.
+  const alreadyAsked = new Set(
+    (Array.isArray(rounds) ? rounds : [])
+      .map((r) => (r && r.research && r.research.mode !== 'off' && typeof r.research.question === 'string' ? r.research.question.trim() : ''))
+      .filter(Boolean),
+  )
   const first = (Array.isArray(openQuestions) ? openQuestions : []).find(
-    (q) => q && typeof q.question === 'string' && q.question.trim() && q.status !== 'closed' && q.status !== 'parked',
+    (q) =>
+      q &&
+      typeof q.question === 'string' &&
+      q.question.trim() &&
+      q.status !== 'closed' &&
+      q.status !== 'parked' &&
+      !alreadyAsked.has(q.question.trim()),
   )
   if (first) return { question: first.question.trim(), from: 'ledger' }
   const prompt = typeof task?.prompt === 'string' ? task.prompt.trim() : ''

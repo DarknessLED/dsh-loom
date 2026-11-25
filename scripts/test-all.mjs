@@ -415,6 +415,9 @@ const standing = [
   // The leg records rounds-read, pages-back and used/unused and nothing showed
   // them; the panel now ships `reads` and the card prints one line of it.
   'tests/self57/the-panel-can-see-the-reads.test.mjs',
+  // Both live rounds asked the same oldest ledger question, and nothing
+  // would have stopped a third; the leg now skips what it already asked.
+  'tests/self57/the-question-rotates.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

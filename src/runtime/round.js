@@ -1557,7 +1557,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       } catch {
         ledger = []
       }
-      const asked = questionFor({ task, lastRound, openQuestions: ledger })
+      // `rounds` lets the leg skip a ledger question an earlier round already
+      // asked: two campaigns asked the same R1 question on 2026-11-26.
+      const asked = questionFor({ task, lastRound, openQuestions: ledger, rounds: state.rounds })
       if (!canSearch) {
         research = researchSketch(
           { ok: false, code: 'web-unavailable' },

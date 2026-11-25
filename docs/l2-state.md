@@ -854,12 +854,14 @@ round is supposed to read again for.
   not read is not evidence for reading`) is pinned by
   `tests/self57/the-round-writes-back-whether-it-was-used.test.mjs` and applies
   from the first round any instance loaded after that commit runs.
-- The leg asks the oldest open ledger question, and it will ask it again next
-  round: nothing rotates the ledger. Both live rounds asked the same R1
-  question about a patch-level reward-hacking detector. Two rounds of one
-  campaign asking one question is right; two campaigns asking it forever is a
-  loop that has stopped reading and started repeating. Closing the question —
-  or taking the next one after a round has read it — is not implemented.
+- Both live rounds asked the same R1 question, because the leg took the oldest
+  open ledger entry and nothing rotated it: campaign two would have asked it
+  again. `questionFor` now skips any question an earlier round recorded on
+  `round.finished.research.question` (mode `off` does not consume one), pinned
+  by `tests/self57/the-question-rotates.test.mjs`. Skipping is not answering:
+  when every open entry has been asked once the leg falls back to the task, and
+  the ledger entry stays open. Nothing closes a question from a round's
+  findings yet — closing needs a verdict, and a quoted passage is not one.
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.
