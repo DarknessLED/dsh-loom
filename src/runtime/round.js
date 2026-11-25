@@ -43,7 +43,7 @@ import { exposeIndexes } from './exposure.js'
 import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
-import { findingsFrom, questionFor, researchSketch } from './research-leg.js'
+import { findingsFrom, questionFor, reachedFor, researchSketch } from './research-leg.js'
 import { runResearch } from '../research/run.js'
 import { researchQuestions } from '../research/questions.js'
 import { svc } from '../core/services.js'
@@ -2537,6 +2537,11 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
 
     const ranked = rankAttempts(attempts.map((a) => ({ ...a, score: a.score || 0 })))
     best = ranked.best
+    // Close the loop on the read: did the winning attempt's report actually
+    // reach for a quoted span (or name its source)? `null` when the report or
+    // the findings are missing -- `researchModeFor` defunds reading on `false`,
+    // and an absent report is not a measurement of "no".
+    research = { ...research, used: reachedFor(research, { report: best?.report, findings: researchFindings }) }
     const score = best?.score ?? 0
     // The round's number came from the winning attempt, so its measurement kind
     // travels with it: a 0.6 kill rate and a binary 1 are both scores but not

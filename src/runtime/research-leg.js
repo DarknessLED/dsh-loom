@@ -31,6 +31,16 @@ export const FINDING_MAX = 4
 /** The most gaps a sketch records: enough to see the shape, not a transcript. */
 const SKETCH_MAX_GAPS = 3
 
+/**
+ * How much shared text counts as a quotation.
+ *
+ * Below this, two documents about the same problem match by accident — "a rule
+ * that keeps" is eleven characters that any two sentences about adaptive
+ * testing share — and a measurement that calls that a use would report every
+ * round as having read, which is the same as reporting nothing.
+ */
+const QUOTE_MIN_CHARS = 24
+
 function clip(text, max) {
   const s = String(text ?? '')
   if (s.length <= max) return s
@@ -100,6 +110,73 @@ export function findingsFrom(result, { max = FINDING_MAX, maxChars = FINDING_MAX
     }
   }
   return out
+}
+
+/**
+ * Did the worker reach for what the round read?
+ *
+ * `null` when there is nothing to judge — no findings, or no report. That is the
+ * whole point of the three-valued answer: a round that could not measure did not
+ * measure "no", and `researchModeFor` defunds reading on `false`. Turning an
+ * absent report into `false` would stop a campaign from reading because its
+ * worker produced no JSON block.
+ *
+ * `true` when the report quotes a finding (any 24+ character, case-insensitive
+ * substring of the quoted span) or names its source — the URL, or its arXiv id,
+ * which workers cite in the `arXiv:2606.08106` form as often as the link.
+ *
+ * Findings travel with the record (`research.findings`) or arrive as
+ * `opts.findings`, because the sketch counts passages and does not carry the
+ * text: the round keeps the spans beside the sketch, not inside it.
+ *
+ * Pure: no filesystem, no clock, no mutation of the record it is asked about —
+ * writing `used` back is the caller's job.
+ *
+ * @param {{findings?: Array<{text?: unknown, url?: unknown, title?: unknown}>}|null} research
+ * @param {{report?: unknown, findings?: Array<object>}|null} opts
+ * @returns {boolean|null}
+ */
+export function reachedFor(research, { report = null, findings = null } = {}) {
+  const spans = Array.isArray(findings) ? findings : Array.isArray(research?.findings) ? research.findings : null
+  if (!spans || !spans.length) return null
+  if (!report || typeof report !== 'object') return null
+  // Everything a worker might have written: the free-text fields, plus the
+  // citations a report carries as evidence strings.
+  const haystack = []
+  for (const key of ['why', 'lesson', 'nextHint']) {
+    if (typeof report[key] === 'string' && report[key].trim()) haystack.push(report[key])
+  }
+  for (const key of ['changed', 'evidence', 'openQuestions']) {
+    for (const item of Array.isArray(report[key]) ? report[key] : []) {
+      if (typeof item === 'string' && item.trim()) haystack.push(item)
+    }
+  }
+  // A report whose text fields are all empty or non-strings is not a report that
+  // quoted nothing: there was nothing to search. `null` says "not measured";
+  // `false` would claim the worker wrote something and cited none of it.
+  if (!haystack.length) return null
+  const text = haystack.join('\n')
+  const lower = text.toLowerCase()
+  for (const finding of spans) {
+    const span = typeof finding?.text === 'string' ? finding.text.trim() : ''
+    if (span.length >= QUOTE_MIN_CHARS && lower.includes(span.slice(0, QUOTE_MIN_CHARS).toLowerCase())) return true
+    // A span the brief clipped carries an ellipsis; the worker can only quote
+    // the part that was shown, which is still the beginning of the text.
+    if (span.length >= QUOTE_MIN_CHARS) {
+      for (let start = 0; start + QUOTE_MIN_CHARS <= span.length; start += QUOTE_MIN_CHARS) {
+        if (lower.includes(span.slice(start, start + QUOTE_MIN_CHARS).toLowerCase())) return true
+      }
+    }
+    const url = typeof finding?.url === 'string' ? finding.url.trim() : ''
+    if (url && text.includes(url)) return true
+    const arxiv = url.match(/(\d{4}\.\d{4,5})(v\d+)?/)
+    if (arxiv) {
+      const bare = arxiv[1]
+      // `arXiv:2606.08106` and a bare id both name the source the round read.
+      if (new RegExp(`(^|[^\\d.])${bare.replace('.', '\\.')}(v\\d+)?([^\\d]|$)`).test(text)) return true
+    }
+  }
+  return false
 }
 
 /**

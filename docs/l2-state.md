@@ -822,13 +822,37 @@ records on disk is a `{kind:'opened'}` event with no `status` field, so a script
 that counts `status === 'open'` reads zero on a ledger that is not empty. That
 trap is now pinned by a spec.
 
+### The leg ran in a live round
+
+Campaign `react-live`, round 1, 2026-11-26 (`candidates: 1`, `researchMode: full`):
+
+```json
+{"mode":"full","from":"ledger","queries":1,"sources":8,"read":2,"passages":4,
+ "ms":5160,"costUsd":0,"question":"有没有可以直接接入的 patch 级 reward-hacking 检测器（而不是又一篇描述检测框架的论文）？"}
+```
+
+Every part of the claim is in that line: the question came from the open-question
+ledger rather than the task text, eight sources were searched, two pages were
+fetched, four verbatim passages were extracted, and the leg cost five seconds.
+The round then failed on its own merits (`no-gain`, verifier `exit 1`, the
+attempt hit the 13-minute deadline), which is exactly the condition the next
+round is supposed to read again for.
+
 ### What this does not claim
 
 - A finding is a quotation, not a conclusion. The leg quotes; nobody has graded
   whether the quotation answered the question.
-- `research.used` is written by *the next* round, so on the round that paid for
-  the reading it is always `null`. The "did reading earn this win" test therefore
-  only becomes true from round two onward.
+- `research.used` is written from the winning attempt's report at the end of the
+  same round, so it is now a measurement rather than a placeholder — but the
+  measurement is textual: a report that quotes 24 characters of a finding, or
+  names its URL or arXiv id, counts as having reached for it. A worker that used
+  the notes without saying so is scored as not having used them, and that error
+  runs one way.
+- The first live round could not exercise it: `used` was still `null` when that
+  ledger was written, because the write-back landed after the round. The rule it
+  feeds (`a win that did not read is not evidence for reading`) is pinned by
+  `tests/self57/the-round-writes-back-whether-it-was-used.test.mjs` and will
+  apply from the next campaign onward.
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.

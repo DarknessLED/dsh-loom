@@ -407,6 +407,11 @@ const standing = [
   'tests/self57/the-round-reads-before-it-writes.test.mjs',
   'tests/self57/the-balance-is-in-the-menu.test.mjs',
   'tests/self57/a-question-from-a-round-reaches-the-ledger.test.mjs',
+  // The leg could say a round read and never say whether the worker used what
+  // it read, so `researchModeFor`'s "a win that did not read is not evidence for
+  // reading" branch was unreachable. The measurement is now written back.
+  'tests/self57/what-the-worker-reached-for.test.mjs',
+  'tests/self57/the-round-writes-back-whether-it-was-used.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
