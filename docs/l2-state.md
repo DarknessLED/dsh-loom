@@ -822,6 +822,39 @@ records on disk is a `{kind:'opened'}` event with no `status` field, so a script
 that counts `status === 'open'` reads zero on a ledger that is not empty. That
 trap is now pinned by a spec.
 
+### The leg's record stopped at the event (2026-11-26)
+
+Campaign `react-feedback`, three rounds measured on the plugin instance applied at
+04:04 local. Every `round.finished` carried the leg:
+
+```json
+{"mode":"full","from":"ledger","queries":1,"sources":8,"read":2,"passages":4,
+ "ms":752,"costUsd":0,"used":false}
+```
+
+`rsi_status` showed three rounds with **no** `research` field. `projectRound`
+copies a whitelist of keys and the leg was not on it, so two readers that work off
+`state.rounds` were dead:
+
+- `researchModeFor` treats a missing record as "won without reading" and answers
+  `off` — switching the leg off for a reason that is not true, on the one campaign
+  that had just measured `used: false`;
+- `legBudget` counts rounds that bought a read, and projected rounds never bought
+  one, so `maxRounds` never bit.
+
+The fix is one line in the projection, the same fix `screened`/`kept` and
+`holdoutScore` already got. `tests/self57/what-a-round-carries-back.test.mjs`
+pins the projection *and* both readers; the control case asserts what the missing
+field used to do, so a regression cannot look like a policy choice.
+
+Two things this does not claim:
+
+- **`used` is now decided by span matching, not by the worker's report.** The
+  threshold is in `research-leg.js`; a worker that paraphrases a passage will be
+  recorded as not having used it.
+- **The allowance stops a campaign, it does not ration it.** `maxRounds: 3` means
+  the fourth round reads nothing, not that it reads less.
+
 ### The leg ran in a live round
 
 Campaign `react-live`, round 1, 2026-11-26 (`candidates: 1`, `researchMode: full`):

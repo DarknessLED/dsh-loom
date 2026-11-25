@@ -3745,6 +3745,12 @@ function projectRound(state, round) {
     ...(round.promotedId ? { promotedId: round.promotedId } : {}),
     ...(round.halving ? { halving: round.halving } : {}),
     ...(round.fidelity ? { fidelity: round.fidelity } : {}),
+    // The leg's record travels with the round for the same reason the screening
+    // record does: `researchModeFor` decides whether to buy another read from
+    // `used`, and `legBudget` counts rounds that bought one. A record that only
+    // exists on the event makes both read a round that never read -- which turns
+    // the leg off for a reason that is not true.
+    ...(round.research ? { research: round.research } : {}),
   })
   if (!Array.isArray(r.attempts)) r.attempts = []
   const seen = new Set(r.attempts.map((a) => a?.id))

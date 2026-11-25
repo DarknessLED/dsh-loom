@@ -421,6 +421,9 @@ const standing = [
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',
+  // The leg's record stopped at the event: `rsi_status` showed three rounds with
+  // no `research` field while the events had it, so the mode rule saw "never read".
+  'tests/self57/what-a-round-carries-back.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
