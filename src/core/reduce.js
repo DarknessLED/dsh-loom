@@ -127,7 +127,14 @@ function apply(s, ev) {
       }
       const prediction = adopted?.prediction ?? d.prediction ?? null
       s.chain.activeVersion = d.version
-      s.chain.pending = {
+      // An activation is not a forecast. Every campaign opens by activating
+      // the chain it just proposed, and that event carries no prediction: a
+      // pending record for it made `measurePrediction` grade a claim nobody
+      // made, which fell through to `met` (59 of 62 settlements in this
+      // ledger). Only an activation that adopted a forecast starts one.
+      if (prediction == null) {
+        s.chain.pending = null
+      } else s.chain.pending = {
         version: d.version,
         prediction,
         fromVersion: fromVersion ?? null,

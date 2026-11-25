@@ -382,6 +382,10 @@ const standing = [
   // campaign until a human asked for one round. Reconciliation now runs before
   // the switch is consulted; the switch still starts nothing.
   'tests/self56/recovery-runs-with-the-switch-off.test.mjs',
+  // An activation is not a forecast: every campaign opens by activating the
+  // chain it proposed, and grading that as a forecast made 59 of 62
+  // `chain.measured` events read as a prediction that came true.
+  'tests/self56/a-forecast-that-was-never-made-is-not-graded.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

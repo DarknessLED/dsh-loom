@@ -22,6 +22,13 @@ export function measurePrediction({ pending, round } = {}) {
   if (!pending || !round) return null
   if (Number(round.chainVersion) !== Number(pending.version)) return null
   if (!Number.isFinite(Number(round.score))) return null
+  // A settlement needs a forecast to settle. Without one there is nothing to be
+  // met or missed, and grading it anyway wrote `verdict: 'met'` for 59 of the
+  // 62 settlements in this ledger: the campaign opened by activating its chain,
+  // that activation carried no prediction, and every first round was recorded as
+  // a forecast that came true. The reducer no longer creates such a pending
+  // record; this is the second door, because a record can also be hand-written.
+  if (!Number.isFinite(Number(pending.prediction?.point))) return null
   return grade({ version: pending.version, prediction: pending.prediction, baseline: pending.baseline, round })
 }
 
