@@ -16,6 +16,7 @@
  */
 
 import { trialVerdict } from './cross.js'
+import { NO_BOUNDARY_MARKER, boundaryOf } from './boundary.js'
 
 /** Treat differences smaller than this as noise, not as evidence. */
 export const NOISE = 0.01
@@ -355,6 +356,11 @@ export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
     // The worker stated its own confidence; a constant 0.5 threw that away and
     // left every claim ranked identically.
     confidence: lessonConfidence(attempt),
+    // Where the claim stops. A stated claim is one sentence about one task,
+    // judged by one verifier under one instrument; the next worker is the only
+    // reader who can skip it, and it can only do that if the edge is on the line
+    // it reads. `boundaryOf` states what was measured and never what was not.
+    notWhen: boundaryOf({ attempt, task }),
     status: 'active',
     createdRound: round ?? 0,
     ttlRounds: 12,
@@ -364,3 +370,7 @@ export function deriveLesson({ attempt, task, round, kind = 'fact' } = {}) {
     lastUsedRound: null,
   }
 }
+
+// Re-exported so a caller that only knows about this module (the brief, the
+// migration, the specs) can name the shared sentence without importing two files.
+export { NO_BOUNDARY_MARKER }

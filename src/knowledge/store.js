@@ -20,6 +20,8 @@
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { NO_BOUNDARY_MARKER } from './boundary.js'
+
 const FILE = 'knowledge.json'
 const MAX = 500
 const LOCK_STALE_MS = 5_000
@@ -170,6 +172,62 @@ export function appendGlobalLesson(home, lesson) {
  * @param {string} home loom home holding knowledge.json
  * @returns {{updated:number, selfObserved:number, research:number}}
  */
+/**
+ * Give every stored lesson a boundary, from what its own record can prove.
+ *
+ * The lessons folded in from the research ledger already carry `notWhen`
+ * because the sink refuses a fact lesson without one. The ones the loop derived
+ * from its own rounds did not, so the brief printed them to the next worker as
+ * if they held everywhere. Nothing in an old record says where that claim
+ * stopped, so the honest recovery is the shared marker, never a boundary
+ * invented afterwards from a ledger that no longer holds the attempt.
+ *
+ * Fills only what is empty: a stated boundary, a one-element list, an empty list
+ * and a missing key are four different things, and only the last two are filled.
+ * Idempotent, and a second run does not rewrite the file at all.
+ *
+ * @param {string} home loom home holding knowledge.json
+ * @returns {{updated:number, kept:number}}
+ */
+export function backfillLessonBoundary(home) {
+  const file = fileOf(home)
+  const out = { updated: 0, kept: 0 }
+  if (!file || !existsSync(file)) return out
+  const all = readGlobalLessons(home)
+  if (!all.length) return out
+  const rewritten = all.map((lesson) => {
+    const raw = lesson.notWhen
+    const stated = Array.isArray(raw)
+      ? raw.map((entry) => (typeof entry === 'string' ? entry.trim() : '')).filter(Boolean)
+      : typeof raw === 'string' && raw.trim()
+        ? [raw.trim()]
+        : []
+    if (stated.length) {
+      // Already bounded: the migration never overwrites a stated boundary,
+      // whichever origin wrote it.
+      out.kept += 1
+      return lesson
+    }
+    out.updated += 1
+    return { ...lesson, notWhen: [NO_BOUNDARY_MARKER] }
+  })
+  if (!out.updated) return out
+  withLock(file, () => {
+    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`
+    try {
+      writeFileSync(tmp, `${JSON.stringify(rewritten, null, 1)}\n`)
+      renameSync(tmp, file)
+    } catch {
+      try {
+        unlinkSync(tmp)
+      } catch {
+        /* nothing to clean */
+      }
+    }
+  })
+  return out
+}
+
 export function backfillLessonOrigin(home) {
   const file = fileOf(home)
   const out = { updated: 0, selfObserved: 0, research: 0 }

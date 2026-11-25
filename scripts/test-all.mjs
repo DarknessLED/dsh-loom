@@ -346,6 +346,9 @@ const standing = [
   // An RSI round that screens candidates down and keeps the money is a prefilter;
   // `halving.returnToSurvivors` hands the freed share back, priced per survivor.
   'tests/self56/a-round-hands-back-what-it-saved.test.mjs',
+  // A lesson the loop derived said nothing about where it stops, so the brief
+  // printed it as if it held everywhere; the boundary now travels with it.
+  'tests/self56/a-lesson-says-where-it-stops.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

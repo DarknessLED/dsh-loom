@@ -6,8 +6,11 @@
  * fixed section order. The child answers with one fenced JSON report instead of
  * a transcript.
  *
- * Dependency-free, synchronous, node builtins only.
+ * Dependency-free, synchronous, node builtins only — except for the one pure
+ * helper that reads a lesson's boundary, which is pure functions over objects.
  */
+
+import { readBoundary } from '../knowledge/boundary.js'
 
 const MAX_BRIEF_CHARS = 6000
 const MAX_LESSONS = 3
@@ -205,10 +208,14 @@ export function buildWorkerBrief(input) {
   const isExternal = (lesson) => originOf(lesson) === 'research-claim'
   const localLessons = allLessons.filter((lesson) => !isExternal(lesson)).slice(0, MAX_LESSONS)
   const externalLessons = allLessons.filter(isExternal).slice(0, MAX_LESSONS)
-  const lessons = localLessons.map(
-    (lesson) =>
-      `- [${pickKind(lesson.kind, ['fact', 'hazard', 'recipe'], 'fact')} ${originOf(lesson)}] ${cleanString(lesson.claim)}`,
-  )
+  // Every local lesson carries its boundary on the same line. A claim without
+  // one is printed with the shared marker, never as if it held everywhere: the
+  // worker is the only reader who can skip a rule, and it can only skip what it
+  // can see the edge of.
+  const lessons = localLessons.map((lesson) => {
+    const boundary = readBoundary(lesson)
+    return `- [${pickKind(lesson.kind, ['fact', 'hazard', 'recipe'], 'fact')} ${originOf(lesson)}] ${cleanString(lesson.claim)} — ${boundary.join('; ')}`
+  })
   const external = externalLessons.map(
     (lesson) => `- [${cleanString(lesson.trust) || 'unverified'}] ${cleanString(lesson.claim)}`,
   )
