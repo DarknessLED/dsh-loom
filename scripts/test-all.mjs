@@ -393,6 +393,7 @@ const standing = [
   // and scripts/test-all.mjs (owns); judging one against the other refused
   // the round with violations naming the very path the oracle had released.
   'tests/self56/an-owned-path-is-inside-the-scope.test.mjs',
+  'tests/self56/a-scope-plus-owns-lands.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',
