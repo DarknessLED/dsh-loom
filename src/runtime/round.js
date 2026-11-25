@@ -19,7 +19,7 @@ import { DEFAULT_CONFIG } from '../core/config.js'
 import { toMs } from '../core/clock.js'
 import { scoreAttempt, rankAttempts, decidePromotion } from '../gate/gate.js'
 import { scoreOf } from '../gate/score.js'
-import { commitDecision, pairedHistory, pairedAgainstBase } from '../gate/sequential.js'
+import { commitDecision, pairedHistory, pairAgainstBase } from '../gate/sequential.js'
 import { verifyMetrics } from '../gate/metrics.js'
 import { buildProposalCard, renderCard } from '../chain/evidence-card.js'
 import { descriptorOf } from '../chain/descriptor.js'
@@ -2750,22 +2750,32 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     // base is measured before any candidate exists, so this pair can go either
     // way. Pairing the round's winner against its losers would not: the winner
     // is the highest score, so every such pair is a win by construction.
-    const discordant = [
-      ...pairedHistory(view.state?.rounds, task.id),
-      // Both sides must be the *same reading*, or the pair compares a kill rate
-      // against a composite score and the winner is decided by which number the
-      // two sides happened to use. A task whose verifier prints no KILLRATE has
-      // no pair, which is honest: one observation is not a discordant pair.
-      ...pairedAgainstBase({
-        candidate: best?.metrics?.killRate ?? null,
-        base: checks.baseMetrics?.killRate ?? null,
-        epsilon: policy.noiseSpread ?? 0,
-      }),
-    ]
+    // Both sides must be the *same reading*, or the pair compares a kill rate
+    // against a composite score and the winner is decided by which number the
+    // two sides happened to use. A task whose verifier prints no KILLRATE has
+    // no pair, which is honest: one observation is not a discordant pair.
+    //
+    // `pairAgainstBase` separates the three reasons a round ends with no pair:
+    // a formed pair (with its direction), both sides measured and equal inside
+    // the declared noise (a deliberate tie), or no pair possible because one
+    // side was silent (named). The last two both used to land in the ledger as
+    // "no discordant pairs", so 470 of 483 rounds read as ties when they were
+    // one measurement against one silence.
+    const basePair = pairAgainstBase({
+      candidate: best?.metrics?.killRate ?? null,
+      base: checks.baseMetrics?.killRate ?? null,
+      epsilon: policy.noiseSpread ?? 0,
+    })
+    const basePairs = basePair.pair === 1 || basePair.pair === 0 ? [basePair.pair] : []
+    const discordant = [...pairedHistory(view.state?.rounds, task.id), ...basePairs]
     const sequential = commitDecision({
       discordant,
       alpha: config.gate?.alpha ?? DEFAULT_CONFIG.gate.alpha,
       lambda: config.gate?.efoldLambda ?? DEFAULT_CONFIG.gate.efoldLambda,
+      // What this round's own reading contributed. The across-round pairs in
+      // `pairedHistory` are not this round's, so the count is `basePairs.length`
+      // and the reason is the base pair's own verdict.
+      pairReason: basePair.reason,
     })
     runtime.append(
       view,
@@ -2784,6 +2794,13 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         holdoutScore,
         holdoutReason,
         candidateScore: candidateReading,
+        // How many pairs this round contributed, and why. Zero with a reason
+        // is a measurement ("the base side was never read"), not a tie: the
+        // `sequential.pairs` total also folds in the across-round pairs, so the
+        // per-round contribution needs its own field to be readable.
+        pairsThisRound: basePairs.length,
+        pairReason: basePair.reason,
+        pair: basePair,
         decision: sequential.decision,
         eValue: sequential.eValue,
         firstCrossing: sequential.firstCrossing,

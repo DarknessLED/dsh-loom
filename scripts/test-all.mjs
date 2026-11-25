@@ -349,6 +349,11 @@ const standing = [
   // A lesson the loop derived said nothing about where it stops, so the brief
   // printed it as if it held everywhere; the boundary now travels with it.
   'tests/self56/a-lesson-says-where-it-stops.test.mjs',
+  // A round that measured nothing and a round that measured a tie used to land
+  // as the same "no discordant pairs": 470 of 483 rounds had a silent base side.
+  // The gate now names the pair it formed, the tie it measured, and the side it
+  // was missing, and every gate.evaluated says how many pairs it contributed.
+  'tests/self56/a-round-says-why-it-had-no-pair.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

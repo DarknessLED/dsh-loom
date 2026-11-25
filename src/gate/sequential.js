@@ -55,12 +55,23 @@ export function commitDecision({
   discordant = [],
   alpha = DEFAULT_ALPHA,
   lambda = DEFAULT_LAMBDA,
+  pairReason = null,
 } = {}) {
   const a = finiteOr(alpha, DEFAULT_ALPHA)
   const l = finiteOr(lambda, DEFAULT_LAMBDA)
   const threshold = 1 / a
   const pairs = (Array.isArray(discordant) ? discordant : []).filter((w) => w === 1 || w === 0)
-  const base = { alpha: a, lambda: l, threshold, pairs: pairs.length }
+  const base = {
+    alpha: a,
+    lambda: l,
+    threshold,
+    pairs: pairs.length,
+    // Why this call contributed what it did. `null` when the caller supplied
+    // nothing: a reason nobody measured is not invented here. A tie and a
+    // missing side both add zero pairs, and this field is the only thing that
+    // tells the two apart downstream.
+    pairReason: typeof pairReason === 'string' && pairReason ? pairReason : null,
+  }
 
   if (!pairs.length) {
     return {
@@ -167,14 +178,38 @@ export function pairedHistory(rounds, taskId) {
  * either side can be higher. `null` for either side means unmeasured, which is
  * not a pair — a skipped base is not evidence that the candidate failed.
  */
-export function pairedAgainstBase({ candidate, base, epsilon = 0 } = {}) {
+export function pairAgainstBase({ candidate, base, epsilon = 0 } = {}) {
   const c = Number(candidate)
   const b = Number(base)
-  if (candidate === null || candidate === undefined || !Number.isFinite(c)) return []
-  if (base === null || base === undefined || !Number.isFinite(b)) return []
-  const delta = c - b
   const eps = Number.isFinite(Number(epsilon)) ? Math.abs(Number(epsilon)) : 0
-  if (delta > eps) return [1]
-  if (delta < -eps) return [0]
-  return []
+  const candidateMeasured = candidate !== null && candidate !== undefined && Number.isFinite(c)
+  const baseMeasured = base !== null && base !== undefined && Number.isFinite(b)
+  const at = {
+    candidate: candidateMeasured ? c : null,
+    base: baseMeasured ? b : null,
+    epsilon: eps,
+  }
+  // Silence is not a tie. Both sides {pair: null} look identical to a caller
+  // that only reads the sequence, so the outcome and the reason are spelled out
+  // here -- and which side was silent is named, not merely that a side was.
+  if (!candidateMeasured || !baseMeasured) {
+    const reason = !candidateMeasured && !baseMeasured ? 'both-not-measured' : candidateMeasured ? 'base-not-measured' : 'candidate-not-measured'
+    return { ...at, pair: null, outcome: 'no-pair', reason }
+  }
+  const delta = c - b
+  if (delta > eps) return { ...at, pair: 1, outcome: 'won', reason: 'candidate-won' }
+  if (delta < -eps) return { ...at, pair: 0, outcome: 'lost', reason: 'candidate-lost' }
+  // Both sides were read, and the gap is inside the declared noise: this is a
+  // deliberate tie, a measured statement rather than an absence of one.
+  return { ...at, pair: null, outcome: 'tie', reason: 'equal-inside-epsilon' }
+}
+
+/**
+ * The same pairing, as the sequence the e-process consumes. Kept as-is for
+ * existing callers: a tie and a silence both give `[]` here, and a caller that
+ * needs to tell them apart asks `pairAgainstBase` instead.
+ */
+export function pairedAgainstBase({ candidate, base, epsilon = 0 } = {}) {
+  const verdict = pairAgainstBase({ candidate, base, epsilon })
+  return verdict.pair === 1 || verdict.pair === 0 ? [verdict.pair] : []
 }
