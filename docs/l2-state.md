@@ -629,17 +629,36 @@ oracleReleased: ["scripts/test-all.mjs"]
 scope: { editable: ["tests/"], checked: 2, violations: [] }
 ```
 
-which is the fix doing its job in a real round, one commit after the same shape
-was refused. The worker's patch (spec + one-line pin, 74 lines) is in `794e2d0`
-unmodified; it did not *promote*, because `earnedReason: base-already-green` —
-the handling had already been fixed by hand, so there was nothing left for the
-round to earn. Landing it anyway keeps the thing that proved the point.
+which is the fix doing its job in a real round. The worker's patch (spec plus a
+one-line pin, 74 lines) is in `794e2d0` unmodified; it did not *promote*, because
+`earnedReason: base-already-green` — the handling had already been fixed by
+hand, so there was nothing left for that round to earn. Landing it anyway keeps
+the thing that proved the point.
 
-The staleness that hid this for a day is worth naming precisely: `plugin_manager
-set_plugin` answers `restart-required` for a plugin loaded from the profile, and
-the module that decides a round is whatever was on disk when the host started —
-not what is committed now. Every "not yet proven live" line in this file should
-be read as "not yet proven on the codepath the running host loaded".
+The ordering is worth stating exactly, because it is the opposite of what the
+word "committed" suggests:
+
+| what | when (UTC) |
+| --- | --- |
+| `owns-scope-live` gate, `testsClean: false`, `violations: ["scripts/test-all.mjs"]` | 14:05:06 |
+| plugin applied, new instance `101b1420` | 14:18:05 |
+| `owns-scope-live` gate again, still `violations: ["scripts/test-all.mjs"]` | 14:18:08 |
+| `b3c072c` committed | 14:22:11 |
+| `owns-discriminate` gate, `violations: []` | 14:50:01 |
+
+So the fix was on disk before it had a commit (I wrote it, ran the suite, then
+committed), the plugin was applied at 14:18 with that code, and the proof round
+at 14:50 ran against it. Two consequences:
+
+- The rule is **apply time, not commit time**: a round uses the module graph the
+  running host loaded. Reloading mid-campaign does not change the round already
+  in flight — the 14:18:08 gate, three seconds after `apply:done`, still
+  convicted. It changes the *next* round.
+- "Proven live" therefore never means "proven on `origin/main` as of that
+  commit". It means "proven on the code the host was running", which may be a
+  working-tree edit that lands seconds later. Every "not yet proven live" line in
+  this file should be read the same way: not proven on the codepath the host had
+  loaded.
 
 ## 2026-11-25: the held-back reading exists now
 
