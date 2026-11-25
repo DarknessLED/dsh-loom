@@ -484,3 +484,34 @@ that quoted text redirects work, not a boundary.
   construction, because no code path returns the freed budget to the survivors.
 - P1-1 records a lower held-back reading without acting on it. That is a
   deliberate choice given pool size 1–2, not a finished design.
+
+## 2026-11-25: five things the loop bought, and the one it could not
+
+The loop ran live from `rsi_control enable`. Five rounds produced patches that
+are now in origin/main; each was applied after reading it, each came with a spec
+that failed first, and the full gate was run before every commit.
+
+| commit | what it bought | why it matters |
+| --- | --- | --- |
+| `ab3f3d3` | `halvingPlan.returnToSurvivors` — a plan can hand the budget it saved to the candidates that survived | `returnedUsd` was 0 by construction; the money a dropped candidate freed had nowhere to go |
+| `641c246` | every lesson carries `notWhen`, derived from the instrument and the task that produced it | 39 of 114 stored lessons had no boundary, so a worker could not tell when a rule stopped applying |
+| `99d483a` | `pairAgainstBase` names *why* a round produced no pair (`candidate-not-measured`, `base-not-measured`, `tie`) | a round that measured nothing used to look exactly like a round that measured a tie |
+| `591547b` | `verify.owns` — a task may declare the apparatus it was told to change | without it, any task whose work is the gate itself could never promote: the oracle refused its own patch |
+| `099129a` | a run killed by the job runner is retried and reported as unjudged, not failed | a seven-direction run was once lost and recorded as a test failure it never was |
+
+### What this does not claim
+
+- `verify.owns` is committed, specified (10 checks) and **has not run in a live
+  round**. The plugin instance executing these campaigns still holds the code
+  from before `591547b`: the guard-flake campaign declared
+  `verify.owns: ['scripts/guard-retry.mjs', 'scripts/test-all.mjs']` and its
+  `gate.evaluated.checks` carried no `oracleOwns` key at all.
+  `plugin_manager set_plugin` answers `restart-required` in this session, so the
+  closure needs a host restart. Until then every campaign that edits the gate
+  still walks into the old refusal.
+- The halving patch's `perSurvivorUsd` never executed in a live round either:
+  `halving-return` ran with screening off (`{"kind":"none","returnedUsd":0}`),
+  because its task declared no `screen.cmd`.
+- Three campaigns were stopped by hand rather than by their own budget, because
+  attempting to fix the oracle from inside a round the old oracle judges is a
+  chicken-and-egg the loop cannot solve about itself.
