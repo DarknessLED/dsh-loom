@@ -438,6 +438,9 @@ const standing = [
   // "Cannot distinguish" is a true sentence and an unusable one: the reader
   // also needs to know whether that means one more round or four hundred.
   'tests/self57/the-trial-says-how-many-rounds-it-needs.test.mjs',
+  // The money axis can only understate reading -- the leg's own spend is not in
+  // the pricing table -- so wall clock is the axis it can actually measure.
+  'tests/self57/the-time-a-read-costs-is-measured-too.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

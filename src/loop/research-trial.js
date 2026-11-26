@@ -195,7 +195,39 @@ export function compareArmScores({ full, off, alpha }) {
  *            sentence:string}|null}
  */
 export function compareArmCost({ full = [], off = [], alpha = 0.05 } = {}) {
-  const clean = (list) => list.filter((r) => Number.isFinite(r?.costUsd)).map((r) => Number(r.costUsd))
+  return compareArmMetric({
+    full,
+    off,
+    alpha,
+    pick: (r) => (Number.isFinite(r?.costUsd) ? Number(r.costUsd) : null),
+    basis: 'cost per round',
+  })
+}
+
+/**
+ * Compare two arms on any per-round quantity, with the cost axis's discipline.
+ *
+ * Money was the first such quantity and it has a structural hole: the leg's own
+ * spend is recorded as `costUsd: 0`, because `ctx.web` is not in the pricing
+ * table. So the money axis compares rounds that cost money *plus a free search*
+ * against rounds that cost money, and it can only ever understate reading.
+ *
+ * Time is the quantity the leg does report, in the unit it can measure:
+ * `research.ms` was 4.8-31.1 seconds on the rounds that read, against a round
+ * that takes 48-80 seconds in total. That is six to thirty per cent of a round
+ * and it is invisible in money.
+ *
+ * A round that did not measure the quantity is excluded, not treated as zero:
+ * the arm that never reads has no read time to report, and scoring those as zero
+ * would hand reading a cost it did not earn. When an arm has fewer than two
+ * measurements there is no spread and no comparison -- `null`, not a guess.
+ */
+export function compareArmMetric({ full = [], off = [], alpha = 0.05, pick = (r) => null, basis = 'metric' } = {}) {
+  const clean = (list) =>
+    list
+      .map((r) => (typeof pick === 'function' ? pick(r) : null))
+      .filter((v) => v !== null && Number.isFinite(v))
+      .map((v) => Number(v))
   const a = clean(full)
   const b = clean(off)
   // One round is a price, not a distribution; an interval from it would be a
@@ -215,7 +247,6 @@ export function compareArmCost({ full = [], off = [], alpha = 0.05 } = {}) {
     full: { n: a.length, mean: round6(meanA), sd: round6(sd(a)) },
     off: { n: b.length, mean: round6(meanB), sd: round6(sd(b)) },
   }
-  const basis = 'cost per round'
   const cents = (v) => `${(v * 100).toFixed(2)}c`
   // No spread: pricing can be flat across a campaign, so this is not the
   // "infinite sensitivity" trap the score axis refuses -- it is a real fact
@@ -314,6 +345,17 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
     off: list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === 'off'),
     alpha,
   })
+  // Time is the quantity the leg can actually measure about itself: `ctx.web` is
+  // not in the pricing table, so `costUsd` for a read is always zero and the
+  // money axis can only understate it. Wall clock is reported on every round.
+  const readMs = (r) => (r?.research && Number.isFinite(r.research.ms) ? Number(r.research.ms) : null)
+  const time = compareArmMetric({
+    full: list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === 'full'),
+    off: list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === 'off'),
+    alpha,
+    pick: readMs,
+    basis: 'read time per round',
+  })
   // When more than one reading exists, the sentence says which one it is
   // quoting: numbers answering different questions must not be printed as one
   // voice. A decided outcome outranks cost, because a win is what a person is
@@ -324,9 +366,17 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
   // one thing they can act on today. The count sentence is kept, with the cost
   // appended, rather than replaced -- hiding the sample size to fit a price in
   // would be the same error in the other direction.
-  const blindCost = cost && !decided(cost) && Number.isFinite(cost.arms?.full?.mean)
+  const money = cost && !decided(cost) && Number.isFinite(cost.arms?.full?.mean)
     ? ` Reading cost ${(cost.arms.full.mean * 100).toFixed(2)}c a round and not reading ${(cost.arms.off.mean * 100).toFixed(2)}c.`
     : ''
+  // Money understates reading by construction (the leg's own spend is not in the
+  // pricing table), so wall clock is printed beside it: it is the quantity the
+  // leg can actually measure about itself, and 27 seconds is not a rounding
+  // error against a 79-second round.
+  const clock = time && Number.isFinite(time.arms?.full?.mean) && time.arms.full.mean > 0
+    ? ` The leg itself spent ${(time.arms.full.mean / 1000).toFixed(1)}s a round reading.`
+    : ''
+  const blindCost = money + clock
   const spoken = decided(score)
     ? score.sentence
     : decided({ verdict: verdict, sentence }) && ready
@@ -334,5 +384,5 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
       : decided(cost)
         ? cost.sentence
         : sentence + blindCost
-  return { n, arms: { full, off }, delta, mde, verdict, sentence: spoken, ready, score, cost }
+  return { n, arms: { full, off }, delta, mde, verdict, sentence: spoken, ready, score, cost, time }
 }

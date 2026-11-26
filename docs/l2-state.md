@@ -1407,3 +1407,42 @@ the read/do trial is that the mechanism runs (assignment, recording, cost, the
 refusal to call overlap a finding) and the question it was built to answer is
 still unmeasured.
 
+### 2026-11-26: the money axis can only understate reading
+
+The cost axis shipped with a hole that is structural, not a bug in the arithmetic.
+`research.costUsd` was 0 on all ten rounds of `trial-agg`, because `ctx.web` is not
+in the pricing table `pricingFor` reads. So the money comparison was six rounds
+that cost money *plus a free search* against four rounds that cost money. It can
+only ever understate what reading costs, and it will understate it on every
+campaign until the leg's own calls are priced.
+
+The leg does report what it spent, in the one unit it can measure: wall clock.
+On the same ten rounds `research.ms` was 4.8s, 13.5s, 17.3s and 31.1s on the four
+rounds that read (round 5's leg timed out at 90.4s and read nothing), against
+rounds that take 48–80 seconds in total. Twenty-seven seconds a round is a third
+of a round, and the money axis could not see it.
+
+So `compareArmMetric` is now the shared implementation and both axes use it: same
+interval, same floor, same refusal to name a direction from overlap, same
+refusal to treat an unmeasured round as zero. The arm that never reads records no
+`ms`, which is not read time of zero — scoring it as zero would hand reading a
+cost it did not earn, and the spec pins that (`a round that recorded no time at
+all is missing, not zero`).
+
+On the live campaign the time axis reads: reading 27.2s a round, not reading 0s,
+delta 27.2s, interval [0.5s, 54.0s], floor 38.3s. So even the axis that can see
+the cost cannot *decide* it at ten rounds — and that is now printed instead of
+implied:
+
+> 10 assigned rounds: reading promoted 100.0 points and not reading 100.0 points
+> (delta 0.0 points); this design could resolve 90.4 points, so the difference is
+> below what 10 rounds can see. Not "no effect". Reading cost 1.06c a round and
+> not reading 1.00c. The leg itself spent 27.2s a round reading.
+
+What this does not claim: 27.2s a round is not evidence that reading is
+expensive, because the rounds that read also read *pages* and the rounds that did
+not fetched nothing at all. The comparison is between "read then work" and "work
+only", which is the treatment the trial assigns — but the ten rounds are not
+enough to separate 27s from 54s, so what is established is the measurement, not
+the price.
+
