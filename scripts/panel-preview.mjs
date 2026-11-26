@@ -162,6 +162,11 @@ let payload = {
       },
       incumbent: { score: 1 },
       holdout: 2,
+      // The read leg and the read/do trial: both were shipped to the JSON before
+      // any fixture carried them, so the preview could show a panel that drew
+      // neither and still pass. The numbers here are `trial-agg`'s real ones.
+      reads: { rounds: 7, read: 6, pages: 12, used: 1, unused: 4 },
+      trial: { line: '读 6 轮 (100.0%) · 不读 4 轮 (100.0%) · 不能区分 · 钱 1.06c / 1.00c · 读耗时 27.2s', verdict: 'cannot-distinguish', n: 10 },
       quality: { verdict: 'healthy', promotions: 5, rounds: 7, avgRoundMs: 96_000 },
       // Lessons are filed by file: that is the axis a reader can use, and this
       // fixture carries it so the preview shows the grouping the panel ships.

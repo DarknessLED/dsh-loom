@@ -83,5 +83,16 @@ ok('the panel row renders the line it is given', () => {
   assert.match(src, /c\.trial/, 'the panel must read the field the API ships')
 })
 
+ok('the preview carries a trial row, so the audit can see one', () => {
+  // The preview fixture had no `reads` and no `trial` for four commits: the
+  // panel could draw neither and the committed page still passed every check,
+  // because nothing in it exercised the line. A fixture that cannot show the
+  // feature is not evidence about the feature.
+  const fixture = readFileSync(new URL('../../scripts/panel-preview.mjs', import.meta.url), 'utf8')
+  assert.match(fixture, /trial: \{ line:/, 'the preview fixture needs a trial row')
+  const page = readFileSync(new URL('../../docs/panel-preview.html', import.meta.url), 'utf8')
+  assert.match(page, /不能区分/, 'the committed preview must contain the trial line')
+})
+
 console.log(`# pass ${pass} fail ${fail}`)
 process.exit(fail === 0 ? 0 : 1)
