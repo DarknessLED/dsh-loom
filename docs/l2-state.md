@@ -1737,3 +1737,49 @@ The identifier also moved into the page's first paragraph (`Title
 (arXiv:2402.14992). abstract…`): a reader that quotes one block must get the id
 with it, or the quotation cannot be checked. Six probe questions now return the
 right work at rank 1, which they did not before.
+
+### 2026-11-26: the task was asking a question and the leg answered another one
+
+`trial-lib` is the first probe whose answers are not in the workspace: six tasks,
+each one line, each asking *which paper* reports a specific number. The repository's
+`research/out/work-*.json` holds the answers; nothing in the worktree does. That is
+the positive control the read/do trial has been missing — for every earlier probe a
+worker could finish without reading anything, so both arms sat at the ceiling.
+
+Round 1 of `trial-lib` promoted at `score 0.1667` and the worker's own evidence says
+why the mechanism works:
+
+> The id was not available anywhere in the worktree, so I read the campaign's research
+> library at `C:/Users/Darkness/.dsh/loom/research/out/`, where `work-r10-eval-budget.json`
+> holds a work record with id 2402.14992 whose abstract explicitly says 100 curated
+> examples suffice to estimate MMLU performance
+
+And the leg's record for that same round:
+
+```json
+{"mode":"full","question":"Does a harness change that gains on one model family keep its gain on another?","from":"ledger","queries":1,"sources":8,"read":2,"passages":4,"gaps":[],"ms":173,"costUsd":0,"used":false,"source":"library"}
+```
+
+The worker found the answer in the library; the leg spent its budget on a different
+question. Two things were true at once: the task's prompt *is* a question ("Which
+paper reports that …"), and the ledger question shares the word "model" with it. The
+leg's order is stuck → ledger → task, and `sharesTopic` accepted one shared word, so
+the ledger kept priority on the strength of one common noun.
+
+The fix is not a stricter `sharesTopic`. A task about summing integers and a question
+about how to summarise integers share exactly one word and are about the same thing,
+so raising the bar to two words would break a real case. The rule that separates them
+is *who is asking*: `asksItsOwnQuestion(prompt)` looks only at the first sentence, and
+when it is a question the task's own subject (`topicOf`) is the question, ahead of the
+ledger. A question asked by the work in front of the worker cannot be answered by the
+loop's own backlog.
+
+What this does not claim:
+
+- round 1's `used: false` is still not evidence that reading failed. The leg read two
+  pages and quoted four passages; they were about another subject, so the worker had
+  nothing to cite. The measurement of "does reading help" needs the notes to be about
+  this round, and that is what this change is for — not a claim that it now is.
+- the six answers are in the library already, so a round can pass without the leg
+  (`score 1` on an `off` arm proves that). The trial is still comparing two ways to
+  finish work a worker could also do by opening one JSON file itself.

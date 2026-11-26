@@ -119,6 +119,15 @@ function finite(x) {
  * a token, and a stemmer would need to be tuned and explained. What this has to
  * catch is a question about harnesses in a round about integer sums, which is
  * total mismatch, not a near miss.
+ *
+ * One shared word is deliberately generous, and it is not sufficient on its own:
+ * on 2026-11-26 a task asking which paper measures MMLU on 100 examples was
+ * handed the ledger question "does a harness change that gains on one model
+ * family keep its gain on another" because both say "model". Raising this to two
+ * words would fix that case and break a real one — a task about summing integers
+ * and a question about summarising integers share exactly one word and are about
+ * the same thing. The rule that separates them is `asksItsOwnQuestion`: a task
+ * that asks its own question is not looking for someone else's.
  */
 export function sharesTopic(a, b) {
   const words = (text) =>
@@ -133,6 +142,28 @@ export function sharesTopic(a, b) {
   if (!left.size) return false
   for (const w of words(b)) if (left.has(w)) return true
   return false
+}
+
+const QUESTION_START =
+  /^(?:which|what|how|why|when|where|who|whom|whose|does|do|did|is|are|was|were|can|could|should|would|will|has|have)\b/i
+
+/**
+ * Is this task's own text a question?
+ *
+ * Some tasks ask one directly: "Which paper reports that ...?" The leg used to
+ * treat those as subject matter and then fall back to the ledger, so a round
+ * whose task was a question got notes about a different question that shared a
+ * word with it. When the task asks, the task is the question.
+ *
+ * Only the first sentence counts. A prompt that ends with "Do not edit
+ * check.mjs" asks nothing, and treating the imperative tail as a question would
+ * turn every well-formed task into a research question.
+ */
+export function asksItsOwnQuestion(text) {
+  const body = String(text ?? '').trim()
+  if (!body) return false
+  const first = body.split(/\n{2,}|(?<=[?.!])\s+/)[0] || body
+  return /\?/.test(first) || QUESTION_START.test(first.trim())
 }
 
 /**
@@ -166,6 +197,16 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
       question: `the task keeps failing the same way (${clip(signature, 160)}): what is known about fixing it`,
       from: 'stuck',
     }
+  }
+  // A task that is itself a question is the most specific thing this round could
+  // read about, so it outranks the ledger. `trial-lib` round 1 asked "Which paper
+  // reports that 100 curated examples estimate MMLU?" and the leg spent its
+  // budget on a ledger question about transfer across model families because the
+  // two share the word "model". The ledger is a queue of the loop's own gaps; it
+  // cannot answer a question the task is asking.
+  if (asksItsOwnQuestion(task?.prompt)) {
+    const own = topicOf(task?.prompt)
+    if (own) return { question: own, from: 'task' }
   }
   // A question already asked is not a question worth asking again. A loop that
   // repeats the oldest open entry every round is reading the first page of one

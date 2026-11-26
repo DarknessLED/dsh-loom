@@ -462,6 +462,10 @@ const standing = [
   // writing toolkit, a Scratch course and three dead PDFs. The subject after
   // "about" is the question; the rest is housekeeping.
   'tests/self57/the-question-is-the-subject-not-the-brief.test.mjs',
+  // A task that is itself a question was being answered with someone else's:
+  // `trial-lib` round 1 asked which paper measures MMLU on 100 examples and the
+  // leg spent its budget on a ledger question that shares the word "model".
+  'tests/self57/a-task-that-asks-its-own-question-gets-it-answered.test.mjs',
   // The loop had a 153-work library and read the public web instead. These pin
   // the index and the round that now prefers it.
   'tests/self57/the-loop-reads-its-own-library.test.mjs',
