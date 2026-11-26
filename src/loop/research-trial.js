@@ -309,13 +309,26 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
   const list = usable(rounds)
   const arm = (name) => {
     const mine = list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === name)
-    const promoted = mine.filter((r) => r.promoted === true).length
+    // A round whose incumbent already sat at the ceiling could not promote for
+    // either arm. `trial-lib2` reported "reading promoted 50 points and not
+    // reading 25" from eight rounds in which every arm scored 1: the three
+    // promotions were the first rounds of each arm arriving before the ceiling,
+    // and the gate said `metric-did-not-improve` on the rest. Counting those as
+    // losses makes the losing arm depend on the order the arms were dealt.
+    //
+    // Rounds written before `round.finished` carried `beatsIncumbent` have no
+    // such field; they are counted as before, because dropping them would empty
+    // the history rather than correct it.
+    const counted = mine.filter((r) => r.beatsIncumbent !== false)
+    const promoted = counted.filter((r) => r.promoted === true).length
     const usd = mine.reduce((sum, r) => sum + (Number(r.costUsd) || 0), 0)
-    const { low, high } = wilsonInterval(promoted, mine.length, alpha)
+    const { low, high } = wilsonInterval(promoted, counted.length, alpha)
     return {
       n: mine.length,
+      counted: counted.length,
+      blocked: mine.length - counted.length,
       promoted,
-      rate: mine.length ? promoted / mine.length : 0,
+      rate: counted.length ? promoted / counted.length : 0,
       interval: { low, high },
       usdTotal: usd,
       usdPerRound: mine.length ? usd / mine.length : null,
@@ -332,11 +345,11 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
   // small. The harmonic mean of the arm sizes reproduces
   // `p(1-p)(1/n1 + 1/n2)` exactly and degrades gracefully when the arms are
   // lopsided -- which is the common case, since the arm is decided by lot.
-  const effective = full.n > 0 && off.n > 0 ? 2 / (1 / full.n + 1 / off.n) : 0
+  const effective = full.counted > 0 && off.counted > 0 ? 2 / (1 / full.counted + 1 / off.counted) : 0
   const mde = mdeIndependent({ n: effective, p: 0.5, alpha })
   // Both arms must have a little data before a direction is worth naming: one
   // round in an arm produces a rate of 0 or 1 and an interval a mile wide.
-  const ready = full.n >= 3 && off.n >= 3
+  const ready = full.counted >= 3 && off.counted >= 3
   let verdict = 'cannot-distinguish'
   if (ready && Math.abs(delta) >= mde && full.interval.low > off.interval.high) verdict = 'full-better'
   else if (ready && Math.abs(delta) >= mde && off.interval.low > full.interval.high) verdict = 'off-better'
@@ -350,13 +363,18 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
   })
   if (score && score.verdict !== 'cannot-distinguish') verdict = score.verdict
   const pct = (v) => `${(v * 100).toFixed(1)} points`
+  const blocked = full.blocked + off.blocked
+  const blockedNote = blocked
+    ? ` ${blocked} of the ${n} round(s) had no headroom left (their incumbent already scored the ceiling), so they cannot say whether reading helped and are not counted here.`
+    : ''
+  const counted = full.counted + off.counted
   const sentence = n === 0
     ? 'no round has been assigned an arm yet: the trial has not started'
     : !ready
-      ? `${n} assigned rounds (${full.n} reading, ${off.n} not): too few in an arm to read a direction yet`
+      ? `${n} assigned rounds (${full.counted} reading, ${off.counted} not): too few in an arm to read a direction yet.${blockedNote}`
       : verdict === 'cannot-distinguish'
-        ? `${n} assigned rounds: reading promoted ${pct(full.rate)} and not reading ${pct(off.rate)} (delta ${pct(delta)}); this design could resolve ${pct(mde)}, so the difference is below what ${n} rounds can see. Not "no effect".`
-        : `${verdict === 'full-better' ? 'reading' : 'not reading'} promoted ${pct(Math.abs(delta))} more often over ${n} assigned rounds (${full.promoted}/${full.n} against ${off.promoted}/${off.n}); the arms' intervals do not overlap and the gap is above the ${pct(mde)} floor.`
+        ? `${counted} usable assigned rounds: reading promoted ${pct(full.rate)} and not reading ${pct(off.rate)} (delta ${pct(delta)}); this design could resolve ${pct(mde)}, so the difference is below what ${counted} rounds can see. Not "no effect".${blockedNote}`
+        : `${verdict === 'full-better' ? 'reading' : 'not reading'} promoted ${pct(Math.abs(delta))} more often over ${counted} usable assigned rounds (${full.promoted}/${full.counted} against ${off.promoted}/${off.counted}); the arms' intervals do not overlap and the gap is above the ${pct(mde)} floor.${blockedNote}`
   // Cost is the second half of the balance. When neither outcome reading can
   // name a direction -- which is what happens on an endpoint every round
   // saturates -- "reading bought nothing visible and cost six tenths of a cent

@@ -3310,6 +3310,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // since the no-op path existed; the round never did, so 26 of the
         // 267 promotions in this ledger read as ordinary work.
         noop: checks.noop === true,
+        // Was there anything left to win? A round whose incumbent already sits at
+        // the ceiling cannot show whether reading helped, and the read/do trial was
+        // counting those rounds as losses for whichever arm happened to arrive late.
+        beatsIncumbent: checks.beatsIncumbent === true,
         // Which candidate won, as an id rather than a boolean: the fidelity
         // check compares that id against what the cheap stage kept, and "we
         // promoted something" cannot be compared with anything.
@@ -3874,6 +3878,7 @@ function projectRound(state, round) {
     // Empty landings are the difference between "267 promotions" and "241
     // promotions and 26 rounds that confirmed the tree was already right".
     ...(round.noop !== undefined ? { noop: round.noop === true } : {}),
+    ...(round.beatsIncumbent !== undefined ? { beatsIncumbent: round.beatsIncumbent === true } : {}),
     endedAt: Date.now(),
     ...(round.holdoutId != null ? { holdoutId: round.holdoutId } : {}),
     // The held-back reading travels with the projected round: a reader asking

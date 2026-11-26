@@ -469,6 +469,10 @@ const standing = [
   // The time axis kept the money axis's formatter: `trial-lib` printed
   // "15750000.00c more per round" for 157.5 seconds.
   'tests/self57/a-sentence-about-seconds-does-not-say-cents.test.mjs',
+  // `trial-lib2` reported "reading promoted 50 points and not reading 25"
+  // from eight rounds in which every arm scored 1: the count was reading the
+  // order the arms were dealt, not the effect of reading.
+  'tests/self57/a-round-with-no-headroom-does-not-count-as-a-loss.test.mjs',
   // The loop had a 153-work library and read the public web instead. These pin
   // the index and the round that now prefers it.
   'tests/self57/the-loop-reads-its-own-library.test.mjs',

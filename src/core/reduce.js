@@ -263,7 +263,11 @@ function apply(s, ev) {
           // folded round: `compareResearchArms` reads `state.rounds`, so an arm
           // that lives only on the event makes every trial campaign report
           // "not started" while it is running.
-          'researchTrial']) {
+          'researchTrial',
+          // Whether the incumbent could still be beaten. The read/do trial needs
+          // it to tell "this arm lost" from "this arm arrived after the ceiling",
+          // and only the round knows which it was.
+          'beatsIncumbent']) {
           if (d[key] !== undefined) r[key] = d[key]
         }
       }

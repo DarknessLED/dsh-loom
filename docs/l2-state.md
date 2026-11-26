@@ -1815,3 +1815,47 @@ What this does not claim:
   they also asked ledger questions. The fix has not been exercised by a live round yet.
 - six tasks and eight rounds cannot see a ten-point difference. The campaign says
   that in its own sentence rather than pretending the arms tied.
+
+### 2026-11-26: the leg asked the task's own question, and for the first time the note was used
+
+`trial-lib2` re-ran the six library questions on a fresh repository after
+`asksItsOwnQuestion` was committed and the plugin reloaded (12:06 instance). Every
+read round now asks the task's question instead of the ledger's:
+
+| round | arm | question source | read | used | promoted | cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | full | task | 2 | **true** | yes | $0.018688 |
+| 2 | off | — | 0 | — | yes | $0.038090 |
+| 3 | full | task | 2 | **true** | yes | $0.014038 |
+| 4 | off | — | 0 | — | yes | $0.027608 |
+| 5 | full | task | 2 | **true** | no | $0.048192 |
+| 6 | off | — | 0 | — | no | $0.049485 |
+| 7 | full | task | 2 | **true** | no | $0.022859 |
+| 8 | off | — | 0 | — | no | $0.026633 |
+
+Four read rounds, four `used: true`. Before this campaign the whole ledger held two
+`true` across 63 rounds that read anything. The questions are the tasks' own
+("Which paper reports that …"), and the leg found them with the library index in
+145–173 ms.
+
+The promotions are not an effect of reading. Rounds 5–8 all reported
+`earnedReason: 'metric-did-not-improve'`: the campaign has six tasks, each solved
+once, so after round 4 the incumbent already scored 1 and no later round could
+promote in either arm. That is what produced the count axis's first non-zero delta —
+"reading promoted 50 points, not reading 25" — and it is an artefact of the arm order,
+not of reading. On the score axis both arms are at 100 and the campaign says so.
+
+The count axis now drops a round whose `beatsIncumbent` is false and says how many it
+dropped. Rounds written before today carry no such field; they are counted as before,
+because dropping the history would not correct it.
+
+What this does not claim:
+
+- four `true` in one campaign is not a rate. It is the first time the measurement had
+  a subject it could be about, and the six answers were already in the library, so a
+  worker can also finish by opening one JSON file itself.
+- the score axis still cannot separate the arms, and this campaign could not have:
+  every task is solved by every round after the first pass.
+- `used` is a verbatim-span match against the worker's report. A worker that cites a
+  quotation to satisfy the brief and a worker that changed its answer because of one
+  leave the same record.
