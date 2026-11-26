@@ -424,6 +424,10 @@ const standing = [
   // A question that has been read several times and never acted on is a
   // statement about the reader, so it is parked with its count, not closed.
   'tests/self57/a-question-that-never-helps-is-parked.test.mjs',
+  // The rule above needs three reads and could only see this campaign's one, and
+  // it kept a question alive on a promotion while every quote was ignored. On the
+  // real ledger it parked 15 of 16 at bar 1 and 6 at bar 2; nothing at bar 3.
+  'tests/self57/a-question-is-parked-on-evidence-not-on-luck.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

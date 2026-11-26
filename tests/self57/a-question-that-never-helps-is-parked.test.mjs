@@ -37,7 +37,16 @@ function ok(name, fn) {
 }
 
 const Q = { id: 'q-1', question: 'does the cheap stage rank like the verifier?', status: 'open' }
-const asked = (n, question, promoted, status = 'no-gain') => ({ n, status, promoted, research: { mode: 'full', question } })
+// `used: false` is what makes a read a *measured* read: the round printed the
+// notes and did not cite them. A read with no outcome recorded is silence, and
+// the newer spec (a-question-is-parked-on-evidence-not-on-luck) pins that silence
+// cannot accumulate into a park.
+const asked = (n, question, promoted, status = 'no-gain', used = false) => ({
+  n,
+  status,
+  promoted,
+  research: { mode: 'full', question, used },
+})
 
 ok('three reads with no promotion park the question', () => {
   const got = reflectOnQuestions({
@@ -48,18 +57,31 @@ ok('three reads with no promotion park the question', () => {
   assert.equal(got.park.length, 1)
   assert.equal(got.park[0].id, 'q-1')
   assert.match(got.park[0].reason, /3/)
-  assert.match(got.park[0].reason, /no promotion|never promoted/)
+  assert.match(got.park[0].reason, /used in none/)
 })
 
-ok('one promotion in between keeps it', () => {
-  // The question did help once; the loop cannot tell that from the aggregate and
-  // must not throw away the only entry that ever produced a win.
+ok('one read whose notes were used keeps it', () => {
+  // This used to be "one promotion in between keeps it". A promotion is a fact
+  // about the patch, not about the reading: every probe this week promoted while
+  // ignoring all four quotes, so that rule protected all seventeen questions and
+  // parked none. What keeps a question alive is that a worker cited one of the
+  // notes -- `used: true` -- which is the only measurement of the reading itself.
   const got = reflectOnQuestions({
-    rounds: [asked(1, Q.question, false), asked(2, Q.question, true, 'promoted'), asked(3, Q.question, false)],
+    rounds: [asked(1, Q.question, false), asked(2, Q.question, true, 'promoted', true), asked(3, Q.question, false)],
     openQuestions: [Q],
     maxAsks: 3,
   })
   assert.deepEqual(got.park, [])
+})
+
+ok('promotions without a used reading do not keep it', () => {
+  // The regression this rule exists for: three promotions, zero citations.
+  const got = reflectOnQuestions({
+    rounds: [asked(1, Q.question, true, 'promoted'), asked(2, Q.question, true, 'promoted'), asked(3, Q.question, true, 'promoted')],
+    openQuestions: [Q],
+    maxAsks: 3,
+  })
+  assert.equal(got.park.length, 1)
 })
 
 ok('fewer reads than maxAsks keeps it', () => {

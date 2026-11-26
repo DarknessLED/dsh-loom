@@ -1269,6 +1269,41 @@ document is allowed to report a direction.
 - `research-on-stuck` has `evidence: ['no-round-yet']`: the kind is in the menu
   before it has a campaign behind it. Its prediction is a prior, and the card
   says so.
+
 - The whole leg is skipped, and the round proceeds, when the host has no web
   service. A campaign with no research is still a campaign; that is deliberate,
   and it also means a silent web outage looks like a thorough loop.
+
+### 2026-11-26: the park rule could not fire, for two reasons
+
+The rule that retires a question the loop cannot use had been in the code since
+`333911d` and had parked exactly one entry — the one I parked by hand. Measured
+against the real ledger, both reasons are arithmetic, not judgement:
+
+- It counted this campaign's rounds only. Sixteen open questions, most read by
+  two campaigns, and the rule saw at most one ask each. A bar of three that can
+  see one fires never.
+- It treated "the round promoted" as "the reading helped". Every probe built
+  this week promotes on an easy task while ignoring all four quotes, so
+  `promoted: true` was true for all seventeen and nothing qualified for parking.
+
+The fix has two parts. `researchQuestions` now folds `measuredReads` and
+`measuredBy` as well as `reads`, so a read whose outcome was recorded as a
+boolean can be told apart from one that was merely spent. And the bar counts
+every read, keeps a question alive on a single `used: true`, and reports both
+numbers in the reason: *read in 5 round(s) (1 with a recorded outcome), and the
+notes were used in none of them*. Reads whose outcome nobody wrote down count,
+because "nobody recorded it" is not "it helped" — that reading is exactly what
+retired nothing for two weeks — and the two figures keep the silence visible
+instead of hidden behind one number.
+
+Dry run against the live ledger (16 open): bar 1 parks 15, bar 2 parks 6, bar 3
+parks 0. The shipped bar is 3, so nothing was parked on the strength of this
+change; the rule now merely *can* fire, on evidence that will exist once probes
+record `used` instead of leaving it null.
+
+What this does not claim: parking is not a verdict on the question. It says the
+reader has not been able to act on it, which is a fact about this loop and
+reversible with a word. And the 15-at-bar-1 figure is not "we should park 15
+questions" — it is how much of the ledger's read history has no recorded
+outcome at all.

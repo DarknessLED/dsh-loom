@@ -319,46 +319,73 @@ export async function withDeadline(work, timeoutMs = 0) {
  * The reflection half of the ReAct step: which open questions this loop has read
  * and still cannot act on.
  *
- * The ledger had 17 open questions and 0 closed ones on 2026-11-26, while the leg
- * spent a round's reading budget on one of them every round. Rotation stopped a
- * single campaign asking twice; nothing stopped the next campaign starting at the
- * oldest entry again, and nothing asked whether reading ever helped. That is how
- * a loop reads forever without learning — the question is the unit of reading and
- * it never retires.
+ * Two things were wrong with the first version, and both were only visible
+ * against real data (2026-11-26: 17 open questions, 0 closed, 16 of them read at
+ * least once across two campaigns, none ever parked by this rule).
  *
- * `maxAsks` reads with no promotion is the bar. Reaching it parks the question:
- * parking is honest about what was measured ("this reader, these rounds, no
- * promotion") and is reversible, unlike closing, which asserts an answer nobody
- * produced. A round an operator interrupted was never judged and does not count,
- * for the same reason `plateauReached` skips it.
+ * It counted this campaign's rounds only. The ledger already records every read
+ * with its campaign name, so a rule that needs three asks could never see more
+ * than one of them. A rule that needs three and can see one fires never.
+ *
+ * And it treated a promotion as "the reading helped". Every probe built this week
+ * promotes on an easy task while ignoring all four quotes, so `promoted: true`
+ * was true for all seventeen questions and nothing was parked. A promotion is a
+ * fact about the patch; `research.used` is the fact about the reading, and it is
+ * the only one this rule is entitled to act on.
+ *
+ * So: every read counts toward the bar, one `used: true` keeps the question alive
+ * for good, and the reason carries both numbers -- how many reads, how many of
+ * them had a recorded outcome. Reads from before the outcome was measurable are
+ * counted, because a read whose result nobody wrote down cannot be shown to have
+ * helped, and a ledger that treats "nobody recorded it" as "it helped" is the
+ * ledger that never retired anything. The two numbers make that visible instead
+ * of hiding it behind one figure.
+ *
+ * Parking is honest about what was measured ("this reader, these rounds, no use")
+ * and is reversible, unlike closing, which asserts an answer nobody produced. A
+ * round an operator interrupted was never judged and does not count, for the same
+ * reason `plateauReached` skips it.
  *
  * A malformed bar parks nothing: retiring questions because a config value is a
  * string is the failure mode that looks like judgement.
  */
-export function reflectOnQuestions({ rounds = [], openQuestions = [], maxAsks = 3 } = {}) {
+export function reflectOnQuestions({ rounds = [], openQuestions = [], maxAsks = 3, campaign = null } = {}) {
   const bar = Number(maxAsks)
   if (!Number.isFinite(bar) || bar <= 0) return { park: [], reads: {} }
+  const self = typeof campaign === 'string' ? campaign.trim() : ''
   const reads = {}
   for (const round of Array.isArray(rounds) ? rounds : []) {
     if (!round || typeof round !== 'object') continue
     const research = round.research
     if (!research || research.mode === 'off' || typeof research.question !== 'string' || !research.question.trim()) continue
     if (round.status === 'interrupted') continue
+    const measured = research.used === true || research.used === false
     const key = research.question.trim()
-    const entry = reads[key] || (reads[key] = { asked: 0, promoted: 0 })
+    const entry = reads[key] || (reads[key] = { asked: 0, measured: 0, used: false })
     entry.asked += 1
-    if (round.promoted === true) entry.promoted += 1
+    if (measured) entry.measured += 1
+    if (research.used === true) entry.used = true
   }
   const park = []
   for (const question of Array.isArray(openQuestions) ? openQuestions : []) {
     if (!question || question.status !== 'open' || typeof question.question !== 'string') continue
-    const entry = reads[question.question.trim()]
-    if (!entry || entry.promoted > 0 || entry.asked < bar) continue
+    const key = question.question.trim()
+    const local = reads[key] || { asked: 0, measured: 0, used: false }
+    // The ledger counts every campaign, this one included. Subtract the reads it
+    // already recorded for us so this round's evidence is not counted twice.
+    const ledgerReads = Number(question.reads) || 0
+    const ledgerMeasured = Number(question.measuredReads) || 0
+    const ownReads = self && question.measuredBy && typeof question.measuredBy === 'object' ? Number(question.measuredBy[self]) || 0 : 0
+    const asked = Math.max(0, ledgerReads - ownReads) + local.asked
+    const measured = Math.max(0, ledgerMeasured - ownReads) + local.measured
+    if (question.usedAtLeastOnce === true || local.used) continue
+    if (asked < bar) continue
     park.push({
       id: question.id ?? null,
-      question: question.question.trim(),
-      asked: entry.asked,
-      reason: `read in ${entry.asked} round(s) with no promotion: this loop has not been able to act on it`,
+      question: key,
+      asked,
+      measured,
+      reason: `read in ${asked} round(s) (${measured} with a recorded outcome), and the notes were used in none of them: this loop has not been able to act on it`,
     })
   }
   return { park, reads }

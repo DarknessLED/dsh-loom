@@ -3406,6 +3406,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         rounds: (finished && Array.isArray(finished.rounds) ? finished.rounds : view.state.rounds),
         openQuestions: stillOpen,
         maxAsks: Number(config.research?.maxQuestionAsks) || 3,
+        // Named so the ledger's own count for this campaign can be subtracted:
+        // it already recorded our reads, and counting them twice would park a
+        // question on half the evidence the bar asks for.
+        campaign: state.id,
       })
       for (const item of reflection.park) {
         if (!item.id) continue

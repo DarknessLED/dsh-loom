@@ -132,6 +132,20 @@ export function researchQuestions(home) {
       // Counting them is what turns the ledger from a loop into a queue -- on
       // 2026-11-26 seven campaigns had read the same oldest entry thirteen times.
       existing.reads = (Number(existing.reads) || 0) + 1
+      // A read whose outcome was never measured (`used: null`) is a spend, not
+      // evidence: it cannot say the notes helped and it cannot say they did not.
+      // Counting the two together would let silence accumulate into a verdict,
+      // which is the mistake this ledger already made once with promotions.
+      if (ev.used === true || ev.used === false) {
+        existing.measuredReads = (Number(existing.measuredReads) || 0) + 1
+        // Per-campaign, so a reader that also holds this campaign's rounds can
+        // subtract its own reads instead of counting them twice.
+        const who = clean(ev.campaign)
+        if (who) {
+          existing.measuredBy = existing.measuredBy && typeof existing.measuredBy === 'object' ? existing.measuredBy : {}
+          existing.measuredBy[who] = (Number(existing.measuredBy[who]) || 0) + 1
+        }
+      }
       existing.readBy = Array.isArray(existing.readBy) ? existing.readBy : []
       const who = clean(ev.campaign)
       if (who && !existing.readBy.includes(who)) existing.readBy.push(who)
