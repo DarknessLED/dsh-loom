@@ -73,7 +73,12 @@ const PAGES = {
 
 const task = (over = {}) => ({
   id: 't1',
-  prompt: 'Write the string fixed into impl.txt so the verifier passes.',
+  // The prompt names a file and an order; the clause after "about" is the subject
+  // the leg may search for. A prompt with no subject is housekeeping and yields no
+  // question at all (see `the-question-is-the-subject-not-the-brief`).
+  prompt:
+    'Write the string fixed into impl.txt so the verifier passes. ' +
+    'A design note about how a promotion rule should treat a base that was never measured.',
   verify: { cmd: '"__NODE__" -e "process.exit(0)"' },
   ...over,
 })

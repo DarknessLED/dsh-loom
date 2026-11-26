@@ -43,12 +43,16 @@ const harness = { id: 'q1', question: 'Does a harness change that gains on one m
 // statistics question about alpha would match on the Greek letter alone. That
 // is the ambiguity this rule cannot resolve, and it is not what it is for.
 const power = { id: 'q2', question: 'How many pairs make a paired comparison decisive?', status: 'open' }
-const probe = { prompt: 'Read specs/alpha.json and data-alpha.txt (120 integers) and write summary-alpha.txt with the twelve derived integers.' }
+const probe = {
+  prompt:
+    'Read specs/alpha.json and data-alpha.txt (120 integers) and write summary-alpha.txt. ' +
+    'Notes about how to derive twelve integers from a column of numbers.',
+}
 
 ok('a ledger question sharing nothing with the task loses to the task', () => {
   const got = questionFor({ task: probe, openQuestions: [harness, power], rounds: [] })
   assert.equal(got.from, 'task')
-  assert.match(got.question, /this problem/)
+  assert.equal(got.question, 'how to derive twelve integers from a column of numbers')
 })
 
 ok('a ledger question about the task still wins', () => {

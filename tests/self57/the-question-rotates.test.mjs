@@ -89,8 +89,10 @@ ok('every question asked means the ledger is exhausted, not repeated', () => {
   const got = questionFor({ task: { prompt: 'fix the failing check for the paired test on the 1-task evalset' }, openQuestions: ledger, rounds })
   // Falling back to the task is the honest answer: "we have read everything we
   // wrote down" is a different state from "here is the same question again".
+  // The imperative verb is dropped: it is an instruction to the worker, not a
+  // term a search engine should be given.
   assert.equal(got.from, 'task')
-  assert.match(got.question, /fix the failing check/)
+  assert.match(got.question, /the failing check/)
 })
 
 ok('a stuck signature still outranks rotation', () => {

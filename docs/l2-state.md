@@ -1604,3 +1604,34 @@ rounds:
 What this does not claim: that reading is useless. Three axes over ten rounds
 cannot see an effect smaller than 90 points, and the only axis that separates
 at this sample size is the clock — which was never in doubt.
+
+### 2026-11-26: the leg asked the search engine to search the brief
+
+`trial-prose2`'s ten rounds promoted, which is what the artefact fix was for.
+Reading their `research` records shows a second defect that the promotions made
+audible: two of the three reading rounds asked the task fallback, and the
+question it built was the whole prompt.
+
+```
+"question": "what is known about this problem: Write design-note-8.md about how
+much of a research report should be a quotation. Read README.md for the twelve
+rules and the command. Do not modify check.mjs or README.md."
+```
+
+The engine answered exactly that: a writing-toolkit spec, a Scratch course page,
+and three PDFs that 404. One round read nothing at all. The other reading round
+picked up a ledger question about lesson transfer, which the task is not about
+either.
+
+`topicOf(prompt)` takes the subject instead: the clause after "about", with file
+names, paths and instruction sentences removed, and a leading imperative verb
+dropped. The same two prompts become
+
+```
+how much of a research report should be a quotation
+```
+
+What this does not claim: that the spans are now relevant. A subject clause is
+a better query than a brief; whether the pages it returns help the note is what
+`used` measures, and at two recorded uses in 76 assigned rounds it has not
+measured enough of anything to say.

@@ -456,6 +456,12 @@ const standing = [
   // create. Only a created *instrument* is a refusal.
   'tests/self57/an-artefact-is-not-an-instrument.test.mjs',
   'tests/self57/a-round-that-creates-its-artefact-is-not-refused.test.mjs',
+  // The leg asked the search engine to search the brief: "Write design-note-8.md
+  // about ... Read README.md for the twelve rules ... Do not modify check.mjs".
+  // Three rounds of trial-prose2 were assigned that query and came back with a
+  // writing toolkit, a Scratch course and three dead PDFs. The subject after
+  // "about" is the question; the rest is housekeeping.
+  'tests/self57/the-question-is-the-subject-not-the-brief.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

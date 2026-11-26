@@ -47,6 +47,65 @@ function clip(text, max) {
   return `${s.slice(0, Math.max(0, max - 1))}…`
 }
 
+// The parts of a task prompt that are instructions to the worker rather than a
+// subject for a search engine. Matched on the sentence, so a task whose whole
+// prompt is housekeeping yields nothing instead of a query about files.
+const HOUSEKEEPING = /^(?:write|create|edit|add|update|modify|make|save)\b[\s\S]*?\b(?:to|into)\b|\bdo not\b|\bdon't\b|\bmust not\b|\bread\s+\S+\.(?:md|txt)\b|\b(?:run|execute)\b[\s\S]*\b(?:node|npm|pnpm|python|bash)\b|\bkeep (?:the )?(?:diff|change|patch)\b|\bonly (?:change|edit|touch)\b/i
+
+/**
+ * What is this task about, as a question a search engine can answer?
+ *
+ * The leg used to ask the search engine to search the *brief*:
+ *
+ *   what is known about this problem: Write design-note-8.md about how much of a
+ *   research report should be a quotation. Read README.md for the twelve rules
+ *   and the command. Do not modify check.mjs or README.md.
+ *
+ * Three rounds of `trial-prose2` were assigned the reading arm on that string
+ * and came back with a writing-toolkit spec, a Scratch course page, and three
+ * dead PDFs. The engine did what it was asked.
+ *
+ * A subject is the clause after "about". Everything else — which file to write,
+ * what not to touch, which command to read — is housekeeping, and housekeeping
+ * in a query returns pages about housekeeping. When there is no "about" clause
+ * the sentence is used only if it is not purely housekeeping.
+ *
+ * @param {string|null|undefined} prompt
+ * @returns {string|null} the subject, clipped to a query, or null when the
+ *   prompt names no subject at all
+ */
+export function topicOf(prompt) {
+  const text = typeof prompt === 'string' ? prompt.trim() : ''
+  if (!text) return null
+  const about = /\babout\s+([\s\S]+?)(?:\.\s|\.$|$)/i.exec(text)
+  if (about) {
+    const subject = about[1].replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '')
+    if (subject && !HOUSEKEEPING.test(subject)) return clip(subject, 180)
+  }
+  // No "about": drop the sentences that are instructions, keep the rest, and take
+  // the file names out. A query that names `impl.txt` returns pages about
+  // `impl.txt` — the same error one level down from searching the brief.
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter((x) => x && !HOUSEKEEPING.test(x))
+  const stripped = sentences
+    .join(' ')
+    .replace(/\S*\.(?:md|txt|json|jsonl|mjs|cjs|js|ts|tsx|py|sh)\b/gi, ' ')
+    .replace(/\S*[\\/]\S*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!stripped) return null
+  // The leading verb is an order ("make", "fix"); the subject is what follows.
+  const withoutVerb = stripped.replace(
+    /^(?:fix|implement|add|write|create|build|make|update|change|repair|refactor|ensure|keep|remove|delete)\s+/i,
+    '',
+  )
+  const out = withoutVerb.trim().replace(/[.;,]+$/, '')
+  if (!out || HOUSEKEEPING.test(out)) return null
+  return clip(out, 180)
+}
+
 function finite(x) {
   const n = Number(x)
   return Number.isFinite(n) ? n : null
@@ -144,13 +203,13 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
     .sort((a, b) => (a.reads - b.reads) || (a.i - b.i))
   const first = byReads.length ? byReads[0].q : null
   if (first) return { question: first.question.trim(), id: first.id ?? null, from: 'ledger' }
-  const prompt = typeof task?.prompt === 'string' ? task.prompt.trim() : ''
-  if (prompt) {
-    return {
-      question: `what is known about this problem: ${clip(prompt, 180)}`,
-      from: 'task',
-    }
-  }
+  // The fallback used to prefix the whole prompt, which turned the brief into the
+  // query: three rounds of `trial-prose2` searched "Write design-note-8.md about
+  // ... Read README.md for the twelve rules ... Do not modify check.mjs" and got
+  // a writing toolkit, a Scratch course and three dead PDFs. The subject of a
+  // search is the thing the task is about, not the instructions for doing it.
+  const topic = topicOf(task?.prompt)
+  if (topic) return { question: topic, from: 'task' }
   return null
 }
 

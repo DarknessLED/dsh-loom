@@ -59,10 +59,14 @@ ok('an open question in the ledger wins over the task text', () => {
   assert.equal(q.question, 'Does a paired test lose power at n=8?')
 })
 
-ok('with nothing else, the question is the task plus what failed', () => {
+ok('with nothing else, the question is the task minus its file names', () => {
   const q = questionFor({ task, lastRound: null, openQuestions: [] })
   assert.equal(q.from, 'task')
-  assert.ok(q.question.includes('impl.txt'), 'the task text is the only thing left; it must still be in the question')
+  // This used to require `impl.txt` in the query. Three rounds of `trial-prose2`
+  // showed what that buys: a query naming files returns pages about files, and
+  // the worker has nothing to cite. The subject survives; the path does not.
+  assert.doesNotMatch(q.question, /impl\.txt/, 'a file name is housekeeping, not a subject')
+  assert.match(q.question, /paired test/i, 'the subject of the task must survive')
 })
 
 ok('no task and no ledger means no question, not a blank one', () => {
