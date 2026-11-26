@@ -222,6 +222,21 @@ export function compareArmCost({ full = [], off = [], alpha = 0.05 } = {}) {
  * would hand reading a cost it did not earn. When an arm has fewer than two
  * measurements there is no spread and no comparison -- `null`, not a guess.
  */
+/**
+ * Which unit a metric is measured in, and how to print it.
+ *
+ * The comparison machinery is unit-agnostic on purpose (it only ever compares a
+ * number against another number), but the sentence is not: it has to say "c" or
+ * "s" or nothing at all. Choosing by the basis string is crude and it is still
+ * better than what was there, which was cents for every axis.
+ */
+function unitOf(basis) {
+  const text = String(basis ?? '').toLowerCase()
+  if (/cost|price|money|usd|dollar|spend/.test(text)) return { in: (v) => v * 100, suffix: 'c' }
+  if (/time|clock|second|latency|\bms\b/.test(text)) return { in: (v) => v / 1000, suffix: 's' }
+  return { in: (v) => v, suffix: '' }
+}
+
 export function compareArmMetric({ full = [], off = [], alpha = 0.05, pick = (r) => null, basis = 'metric' } = {}) {
   const clean = (list) =>
     list
@@ -247,7 +262,13 @@ export function compareArmMetric({ full = [], off = [], alpha = 0.05, pick = (r)
     full: { n: a.length, mean: round6(meanA), sd: round6(sd(a)) },
     off: { n: b.length, mean: round6(meanB), sd: round6(sd(b)) },
   }
-  const cents = (v) => `${(v * 100).toFixed(2)}c`
+  // The axis was written for money and kept money's formatter, so the time axis
+  // printed seconds as cents: `trial-lib` showed "reading costs 15750000.00c more
+  // per round" for 157.5 seconds. A unit error of a hundredfold in the sentence
+  // that also claims to be the one measurable price of reading is exactly the
+  // number a reader would quote, so the basis chooses the formatter.
+  const unit = unitOf(basis)
+  const cents = (v) => `${unit.in(v).toFixed(2)}${unit.suffix}`
   // No spread: pricing can be flat across a campaign, so this is not the
   // "infinite sensitivity" trap the score axis refuses -- it is a real fact
   // about a price list. The direction is still named only if the two arms

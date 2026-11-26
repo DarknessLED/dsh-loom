@@ -1783,3 +1783,35 @@ What this does not claim:
 - the six answers are in the library already, so a round can pass without the leg
   (`score 1` on an `off` arm proves that). The trial is still comparing two ways to
   finish work a worker could also do by opening one JSON file itself.
+
+### 2026-11-26: eight rounds on a task that needs the library, and a unit error
+
+`trial-lib` finished: eight rounds, four per arm, every one promoted at `score 1`.
+Both arms are at the ceiling again, so the trial still cannot tell reading from not
+reading by score: mean score 79.2 against 100.0, delta −20.8 points, and the sample
+could only resolve 58.4 points. At this spread, telling ten points apart would take
+about 137 rounds per arm.
+
+The one thing the design can still separate is the clock, and here it separates by
+three orders of magnitude: the library leg reads in **157.5 ms** (173, 163, 145, 149),
+the web leg took 4.8–31.1 seconds. Reading the repository's own records is not a
+network round trip.
+
+That reading also caught a unit bug in the sentence `rsi_status` prints. The time
+axis was written on top of the money axis and kept money's formatter, so it printed
+`reading costs 15750.00c more per round (15750.00c against 0.00c)`. The quantity is
+157.5 milliseconds. It was wrong by a hundredfold in exactly the sentence
+`docs/l2-state.md` cites as "the one measurable price of reading", and it would have
+survived every test that checked the verdict instead of the text. The fix makes the
+formatter a function of the basis (`c` for money, `s` for time, nothing for a metric
+with no named unit) and a spec now asserts the sentence carries no `c` on the time
+axis.
+
+What this does not claim:
+
+- round 1 is the only round where the read arm scored below the write arm, and it is
+  also the only round whose question came from the ledger; rounds 3–8 ran on the
+  plugin instance from 10:56, before `asksItsOwnQuestion` was committed at 19:41, so
+  they also asked ledger questions. The fix has not been exercised by a live round yet.
+- six tasks and eight rounds cannot see a ten-point difference. The campaign says
+  that in its own sentence rather than pretending the arms tied.
