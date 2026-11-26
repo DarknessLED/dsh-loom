@@ -39,7 +39,7 @@ const QUESTION = 'does the cheap stage rank like the verifier on this corpus?'
 
 function fixture() {
   const repo = makeRepo()
-  const built = makeRuntime({ repo, tasks: [{ id: 't1', prompt: 'write fixed into impl.txt', verify: { cmd: '"__NODE__" -e "process.exit(1)"' } }], spec: chainSpec({ candidates: 1 }) })
+  const built = makeRuntime({ repo, tasks: [{ id: 't1', prompt: 'make the cheap stage rank like the verifier, then write fixed into impl.txt', verify: { cmd: '"__NODE__" -e "process.exit(1)"' } }], spec: chainSpec({ candidates: 1 }) })
   // A home with one open question on it: the round will read it, fail, and the
   // bar for parking is one read.
   addQuestion(built.runtime.home, { question: QUESTION, closedBy: 'a measured ranking agreement', scope: 'T' })

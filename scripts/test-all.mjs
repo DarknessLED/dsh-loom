@@ -428,6 +428,10 @@ const standing = [
   // it kept a question alive on a promotion while every quote was ignored. On the
   // real ledger it parked 15 of 16 at bar 1 and 6 at bar 2; nothing at bar 3.
   'tests/self57/a-question-is-parked-on-evidence-not-on-luck.test.mjs',
+  // A ledger question about a different problem is not this round's question:
+  // 37 of 37 live rounds asked the ledger, 27 of them recorded `used: false`,
+  // and the questions were about our loop while the tasks were integer sums.
+  'tests/self57/a-question-about-another-problem-is-not-this-round-s-question.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

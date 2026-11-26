@@ -71,7 +71,9 @@ function fixture({ promote = false } = {}) {
     tasks: [
       {
         id: 't1',
-        prompt: 'write the word fixed into keep.txt',
+        // Relevant on purpose: since 2026-11-26 a ledger question with no
+        // vocabulary in common with the task is not this round's question.
+        prompt: 'make the cheap stage rank like the verifier, then write the word fixed into keep.txt',
         verify: { cmd: `"${process.execPath}" check.mjs`, scope: { editable: ['keep.txt'] } },
       },
     ],
@@ -171,7 +173,10 @@ await ok('the second campaign reads a different question', async () => {
   const { recordQuestionRead } = await import('../../src/research/questions.js')
   recordQuestionRead(dir, { id: first[0].id, campaign: 'c1', round: 1 })
   const asked = questionFor({
-    task: { id: 't1', prompt: 'x' },
+    // Must overlap both ledger entries: a question that shares nothing with
+    // the task is no longer asked, so an off-topic prompt would leave one
+    // candidate and the rotation under test would never be exercised.
+    task: { id: 't1', prompt: 'x about the verifier and a measured zero' },
     openQuestions: researchQuestions(dir).filter((q) => q.status === 'open'),
     rounds: [],
   })

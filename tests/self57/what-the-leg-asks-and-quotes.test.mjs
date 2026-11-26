@@ -34,7 +34,10 @@ function ok(name, fn) {
   }
 }
 
-const task = { id: 't1', prompt: 'Make the verifier pass by fixing impl.txt so the rate reaches 0.9.' }
+// The prompt has to share vocabulary with the ledger question below, because
+// 2026-11-26 made relevance a precondition: an off-topic ledger entry loses to
+// the task. "pairs" and "power" are what this repo's own questions use.
+const task = { id: 't1', prompt: 'Make the verifier pass by fixing impl.txt until the paired test has power at eight pairs.' }
 
 ok('a stuck round asks about the failure, not about the task', () => {
   const q = questionFor({

@@ -62,7 +62,7 @@ await ok('the next round prefers the question nobody has read', () => {
   const open = ledger(dir)
   recordQuestionRead(dir, { id: open[0].id, campaign: 'c1', round: 1 })
   const asked = questionFor({
-    task: { id: 't1', prompt: 'write fixed into impl.txt' },
+    task: { id: 't1', prompt: 'wire a reward-hacking detector, rank the cheap screen like the verifier, and tell a measured zero from an unmeasured round' },
     openQuestions: researchQuestions(dir).filter((q) => q.status === 'open'),
     rounds: [],
   })
@@ -77,7 +77,7 @@ await ok('the least-read question wins even when it is not the oldest', () => {
   for (const c of ['c1', 'c2']) recordQuestionRead(dir, { id: open[0].id, campaign: c, round: 1 })
   recordQuestionRead(dir, { id: open[1].id, campaign: 'c1', round: 1 })
   const asked = questionFor({
-    task: { id: 't1', prompt: 'x' },
+    task: { id: 't1', prompt: 'wire a reward-hacking detector, rank the cheap screen like the verifier, and tell a measured zero from an unmeasured round' },
     openQuestions: researchQuestions(dir).filter((q) => q.status === 'open'),
     rounds: [],
   })
@@ -88,7 +88,7 @@ await ok('a campaign does not read the same question twice', () => {
   const dir = home()
   const open = ledger(dir)
   const asked = questionFor({
-    task: { id: 't1', prompt: 'x' },
+    task: { id: 't1', prompt: 'wire a reward-hacking detector, rank the cheap screen like the verifier, and tell a measured zero from an unmeasured round' },
     openQuestions: researchQuestions(dir).filter((q) => q.status === 'open'),
     rounds: [{ n: 1, research: { mode: 'full', question: open[0].question } }],
   })
@@ -104,7 +104,7 @@ await ok('the ledger itself decides, not a counter passed in', () => {
   recordQuestionRead(dir, { id: open[1].id, campaign: 'c1', round: 2 })
   recordQuestionRead(dir, { id: open[2].id, campaign: 'c1', round: 3 })
   const asked = questionFor({
-    task: { id: 't1', prompt: 'x' },
+    task: { id: 't1', prompt: 'wire a reward-hacking detector, rank the cheap screen like the verifier, and tell a measured zero from an unmeasured round' },
     openQuestions: researchQuestions(dir).filter((q) => q.status === 'open'),
     rounds: [],
   })

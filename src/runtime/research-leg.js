@@ -53,6 +53,30 @@ function finite(x) {
 }
 
 /**
+ * Do these two pieces of text talk about the same thing?
+ *
+ * Word overlap on content words only (four characters or more, lower case).
+ * Stems are not applied: "verify" and "verifier" share seven characters but not
+ * a token, and a stemmer would need to be tuned and explained. What this has to
+ * catch is a question about harnesses in a round about integer sums, which is
+ * total mismatch, not a near miss.
+ */
+export function sharesTopic(a, b) {
+  const words = (text) =>
+    new Set(
+      String(text ?? '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]+/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 4),
+    )
+  const left = words(a)
+  if (!left.size) return false
+  for (const w of words(b)) if (left.has(w)) return true
+  return false
+}
+
+/**
  * The question this round should read about, with the source of the question.
  *
  * Order matters and is deliberate: the stuck signature is the most specific
@@ -60,7 +84,21 @@ function finite(x) {
  * deliberate (a person or a past analysis wrote it down), and the task text is
  * the fallback that is always available and almost never useful on its own.
  *
- * @returns {{question: string, from: 'stuck'|'ledger'|'task'}|null}
+ * The ledger only keeps its priority while it has something to do with this
+ * round's task. Over 37 live rounds measured on 2026-11-26, `from` was `ledger`
+ * every single time and nobody ever asked whether the ledger question was about
+ * the work in front of the worker: the probe campaigns asked "does a harness
+ * change keep its gain on another model family" while their task was "sum 120
+ * integers". Twenty-seven of those rounds then recorded `used: false` and nine
+ * more recorded nothing, which reads as "the notes were not useful" when the
+ * honest reading is "the notes were about something else".
+ *
+ * So a ledger question with no vocabulary in common with the task is not this
+ * round's question. The threshold is one shared content word of four characters
+ * or more: generous on purpose, because the failure this prevents is total
+ * mismatch, not imperfect match.
+ *
+ * @returns {{question: string, from: 'stuck'|'ledger'|'task', id?: string|null}|null}
  */
 export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
   const signature = typeof lastRound?.stuckSignature === 'string' ? lastRound.stuckSignature.trim() : ''
@@ -79,6 +117,10 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
       .map((r) => (r && r.research && r.research.mode !== 'off' && typeof r.research.question === 'string' ? r.research.question.trim() : ''))
       .filter(Boolean),
   )
+  // Prose only: a task id like `t-alpha` is an identifier, and matching the
+  // ledger's "alpha" against it would make every probe task look related to a
+  // statistics question that happens to use the same Greek letter.
+  const taskText = [task?.prompt, task?.name].filter((v) => typeof v === 'string').join(' ')
   const candidates = (Array.isArray(openQuestions) ? openQuestions : []).filter(
     (q) =>
       q &&
@@ -86,7 +128,11 @@ export function questionFor({ task, lastRound, openQuestions, rounds } = {}) {
       q.question.trim() &&
       q.status !== 'closed' &&
       q.status !== 'parked' &&
-      !alreadyAsked.has(q.question.trim()),
+      !alreadyAsked.has(q.question.trim()) &&
+      // A question about a different problem is not this round's question. When
+      // the task says nothing at all, every question passes: silence about the
+      // task is not evidence that the question is irrelevant.
+      (!taskText.trim() || sharesTopic(q.question, taskText)),
   )
   // Fewest reads first, and ledger order as the tie-break. Reading the oldest
   // open entry every time is what made thirteen reads across seven campaigns all

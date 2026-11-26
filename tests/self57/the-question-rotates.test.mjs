@@ -46,14 +46,14 @@ const ledger = [
 const asked = (question) => ({ n: 1, research: { mode: 'full', question, used: null } })
 
 ok('with nothing asked yet the oldest question wins', () => {
-  const got = questionFor({ task: { prompt: 'do the thing' }, openQuestions: ledger, rounds: [] })
+  const got = questionFor({ task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' }, openQuestions: ledger, rounds: [] })
   assert.equal(got.from, 'ledger')
   assert.equal(got.question, 'is a hidden verifier cheaper to fake?')
 })
 
 ok('a question the last round already asked is skipped', () => {
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     openQuestions: ledger,
     rounds: [asked('is a hidden verifier cheaper to fake?')],
   })
@@ -67,7 +67,7 @@ ok('the skip is match on the question, not on the index in the ledger', () => {
   // right reason and would still skip q1 if it were first.
   const reversed = [...ledger].reverse() // q3, q2, q1
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     openQuestions: reversed,
     rounds: [asked('is a hidden verifier cheaper to fake?')], // q1, now last
   })
@@ -77,7 +77,7 @@ ok('the skip is match on the question, not on the index in the ledger', () => {
 
 ok('asking two of three leaves the third', () => {
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     openQuestions: ledger,
     rounds: [asked('is a hidden verifier cheaper to fake?'), asked('does a paired test lose power at eight pairs?')],
   })
@@ -86,7 +86,7 @@ ok('asking two of three leaves the third', () => {
 
 ok('every question asked means the ledger is exhausted, not repeated', () => {
   const rounds = ledger.map((q) => asked(q.question))
-  const got = questionFor({ task: { prompt: 'fix the failing check' }, openQuestions: ledger, rounds })
+  const got = questionFor({ task: { prompt: 'fix the failing check for the paired test on the 1-task evalset' }, openQuestions: ledger, rounds })
   // Falling back to the task is the honest answer: "we have read everything we
   // wrote down" is a different state from "here is the same question again".
   assert.equal(got.from, 'task')
@@ -97,7 +97,7 @@ ok('a stuck signature still outranks rotation', () => {
   // The most specific thing the loop knows stays first: if the last round failed
   // in a named way, that is a better question than any ledger entry.
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     lastRound: { stuckSignature: 'jsSyntaxError: unexpected token (impl.txt:1)' },
     openQuestions: ledger,
     rounds: [asked('is a hidden verifier cheaper to fake?')],
@@ -110,7 +110,7 @@ ok('a round that did not read does not consume a question', () => {
   // `research.mode === 'off'` means the leg was not bought; its `question` is
   // whatever was never asked, so it must not rotate the ledger.
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     openQuestions: ledger,
     rounds: [{ n: 1, research: { mode: 'off', question: 'is a hidden verifier cheaper to fake?', used: null } }],
   })
@@ -119,7 +119,7 @@ ok('a round that did not read does not consume a question', () => {
 
 ok('garbage in the rounds list is skipped, not thrown on', () => {
   const got = questionFor({
-    task: { prompt: 'do the thing' },
+    task: { prompt: 'make the hidden verifier cheaper to fake, check a stuck signature, and give the paired test power on a 1-task evalset' },
     openQuestions: ledger,
     rounds: [null, {}, { research: null }, { research: { mode: 'full' } }, asked('is a hidden verifier cheaper to fake?')],
   })

@@ -1307,3 +1307,43 @@ reader has not been able to act on it, which is a fact about this loop and
 reversible with a word. And the 15-at-bar-1 figure is not "we should park 15
 questions" — it is how much of the ledger's read history has no recorded
 outcome at all.
+
+### 2026-11-26: the leg was reading about the wrong problem
+
+Measured over every round that recorded a `research` block (78 rounds, 2026-11-26):
+
+| `from` | `used` | rounds |
+| --- | --- | --- |
+| `ledger` | `false` | 30 |
+| `ledger` | `null` | 10 |
+| `ledger` | `true` | 1 |
+| `null` (leg not bought) | `null` | 37 |
+
+Forty-one rounds asked a ledger question and not one of them asked the task
+anything: `from` was `ledger` 41 times, `task` zero, `stuck` zero. The ledger's
+entries are gaps in *this loop* — "does a harness change that gains on one model
+family keep its gain on another?", "how many pairs make a paired comparison
+decisive?" — while the probe campaigns were asking them with a task that read
+"sum 120 integers". So `used: false` was not a measurement of whether reading
+helped. It was a measurement of whether the worker cited a quotation about an
+unrelated subject, which it could not honestly do.
+
+The fix is one precondition, not a rewrite: a ledger question with no vocabulary
+in common with this round's task is not this round's question, and the leg falls
+back to the task itself (`from: 'task'`). `sharesTopic` compares content words of
+four characters or more and needs one shared word, which is deliberately
+generous — the failure it prevents is total mismatch, not an imperfect match. The
+ledger keeps priority whenever it does share vocabulary, which is the case in
+this repository, where the tasks edit the loop the questions are about.
+
+Two things this does not claim. First, it does not make `used: true` common: a
+relevant question still has to be answerable by a page the round can actually
+fetch. Second, the probe campaigns' `used: false` history stays as it is — the
+ledger is append-only, and rewriting those rounds to say "we asked the wrong
+question" would be the same mistake as grading a forecast that was never made.
+
+The measurement that motivated this is on the same ledger: 41 rounds, one `used:
+true`. That single `true` came from a round whose task and question shared
+vocabulary by luck (`queue-live5`, reward hacking), which is the effect this
+change makes deliberate instead of accidental.
+
