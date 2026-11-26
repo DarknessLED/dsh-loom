@@ -1859,3 +1859,58 @@ What this does not claim:
 - `used` is a verbatim-span match against the worker's report. A worker that cites a
   quotation to satisfy the brief and a worker that changed its answer because of one
   leave the same record.
+
+### 2026-11-26: a probe whose score was a coin flip, and one whose score is a rate
+
+`trial-lib` and `trial-lib2` were the first probes whose answers were *not in the
+workspace*: each question asked which paper reports a specific number, and the id
+lived only in the campaign's research library. That made the read leg matter -- and
+the ledger shows it mattering, four read rounds with `used: true` out of four, all
+four asking the task's own question and answering it from `local-index.js` in 145-173
+ms. The whole ledger held two `used: true` in 63 reading rounds before it.
+
+They could not settle anything, for two reasons the numbers show.
+
+**The score was never continuous.** Each spec carried a single fact, so a round
+either found that one id or it did not: 1.0000 or 0.0000. `compareArmScores` needs
+finite scores to compute a mean, and it got them -- a mean of ones and zeros, which
+is the count axis wearing a decimal point. The bar (`passAt`) rose with the task
+index, which looks like partial credit and is not: the *rate* the verifier printed
+was always `hit/1`.
+
+**Every round after the fourth had nothing left to win.** Six tasks, each solved
+once. From round 5 the incumbent already scored 1, so no round in either arm could
+promote (`earnedReason: 'metric-did-not-improve'`), and the count axis read the
+order the arms were dealt as an effect -- "reading promoted 50.0 points and not
+reading 25.0 points". `7850531` stops those rounds counting (a round that could not
+have won is not a round that lost) by folding `beatsIncumbent` into the round and
+requiring it before a round enters an arm's rate. It does not make the probe able to
+answer the question.
+
+`trial-lib5` fixes the arithmetic: every spec grades the whole sheet, so the score
+is `answers right / 16` -- a number that does not depend on which round it is -- and
+the bar rises one answer per task, so each round has exactly one answer of headroom
+over the last. An empty sheet scores 0 and fails all sixteen; three right answers
+score 0.1875 and pass the first three tasks (measured, not asserted).
+
+It also showed the probe was asking the wrong question, and it showed it in the
+first round. Round 1 was an **unread** round (arm `off`, `skipped: 'not-run'`), and
+the worker answered all sixteen correctly: the library is a directory on the same
+disk it is editing, and the task prompt names it. One `grep` over
+`~/.dsh/loom/research/out/work-*.json` returns every id. So a probe whose answers
+live in the library cannot distinguish reading from not reading, no matter how the
+score is computed -- the read arm and the unread arm have the same access, and the
+only difference left is the time the leg spends.
+
+That is a structural conclusion, not a probe to be tuned:
+
+> On a machine where the corpus is readable by the worker, "does reading help?"
+> cannot be answered by a knowledge-difference probe. Both arms can read; only one
+> is charged for it.
+
+So the honest endpoint for this line is the one the ledger already showed: the only
+axis that separates the arms is the clock (`14.76s a round`, interval excluding
+zero), and the count, score and money axes are all `cannot-distinguish` with the
+sample sizes these campaigns can afford. Answering "does reading help?" needs a
+corpus the unread arm *cannot* enumerate -- a question the worker does not know how
+to search for -- and that is a different instrument than an evalset.
