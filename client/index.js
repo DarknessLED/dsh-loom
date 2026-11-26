@@ -1379,6 +1379,22 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The one line the read/do trial gets, if one is running.
+     *
+     * `panelState` has shipped `researchTrial` since `b6258b9` and the panel drew
+     * none of it: the comparison reached the JSON and stopped there, which is the
+     * same failure as a read nobody records -- one level up. The wording is built
+     * server-side in `trialSummary` so the panel and the API cannot disagree about
+     * what "cannot distinguish" means, and this function only decides whether
+     * there is a line to draw.
+     */
+    function trialLine(c) {
+      var r = c && c.trial
+      if (!r || !r.line) return ''
+      return r.line
+    }
+
+    /**
      * The one line a folded campaign row carries.
      *
      * The folded row used to slice `campaignMeta`, which is empty for the most
@@ -3209,6 +3225,9 @@ window.__ModuleLoader__.load({
         // The read leg's counts are the same kind of fact as the round and
         // score figures, so they hang off the same card body.
         var readsText = readsLine(c)
+        // The trial is the comparison the whole read/do work exists to produce;
+        // until this line existed it was shipped and never drawn.
+        var trialText = trialLine(c)
         var chain = chainPath(c.chain)
         var armed = props.confirming === c.id + ':stop'
 
@@ -3441,6 +3460,9 @@ window.__ModuleLoader__.load({
             // campaign's artefacts and verdicts, while these are one leg's
             // measurements, and appending them let a truncated line hide them.
             when(readsText, h('div', { className: 'loom-meta', key: 'reads', title: readsText }, readsText)),
+            // Below the reads line, for the same reason: one trial summary, not
+            // another artefact of the campaign.
+            when(trialText, h('div', { className: 'loom-meta', key: 'trial', title: trialText }, trialText)),
             endLine,
             when(nodeKids.length > 0, h('div', { className: 'loom-chips' }, nodeKids.map(function (chip) {
               return h('span', { key: chip.key, className: 'loom-chip quiet', title: chip.title }, chip.label)

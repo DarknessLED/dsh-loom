@@ -139,7 +139,7 @@
 
 ### panel/
 
-- `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。经验行带 `files`（归组的唯一依据）与 `uses`/`harm`（真的被用上过几次），`lessonsAll` 送整库而不是每战役前三条；旧 lesson 没有 `files` 时，用它 `evidence` 点名的那次 attempt 的 `report.changed` 补上位置。
+- `src/panel/api.js` — 浏览器面板唯一数据源：读物化状态返回 JSON，写操作复用与工具相同的事件追加。读/不读实验（`researchTrial`）自 b6258b9 起就在这份 JSON 里、面板一行没画，所以 `trialSummary(trial)` 把比较折成一行中文（两臂样本与比率、判定词、钱、读耗时）：未开始的实验返回 null 而不是「无差别」，缺失的花费不印成 0——leg 自己的花销不在计价表里，写 0 会被读成「读不要钱」。经验行带 `files`（归组的唯一依据）与 `uses`/`harm`（真的被用上过几次），`lessonsAll` 送整库而不是每战役前三条；旧 lesson 没有 `files` 时，用它 `evidence` 点名的那次 attempt 的 `report.changed` 补上位置。
 - `src/panel/research.js` 调研库的只读门：一条 `kind: 'prefix'` 的 `/dsh-loom/research` 同时服务索引、单方向、单篇三种请求。`summaries` 只数真有人写过 `summary` 的条目（九个库里七个方向是 0，写满就是撒谎）；没有库文件的方向不进索引（列一个空架子等于宣称有覆盖）；`research/out` 不存在时返回 200 空索引而不是 500（"还没建过"是读者的第一个状态，不是错误）；分类由方向文件自己的 `clusters` 关键词对 `title + abstract` 重算（survey 里的 `byCluster` 是序列化的 Map，读回来是空对象，信它会把全部工作塞进一个桶），平局取声明顺序，落空进 `unclustered` 并照常打印；单篇的 `markdown` 直接由 `renderWorkMarkdown` 产出，所以面板和它声称展示的那个文件不会分叉。落空的工作再分一次：标题像技术报告、benchmark、数据集、综述的归 `APPARATUS_LABEL`（apparatus），其余才是 `unclustered`——两者要的反应相反（缺关键词是我们的 bug，技术报告不是），混在一个桶里 r1 有三分之一被印成「没分类」。
 
 ### report/ — 审计与导出

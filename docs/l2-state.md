@@ -1446,3 +1446,35 @@ only", which is the treatment the trial assigns — but the ten rounds are not
 enough to separate 27s from 54s, so what is established is the measurement, not
 the price.
 
+### 2026-11-26: the comparison existed and nobody could see it
+
+`researchTrial` has been in `panelState`'s JSON since `b6258b9`, and
+`rsi_status` since `ce02aa6`. `grep researchTrial client/index.js` returned
+nothing. So the one comparison all of this work exists to produce — does reading
+help, does it cost, is the question even answerable — was computed, shipped,
+and never drawn. That is the same failure as a read nobody records, one level
+up, and it survived four commits because each of them tested the JSON.
+
+What changed:
+
+- `trialSummary(trial)` in `src/panel/api.js` folds the comparison into one line
+  of Chinese: both arms with their rates, the verdict word, the money per round
+  on each arm, and the seconds the leg spent. `panelState` ships it as `trial`.
+- `trialLine(c)` in `client/index.js` draws that line under the reads line, and
+  draws nothing when there is no trial.
+
+Three wordings are deliberate rather than incidental:
+
+1. An undecided trial says 不能区分, never 没有差别. The trial's own sentence has
+   said "not no effect" since `b6258b9`; a panel that shortens it to "no
+   difference" would undo the distinction at the last step.
+2. A missing cost is left out, not printed as `0.00c`. The leg's own spend is not
+   in the pricing table, so a zero there would read as "reading is free" — which
+   is the assumption this whole line exists to test.
+3. An unstarted trial renders no line at all. An empty row reads as "we looked
+   and found nothing", and no arms were assigned.
+
+What this does not claim: that the line is legible on a 320px sidebar (the
+preview fixture has no trial row yet), and nothing about the balance itself —
+the four probes so far have produced ten, twelve, ten and ten rounds with no
+spread, so the panel now shows a comparison that still says it cannot decide.

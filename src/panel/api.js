@@ -140,6 +140,42 @@ export function readSummary(rounds) {
 }
 
 /**
+ * One line for the read/do trial, in the panel's own voice.
+ *
+ * `researchTrial` has been shipped by `panelState` since `b6258b9` and drawn by
+ * nothing: the numbers reached the JSON and stopped. A comparison nobody sees is
+ * the same failure as a read nobody records, one level up.
+ *
+ * The wording follows the trial's own discipline. Overlap is not equality, so an
+ * undecided trial says "不能区分" and never "没有差别"; a missing cost is left out
+ * rather than printed as zero, because the leg's own spend is not in the pricing
+ * table and a zero there would read as "reading is free".
+ *
+ * @returns {{line: string, verdict: string, n: number}|null}
+ */
+export function trialSummary(trial) {
+  if (!trial || typeof trial !== 'object') return null
+  const n = Number(trial.n)
+  if (!Number.isFinite(n) || n <= 0) return null
+  const arms = trial.arms ?? {}
+  const full = arms.full ?? {}
+  const off = arms.off ?? {}
+  const pct = (v) => `${(Number(v) * 100).toFixed(1)}%`
+  const bits = [`读 ${Number(full.n) || 0} 轮 (${pct(full.rate)})`, `不读 ${Number(off.n) || 0} 轮 (${pct(off.rate)})`]
+  const verdict = typeof trial.verdict === 'string' ? trial.verdict : 'cannot-distinguish'
+  const word = verdict === 'full-better' ? '读更强' : verdict === 'off-better' ? '不读更强' : '不能区分'
+  bits.push(word)
+  const costFull = Number(trial.cost?.arms?.full?.mean)
+  const costOff = Number(trial.cost?.arms?.off?.mean)
+  if (Number.isFinite(costFull) && Number.isFinite(costOff)) {
+    bits.push(`钱 ${(costFull * 100).toFixed(2)}c / ${(costOff * 100).toFixed(2)}c`)
+  }
+  const msFull = Number(trial.time?.arms?.full?.mean)
+  if (Number.isFinite(msFull) && msFull > 0) bits.push(`读耗时 ${(msFull / 1000).toFixed(1)}s`)
+  return { line: bits.join(' · '), verdict, n }
+}
+
+/**
  * How long ago a moment was, in milliseconds, or `null`.
  *
  * `updatedAt` is `ev.t`: a number. `Date.parse` of a number is NaN, and a NaN
@@ -285,6 +321,9 @@ function campaignRow(view, now, campaignId, config) {
     // The read/do trial, when one is running: the same comparison `rsi_status`
     // reports, because a person and the loop should not be reading different numbers.
     researchTrial: compareResearchArms({ rounds }),
+    // And the line the panel actually draws: the comparison above was shipped to
+    // the JSON on `b6258b9` and rendered by nothing until now.
+    trial: trialSummary(compareResearchArms({ rounds })),
     open: open.length,
     reviews,
     openCheckpoints: open.map((c) => ({
