@@ -1121,11 +1121,43 @@ genuinely costs money, because some rounds read when they did not need to. What
 it buys is the only number in this document that would be allowed to say whether
 reading helps.
 
-What this does not claim: the trial has been wired but no campaign has run under
-it yet, so the comparison currently reports "the trial has not started". A trial
-over a four-task probe will answer a question about that probe; whether reading
-pays on real work needs real tasks, and the arms have to be large enough for the
-MDE to be smaller than the effect anyone cares about.
+The first campaign under it is `trial-live` (four tasks, `researchMode: trial`,
+`budgetUsd 3`, eight rounds allowed). Four rounds ran before it stopped, and each
+one took the arm `assignArm` says it should:
+
+| round | arm | read | passages | used | skipped | s | cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | off | 0 | 0 | — | not-run | — | $0.008291 |
+| 2 | full | 0 | 0 | — | leg-timeout | 90.4 | $0.008226 |
+| 3 | off | 0 | 0 | — | not-run | — | $0.006747 |
+| 4 | full | 2 | 4 | false | — | 17.3 | $0.009859 |
+
+`compareResearchArms` over those four rounds: two per arm, both arms 2/2
+promoted, `delta 0`, `mde 0.9905`, `verdict "cannot-distinguish"`, and the
+sentence `4 assigned rounds (2 reading, 2 not): too few in an arm to read a
+direction yet`. Cost per round $0.0090425 reading against $0.007519 not.
+
+Three things that table says, none of which is "reading does not help":
+
+- **The timeout is a reading cost.** Round 2 was assigned to read and spent 90.4
+  seconds before `withDeadline` cut the leg off at the configured
+  `research.timeoutMs`; it read zero pages. A paid read that returns nothing is
+  the arm's worst case, and it happened on the first pair.
+- **Two rounds an arm is not a sample.** The MDE at n=4 is 0.99 — the arms would
+  have to differ by more than a full point of pass rate. Saying "cannot
+  distinguish" here is the honest sentence, and it stays honest until the arms
+  are big enough for the MDE to sit below the effect anyone cares about.
+- **Cost did not fall.** $0.00904 against $0.00752 per round is consistent with
+  reading costing about a cent and a half a round; the difference is inside the
+  noise of four rounds. The leg's own `costUsd` is still 0 because `ctx.web` is
+  not in the pricing table, so the arm cost above is *round* cost, not leg cost.
+
+What this does not claim: four rounds on a four-task probe say nothing about
+whether reading pays on real work. What they do establish is that the arm is
+assigned before the round runs, that the assignment survives the fold, and that
+the comparison is recomputable from the ledger — which is what a trial needs
+before its numbers can mean anything. A bigger campaign has to run before this
+document is allowed to report a direction.
 
 - **Reading rounds promote less often, and that sentence is not a finding.**
   Re-counted over every campaign on 2026-11-26: 19 rounds that were allowed to

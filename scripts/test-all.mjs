@@ -440,6 +440,10 @@ const standing = [
   // assigned before the round, and the comparison that reads the arms back.
   'tests/self57/the-balance-is-measured-not-ruled.test.mjs',
   'tests/self57/the-trial-reaches-the-round.test.mjs',
+  // A comparison nobody can see is a comparison nobody corrects: the trial has
+  // to survive the compact view and the single-campaign status path, or the
+  // number only exists in the ledger.
+  'tests/self57/the-status-shows-the-trial.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

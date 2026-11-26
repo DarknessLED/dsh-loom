@@ -368,6 +368,9 @@ export function registerTools(ctx, { runtime, config }) {
       // The open questions are the part that would otherwise be lost, so they
       // get a line of their own next to the lessons.
       const research = researchDigest(runtime.home)
+      // Computed once: assigning the arm and comparing the arms are the two
+      // halves of the same question, and reading it twice invites drift.
+      const researchTrial = compareResearchArms({ rounds: state?.rounds ?? [] })
       const out = compactStatus(
         {
           ...view,
@@ -382,6 +385,10 @@ export function registerTools(ctx, { runtime, config }) {
           // How well the forecasts have held so far, in the same view as the
           // chain they came from. The graded records stay under chain.measurements.
           calibration: summarizeCalibration(state?.chain?.measurements ?? []),
+          // The trial's comparison belongs next to the calibration for the same
+          // reason: both are what the campaign learnt about its own readings, and
+          // a number nobody can see is a number nobody corrects.
+          ...(researchTrial.n ? { researchTrial } : {}),
           research,
           live: runtime.liveAttempts(),
           pendingReviews: pending,
