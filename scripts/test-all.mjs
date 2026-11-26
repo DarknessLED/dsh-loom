@@ -448,6 +448,10 @@ const standing = [
   // sample it had, and a cap that cancelled an assigned read.
   'tests/self57/the-mde-is-per-arm-not-per-campaign.test.mjs',
   'tests/self57/an-assigned-read-is-not-capped.test.mjs',
+  // Counting promotions needs hundreds of rounds; where the verifier printed a
+  // rate, every round carries a number. The finer reading must be reported, and
+  // a 0/1 score must not be averaged as if it were one.
+  'tests/self57/a-continuous-reading-beats-a-coin-flip.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

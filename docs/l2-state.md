@@ -1191,6 +1191,40 @@ that still counts in the reading arm, which moves the estimate toward zero
 without leaving a record that a treatment was missing. `legBudget` now returns
 `buy: true` for `trial` and the cap stays in force for the other modes.
 
+### 2026-11-26: the trial was counting coin flips while the loop printed rates
+
+Both probes promoted every round, so the trial's only reading was 4/4 against
+4/4 and the honest answer was "cannot distinguish". That is not a property of
+reading; it is a property of counting. A promotion is a 0/1 outcome, and a
+proportion needs hundreds of rounds before it can resolve ten points — at eight
+rounds the floor is 0.99, i.e. the trial would only see a difference if one arm
+promoted everything and the other nothing.
+
+The loop already records a number per round. `round.finished.score` carries the
+kill rate whenever the verifier printed one, and `scoreSource` says where it came
+from. Throwing that away to count coin flips is the mistake R2 names: a binary
+verdict is a lossy readout of a number the verifier already produced.
+
+`compareResearchArms` now reports both readings. The count stays — a campaign
+where nothing was solved is not a campaign whose scores mean anything — and
+alongside it `score` reports each arm's mean, the mean difference, its interval,
+and the floor that difference had to clear. Three rules make it honest:
+
+- A round with no finite score is left out, never read as zero.
+- A score whose `scoreSource` is `binary` is left out too: it *is* a 0/1 verdict
+  wearing a number, and averaging it invents precision the verifier never
+  printed.
+- Zero spread across an arm returns a zero-width interval with the floor set to
+  the effect itself, rather than the infinite sensitivity a zero standard error
+  would imply.
+
+`trial8-live`'s eight rounds all scored 1.0, so the score reading returns null on
+that campaign by its own third rule — the fix does not retroactively make four
+rounds informative. What it changes is what the next campaign can answer: the
+same eight rounds, if their scores had been 0.9/0.8/0.85 against 0.4/0.5/0.45,
+would have come back `full-better` with an interval excluding zero, where the
+count alone still says "cannot distinguish".
+
 What this does not claim: four rounds on a four-task probe say nothing about
 whether reading pays on real work. What they do establish is that the arm is
 assigned before the round runs, that the assignment survives the fold, and that
