@@ -432,6 +432,9 @@ const standing = [
   // 37 of 37 live rounds asked the ledger, 27 of them recorded `used: false`,
   // and the questions were about our loop while the tasks were integer sums.
   'tests/self57/a-question-about-another-problem-is-not-this-round-s-question.test.mjs',
+  // Both outcome readings went blind on `trial-agg` (10 rounds, every one
+  // promoted at 1.0); the arms still differed by six tenths of a cent a round.
+  'tests/self57/a-trial-can-weigh-money-not-just-wins.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

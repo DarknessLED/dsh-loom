@@ -128,6 +128,84 @@ function compareArmScores({ full, off, alpha }) {
 }
 
 /**
+ * Compare two independent arms on what a round costs.
+ *
+ * Outcome is not the only half of the balance. Measured 2026-11-26 on
+ * `trial-agg`, the hardest endpoint in this series: 10 rounds, 6 reading and 4
+ * not, every one promoted at score 1.0000. Both outcome readings were blind --
+ * the count because both arms were 100%, the mean score because both arms had
+ * zero spread -- and the trial's own sentence said so: "the endpoint did not
+ * move". Money did move: $0.0106 a round reading against $0.0100 not, over the
+ * same ten rounds.
+ *
+ * "Bought nothing visible at six tenths of a cent a round" is a claim a person
+ * can act on, and it stays measurable when the endpoint saturates. So this
+ * reads the same two arms on `costUsd` with the same discipline as the score
+ * axis: a spread, an interval, a floor, and no direction named from overlap.
+ *
+ * A round with no recorded cost is excluded rather than counted as free. The
+ * 18 zero-cost rounds in the ledger are all from November 7-11, before the
+ * fallback pricing was wired, and treating them as zero would make an early
+ * campaign look like the cheapest one ever run.
+ *
+ * @param {{full?: Array<object>, off?: Array<object>, alpha?: number}} input
+ * @returns {{basis:string, arms:object, delta:number, interval:object, mde:number,
+ *            verdict:'reading-costs-more'|'reading-costs-less'|'cannot-distinguish',
+ *            sentence:string}|null}
+ */
+export function compareArmCost({ full = [], off = [], alpha = 0.05 } = {}) {
+  const clean = (list) => list.filter((r) => Number.isFinite(r?.costUsd)).map((r) => Number(r.costUsd))
+  const a = clean(full)
+  const b = clean(off)
+  // One round is a price, not a distribution; an interval from it would be a
+  // zero-width claim of certainty.
+  if (a.length < 2 || b.length < 2) return null
+  const mean = (xs) => xs.reduce((t, x) => t + x, 0) / xs.length
+  const sd = (xs) => {
+    const m = mean(xs)
+    return Math.sqrt(xs.reduce((t, x) => t + (x - m) ** 2, 0) / (xs.length - 1))
+  }
+  const meanA = mean(a)
+  const meanB = mean(b)
+  const delta = meanA - meanB
+  const se = Math.sqrt(sd(a) ** 2 / a.length + sd(b) ** 2 / b.length)
+  const z = zFor(alpha)
+  const arms = {
+    full: { n: a.length, mean: round6(meanA), sd: round6(sd(a)) },
+    off: { n: b.length, mean: round6(meanB), sd: round6(sd(b)) },
+  }
+  const basis = 'cost per round'
+  const cents = (v) => `${(v * 100).toFixed(2)}c`
+  // No spread: pricing can be flat across a campaign, so this is not the
+  // "infinite sensitivity" trap the score axis refuses -- it is a real fact
+  // about a price list. The direction is still named only if the two arms
+  // differ, and the sentence says there is no interval to report.
+  if (!(se > 1e-12)) {
+    const moved = Math.abs(delta) > 1e-12
+    return {
+      basis,
+      arms,
+      delta: round6(delta),
+      interval: { low: round6(delta), high: round6(delta) },
+      mde: round6(Math.abs(delta)),
+      verdict: moved ? (delta > 0 ? 'reading-costs-more' : 'reading-costs-less') : 'cannot-distinguish',
+      sentence: moved
+        ? `every round in each arm cost the same: reading costs ${cents(Math.abs(delta))} more per round than not reading, with no spread in either arm, so the floor is the difference itself.`
+        : `every round in both arms cost the same: there is nothing to compare.`,
+    }
+  }
+  const mde = (z + powerZ(0.8)) * se
+  const interval = { low: round6(delta - z * se), high: round6(delta + z * se) }
+  let verdict = 'cannot-distinguish'
+  if (Math.abs(delta) >= mde && interval.low > 0) verdict = 'reading-costs-more'
+  else if (Math.abs(delta) >= mde && interval.high < 0) verdict = 'reading-costs-less'
+  const sentence = verdict === 'cannot-distinguish'
+    ? `reading cost ${cents(meanA)} a round and not reading ${cents(meanB)} over ${a.length} and ${b.length} rounds; this sample could resolve ${cents(mde)}, so the difference is below what it can see. Overlapping prices are not the same price.`
+    : `reading costs ${cents(Math.abs(delta))} ${verdict === 'reading-costs-more' ? 'more' : 'less'} per round (${cents(meanA)} against ${cents(meanB)}); the interval excludes zero and the gap is above the ${cents(mde)} floor.`
+  return { basis, arms, delta: round6(delta), interval, mde: round6(mde), verdict, sentence }
+}
+
+/**
  * Compare the two arms of a randomised read/do trial.
  *
  * @param {{rounds?: Array<object>, alpha?: number}} input
@@ -186,8 +264,34 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
       : verdict === 'cannot-distinguish'
         ? `${n} assigned rounds: reading promoted ${pct(full.rate)} and not reading ${pct(off.rate)} (delta ${pct(delta)}); this design could resolve ${pct(mde)}, so the difference is below what ${n} rounds can see. Not "no effect".`
         : `${verdict === 'full-better' ? 'reading' : 'not reading'} promoted ${pct(Math.abs(delta))} more often over ${n} assigned rounds (${full.promoted}/${full.n} against ${off.promoted}/${off.n}); the arms' intervals do not overlap and the gap is above the ${pct(mde)} floor.`
-  // When both readings exist, the sentence says which one it is quoting: two
-  // numbers answering different questions must not be printed as one voice.
-  const spoken = score && score.verdict !== 'cannot-distinguish' ? score.sentence : sentence
-  return { n, arms: { full, off }, delta, mde, verdict, sentence: spoken, ready, score }
+  // Cost is the second half of the balance. When neither outcome reading can
+  // name a direction -- which is what happens on an endpoint every round
+  // saturates -- "reading bought nothing visible and cost six tenths of a cent
+  // more a round" is still a claim the trial can support.
+  const cost = compareArmCost({
+    full: list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === 'full'),
+    off: list.filter((r) => (r.researchTrial?.arm ?? r.research?.arm) === 'off'),
+    alpha,
+  })
+  // When more than one reading exists, the sentence says which one it is
+  // quoting: numbers answering different questions must not be printed as one
+  // voice. A decided outcome outranks cost, because a win is what a person is
+  // asking about first; cost speaks when the outcome is blind.
+  const decided = (cmp) => Boolean(cmp) && cmp.verdict !== 'cannot-distinguish'
+  // Blind everywhere: then say what each arm cost, because "this design could
+  // resolve 90 points" without the price leaves a reader unable to judge the
+  // one thing they can act on today. The count sentence is kept, with the cost
+  // appended, rather than replaced -- hiding the sample size to fit a price in
+  // would be the same error in the other direction.
+  const blindCost = cost && !decided(cost) && Number.isFinite(cost.arms?.full?.mean)
+    ? ` Reading cost ${(cost.arms.full.mean * 100).toFixed(2)}c a round and not reading ${(cost.arms.off.mean * 100).toFixed(2)}c.`
+    : ''
+  const spoken = decided(score)
+    ? score.sentence
+    : decided({ verdict: verdict, sentence }) && ready
+      ? sentence
+      : decided(cost)
+        ? cost.sentence
+        : sentence + blindCost
+  return { n, arms: { full, off }, delta, mde, verdict, sentence: spoken, ready, score, cost }
 }
