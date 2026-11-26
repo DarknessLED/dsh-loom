@@ -1712,3 +1712,10 @@ What this does not claim: that the library is a substitute for the web. It is
 153 works of one research programme, searched by word overlap — a question
 phrased differently from the record's own words will miss. The two are ranked,
 not merged: library first, web second, and the record says which one answered.
+
+The first version of this read `runtime.home` — `~/.dsh/loom`, which on this
+install holds ledgers and leases and no `research/out` at all. A leg with no
+library looks exactly like a leg that chose not to read, so the fix would have
+shipped invisible. The round now looks in the campaign's workspace first and the
+loom home second, and `the-round-can-read-the-library` pins the workspace case
+separately from the pinned-copy case.

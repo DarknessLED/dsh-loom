@@ -1586,7 +1586,14 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
       // bytes; the same read through `ctx.web` costs a network round trip and a
       // 404 rate high enough that four of nine gap rounds read nothing at all
       // (2026-11-26 audit).
-      const library = localLibrary(runtime.home) 
+      // Where the records are: the campaign's workspace, then the loom home.
+      // Reading `runtime.home` alone finds nothing on this install (`~/.dsh/loom`
+      // holds ledgers, not `research/out`), and a leg with no library is
+      // indistinguishable from a leg that preferred the web.
+      const library = [
+        ...localLibrary(state.workspace),
+        ...localLibrary(runtime.home),
+      ]
       const source = preferredSource({ library, web: svc(runtime.ctx, 'web') })
       const canSearch = library.length > 0 || Boolean(svc(runtime.ctx, 'web')?.search)
       const lastRound = (state.rounds || []).filter((r) => r && r.taskId === task.id).at(-1) ?? null

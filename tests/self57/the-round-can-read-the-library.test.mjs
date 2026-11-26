@@ -128,6 +128,30 @@ ok('reading the library costs no measurable wall clock', async () => {
   assert.ok(finished.research.ms < 1000, `expected a local read, took ${finished.research.ms} ms`)
 })
 
+ok('the library is found where the campaign works, not where the loop lives', async () => {
+  // `runtime.home` is `~/.dsh/loom`; the records are in the repository the
+  // campaign edits. Reading the wrong one is indistinguishable from having no
+  // library at all, which is the bug this whole section is about.
+  const repo = makeRepo()
+  const out = join(repo, 'research', 'out')
+  mkdirSync(out, { recursive: true })
+  writeFileSync(join(out, 'work-r10-eval-budget.json'), JSON.stringify(WORK, null, 1))
+  const tasks = [{ id: 't-one', prompt: PROMPT, verify: { cmd: `"${process.execPath}" -e "process.exit(0)"` } }]
+  const made = makeRuntime({ repo, tasks, spec: chainSpec() })
+  made.runtime.ctx = {}
+  await runRound({
+    runtime: made.runtime,
+    view: made.view,
+    config: baseConfig({ research: { enabled: true, depth: 'quick', fetchTop: 2 } }),
+    dispatcher: fakeDispatcher([], () => REPORT),
+    log: () => {},
+    notify: () => {},
+  })
+  const finished = made.runtime.events.filter((e) => e.type === 'round.finished').pop()?.data
+  assert.equal(finished?.research?.source, 'library', 'the workspace library answered')
+  assert.ok(finished.research.read >= 1)
+})
+
 ok('with no library and no web the round still finishes and says why', async () => {
   const empty = mkdtempSync(join(tmpdir(), 'loom-nolib-'))
   const { finished } = await roundWith({ root: empty, web: null })
