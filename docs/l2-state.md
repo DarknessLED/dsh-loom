@@ -1573,3 +1573,34 @@ What this does not claim: that `trial-prose` now promotes. The six refused
 rounds are ledger history; the campaign was built on code that predates this
 fix, and a probe that has been answered cannot be re-asked without starting a
 new campaign with a new id.
+
+### 2026-11-26: the same probe, re-asked on the fixed code
+
+`trial-prose2` is `trial-prose` started again on `f22c985`, with the same ten
+tasks, the same verifier and the same policy (`researchMode: 'trial'`). The
+only thing that changed is the gate's ability to tell an instrument from an
+artefact.
+
+Ten rounds, ten promotions, every round `score: 1`, `oracleInBase: true`,
+`earnedReason: red-to-green`. The fourteen refusals in `trial-prose` were
+entirely the instrument/artefact confusion: same tasks, same worker, same
+command shape, opposite outcome.
+
+That also closes the last thing the trial was waiting for and leaves it where
+it was: with every round at ceiling in both arms, `compareResearchArms` reports
+`delta 0.0`, `mde 90.4`, `cannot-distinguish` over 6 reading and 4 not. The
+endpoint is saturated, so the per-round score axis still has no spread to read
+— which is a fact about the task distribution, not about reading.
+
+What the ten rounds do measure, because both axes are computed from the same
+rounds:
+
+| axis | reading | not reading | verdict |
+| --- | --- | --- | --- |
+| promotions | 6/6 | 4/4 | cannot distinguish (floor 90.4 points) |
+| round cost | 1.12c | 0.88c | cannot distinguish |
+| leg time | 23.1s | 0s | reading costs more |
+
+What this does not claim: that reading is useless. Three axes over ten rounds
+cannot see an effect smaller than 90 points, and the only axis that separates
+at this sample size is the clock — which was never in doubt.
