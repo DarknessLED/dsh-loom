@@ -1674,3 +1674,41 @@ beat the arm that does not; the endpoint sits at the ceiling in both. What the
 trial needs next is not more rounds of the same shape, but a task whose answer
 is *not in the workspace*, so that reading has something to contribute — a
 positive control for the mechanism itself.
+
+### 2026-11-26: the loop had a library and searched the web
+
+The complaint was exact — "你有好久没有调研了。我们内部的调研系统不是做好了吗" — and
+the audit found it structural, not habitual: `src/runtime/round.js` called
+`svc(runtime.ctx, 'web')` and nothing else. There was no code path by which the
+reading leg could open the repository's own library.
+
+The cost showed up in the ledger, not in an opinion. Asked "when a measurement
+is too noisy to justify a decision", the public search answered with a
+conference PDF, a Korean book site and three 404s (`trial-prose3` rounds 2 and
+4). Four of the nine gap rounds in the 2026-11-26 audit read *nothing at all*.
+And the loop had 153 structured records — abstract, verbatim mechanism quotes
+with §-locators, readers' caveats — sitting in `research/out`.
+
+`src/research/local-index.js` makes that library a search source with the shape
+`runResearch` already takes, and `preferredSource` prefers it: a question the
+library can answer never goes to the network, a question it cannot still does.
+The round records `research.source` (`library` / `web` / `none`), so "read two
+pages" and "read two pages of the repository's own library" stop being the same
+sentence.
+
+Measured in a real round (library present, no web service at all):
+
+```
+{"mode":"full","question":"how a promotion gate should use a budget of evidence",
+ "from":"task","queries":1,"sources":1,"read":1,"passages":1,
+ "ms":5,"costUsd":0,"used":false,"source":"library"}
+```
+
+Five milliseconds against the 17–27 seconds a web leg costs a round. The
+`used: false` is honest and expected here: the probe task is solvable without
+help, which is the ceiling problem the last three sections describe.
+
+What this does not claim: that the library is a substitute for the web. It is
+153 works of one research programme, searched by word overlap — a question
+phrased differently from the record's own words will miss. The two are ranked,
+not merged: library first, web second, and the record says which one answered.

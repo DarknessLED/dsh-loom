@@ -462,6 +462,10 @@ const standing = [
   // writing toolkit, a Scratch course and three dead PDFs. The subject after
   // "about" is the question; the rest is housekeeping.
   'tests/self57/the-question-is-the-subject-not-the-brief.test.mjs',
+  // The loop had a 153-work library and read the public web instead. These pin
+  // the index and the round that now prefers it.
+  'tests/self57/the-loop-reads-its-own-library.test.mjs',
+  'tests/self57/the-round-can-read-the-library.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

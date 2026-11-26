@@ -44,6 +44,7 @@ import { runTaskLeanGate, leanSpecOf } from '../lean/task.js'
 import { effectivePolicy } from '../loop/policy.js'
 import { pickTask } from './selector.js'
 import { findingsFrom, legBudget, questionFor, reachedFor, reflectOnQuestions, researchSketch, withDeadline } from './research-leg.js'
+import { localLibrary, preferredSource } from '../research/local-index.js'
 import { assignArm } from '../loop/research-trial.js'
 import { runResearch } from '../research/run.js'
 import { parkQuestion, recordQuestionRead, researchQuestions } from '../research/questions.js'
@@ -1579,8 +1580,15 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   if (researchMode !== 'off' && legAllowance.buy) {
     const researchStartedAt = Date.now()
     try {
-      const web = svc(runtime.ctx, 'web')
-      const canSearch = web && typeof web.search === 'function'
+      // The library first: it is free, deterministic, and already in the tree.
+      // The web is the fallback, not the default. A round that read two pages
+      // from `research/out` cost nothing and can be re-derived from committed
+      // bytes; the same read through `ctx.web` costs a network round trip and a
+      // 404 rate high enough that four of nine gap rounds read nothing at all
+      // (2026-11-26 audit).
+      const library = localLibrary(runtime.home) 
+      const source = preferredSource({ library, web: svc(runtime.ctx, 'web') })
+      const canSearch = library.length > 0 || Boolean(svc(runtime.ctx, 'web')?.search)
       const lastRound = (state.rounds || []).filter((r) => r && r.taskId === task.id).at(-1) ?? null
       let ledger = []
       try {
@@ -1610,8 +1618,12 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             fetchTop: Number.isFinite(Number(config.research?.fetchTop)) ? Number(config.research.fetchTop) : 2,
           },
           {
-            search: (query, opts) => web.search({ query, maxResults: Math.max(1, Number(opts?.maxResults) || 8) }),
-            fetchPage: (url) => web.fetch({ url }),
+            // Positional, because `preferredSource` wraps both call sites that
+            // already exist: `runResearch` calls `search(query, opts)` and reads
+            // `res.sources`; a provider answers `{results}`. Adapting here keeps
+            // the adapter honest instead of guessing on every call.
+            search: (query, opts) => source.search(query, { maxResults: Math.max(1, Number(opts?.maxResults) || 8) }),
+            fetchPage: (url) => source.fetchPage(url),
           },
         ), legTimeout)
         // A leg that ran out of clock and a leg that broke are different facts;
@@ -1626,6 +1638,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           from: asked.from,
           ms: Date.now() - researchStartedAt,
         })
+        // Which source answered, so "read two pages" can be told apart from
+        // "read two pages of the repository's own library".
+        research.source = source.source()
       }
     } catch (err) {
       research = researchSketch(
