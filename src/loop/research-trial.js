@@ -386,3 +386,69 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
         : sentence + blindCost
   return { n, arms: { full, off }, delta, mde, verdict, sentence: spoken, ready, score, cost, time }
 }
+
+/**
+ * The trial, read across every campaign that ever assigned an arm.
+ *
+ * The assignment is per campaign, so a single campaign answers the read/do
+ * question with a handful of rounds an arm: `trial-agg` 6/4, `trial-fine` 4/6,
+ * `trial-partial` 6/4, `trial-var` 6/4, `trial8-live` 4/4, `trial-live` 2/2.
+ * Each of them says "cannot distinguish", correctly, and six correct silences
+ * add up to a loop that has bought 52 assigned rounds and learned nothing --
+ * because nothing ever added the rounds together.
+ *
+ * What pooling can and cannot buy: it buys sample size, it does not buy one
+ * experiment. Different campaigns ran different task sets, and a round in one
+ * is not a replication of a round in another. So the caveat travels with the
+ * number rather than living in a document nobody reads when they quote it.
+ *
+ * @param {{id: string, rounds: object[]}[]} campaigns
+ * @returns {{n: number, arms: object, verdict: string, sentence: string, caveat: string, campaigns: object[]}}
+ */
+export function compareResearchFleet(campaigns = []) {
+  const CAVEAT =
+    'Pooled across campaigns, so this buys sample size and not one experiment: different task sets, ' +
+    'not one long campaign. Treat a direction here as a hypothesis the next campaign can test, never as a result.'
+  const per = []
+  const pooled = []
+  for (const entry of Array.isArray(campaigns) ? campaigns : []) {
+    if (!entry || typeof entry !== 'object') continue
+    const rounds = Array.isArray(entry.rounds) ? entry.rounds : []
+    const assigned = rounds.filter((r) => (r?.researchTrial?.arm ?? r?.research?.arm) === 'full' || (r?.researchTrial?.arm ?? r?.research?.arm) === 'off')
+    if (assigned.length === 0) continue
+    const cmp = compareResearchArms({ rounds: assigned })
+    per.push({
+      id: String(entry.id ?? ''),
+      n: cmp.n,
+      arms: { full: { n: cmp.arms.full.n }, off: { n: cmp.arms.off.n } },
+      verdict: cmp.verdict,
+      sentence: cmp.sentence,
+    })
+    for (const r of assigned) pooled.push(r)
+  }
+  if (pooled.length === 0) {
+    return {
+      n: 0,
+      arms: { full: { n: 0 }, off: { n: 0 } },
+      verdict: 'cannot-distinguish',
+      sentence: 'no campaign has assigned an arm yet: the trial has not started',
+      caveat: CAVEAT,
+      campaigns: [],
+    }
+  }
+  const cmp = compareResearchArms({ rounds: pooled })
+  return {
+    n: cmp.n,
+    arms: cmp.arms,
+    delta: cmp.delta,
+    mde: cmp.mde,
+    ready: cmp.ready,
+    verdict: cmp.verdict,
+    sentence: cmp.sentence,
+    caveat: CAVEAT,
+    score: cmp.score,
+    cost: cmp.cost,
+    time: cmp.time,
+    campaigns: per,
+  }
+}

@@ -543,3 +543,38 @@ export function oraclePathsFor(spec, opts) {
 }
 
 export const _internal = { INTERPRETER, TAKES_VALUE, withinRoot, join, sep }
+
+/**
+ * Which of the files a round created are instruments, rather than the subject.
+ *
+ * The base-existence rule (`oracleInBase === false` -> `oracle-absent-at-base`)
+ * exists so that a candidate cannot create the file that judges it. That rule
+ * was applied to every path in the verifier command, and a verifier normally
+ * names its subject on the command line: `node check.mjs design-note-0.md`
+ * names the instrument and the artefact in the same breath, so the round that
+ * created `design-note-0.md` was refused for creating an instrument it did not
+ * create.
+ *
+ * A file is an instrument when its extension is one this repository runs
+ * (`.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.jsx`, `.mts`, `.cts`, `.py`, `.sh`).
+ * Everything else -- `.md`, `.txt`, `.json`, a bare name -- is the thing an
+ * instrument was pointed at. Guessing the other way ("an extensionless file
+ * might be a script") would refuse every task whose verifier reads a file
+ * called `input`, which is a larger error than the one being fixed.
+ */
+const INSTRUMENT_EXT = new Set([...SCRIPT_EXT, '.py', '.sh', '.bash', '.ps1'])
+
+export function createdInstruments(created, oraclePaths) {
+  const list = Array.isArray(created) ? created : []
+  const known = new Set(Array.isArray(oraclePaths) ? oraclePaths : [])
+  return list
+    .map((p) => String(p ?? '').replace(/\\/g, '/'))
+    .filter((p) => p !== '' && known.has(p) && isInstrumentPath(p))
+}
+
+export function isInstrumentPath(p) {
+  const base = p.split('/').pop() ?? ''
+  const dot = base.lastIndexOf('.')
+  if (dot <= 0) return false
+  return INSTRUMENT_EXT.has(base.slice(dot).toLowerCase())
+}

@@ -1478,3 +1478,93 @@ What this does not claim: that the line is legible on a 320px sidebar (the
 preview fixture has no trial row yet), and nothing about the balance itself —
 the four probes so far have produced ten, twelve, ten and ten rounds with no
 spread, so the panel now shows a comparison that still says it cannot decide.
+
+### 2026-11-26: six correct silences add up to nothing
+
+The trial is assigned per campaign, which is the right unit for a loop that runs
+campaigns — and the wrong unit for a question that needs sample size. Every
+probe so far reported a correct "cannot distinguish" over four to six rounds an
+arm:
+
+| campaign | reading | not reading | verdict | floor it could resolve |
+| --- | --- | --- | --- | --- |
+| trial-live | 2 | 2 | cannot distinguish | 100 points |
+| trial8-live | 4 | 4 | cannot distinguish | 99.1 points |
+| trial-agg | 6 | 4 | cannot distinguish | 90.4 points |
+| trial-fine | 4 | 6 | cannot distinguish | 90.4 points |
+| trial-partial | 6 | 4 | cannot distinguish | 90.4 points |
+| trial-var | 6 | 4 | cannot distinguish | 90.4 points |
+
+Six correct silences, 52 assigned rounds, nothing learned — because no surface
+ever added them up. `compareResearchFleet(campaigns)` now pools every campaign
+that assigned an arm. On the ledger as it stands:
+
+- 56 assigned rounds (30 reading, 26 not), reading promoted 93.3 points and not
+  reading 92.3 points, delta 1.0 point.
+- The pooled design resolves 37.5 points, so the difference is below what 56
+  rounds can see. Not "no effect".
+- Reading cost 0.92c a round and not reading 0.93c — the money axis is flat,
+  because the leg's own spend is not in the pricing table.
+- The leg spent 16.6s a round reading, which is the one price that *is* measured
+  (`reading-costs-more`, 16.6s against 0s), and the only one a person can act on
+  today.
+
+What pooling buys and what it does not: it buys sample size, it does not buy one
+experiment. The six campaigns ran different task sets, so a round in one is not
+a replication of a round in another, and `compareResearchFleet` returns that
+sentence as `caveat` rather than leaving it in a document. Both `rsi_dashboard`
+and `panelState.fleet` print the caveat beside the number, because a pooled rate
+quoted without it is a result the loop does not have.
+
+What this does not claim: that 1.0 point is the effect (it is what 56 rounds
+show, and the floor is 37.5), and nothing about whether the six task sets are
+comparable at all — that question needs the same tasks under both arms in one
+campaign, which is what `trial-prose` was started to do.
+
+### 2026-11-26: a correct answer refused six times, for creating the file it was asked to create
+
+`trial-prose` was built to answer the question six previous probes could not:
+whether reading before writing changes a score. Its ten tasks ask for a design
+note that satisfies twelve rules at once, so the answer is a judgement rather
+than an arithmetic — and the first six rounds all came back correct.
+
+All six were refused. `verifierOk: true`, `score: 1`, `beatsIncumbent: true`,
+`promoted: false`, and one reason in every round:
+
+```
+oracleInBase: false
+oracleCreated: ["design-note-0.md"]
+earnedReason: "oracle-absent-at-base"
+```
+
+The rule that produced it is right in general: a round that creates the file
+that judges it must not be promoted, because then the candidate wrote its own
+verdict. The rule is asked as "did every file named by the command exist at the
+base commit", and this verifier names its subject on the command line —
+`node check.mjs design-note-0.md`. `check.mjs` was there at base; the note was
+what the round was told to write. The gate could not tell the instrument from
+the thing the instrument was pointed at, so it refused the task as posed, six
+times, while reporting the round as a loss.
+
+Two fixes, both small:
+
+- `createdInstruments(created, oraclePaths)` keeps only created files whose
+  extension is one this repository runs (`.js/.mjs/.cjs/.ts/.tsx/.jsx/.mts/.cts/.py/.sh/.bash/.ps1`).
+  A `.md`, a `.txt`, a `.json`, or a bare name is the artefact, not the
+  instrument. Guessing the other way — "an extensionless file might be a
+  script" — would refuse every task whose verifier reads a file called `input`,
+  which is the larger error.
+- The base-existence question is now asked only about instruments. An artefact
+  is absent at base by definition, so an unfiltered count could never be
+  all-present, and `oracleInBase` read `null` on every such round even when the
+  instrument had been there all along.
+
+The spec that pins it (`a-round-that-creates-its-artefact-is-not-refused`) was
+verified red without the fix — `the instrument existed at base`, `null !== true`
+— and green with it, in the same run as a second case that keeps the original
+protection: a round that really does create `check.mjs` is still refused.
+
+What this does not claim: that `trial-prose` now promotes. The six refused
+rounds are ledger history; the campaign was built on code that predates this
+fix, and a probe that has been answered cannot be re-asked without starting a
+new campaign with a new id.

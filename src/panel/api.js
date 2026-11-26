@@ -8,7 +8,7 @@ import { activeChain, policyFor } from '../runtime/round.js'
 import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
-import { compareResearchArms } from '../loop/research-trial.js'
+import { compareResearchArms, compareResearchFleet } from '../loop/research-trial.js'
 import { panelRoute } from './route.js'
 
 /**
@@ -359,10 +359,15 @@ export function panelState({ runtime, config } = {}) {
   const now = Date.now()
   const ids = runtime.listCampaigns()
   const rows = []
+  // The trial is assigned per campaign, so no single campaign can answer it:
+  // six correct "cannot distinguish" verdicts add up to 52 assigned rounds and
+  // no reading. Keep the rounds aside so the fleet comparison can add them.
+  const fleetRounds = []
   for (const id of ids) {
     try {
       const view = typeof runtime.get === 'function' ? runtime.get(id) : runtime.open(id)
       rows.push(campaignRow(view, now, id, config))
+      fleetRounds.push({ id, rounds: view?.state?.rounds ?? [] })
     } catch (err) {
       rows.push({ id, error: String(err?.message ?? err) })
     }
@@ -408,6 +413,9 @@ export function panelState({ runtime, config } = {}) {
   const planOn = settings.plan === null ? config?.loopPolicy?.planMode === 'full' : settings.plan === true
   return {
     campaigns: rows,
+    // The read/do trial across campaigns. Its `caveat` travels with the number:
+    // pooling buys sample size and not one experiment.
+    fleet: compareResearchFleet(fleetRounds),
     live,
     planning: { on: planOn, at: settings.at ?? null, by: settings.plan === null ? 'config' : settings.by ?? 'human', reason: settings.reason ?? null },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },

@@ -12,7 +12,7 @@ import { compareChains, coverage } from '../chain/evidence.js'
 import { proposeMutations } from '../chain/mutate.js'
 import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision-effects.js'
 import { summarizeCalibration } from '../chain/predict.js'
-import { compareResearchArms } from '../loop/research-trial.js'
+import { compareResearchArms, compareResearchFleet } from '../loop/research-trial.js'
 import { applyPatch, reversePatch } from '../exec/patch.js'
 import { commitWorkspace } from '../exec/worktree.js'
 import { runVerifier } from '../exec/verifier.js'
@@ -1173,9 +1173,14 @@ export function registerTools(ctx, { runtime, config }) {
       }
       const live = runtime.liveAttempts()
       const rows = []
+      // The read/do assignment is per campaign, so no single campaign can answer
+      // it: six correct "cannot distinguish" verdicts add up to 52 assigned
+      // rounds and no reading. The rounds are kept so the board can add them up.
+      const fleetRounds = []
       for (const id of ids) {
         const v = runtime.get(id)
         const s = v.state
+        fleetRounds.push({ id: s.id, rounds: s.rounds })
         const lessons = s.lessons || []
         rows.push({
           id: s.id,
@@ -1203,7 +1208,12 @@ export function registerTools(ctx, { runtime, config }) {
       // The switch is the first thing a reader needs: "nothing is moving" has two
       // very different causes (no running campaign, or the loop is off by hand).
       const head = sw.enabled ? 'loop: on' : `loop: OFF (by ${sw.by}${sw.at ? ` at ${new Date(sw.at).toISOString().slice(0, 16).replace('T', ' ')}` : ''}) — nothing is dispatched`
-      return { campaigns: rows, live, rsi: { enabled: sw.enabled, at: sw.at, by: sw.by }, text: [head, ...lines].join(String.fromCharCode(10)) }
+      const fleet = compareResearchFleet(fleetRounds)
+      // The fleet line is printed with its caveat attached: a pooled rate quoted
+      // without "different task sets, not one long campaign" is a result it does
+      // not have. Printed only when some campaign assigned an arm.
+      if (fleet.n > 0) lines.push('', `trial across campaigns: ${fleet.sentence}`, fleet.caveat)
+      return { campaigns: rows, fleet, live, rsi: { enabled: sw.enabled, at: sw.at, by: sw.by }, text: [head, ...lines].join(String.fromCharCode(10)) }
     },
   })
 

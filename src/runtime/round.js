@@ -56,7 +56,7 @@ import { nextCheckpointId } from './ids.js'
 import { verifyOnce } from './verifier-reuse.js'
 import { baseVerdict } from './baseline.js'
 import { earnedByDifferential } from '../gate/earned.js'
-import { oracleVerdict, parseOwns, oraclePathsFor, oracleNamedPaths, oracleEnforcedPaths, oracleCandidates, patchPaths } from '../gate/oracle.js'
+import { oracleVerdict, parseOwns, oraclePathsFor, oracleNamedPaths, oracleEnforcedPaths, createdInstruments, isInstrumentPath, oracleCandidates, patchPaths } from '../gate/oracle.js'
 import { parseScope, scopeVerdict } from '../gate/scope.js'
 import { cardEvidence } from './review-card.js'
 import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-reuse.js'
@@ -2724,17 +2724,32 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
     const oracleCandidatesAll = oracleCandidates(acceptanceSpec)
     if (Boolean(best?.patch) && typeof best?.base === 'string' && best.base !== '' && oracleCandidatesAll.length > 0) {
       try {
-        const answers = await Promise.all(oracleCandidatesAll.map((p) => fileAtCommit(state.workspace, best.base, p)))
-        const absent = oracleCandidatesAll.filter((_, i) => answers[i] === false)
+        // The question is about *instruments*: a file the round was told to
+        // write is not part of the apparatus, and asking whether it existed at
+        // base answers no question a reviewer would ask. Filtering here also
+        // keeps `oracleInBase` from reading `null` for every round of a probe
+        // whose verifier takes its subject on the command line (`node check.mjs
+        // note.md`): the artefact is always absent at base, so an unfiltered
+        // count could never be all-present.
+        const instruments = oracleCandidatesAll.filter((p) => isInstrumentPath(p))
+        const answers = await Promise.all(instruments.map((p) => fileAtCommit(state.workspace, best.base, p)))
+        const absent = instruments.filter((_, i) => answers[i] === false)
         const added = new Set(patchPaths(best?.patch) ?? [])
-        const created = absent.filter((p) => added.has(p))
+        // A verifier that takes its subject on the command line names both the
+        // instrument and the artefact, so "this file did not exist at base" is
+        // not by itself a refusal: only a created *instrument* is one. Without
+        // this filter every round of a probe whose command is
+        // `node check.mjs design-note-0.md` is judged `oracle-absent-at-base`,
+        // even though `check.mjs` was there all along and the round only
+        // created the file it was told to write.
+        const created = createdInstruments(absent.filter((p) => added.has(p)), instruments)
         // `true` only when the whole oracle set was already there; a `null` answer
         // (unreadable base) leaves the check unmeasured rather than guessing.
         // `true` needs a positive answer for every path: a `null` (unreadable
         // base, or a git flag that does not exist) must not read as "present".
         // That is how an exit-129 from a bad flag first looked like a pass.
-        const present = oracleCandidatesAll.filter((_, i) => answers[i] === true)
-        checks.oracleInBase = created.length > 0 ? false : present.length === oracleCandidatesAll.length ? true : null
+        const present = instruments.filter((_, i) => answers[i] === true)
+        checks.oracleInBase = created.length > 0 ? false : instruments.length > 0 && present.length === instruments.length ? true : null
         if (created.length > 0) checks.oracleCreated = created
       } catch (err) {
         log('oracle-in-base check failed:', err?.message ?? err)

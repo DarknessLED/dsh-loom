@@ -445,6 +445,17 @@ const standing = [
   // panel had no line for it, so the one comparison this work exists to produce
   // was invisible to the person the panel is for.
   'tests/self57/the-panel-shows-the-trial.test.mjs',
+  // Six campaigns each reported a correct "cannot distinguish" over 4-6 rounds an
+  // arm: 52 assigned rounds and no reading, because nothing added them up.
+  'tests/self57/the-trial-can-be-read-across-campaigns.test.mjs',
+  'tests/self57/the-fleet-is-on-the-board.test.mjs',
+  // A verifier that takes its subject on the command line names the instrument
+  // and the artefact together, so "this file did not exist at base" refused
+  // every round of a probe whose answer was to create that file: six rounds of
+  // trial-prose, correct and refused, for creating the thing they were asked to
+  // create. Only a created *instrument* is a refusal.
+  'tests/self57/an-artefact-is-not-an-instrument.test.mjs',
+  'tests/self57/a-round-that-creates-its-artefact-is-not-refused.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.
