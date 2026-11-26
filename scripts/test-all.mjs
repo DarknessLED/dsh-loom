@@ -466,6 +466,7 @@ const standing = [
   // the index and the round that now prefers it.
   'tests/self57/the-loop-reads-its-own-library.test.mjs',
   'tests/self57/the-round-can-read-the-library.test.mjs',
+  'tests/self57/a-question-can-be-found-by-its-numbers.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.

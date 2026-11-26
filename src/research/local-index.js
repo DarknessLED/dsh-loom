@@ -78,13 +78,37 @@ export function localLibrary(root) {
 
 const TERM_SPLIT = /[^a-z0-9§.]+/i
 
+const NUMBER_RE = /^[0-9]+(?:[.,][0-9]+)?$/
+
+// Words that carry no signal and inflate overlap: "which paper reports that
+// evaluating a model" scored a technical report above the paper it names,
+// because the report uses "model" and "performance" everywhere. Filtering the
+// question's function words is not elegance; it is the difference between
+// ranking by content and ranking by volume.
+const STOPWORDS = new Set([
+  'about', 'above', 'after', 'again', 'against', 'also', 'among', 'another', 'because', 'been',
+  'before', 'being', 'below', 'between', 'both', 'could', 'does', 'doing', 'during', 'each',
+  'from', 'further', 'have', 'having', 'here', 'into', 'itself', 'just', 'more', 'most',
+  'much', 'must', 'only', 'other', 'others', 'over', 'same', 'should', 'some', 'such',
+  'than', 'that', 'their', 'them', 'then', 'there', 'these', 'they', 'this', 'those',
+  'through', 'under', 'until', 'very', 'were', 'what', 'when', 'where', 'which', 'while',
+  'with', 'would', 'your', 'paper', 'papers', 'work', 'works', 'reports', 'report',
+  'introduces', 'introduce', 'describes', 'describe', 'proposes', 'propose', 'presents',
+  'present', 'uses', 'using', 'use', 'shows', 'show', 'gives', 'give', 'makes', 'make',
+  'according', 'states', 'state', 'says', 'say', 'claims', 'claim', 'finds', 'find',
+])
+
 function termsOf(text) {
   return new Set(
     String(text ?? '')
       .toLowerCase()
       .split(TERM_SPLIT)
       .map((t) => t.trim())
-      .filter((t) => t.length >= 4),
+      // Four letters filters the noise out of prose, but it also dropped every
+      // number: "363 machine translation systems", "57 tasks", "100 curated
+      // examples" all lost the one token that made them findable, and the
+      // search fell back to whatever technical report mentions "model" most.
+      .filter((t) => (t.length >= 4 || (t.length >= 2 && NUMBER_RE.test(t))) && !STOPWORDS.has(t)),
   )
 }
 
@@ -107,8 +131,13 @@ function snippetAround(work, terms) {
 }
 
 /**
- * Search the library. Ranked by how many distinct query terms the work uses,
- * tie-broken by title so the order is stable across runs.
+ * Search the library. Ranked by how much of the question the work covers,
+ * weighted so that a rare word counts more than a common one.
+ *
+ * Plain overlap ranks a technical report above a paper that is actually about
+ * the question: the report contains "model", "performance" and "evaluation"
+ * forty times. Inverse document frequency fixes exactly that failure, and it is
+ * cheap — the corpus is 153 records.
  *
  * @param {object[]} library
  * @param {string} question
@@ -120,21 +149,37 @@ export function searchLocal(library, question, options = {}) {
   const max = Number.isFinite(Number(options?.maxResults)) ? Math.max(1, Number(options.maxResults)) : 5
   const terms = termsOf(question)
   if (!list.length || !terms.size) return []
+
+  // Document frequencies over the whole library, so a word every record uses
+  // ("model") cannot outvote a word only one record uses ("anchor").
+  const docs = list.map((work) => termsOf(textOf(work)))
+  const df = new Map()
+  for (const doc of docs) for (const t of doc) df.set(t, (df.get(t) ?? 0) + 1)
+  const idf = (t) => Math.log(1 + list.length / (1 + (df.get(t) ?? 0)))
+
   const scored = []
-  for (const work of list) {
-    const hay = termsOf(textOf(work))
+  for (const [i, work] of list.entries()) {
+    const hay = docs[i]
     let overlap = 0
-    for (const t of terms) if (hay.has(t)) overlap += 1
+    let weight = 0
+    for (const t of terms) {
+      if (!hay.has(t)) continue
+      overlap += 1
+      weight += idf(t)
+    }
     if (overlap === 0) continue
     scored.push({
       url: `${HANDLE}${work.slug}/${work.id}`,
       title: work.title,
       snippet: snippetAround(work, terms),
-      score: overlap,
+      score: Math.round(weight * 1000) / 1000,
+      overlap,
       year: work.year,
     })
   }
-  scored.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+  // Overlap breaks ties before weight: a record that uses three of the
+  // question's words is more relevant than one that repeats a single rare word.
+  scored.sort((a, b) => b.overlap - a.overlap || b.score - a.score || a.title.localeCompare(b.title))
   return scored.slice(0, max)
 }
 
@@ -156,8 +201,12 @@ export function fetchLocal(library, url) {
   const work = list.find((w) => `${w.slug}/${w.id}` === want)
   if (!work) return null
   const parts = []
-  if (work.year) parts.push(`Year: ${work.year}`)
-  if (work.abstract) parts.push(work.abstract)
+  // The identifier travels with the first paragraph, not on a line of its own:
+  // a reader that quotes one block of this page must get the id with it, or the
+  // quotation is useless to anyone who wants to check the claim.
+  const head = `${work.title} (arXiv:${work.id})`
+  const first = work.abstract ? `${head}. ${work.abstract}` : head
+  parts.push(work.year ? `${first} Year: ${work.year}` : first)
   for (const m of work.mechanisms ?? []) {
     const locator = typeof m?.locator === 'string' ? m.locator : ''
     const body = typeof m?.text === 'string' ? m.text : ''

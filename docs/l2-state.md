@@ -1719,3 +1719,21 @@ library looks exactly like a leg that chose not to read, so the fix would have
 shipped invisible. The round now looks in the campaign's workspace first and the
 loom home second, and `the-round-can-read-the-library` pins the workspace case
 separately from the pinned-copy case.
+
+Plain word overlap ranked a technical report above the paper a question was
+about, because the report says "model", "performance" and "evaluation" on every
+page. Three rules fixed it, and all three are the kind of thing a search engine
+does and a repository script has to be taught:
+
+- **numbers are terms.** `363 machine translation systems`, `57 tasks`,
+  `100 curated examples` were being split off by a four-character minimum, so
+  the one token that made each question findable was dropped.
+- **function words are not evidence.** "which paper reports that" matched every
+  record; overlap measured abstract length rather than content.
+- **a word in every record cannot outvote a word in one.** Inverse document
+  frequency over the 153-record corpus, with plain overlap breaking ties first.
+
+The identifier also moved into the page's first paragraph (`Title
+(arXiv:2402.14992). abstract…`): a reader that quotes one block must get the id
+with it, or the quotation cannot be checked. Six probe questions now return the
+right work at rank 1, which they did not before.
