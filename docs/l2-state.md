@@ -1526,9 +1526,9 @@ campaign, which is what `trial-prose` was started to do.
 `trial-prose` was built to answer the question six previous probes could not:
 whether reading before writing changes a score. Its ten tasks ask for a design
 note that satisfies twelve rules at once, so the answer is a judgement rather
-than an arithmetic — and the first six rounds all came back correct.
+than an arithmetic — and every round came back correct.
 
-All six were refused. `verifierOk: true`, `score: 1`, `beatsIncumbent: true`,
+It ran fourteen rounds before it converged, and all fourteen were refused. `verifierOk: true`, `score: 1`, `beatsIncumbent: true`,
 `promoted: false`, and one reason in every round:
 
 ```
@@ -1558,6 +1558,11 @@ Two fixes, both small:
   is absent at base by definition, so an unfiltered count could never be
   all-present, and `oracleInBase` read `null` on every such round even when the
   instrument had been there all along.
+
+One of those fourteen rounds (`r7`, reading arm) also recorded `used: true` —
+the second time in 66 assigned rounds that a worker named a span from the notes
+as having shaped its work, and the first time it happened on a task whose
+answer was not arithmetic. That number is in the ledger, not in this fix.
 
 The spec that pins it (`a-round-that-creates-its-artefact-is-not-refused`) was
 verified red without the fix — `the instrument existed at base`, `null !== true`
