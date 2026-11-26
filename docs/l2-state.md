@@ -1635,3 +1635,42 @@ What this does not claim: that the spans are now relevant. A subject clause is
 a better query than a brief; whether the pages it returns help the note is what
 `used` measures, and at two recorded uses in 76 assigned rounds it has not
 measured enough of anything to say.
+
+### 2026-11-26: the question is about the task now, and the endpoint is at the ceiling
+
+`trial-prose3` is the prose probe a third time, on both fixes. Every reading
+round now asks a question that names the task's subject instead of reciting the
+brief:
+
+```
+r2 full task | "when a measurement is too noisy to justify a decision"        read 2 used false
+r4 full task | "how to write a checkpoint card a person will not rubber-stamp" read 2 used false
+```
+
+That is what `topicOf` was for: no file names, no "do not modify check.mjs", no
+housekeeping sentences. The engine's results got better in the sense that
+matters least — the spans exist and are quotable.
+
+Ten rounds, ten promotions, both arms at 100%. The per-round score axis is
+`delta 0.0` with a floor of 90.4 points, which is to say the probe answers the
+read/do question no better than `trial-prose2` did.
+
+The fleet, now eight campaigns and 86 assigned rounds:
+
+| axis | reading | not reading | verdict |
+| --- | --- | --- | --- |
+| promotions | 82.6% | 85.0% | cannot distinguish (floor 30.3) |
+| round cost | 1.07c | 1.04c | cannot distinguish |
+| leg time | 17.3s | 0s | reading costs more |
+
+And the census this flushed out: of 103 rounds that recorded a `research`
+record, 46 read at least one page, `used: true` appears twice, `used: false` 43
+times, and 58 rounds never got an outcome at all — most of them because the
+round predates the write-back, some because the leg was skipped.
+
+What this does not claim: that reading does not help. Every probe so far has
+been a task the worker can solve without help, so the arm that reads cannot
+beat the arm that does not; the endpoint sits at the ceiling in both. What the
+trial needs next is not more rounds of the same shape, but a task whose answer
+is *not in the workspace*, so that reading has something to contribute — a
+positive control for the mechanism itself.
