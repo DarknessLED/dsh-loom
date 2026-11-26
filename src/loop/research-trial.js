@@ -61,6 +61,37 @@ function usable(rounds) {
   })
 }
 
+/** The difference a reader is assumed to care about, in score points. */
+export const NEEDED_TARGET = 0.1
+
+/**
+ * How many rounds per arm would answer the question being asked.
+ *
+ * "Cannot distinguish" is true and useless on its own: a reader cannot tell
+ * whether the trial needs one more round or four hundred. Ten rounds of
+ * `trial-agg` reported a floor of 90.4 points, which is the same statement as
+ * "a ten-point difference would need hundreds more rounds" -- but the reader had
+ * to do that arithmetic themselves, and the trial never printed the second half.
+ *
+ * The formula is the one the floor is already built from, solved for n:
+ * two independent arms, 80% power, two-sided 95%, so
+ * `n per arm = 2 (z + z_beta)^2 sd^2 / target^2`. Every assumption is one a
+ * reader can reject by name instead of rejecting a bare number.
+ *
+ * @returns {number|null} rounds per arm, or null when nothing was observed
+ */
+export function roundsNeeded({ sd = 0, perArm = 0, target = NEEDED_TARGET, alpha = 0.05 } = {}) {
+  const spread = Number(sd)
+  const want = Math.abs(Number(target))
+  const observed = Number(perArm)
+  if (!Number.isFinite(spread) || !(spread > 0)) return null
+  if (!Number.isFinite(want) || !(want > 0)) return null
+  if (!Number.isFinite(observed) || observed < 0) return null
+  const z = zFor(alpha)
+  const n = (2 * (z + powerZ(0.8)) ** 2 * spread ** 2) / want ** 2
+  return Math.ceil(n)
+}
+
 /**
  * Compare two independent arms on a continuous endpoint.
  *
@@ -74,7 +105,7 @@ function usable(rounds) {
  * a 0/1 verdict wearing a number, and averaging it invents precision the
  * verifier never printed.
  */
-function compareArmScores({ full, off, alpha }) {
+export function compareArmScores({ full, off, alpha }) {
   const clean = (list) =>
     list.filter((r) => Number.isFinite(r?.score) && r?.scoreSource !== 'binary').map((r) => Number(r.score))
   const a = clean(full)
@@ -110,6 +141,10 @@ function compareArmScores({ full, off, alpha }) {
       interval: { low: round6(delta), high: round6(delta) },
       mde: round6(Math.abs(delta)),
       verdict: moved ? (delta > 0 ? 'full-better' : 'off-better') : 'cannot-distinguish',
+      // No spread is not a sample-size question: a saturated endpoint will stay
+      // saturated no matter how many rounds are bought, so `needed` is null
+      // rather than a big number that would invite running more of the same.
+      needed: null,
       sentence: moved
         ? `all rounds in each arm landed on the same score: the sign is consistent, but with no spread there is no interval to report and the floor is the effect itself.`
         : `every round in both arms scored the same: the endpoint did not move, so there is no effect size to estimate. This is a statement about the endpoint, not evidence the arms are equal.`,
@@ -121,10 +156,16 @@ function compareArmScores({ full, off, alpha }) {
   if (Math.abs(delta) >= mde && interval.low > 0) verdict = 'full-better'
   else if (Math.abs(delta) >= mde && interval.high < 0) verdict = 'off-better'
   const points = (v) => `${(v * 100).toFixed(1)} points`
+  // The spread is the pooled per-round one reported in `arms`, which is what the
+  // floor already assumes; asking for a ten-point answer at *this* spread is the
+  // question a reader has, not "how many rounds would resolve the effect I saw".
+  const spread = Math.sqrt((sd(a) ** 2 + sd(b) ** 2) / 2)
+  const perArm = roundsNeeded({ sd: spread, perArm: Math.min(a.length, b.length), target: NEEDED_TARGET, alpha })
+  const needed = perArm == null ? null : { target: NEEDED_TARGET, perArm, observe: a.length + b.length }
   const sentence = verdict === 'cannot-distinguish'
-    ? `the mean score moved ${points(delta)} (${points(meanA)} against ${points(meanB)} over ${a.length} and ${b.length} rounds); this sample could resolve ${points(mde)}, so the difference is below what it can see. Not "no effect".`
+    ? `the mean score moved ${points(delta)} (${points(meanA)} against ${points(meanB)} over ${a.length} and ${b.length} rounds); this sample could resolve ${points(mde)}, so the difference is below what it can see. At this spread, telling ${points(NEEDED_TARGET)} apart would take about ${needed?.perArm ?? '?'} rounds per arm. Not "no effect".`
     : `reading scored ${points(Math.abs(delta))} ${verdict === 'full-better' ? 'higher' : 'lower'} on average (${points(meanA)} against ${points(meanB)}); the interval excludes zero and the gap is above the ${points(mde)} floor.`
-  return { basis, arms, delta: round6(delta), interval, mde: round6(mde), verdict, sentence }
+  return { basis, arms, delta: round6(delta), interval, mde: round6(mde), verdict, sentence, needed }
 }
 
 /**

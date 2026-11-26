@@ -1347,3 +1347,63 @@ true`. That single `true` came from a round whose task and question shared
 vocabulary by luck (`queue-live5`, reward hacking), which is the effect this
 change makes deliberate instead of accidental.
 
+### 2026-11-26: ten rounds, every one a win, and the trial learned nothing
+
+`trial-agg` is the fifth probe for the read/do trial and the hardest endpoint so
+far: twelve derived integers per task (count, sum, min, max, sum of the two
+medians, distinct count, sum of positives, sum of negatives, above-mean count,
+below-zero count, even count, weighted sum) computed from 120 data points, so a
+single slipped digit costs 1/12 instead of failing the round.
+
+| round | arm | read | used | score | cost |
+| --- | --- | --- | --- | --- | --- |
+| 1 | full | 2 | false | 1.0000 | $0.011197 |
+| 2 | off | 0 | — | 1.0000 | $0.010475 |
+| 3 | full | 2 | false | 1.0000 | $0.015214 |
+| 4 | off | 0 | — | 1.0000 | $0.008842 |
+| 5 | full | 0 (leg-timeout) | — | 1.0000 | $0.008661 |
+| 6 | off | 0 | — | 1.0000 | $0.008814 |
+| 7 | full | 2 | false | 1.0000 | $0.008891 |
+| 8 | off | 0 | — | 1.0000 | $0.012017 |
+| 9 | full | 2 | false | 1.0000 | $0.010759 |
+| 10 | full | 2 | false | 1.0000 | $0.008862 |
+
+Ten rounds, ten promotions, ten times 1.0000. Both readings of the trial agree
+there is nothing to say: the count because both arms are at 100%, the mean score
+because both arms have zero spread. The trial's own sentence: *every round in
+both arms scored the same: the endpoint did not move, so there is no effect size
+to estimate. This is a statement about the endpoint, not evidence the arms are
+equal.* That sentence is correct and it took five probes to earn the right to
+print it.
+
+Two things are worth recording.
+
+The first is that difficulty did not create variance. Four earlier probes were
+scored 1.0 on every round and the obvious explanation was "the tasks are too
+easy"; this probe was made harder and still scored 1.0 on every round. The
+worker reads the twelve definitions, computes them, and writes them out. What
+would create variance is a task where the *rule* is ambiguous or where the answer
+depends on something the worker cannot see — not a longer arithmetic checklist.
+That is a different probe, and it has not been built.
+
+The second is what the trial can still say. Reading cost $0.0106 a round and not
+reading $0.0100, over the same ten rounds, so the reading arm paid about six
+tenths of a cent a round; the cost axis now reports this
+(`compareArmCost`), which is the one actionable statement in the table. It is
+inside the noise at ten rounds — delta $0.00056, interval [−$0.0019, $0.0031],
+floor $0.0036 — so the honest sentence is "reading cost 1.06c a round and not
+reading 1.00c; that difference is below what ten rounds can see", and the trial
+now prints it rather than leaving the reader with a shrug.
+
+What this does not claim: the trial is not shown to be useless, and it is not
+shown to work. It is shown to be *unable to answer* on a saturated endpoint. And on
+this endpoint the sample-size line is deliberately empty rather than large: a
+saturated endpoint stays saturated however many rounds are bought, so
+`roundsNeeded` returns `null` when the spread is zero instead of printing a
+number that would invite running more of the same. Where there *is* spread, the
+same code does print it — at a spread of 0.25 a ten-point difference needs 99
+rounds per arm, which is the number a reader can act on. Five probes in, the honest summary of
+the read/do trial is that the mechanism runs (assignment, recording, cost, the
+refusal to call overlap a finding) and the question it was built to answer is
+still unmeasured.
+

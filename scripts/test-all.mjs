@@ -435,6 +435,9 @@ const standing = [
   // Both outcome readings went blind on `trial-agg` (10 rounds, every one
   // promoted at 1.0); the arms still differed by six tenths of a cent a round.
   'tests/self57/a-trial-can-weigh-money-not-just-wins.test.mjs',
+  // "Cannot distinguish" is a true sentence and an unusable one: the reader
+  // also needs to know whether that means one more round or four hundred.
+  'tests/self57/the-trial-says-how-many-rounds-it-needs.test.mjs',
   // The ledger had seventeen open questions and one of them was read thirteen
   // times across seven campaigns: a read now counts against the question, and
   // the leg prefers the ones nobody has touched.
