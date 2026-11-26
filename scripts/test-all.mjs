@@ -444,6 +444,10 @@ const standing = [
   // to survive the compact view and the single-campaign status path, or the
   // number only exists in the ledger.
   'tests/self57/the-status-shows-the-trial.test.mjs',
+  // Two ways the trial was quietly not a trial: a floor computed from twice the
+  // sample it had, and a cap that cancelled an assigned read.
+  'tests/self57/the-mde-is-per-arm-not-per-campaign.test.mjs',
+  'tests/self57/an-assigned-read-is-not-capped.test.mjs',
   // `research.timeoutMs` and `research.maxRounds` were documented in the config
   // and read by nothing; the leg now has a clock and an allowance.
   'tests/self57/the-leg-has-a-clock.test.mjs',

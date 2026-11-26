@@ -255,6 +255,12 @@ export function researchSketch(result, { question = null, from = null, mode = nu
  */
 export function legBudget({ mode = null, rounds = [], config = {} } = {}) {
   if (mode === 'off') return { buy: false, reason: 'mode is off' }
+  // Under `trial` the arm was assigned by lot before this round ran. The cap is a
+  // brake on rules that read by default; applied here it does not save money, it
+  // withholds the treatment from a round that will still be counted in the
+  // reading arm -- `trial8-live` round 8 recorded `skipped: 'budget-spent'` after
+  // being assigned to read, which quietly moves the comparison toward zero.
+  if (mode === 'trial') return { buy: true, reason: null }
   const list = Array.isArray(rounds) ? rounds : []
   const bought = list.filter((r) => r && r.research && r.research.mode && r.research.mode !== 'off').length
   const cap = Number(config?.maxRounds)

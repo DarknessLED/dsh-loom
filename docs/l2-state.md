@@ -1152,6 +1152,45 @@ Three things that table says, none of which is "reading does not help":
   noise of four rounds. The leg's own `costUsd` is still 0 because `ctx.web` is
   not in the pricing table, so the arm cost above is *round* cost, not leg cost.
 
+### 2026-11-26: eight rounds, and two ways it was not a trial
+
+`trial8-live` ran the same design on an eight-task probe with ten rounds allowed
+and stopped itself after eight (all solved). The arms came out perfectly
+alternating, which is what a hash gives on eight consecutive rounds:
+
+| round | arm | read | ms | skipped | promoted | cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | off | 0 | — | not-run | yes | $0.008128 |
+| 2 | full | 2 | 36.2s | — | yes | $0.014442 |
+| 3 | off | 0 | — | not-run | yes | $0.008937 |
+| 4 | full | 2 | 1.8s | — | yes | $0.008480 |
+| 5 | off | 0 | — | not-run | yes | $0.009839 |
+| 6 | full | 2 | 8.8s | — | yes | $0.009790 |
+| 7 | off | 0 | — | not-run | yes | $0.010255 |
+| 8 | full | 0 | — | **budget-spent** | yes | $0.006671 |
+
+Both arms 4/4. `compareResearchArms`: `ready: true`, `delta 0`, `verdict
+cannot-distinguish`, sentence `8 assigned rounds: reading promoted 100.0 points
+and not reading 100.0 points (delta 0.0 points); this design could resolve 99.1
+points, so the difference is below what 8 rounds can see. Not "no effect".`
+
+That sentence was wrong when it was first printed, in a way the spec suite had
+pinned: `compareResearchArms` passed the **total** round count to
+`mdeIndependent`, whose formula is for two arms of size n each. It reported
+0.70 — a floor earned by a design with twice the data. The floor has to come
+from the smaller arm (`2/(1/n1+1/n2)` reproduces `p(1-p)(1/n1+1/n2)` exactly),
+which for two arms of four is 0.99. Both numbers say "cannot distinguish" here,
+but only because this probe promoted everything: with a mixed result the
+optimistic floor would have let eight rounds claim a difference they cannot see.
+
+The second way it was not a trial is round 8: assigned to read, and it recorded
+`skipped: "budget-spent"`. `legBudget` caps how many rounds may buy a read, which
+is the right brake for `auto` and `full` -- they read because a rule said so.
+Under `trial` the cap does not save money; it withholds the treatment from a round
+that still counts in the reading arm, which moves the estimate toward zero
+without leaving a record that a treatment was missing. `legBudget` now returns
+`buy: true` for `trial` and the cap stays in force for the other modes.
+
 What this does not claim: four rounds on a four-task probe say nothing about
 whether reading pays on real work. What they do establish is that the arm is
 assigned before the round runs, that the assignment survives the fold, and that

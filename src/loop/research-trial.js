@@ -81,7 +81,15 @@ export function compareResearchArms({ rounds = [], alpha = 0.05 } = {}) {
   const off = arm('off')
   const n = full.n + off.n
   const delta = full.rate - off.rate
-  const mde = mdeIndependent({ n, p: 0.5, alpha })
+  // The floor is earned by the arms, not by the campaign. `mdeIndependent` is
+  // written for two arms of equal size n (its `2 p (1-p) / n` is the variance of
+  // a difference between two proportions of size n), so handing it the total
+  // count doubles the sample it thinks it has and reports a floor sqrt(2) too
+  // small. The harmonic mean of the arm sizes reproduces
+  // `p(1-p)(1/n1 + 1/n2)` exactly and degrades gracefully when the arms are
+  // lopsided -- which is the common case, since the arm is decided by lot.
+  const effective = full.n > 0 && off.n > 0 ? 2 / (1 / full.n + 1 / off.n) : 0
+  const mde = mdeIndependent({ n: effective, p: 0.5, alpha })
   // Both arms must have a little data before a direction is worth naming: one
   // round in an arm produces a rate of 0 or 1 and an interval a mile wide.
   const ready = full.n >= 3 && off.n >= 3
