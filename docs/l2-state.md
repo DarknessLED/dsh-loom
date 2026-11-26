@@ -1225,6 +1225,29 @@ same eight rounds, if their scores had been 0.9/0.8/0.85 against 0.4/0.5/0.45,
 would have come back `full-better` with an interval excluding zero, where the
 count alone still says "cannot distinguish".
 
+### 2026-11-26: a probe with partial credit, and the exemption that did not fire
+
+`trial-partial` was built to give the score reading something to look at: ten
+tasks, each printing the share of four required words that are present, so a
+round can score 0.25 or 0.75 instead of only 0 or 1. Eight rounds ran (the ninth
+was cut off), arms alternating `full`/`off` as the lot decided, and every round
+scored 1.0 anyway — the tasks were easy enough that partial credit never
+materialised. The score reading therefore returns null by its zero-spread rule,
+which is the right answer to a probe that could not produce variance.
+
+What the campaign did find is the third shape of the same bug. Rounds 7 and 9
+were assigned to read and recorded `skipped: "budget-spent"`. The exemption added
+earlier in the day checked `mode === 'trial'`, but `legBudget` is called after the
+arm is resolved, so `mode` was `full` and the exemption never fired. The flag now
+travels separately (`assigned`), and the spec pins both sides: with it the cap is
+exempt, without it the same call still stops at the cap.
+
+Two probes and three fixes later, the mechanism is what is proven: the arm is
+drawn before the round, it survives the fold, the cap cannot quietly unassign a
+read, and the comparison reports a count and a score with separate intervals. The
+question the trial exists to answer is still unanswered, because a probe that
+promotes everything and scores everything at 1.0 has no variance to divide.
+
 What this does not claim: four rounds on a four-task probe say nothing about
 whether reading pays on real work. What they do establish is that the arm is
 assigned before the round runs, that the assignment survives the fold, and that

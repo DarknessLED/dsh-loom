@@ -33,9 +33,20 @@ test('the cap still stops auto and full from buying forever', () => {
 
 test('an assigned read is not cancelled by the cap', () => {
   const rounds = bought(3)
-  const out = legBudget({ mode: 'trial', rounds, config: { maxRounds: 3, trial: true } })
+  // The arm is already resolved to `full` by the time the budget is asked: the
+  // round is told to read, and only the allowance stands between it and a read.
+  const out = legBudget({ mode: 'full', rounds, config: { maxRounds: 3 }, assigned: true })
   assert.equal(out.buy, true, 'a round assigned to read must read, or the comparison is diluted without a record')
   ok('an assigned read is not cancelled by the cap')
+})
+
+test('the same call without the flag still respects the cap', () => {
+  // The flag is the only difference: `full` by rule stops at the cap, `full` by
+  // assignment does not. If this ever passes with `buy: true`, the exemption has
+  // leaked into the rule-driven modes.
+  const out = legBudget({ mode: 'full', rounds: bought(3), config: { maxRounds: 3 } })
+  assert.equal(out.buy, false)
+  ok('the same call without the flag still respects the cap')
 })
 
 test('off is still off whatever the config says', () => {

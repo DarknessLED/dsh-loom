@@ -253,14 +253,18 @@ export function researchSketch(result, { question = null, from = null, mode = nu
  * knob is a string is indistinguishable, in the ledger, from "the loop decided
  * not to read" — the wrong lesson to teach it.
  */
-export function legBudget({ mode = null, rounds = [], config = {} } = {}) {
+export function legBudget({ mode = null, rounds = [], config = {}, assigned = false } = {}) {
   if (mode === 'off') return { buy: false, reason: 'mode is off' }
-  // Under `trial` the arm was assigned by lot before this round ran. The cap is a
-  // brake on rules that read by default; applied here it does not save money, it
-  // withholds the treatment from a round that will still be counted in the
-  // reading arm -- `trial8-live` round 8 recorded `skipped: 'budget-spent'` after
-  // being assigned to read, which quietly moves the comparison toward zero.
-  if (mode === 'trial') return { buy: true, reason: null }
+  // Under `trial` the arm is drawn by lot before the round runs, and by the time
+  // this is called `mode` is already the *resolved* arm (`full` or `off`), not
+  // the string `trial` -- so the flag has to travel separately.
+  //
+  // The cap is a brake on rules that read by default; applied to an assigned
+  // read it does not save money, it withholds the treatment from a round that
+  // will still be counted in the reading arm. `trial8-live` round 8 and
+  // `trial-partial` rounds 7 and 9 recorded `skipped: 'budget-spent'` while
+  // assigned to read, which quietly moves the comparison toward zero.
+  if (assigned) return { buy: true, reason: null }
   const list = Array.isArray(rounds) ? rounds : []
   const bought = list.filter((r) => r && r.research && r.research.mode && r.research.mode !== 'off').length
   const cap = Number(config?.maxRounds)

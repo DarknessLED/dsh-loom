@@ -1571,7 +1571,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
   // The campaign's read allowance, not just this round's mode: a leg the worker
   // never reaches for should stop being bought after a few rounds, and
   // `config.research.maxRounds` was documented for that and read by nothing.
-  const legAllowance = legBudget({ mode: researchMode, rounds: state.rounds, config: config.research })
+  const legAllowance = legBudget({ mode: researchMode, rounds: state.rounds, config: config.research, assigned: Boolean(trialArm) })
   if (!legAllowance.buy && researchMode !== 'off') {
     research = researchSketch({ ok: false, code: 'budget-spent' }, { mode: researchMode })
     log(`research leg skipped: ${legAllowance.reason}`)
