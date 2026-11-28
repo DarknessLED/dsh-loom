@@ -14,7 +14,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { readSettings, settingsLogPath, settingsPath, writeSettings } from '../../src/core/settings.js'
+import { readSettings, roundConfigWithSettings, settingsLogPath, settingsPath, writeSettings } from '../../src/core/settings.js'
 import { DEFAULT_CONFIG } from '../../src/core/config.js'
 import { panelAction, panelState } from '../../src/panel/api.js'
 import { ok, done } from '../chaos/fixture.mjs'
@@ -98,6 +98,42 @@ function runtimeStub(h) {
   assert.equal(s.dispatch, null, 'a broken file does not claim the switch is on')
   assert.equal(s.reason, 'unreadable', 'and says why')
   ok('an unreadable settings file answers nothing rather than flipping the switch')
+}
+
+// 5. The setting reaches the round, which is the only thing that makes the pill
+//    a switch rather than a lamp. A planning setting already had this path; the
+//    dispatch one has to fold in beside it without disturbing it.
+{
+  const h = home()
+  const base = { session: { dispatch: { enabled: false, stages: { implement: { harness: 'implementation', preset: null } } } }, loopPolicy: { planMode: 'auto' } }
+
+  assert.equal(
+    roundConfigWithSettings(base, h).session.dispatch.enabled,
+    false,
+    'no setting means the configured default, untouched',
+  )
+
+  writeSettings(h, { dispatch: true })
+  const on = roundConfigWithSettings(base, h)
+  assert.equal(on.session.dispatch.enabled, true, 'the switch in force reaches the round')
+  assert.equal(on.loopPolicy.planMode, 'auto', 'and it is folded beside the plan setting, not over it')
+  assert.equal(
+    on.session.dispatch.stages.implement.harness,
+    'implementation',
+    'the stage map survives the fold',
+  )
+
+  writeSettings(h, { dispatch: false })
+  assert.equal(
+    roundConfigWithSettings(base, h).session.dispatch.enabled,
+    false,
+    'turning it off reaches the round too',
+  )
+
+  // A config that never mentioned dispatch must not gain an enabled switch.
+  const bare = roundConfigWithSettings({ loopPolicy: { planMode: 'off' } }, h)
+  assert.equal(bare.session?.dispatch ?? undefined, undefined, 'nothing is invented where config said nothing')
+  ok('the switch the pill writes is the switch the round reads')
 }
 
 done()
