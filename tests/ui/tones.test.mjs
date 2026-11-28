@@ -49,11 +49,18 @@ const panel = await loadPanel()
 }
 
 {
+  // A literal is allowed only as the fallback of the custom property printed
+  // beside it: `var(--dsw-alias-brand-primary, #4D6BFE)` is one decision (the
+  // host's), `background: '#4D6BFE'` would be a second palette. Both namespaces
+  // count -- the panel declares `--loom-*`, the composer reads the host's
+  // `--dsw-*` because `loom-root` is not in scope there.
   const offenders = source
     .split('\n')
     .map((line, i) => ({ line, n: i + 1 }))
-    .filter(({ line }) => !line.trim().startsWith('//') && !line.includes('--loom-'))
+    .filter(({ line }) => !line.trim().startsWith('//'))
     .filter(({ line }) => /#[0-9a-fA-F]{6}\b/.test(line))
+    .filter(({ line }) => !/--loom-/.test(line))
+    .filter(({ line }) => !/var\(--dsw-/.test(line))
     .map(({ n }) => n)
   assert.deepEqual(offenders, [], 'hex literals outside the palette: ' + offenders.join(','))
   ok('no hex outside the palette')

@@ -3552,12 +3552,12 @@ window.__ModuleLoader__.load({
       var CAP = {
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
+        gap: '7px',
         height: '22px',
-        padding: '0 9px',
+        padding: '0 4px',
         marginRight: '6px',
-        border: '1px solid rgba(127,127,127,.35)',
-        borderRadius: '999px',
+        border: '0',
+        borderRadius: '8px',
         background: 'transparent',
         color: 'inherit',
         font: 'inherit',
@@ -3568,26 +3568,55 @@ window.__ModuleLoader__.load({
         verticalAlign: 'middle',
       }
 
-      // The state reads from the shape, not from a hue: a filled dot is on, a
-      // hollow ring is off. The composer is outside `loom-root`, so the panel's
-      // palette custom properties are not in scope here -- and pasting a hex in
-      // would put a second copy of the palette in a file whose rule is that
-      // colour is declared once.
-      function dot(on) {
-        return h('span', {
-          key: 'dot',
-          'aria-hidden': 'true',
-          style: {
-            display: 'inline-block',
-            boxSizing: 'border-box',
-            width: '7px',
-            height: '7px',
-            borderRadius: '999px',
-            background: on ? 'currentColor' : 'transparent',
-            border: on ? 'none' : '1.5px solid currentColor',
-            opacity: on ? 1 : 0.55,
+      // A switch, not a badge: a pill track with a knob that slides to the side
+      // it is on, so the state is readable from position before it is read from
+      // colour. On is the host's own brand accent, not one mixed here: the
+      // composer sits inside the host theme, `--dsw-alias-brand-primary` is that
+      // theme's declared accent, and `#4D6BFE` is only the fallback for a host
+      // that does not publish it (the hex is the brand blue the shell's own
+      // marks are drawn in). The panel's `--loom-*` properties are not in scope
+      // outside `loom-root`, which is why this one reads a `--dsw-*` token.
+      var ON_TRACK = 'var(--dsw-alias-brand-primary, #4D6BFE)'
+      var OFF_TRACK = 'rgba(127,127,127,.32)'
+      var KNOB_ON = 'translateX(13px)'
+      var KNOB_OFF = 'translateX(2px)'
+
+      function track(on) {
+        return h(
+          'span',
+          {
+            key: 'track',
+            'aria-hidden': 'true',
+            style: {
+              display: 'inline-block',
+              boxSizing: 'border-box',
+              position: 'relative',
+              width: '26px',
+              height: '15px',
+              borderRadius: '999px',
+              background: on ? ON_TRACK : OFF_TRACK,
+              transition: 'background 180ms ease',
+              verticalAlign: 'middle',
+            },
           },
-        })
+          h('span', {
+            key: 'knob',
+            style: {
+              display: 'block',
+              boxSizing: 'border-box',
+              position: 'absolute',
+              top: '2px',
+              left: '0',
+              width: '11px',
+              height: '11px',
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 1px 2px rgba(0,0,0,.28)',
+              transform: on ? KNOB_ON : KNOB_OFF,
+              transition: 'transform 180ms ease',
+            },
+          }),
+        )
       }
 
       return function ComposerPills() {
@@ -3657,9 +3686,11 @@ window.__ModuleLoader__.load({
         var whyDispatch = box.error
           ? box.error
           : data
-            ? dispatchOn
-              ? '开着：每轮先规划流程（' + stages.join(' → ') + '），每个阶段用它自己的 harness'
-              : '关着：不规划流程，一轮只投一个候选'
+            ? 'Auto：每轮先规划流程（' +
+              (stages.length ? stages.join(' → ') : 'plan → implement → verify') +
+              '），再按阶段换最合适的 harness（' +
+              (dispatchOn ? '现在开着' : '现在关着') +
+              '）。当前只有 DSH 一个模型族，所以换的是框架与 preset，不换模型；关着时与今天逐字节一致。'
             : '正在读取…'
 
         return h(
@@ -3671,15 +3702,17 @@ window.__ModuleLoader__.load({
               key: 'rsi',
               type: 'button',
               style: CAP,
-              'aria-pressed': rsiOn,
+              role: 'switch',
+              'aria-checked': rsiOn,
+              'aria-label': 'RSI',
               title: whyRsi,
               disabled: box.busy === 'rsi',
               onClick: function () {
                 send('rsi', { action: rsiOn ? 'disable' : 'enable', reason: 'composer pill' })
               },
             },
-            dot(rsiOn),
             h('span', { key: 'label' }, box.busy === 'rsi' ? '…' : 'RSI'),
+            track(rsiOn),
           ),
           h(
             'button',
@@ -3687,15 +3720,17 @@ window.__ModuleLoader__.load({
               key: 'dispatch',
               type: 'button',
               style: CAP,
-              'aria-pressed': dispatchOn,
+              role: 'switch',
+              'aria-checked': dispatchOn,
+              'aria-label': 'Auto',
               title: whyDispatch,
               disabled: box.busy === 'dispatch',
               onClick: function () {
                 send('dispatch', { action: 'dispatch', enabled: !dispatchOn, reason: 'composer pill' })
               },
             },
-            dot(dispatchOn),
-            h('span', { key: 'label' }, box.busy === 'dispatch' ? '…' : '调度'),
+            h('span', { key: 'label' }, box.busy === 'dispatch' ? '…' : 'Auto'),
+            track(dispatchOn),
           ),
         )
       }
@@ -3724,7 +3759,7 @@ window.__ModuleLoader__.load({
         // controls rather than in front of them.
         scope.slots.inject('conversation.input.left', function* () {
           yield scope.slots.register(
-            { name: 'conversation.input.left', id: 'dsh-loom-pills', order: 40, label: () => 'RSI / 调度' },
+            { name: 'conversation.input.left', id: 'dsh-loom-pills', order: 40, label: () => 'RSI / Auto' },
             ComposerPills,
           )
         })
