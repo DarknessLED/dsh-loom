@@ -2187,7 +2187,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // The tree this attempt was cut against: salvage re-verifies against it.
           base: base ?? null,
           privileges,
-          ...(stagePlan ? { stage: stagePlan.stage, harness: stagePlan.harness } : {}),
+          ...(stagePlan ? { stage: stagePlan.stage, harness: stagePlan.harness, armTarget: stagePlan.armTarget } : {}),
           verifierOk: gateOk,
           exitCode: ver.exitCode,
           verifySignature: verifierSignature(ver),

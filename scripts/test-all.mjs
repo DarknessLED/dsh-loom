@@ -522,6 +522,7 @@ const standing = [
   'tests/self58/a-stage-plan-picks-a-harness-per-stage.test.mjs',
   'tests/self58/the-dispatch-toggle-is-a-setting.test.mjs',
   'tests/self58/the-composer-has-two-pills.test.mjs',
+  'tests/self58/the-five-stages-are-the-measured-ones.test.mjs',
   'tests/self58/a-planned-stage-reaches-the-child.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',

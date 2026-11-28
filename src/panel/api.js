@@ -9,7 +9,7 @@ import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { compareResearchArms, compareResearchFleet } from '../loop/research-trial.js'
-import { STAGES } from '../dispatch/stage-plan.js'
+import { ARMS, STAGES } from '../dispatch/stage-plan.js'
 import { panelRoute } from './route.js'
 
 /**
@@ -428,6 +428,10 @@ export function panelState({ runtime, config } = {}) {
       by: settings.dispatch === null ? 'config' : settings.by ?? 'human',
       reason: settings.reason ?? null,
       stages: [...STAGES],
+      // Which arm each stage was measured to want. The switch does not spawn
+      // them -- the loop has one harness -- so this is what the tooltip may
+      // promise, and nothing more.
+      arms: Object.fromEntries(STAGES.map((stage) => [stage, ARMS[stage]?.arm ?? null])),
     },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },

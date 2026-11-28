@@ -49,7 +49,19 @@ function runtimeStub(h) {
   const state = panelState({ runtime: runtimeStub(h), config: DEFAULT_CONFIG })
   assert.equal(state.dispatch.enabled, false, 'the panel can see the switch')
   assert.equal(state.dispatch.by, 'config', 'and where the answer came from')
-  assert.ok(Array.isArray(state.dispatch.stages) && state.dispatch.stages.length === 3, 'with the three stages it will plan')
+  assert.deepEqual(
+    state.dispatch.stages,
+    ['triage', 'spec', 'implement', 'verify', 'review'],
+    'with the five measured stages it will plan, in pipeline order',
+  )
+  // The tooltip may name an arm per stage, so the panel has to carry the same
+  // arms the plan would hand a child -- otherwise the switch promises one thing
+  // and the round records another.
+  assert.deepEqual(
+    state.dispatch.arms,
+    { triage: 'dsh', spec: 'cc', implement: 'codex', verify: 'gcli', review: 'agy' },
+    'and the arm a bench measured each stage wants',
+  )
   ok('the dispatch switch is visible in the panel state and off by default')
 }
 

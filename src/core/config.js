@@ -141,16 +141,26 @@ export const DEFAULT_CONFIG = {
      * stage and runs the child under that stage's preset; a stage the operator
      * never configured is named after itself rather than dropped.
      *
-     * The honest limit: every model behind this host is the same family, so a
-     * stage can change the framing and the preset, not which model answers. The
-     * pill says "plan the workflow", not "pick the model", for that reason.
+     * The five stages are the ones `research/harness-bench/HANDOFF.md` measured
+     * against five harnesses; `STAGES` and `ARMS` in `stage-plan.js` carry the
+     * evidence for each routing target. `plan` is kept as an alias for `spec` so a
+     * task written against the earlier three-stage vocabulary does not fall out of
+     * the plan.
+     *
+     * The honest limit: every model behind this host is the same family and this
+     * loop runs one harness, so a stage can change the framing and the preset, not
+     * which model answers or which CLI executes. The switch says "plan the
+     * workflow", not "pick the model", for that reason, and the measured arm is
+     * recorded on the attempt as `armTarget` rather than acted on.
      */
     dispatch: {
       enabled: false,
       stages: {
-        plan: { harness: 'planning', preset: null },
+        triage: { harness: 'triage', preset: null },
+        spec: { harness: 'spec', preset: null },
         implement: { harness: 'implementation', preset: null },
         verify: { harness: 'verification', preset: null },
+        review: { harness: 'review', preset: null },
       },
     },
     /**

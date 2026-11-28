@@ -19,9 +19,11 @@ const dispatch = (enabled) => ({
     dispatch: {
       enabled,
       stages: {
-        plan: { harness: 'planning', preset: null },
+        triage: { harness: 'triage', preset: null },
+        spec: { harness: 'spec', preset: null },
         implement: { harness: 'implementation', preset: 'loom-implementer' },
         verify: { harness: 'verification', preset: 'loom-verifier' },
+        review: { harness: 'review', preset: null },
       },
     },
   },
@@ -51,16 +53,19 @@ async function oneRound(config, task = {}) {
   assert.ok(record.length >= 1, 'a round was dispatched')
   assert.equal('preset' in record[0].opts, false, 'an unplanned round sends no preset')
   assert.equal('stage' in attempt, false, 'and writes no stage onto the attempt')
+  assert.equal('armTarget' in attempt, false, 'and no arm target either')
   ok('with the switch off, the dispatch and the record are what they were before')
 }
 
-// 2. On: the stage's preset is dispatched, and the record says which harness ran.
+// 2. On: the stage's preset is dispatched, and the record says which harness ran
+//    and which arm the benchmark measured for that stage.
 {
   const { record, attempt } = await oneRound({ ...baseConfig(), ...dispatch(true) }, { id: 'staged', stage: 'implement' })
   assert.equal(record[0].opts.preset, 'loom-implementer', 'the implementing stage\u2019s preset reaches the child')
   assert.equal(attempt.stage, 'implement', 'the attempt records the stage it ran in')
   assert.equal(attempt.harness, 'implementation', 'and the harness that stage named')
-  ok('with the switch on, the stage and its harness reach both the child and the record')
+  assert.equal(attempt.armTarget, 'codex', 'and the arm the benchmark measured for implementing, recorded not run')
+  ok('with the switch on, the stage, its harness and its measured arm reach the record')
 }
 
 // 3. A task that declares verification gets the verifying harness, and the preset
@@ -71,6 +76,7 @@ async function oneRound(config, task = {}) {
   const { record, attempt } = await oneRound({ ...baseConfig(), ...configured }, { id: 'v', stage: 'verify' })
   assert.equal(attempt.stage, 'verify', 'the declared stage is the one recorded')
   assert.equal(attempt.harness, 'verification', 'with the harness the configuration gave it')
+  assert.equal(attempt.armTarget, 'gcli', 'and the arm measured for verifying')
   assert.equal('preset' in record[0].opts, false, 'an unconfigured preset is not invented')
   ok('a stage without a configured preset dispatches no preset instead of a guessed one')
 }

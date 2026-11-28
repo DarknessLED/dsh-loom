@@ -3676,6 +3676,18 @@ window.__ModuleLoader__.load({
         var rsiOn = !!(data && data.rsi && data.rsi.enabled !== false)
         var dispatchOn = !!(data && data.dispatch && data.dispatch.enabled === true)
         var stages = data && data.dispatch && Array.isArray(data.dispatch.stages) ? data.dispatch.stages : []
+        var arms = data && data.dispatch && data.dispatch.arms ? data.dispatch.arms : null
+        // The arms are what a bench measured each stage wants, not what this
+        // loop spawned; the sentence says so rather than letting a list of
+        // harness names read as "four of them ran".
+        var armLine =
+          arms && stages.length
+            ? stages
+                .map(function (stage) {
+                  return stage + ' → ' + (arms[stage] || 'dsh')
+                })
+                .join(' · ')
+            : ''
         var whyRsi = box.error
           ? box.error
           : data
@@ -3687,10 +3699,12 @@ window.__ModuleLoader__.load({
           ? box.error
           : data
             ? 'Auto：每轮先规划流程（' +
-              (stages.length ? stages.join(' → ') : 'plan → implement → verify') +
+              (stages.length ? stages.join(' → ') : 'triage → spec → implement → verify → review') +
               '），再按阶段换最合适的 harness（' +
               (dispatchOn ? '现在开着' : '现在关着') +
-              '）。当前只有 DSH 一个模型族，所以换的是框架与 preset，不换模型；关着时与今天逐字节一致。'
+              '）。' +
+              (armLine ? '实测该给谁：' + armLine + '——今天只有一个 harness，所以只登记该给谁、不真换。' : '') +
+              '当前只有 DSH 一个模型族，所以换的是框架与 preset，不换模型；关着时与今天逐字节一致。'
             : '正在读取…'
 
         return h(
