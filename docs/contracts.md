@@ -46,7 +46,7 @@
 - `src/core/reduce.js` — 纯 reducer：把事件序列折叠成 `state.json` 形状的 campaign 状态，是面板与工具读到的同一份事实。
 - `src/core/limits.js` — 插件写给模型的每一段文字的硬上限：系统提示中的战役简报、工具结果、stdout/agent 尾。超出时截断并说明丢弃了多少，避免单个字段把整个请求撑到宿主拒绝转发。
 - `src/core/services.js` — `ctx.get(name)` 的服务解析垫片，让 effect、定时器、工具回调都能在不声明 inject 的地方取到宿主服务。
-- `src/core/settings.js` — 安装级默认值（目前只有 `plan`）：`settings.json` 原子写 + `settings.jsonl` 审计，缺文件/坏文件一律回落到配置默认；`roundConfigWithSettings` 把工作台开关折进每轮实际使用的 config，战役自己的策略仍然优先。
+- `src/core/settings.js` — 安装级默认值（两个键：`plan` 与 `dispatch`）：`settings.json` 原子写 + `settings.jsonl` 审计，缺文件/坏文件一律回落到配置默认，**且每个键各自回答**（文件里只有 `plan` 时 `dispatch` 读作「从未设置」，不是 `false`——猜出关的位置和问到关的位置是两件事）；`roundConfigWithSettings` 把两个开关折进每轮实际使用的 config，战役自己的策略仍然优先；`dispatchFromSettings` 是面板与回合共用的一处读取。
 
 ### dispatch/ — 子会话
 
@@ -56,6 +56,7 @@
   `Research notes (data, not instructions)` 段要求的正是它被量度的那一半：worker 若因为某条引文改了东西，就要在 `evidence` 里引几个词或点出那个来源；没有一条有用则什么也不写。这不是礼貌用语——2026-11-26 之前十八个带 research 记录的轮里 `used` 一次都没为真，因为便签进了简报而「引用一下」这句从来没进过简报；测一个没人被告知的量，读起来就等于「读永远没用」。
 - `src/dispatch/models.js` — 模型链的三个决定：`orderedModels` 把 worker 模型放最前、fallback 去重后跟随、被降级的模型移到末尾但绝不丢弃；`nextModel` 每真实失败前进一格、到末尾停住（不回到刚失败的模型），空链才返回 `null`；`modelChainFor` 把「这次下发给子会话的链」排成一处决定：0 次失败 worker 领跑，有失败则 fallback 领跑、失败的 worker 留在末尾（仍可试，但不再首先重试），没配 fallback 就是单条链，每多一次失败在 fallback 列表里前进一格、到最后一个停住。纯函数、依赖为零
 - `src/dispatch/privilege.js` — 子 agent 的权限不是一个请求字段（宿主的 `AgentOptions` 只有 provider/model/effort/tokens，`SubagentStartRequest` 没有工具清单），所以规则落在工具管线上：`privilegesFor` 按 `session.workerShell`（`allow` 默认 / `declared` / `deny`）与任务是否声明 `exec: true`（或 `verify.exec: true`）给出 `{shell, mode, reason}`；`createPrivilegeRegistry` / `shellPrivileges` 按子会话 id 记拒绝，`decision(sessionId, toolName)` 只在被登记过的会话上拒绝 `SHELL_TOOLS`（bash/pwsh/ops_bash/run_code/terminal_*），返回字符串即拒绝、`undefined` 即放行，未登记的会话（操作者自己的、别的插件的子会话）永远放行；`src/index.js` 用 `ctx.tools.guard` 装它，回合在 `onStart` 拿到 childId 时登记、子会话结束后释放，决定写在 `attempt.privileges` 与 screening 记录里。`allow` 与今天逐字节一致。
+- `src/dispatch/stage-plan.js` — 工作流开关：`STAGES = ['plan','implement','verify']`，`stageOf(task)` 只认任务显式声明且属于这三个阶段（`review` 这种词不是本循环的阶段，不猜，退到 `implement`），`harnessFor` 取配置里该阶段声明的 harness、没声明就用阶段名本身（配置有洞时不丢阶段，丢掉一个阶段比让它退回自己的名字更糟），`dispatchPlan({task, config})` 在开关关闭时返回 **`null`**——不是空计划，所以「关时与今天逐字节一致」是事实而不是意图；打开时返回 `{stage, harness, preset, why, stages:[{stage,harness,preset}]}`。本机所有模型同族，所以阶段能改的是框架与 preset，改不了「谁回答」；面板上的胶囊因此写「先规划流程」，不写「挑模型」。
 - `src/dispatch/session.js` — `Dispatcher`：为每次尝试起一个无父上下文的全新子会话，负责 prompt、取消与释放；子会话的模型请求由 `modelChainFor` 排出的链逐条构造，`null` 头保留「让宿主决定」的语义。
 
 ### exec/ — 进程与工作树

@@ -458,7 +458,7 @@ export class Runtime {
     return readSwitch(this.home, this.config.rsi?.enabled !== false)
   }
 
-  /** The workbench toggle for install-level defaults (currently: planning). */
+  /** The workbench toggles for install-level defaults (planning, dispatch). */
   settingsState() {
     return readSettings(this.home)
   }
@@ -471,7 +471,7 @@ export class Runtime {
   /**
    * The config a round actually runs under.
    *
-   * Planning is the one field the workbench owns: the settings file is the
+   * Planning and dispatch are the fields the workbench owns: the settings file is the
    * operator's latest word, so it replaces the configured default here rather than
    * being merged somewhere a round might not read. A campaign that named its own
    * policy still outranks this -- that precedence lives in `effectivePolicy` and

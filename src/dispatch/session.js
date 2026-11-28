@@ -244,7 +244,7 @@ export class Dispatcher {
    *   failureKind:'ok'|'timeout'|'context'|'tokens'|'died'|'exhausted',
    *   model:string|null, modelsTried:string[], modelSwitch:{from:string|null,to:string|null}|null}>}
    */
-  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, failures = 0, onStart = null } = {}) {
+  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, failures = 0, onStart = null, preset = null } = {}) {
     if (this.disposed) throw new Error('dispatcher disposed')
     const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
@@ -303,7 +303,7 @@ export class Dispatcher {
     for (let i = 0; i < chain.length; i += 1) {
       const current = chain[i]
       const slice = i === 0 ? firstSlice : Math.max(1000, left())
-      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart, askedAt, inherited })
+      res = await this.#one(prompt, { cwd, timeoutMs: slice, label, model: current, onStart, askedAt, inherited, preset })
       // A child that dies silently is not a failed task, it is a broken parent:
       // after a host restart the cached agent can still be addressable while every
       // child it spawns errors immediately. Rebuild once and retry before charging
@@ -327,7 +327,7 @@ export class Dispatcher {
         infraRetried = true
         this.log(`child died silently (${res.error}); rebuilding the parent and retrying once`)
         await this.rebuildParent()
-        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart, askedAt, inherited })), infraRetry: true }
+        res = { ...(await this.#one(prompt, { cwd, timeoutMs: Math.max(1000, left()), label, model: current, onStart, askedAt, inherited, preset })), infraRetry: true }
       }
       tried.push(named(current))
       const kind = classifyResult(res)
@@ -392,7 +392,7 @@ export class Dispatcher {
   }
 
   /** One child session, one model, no retry. */
-  async #one(prompt, { cwd, timeoutMs, label, model, onStart, askedAt = null, inherited = undefined }) {
+  async #one(prompt, { cwd, timeoutMs, label, model, onStart, askedAt = null, inherited = undefined, preset = null }) {
     const subagents = svc(this.ctx, 'subagents')
     const startedAt = Date.now()
     const parent = await this.ensureParent()
@@ -424,7 +424,10 @@ export class Dispatcher {
     }
     const maxTokens = Number(this.config?.session?.maxTokens) || 0
     if (maxTokens > 0) agentOptions.maxTokens = maxTokens
-    const agentPreset = this.config?.session?.preset || undefined
+    // A stage plan may name the preset its stage runs under; without one the
+    // campaign's configured preset applies, which is what every round did before
+    // the dispatch switch existed.
+    const agentPreset = preset || this.config?.session?.preset || undefined
 
     const request = {
       cwd,

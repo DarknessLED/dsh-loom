@@ -3531,6 +3531,176 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // Two pills beside the composer's permission control: the loop's master
+    // switch, and the workflow switch that plans stages and dispatches each one
+    // to its own harness.
+    //
+    // They live in the composer and not in the sidebar because they are not about
+    // one campaign -- they change what the next round will do. A pill shows the
+    // value the host reports, never the value it was clicked to: a switch that
+    // renders "on" before the host agreed is the one failure this control must
+    // not have, so a click posts and then re-reads.
+    //
+    // Styling is inline and token-free on purpose: the composer is not inside
+    // `loom-root`, so the panel's custom properties are not in scope here.
+    function Pills(react) {
+      var h = react.createElement
+      var useState = react.useState
+      var useEffect = react.useEffect
+      var useCallback = react.useCallback
+
+      var CAP = {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        height: '22px',
+        padding: '0 9px',
+        marginRight: '6px',
+        border: '1px solid rgba(127,127,127,.35)',
+        borderRadius: '999px',
+        background: 'transparent',
+        color: 'inherit',
+        font: 'inherit',
+        fontSize: '12px',
+        lineHeight: '20px',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'middle',
+      }
+
+      // The state reads from the shape, not from a hue: a filled dot is on, a
+      // hollow ring is off. The composer is outside `loom-root`, so the panel's
+      // palette custom properties are not in scope here -- and pasting a hex in
+      // would put a second copy of the palette in a file whose rule is that
+      // colour is declared once.
+      function dot(on) {
+        return h('span', {
+          key: 'dot',
+          'aria-hidden': 'true',
+          style: {
+            display: 'inline-block',
+            boxSizing: 'border-box',
+            width: '7px',
+            height: '7px',
+            borderRadius: '999px',
+            background: on ? 'currentColor' : 'transparent',
+            border: on ? 'none' : '1.5px solid currentColor',
+            opacity: on ? 1 : 0.55,
+          },
+        })
+      }
+
+      return function ComposerPills() {
+        var s = useState({ loading: true, error: null, data: null, busy: null })
+        var box = s[0]
+        var setBox = s[1]
+
+        var read = useCallback(function () {
+          fetch(ROUTE, { headers: { accept: 'application/json' }, cache: 'no-store' })
+            .then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status)
+              return r.json()
+            })
+            .then(function (data) {
+              setBox({ loading: false, error: null, data: data, busy: null })
+            })
+            .catch(function (err) {
+              setBox(function (prev) {
+                return { loading: false, error: String(err && err.message ? err.message : err), data: prev.data, busy: null }
+              })
+            })
+        }, [])
+
+        useEffect(function () {
+          read()
+        }, [read])
+
+        var send = useCallback(
+          function (tag, body) {
+            setBox(function (prev) {
+              return { loading: false, error: prev.error, data: prev.data, busy: tag }
+            })
+            fetch(ROUTE, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+              .then(function (r) {
+                return r.json().then(function (payload) {
+                  if (!r.ok) throw new Error(String(payload && payload.error ? payload.error : 'HTTP ' + r.status))
+                  return payload
+                })
+              })
+              .then(function () {
+                read()
+              })
+              .catch(function (err) {
+                setBox(function (prev) {
+                  return { loading: false, error: String(err && err.message ? err.message : err), data: prev.data, busy: null }
+                })
+              })
+          },
+          [read],
+        )
+
+        var data = box.data
+        var rsiOn = !!(data && data.rsi && data.rsi.enabled !== false)
+        var dispatchOn = !!(data && data.dispatch && data.dispatch.enabled === true)
+        var stages = data && data.dispatch && Array.isArray(data.dispatch.stages) ? data.dispatch.stages : []
+        var whyRsi = box.error
+          ? box.error
+          : data
+            ? rsiOn
+              ? '循环开着：会自己起下一轮'
+              : '循环关着：不会自己起轮'
+            : '正在读取…'
+        var whyDispatch = box.error
+          ? box.error
+          : data
+            ? dispatchOn
+              ? '开着：每轮先规划流程（' + stages.join(' → ') + '），每个阶段用它自己的 harness'
+              : '关着：不规划流程，一轮只投一个候选'
+            : '正在读取…'
+
+        return h(
+          'div',
+          { key: 'loom-pills', style: { display: 'inline-flex', alignItems: 'center' } },
+          h(
+            'button',
+            {
+              key: 'rsi',
+              type: 'button',
+              style: CAP,
+              'aria-pressed': rsiOn,
+              title: whyRsi,
+              disabled: box.busy === 'rsi',
+              onClick: function () {
+                send('rsi', { action: rsiOn ? 'disable' : 'enable', reason: 'composer pill' })
+              },
+            },
+            dot(rsiOn),
+            h('span', { key: 'label' }, box.busy === 'rsi' ? '…' : 'RSI'),
+          ),
+          h(
+            'button',
+            {
+              key: 'dispatch',
+              type: 'button',
+              style: CAP,
+              'aria-pressed': dispatchOn,
+              title: whyDispatch,
+              disabled: box.busy === 'dispatch',
+              onClick: function () {
+                send('dispatch', { action: 'dispatch', enabled: !dispatchOn, reason: 'composer pill' })
+              },
+            },
+            dot(dispatchOn),
+            h('span', { key: 'label' }, box.busy === 'dispatch' ? '…' : '调度'),
+          ),
+        )
+      }
+    }
+
     function apply(ctx) {
       var react
       try {
@@ -3546,7 +3716,18 @@ window.__ModuleLoader__.load({
       var PanelView = Panel(react, CardView)
 
       if (typeof ctx.inject !== 'function') return
+      var ComposerPills = Pills(react)
+
       ctx.inject(['slots'], function (scope) {
+        // The composer's left tool row holds the permission control; the two
+        // switches go beside it. `order` keeps them after the host's own
+        // controls rather than in front of them.
+        scope.slots.inject('conversation.input.left', function* () {
+          yield scope.slots.register(
+            { name: 'conversation.input.left', id: 'dsh-loom-pills', order: 40, label: () => 'RSI / 调度' },
+            ComposerPills,
+          )
+        })
         scope.slots.inject('main', function* () {
           yield scope.slots.register({ name: 'main', key: PANEL_KEY }, PanelView)
         })
@@ -3593,6 +3774,7 @@ window.__ModuleLoader__.load({
       Panel: Panel,
       Card: Card,
       Research: Research,
+      Pills: Pills,
       overview: overview,
       metrics: metrics,
       pending: pending,

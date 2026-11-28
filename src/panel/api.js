@@ -9,6 +9,7 @@ import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { compareResearchArms, compareResearchFleet } from '../loop/research-trial.js'
+import { STAGES } from '../dispatch/stage-plan.js'
 import { panelRoute } from './route.js'
 
 /**
@@ -418,6 +419,16 @@ export function panelState({ runtime, config } = {}) {
     fleet: compareResearchFleet(fleetRounds),
     live,
     planning: { on: planOn, at: settings.at ?? null, by: settings.plan === null ? 'config' : settings.by ?? 'human', reason: settings.reason ?? null },
+    // The second workbench switch. Same reading as `planning`: the value in force,
+    // where it came from, and the stages it would plan -- a pill that cannot say
+    // what it will do is a pill nobody can decide to press.
+    dispatch: {
+      enabled: settings.dispatch === null ? config?.session?.dispatch?.enabled === true : settings.dispatch === true,
+      at: settings.at ?? null,
+      by: settings.dispatch === null ? 'config' : settings.by ?? 'human',
+      reason: settings.reason ?? null,
+      stages: [...STAGES],
+    },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },
     lean: lean ? { available: lean.available === true, versions: lean.versions ?? null } : null,
@@ -450,6 +461,11 @@ export function panelAction({ runtime, config }, body) {
     const on = body.enabled === true || body.on === true
     runtime.setSettings({ plan: on }, { by: 'human:panel', reason: body.reason ?? null })
     return { ok: true, planning: panelState({ runtime, config }).planning }
+  }
+  if (action === 'dispatch') {
+    const on = body.enabled === true || body.on === true
+    runtime.setSettings({ dispatch: on }, { by: 'human:panel', reason: body.reason ?? null })
+    return { ok: true, dispatch: panelState({ runtime, config }).dispatch }
   }
   if (action === 'enable' || action === 'disable') {
     if (typeof runtime.setEnabled !== 'function') throw new Error('this runtime cannot switch the loop')

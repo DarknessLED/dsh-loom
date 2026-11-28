@@ -132,6 +132,28 @@ export const DEFAULT_CONFIG = {
     /** Force this agent preset for worker sessions (null = inherit). */
     preset: null,
     /**
+     * The second workbench switch: plan the workflow, then dispatch each stage
+     * to the harness that suits it.
+     *
+     * Off by default, and off computes no plan at all (see
+     * `src/dispatch/stage-plan.js`), so a campaign that never asked for this runs
+     * exactly as it did before the switch existed. On, the round names its task's
+     * stage and runs the child under that stage's preset; a stage the operator
+     * never configured is named after itself rather than dropped.
+     *
+     * The honest limit: every model behind this host is the same family, so a
+     * stage can change the framing and the preset, not which model answers. The
+     * pill says "plan the workflow", not "pick the model", for that reason.
+     */
+    dispatch: {
+      enabled: false,
+      stages: {
+        plan: { harness: 'planning', preset: null },
+        implement: { harness: 'implementation', preset: null },
+        verify: { harness: 'verification', preset: null },
+      },
+    },
+    /**
      * Per-attempt wall clock cap. 13 minutes, not 10.
      *
      * Ten minutes was a checkpoint in the code rather than a percentile of the

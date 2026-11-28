@@ -515,6 +515,14 @@ const standing = [
   // The real path is the fold, not `projectRound`: `views/state.json` had no
   // `research` on either round while both events carried it.
   'tests/self57/what-the-fold-keeps.test.mjs',
+  // Two pills beside the composer's permission control: the loop's master
+  // switch, and a workflow switch that plans stages and gives each one its own
+  // harness. Off must be byte-identical, so the plan is only computed when the
+  // switch is on -- and a pill may not render a state before the host agreed.
+  'tests/self58/a-stage-plan-picks-a-harness-per-stage.test.mjs',
+  'tests/self58/the-dispatch-toggle-is-a-setting.test.mjs',
+  'tests/self58/the-composer-has-two-pills.test.mjs',
+  'tests/self58/a-planned-stage-reaches-the-child.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

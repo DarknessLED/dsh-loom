@@ -47,6 +47,7 @@ globalThis.window = {
 await import('../client/index.js')
 
 const slots = []
+const registered = []
 const injects = []
 const ctx = {
   inject(deps, fn) {
@@ -58,7 +59,8 @@ const ctx = {
           const first = it.next()
           if (!first.done) slots.push({ name, value: first.value })
         },
-        register() {
+        register(spec) {
+          registered.push(spec)
           return () => {}
         },
       },
@@ -86,11 +88,15 @@ check('apply injects the slots service once', () => {
   assert.deepEqual(injects, [['slots']])
 })
 
-check('apply registers the sidebar entry and the main panel', () => {
+check('apply registers the sidebar entry, the main panel, and the composer pills', () => {
   assert.deepEqual(
     slots.map((s) => s.name).sort(),
-    ['main', 'sidebar.panellist'],
+    ['conversation.input.left', 'main', 'sidebar.panellist'],
   )
+  const pills = registered.find((r) => r.name === 'conversation.input.left')
+  assert.ok(pills, 'the composer row got a registration, not just a name')
+  assert.equal(pills.id, 'dsh-loom-pills', 'the pills are one entry, not two')
+  assert.equal(typeof pills.label, 'function', 'and they are labelled like the panel is')
 })
 
 check('the main panel is a component factory', () => {

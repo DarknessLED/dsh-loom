@@ -21,7 +21,7 @@ export const SETTINGS_FILE = 'settings.json'
 export const SETTINGS_LOG = 'settings.jsonl'
 
 /** Keys this file is allowed to carry. Anything else is dropped on write. */
-const KEYS = ['plan']
+const KEYS = ['plan', 'dispatch']
 
 export function settingsPath(home) {
   return join(home, SETTINGS_FILE)
@@ -37,21 +37,29 @@ export function settingsLogPath(home) {
  *   never written) — the caller applies its configured default.
  */
 export function readSettings(home) {
+  const blank = { plan: null, dispatch: null, at: null, by: 'config', reason: 'default' }
   try {
     const file = settingsPath(home)
-    if (!existsSync(file)) return { plan: null, at: null, by: 'config', reason: 'default' }
+    if (!existsSync(file)) return blank
     const raw = JSON.parse(readFileSync(file, 'utf8'))
-    if (!raw || typeof raw !== 'object' || typeof raw.plan !== 'boolean') {
-      return { plan: null, at: null, by: 'config', reason: 'unreadable' }
+    // Each key answers for itself: a file written before the dispatch switch
+    // existed carries `plan` and no `dispatch`, and reading the second as `false`
+    // would turn a workflow the operator never chose into the off position --
+    // which is the same answer, but reached by guessing instead of by asking.
+    const plan = typeof raw?.plan === 'boolean' ? raw.plan : null
+    const dispatch = typeof raw?.dispatch === 'boolean' ? raw.dispatch : null
+    if (!raw || typeof raw !== 'object' || (plan === null && dispatch === null)) {
+      return { plan: null, dispatch: null, at: null, by: 'config', reason: 'unreadable' }
     }
     return {
-      plan: raw.plan,
+      plan,
+      dispatch,
       at: Number.isFinite(raw.at) ? raw.at : null,
       by: typeof raw.by === 'string' ? raw.by : 'human',
       reason: typeof raw.reason === 'string' ? raw.reason : null,
     }
   } catch {
-    return { plan: null, at: null, by: 'config', reason: 'unreadable' }
+    return { plan: null, dispatch: null, at: null, by: 'config', reason: 'unreadable' }
   }
 }
 
@@ -67,11 +75,13 @@ export function writeSettings(home, patch, { by = 'human', reason = null, now = 
   for (const key of Object.keys(incoming)) {
     if (!KEYS.includes(key)) throw new Error(`unknown setting: ${key} (known: ${KEYS.join(', ')})`)
   }
-  if ('plan' in incoming && typeof incoming.plan !== 'boolean') {
-    throw new Error(`setting "plan" must be a boolean, got ${typeof incoming.plan}`)
+  for (const key of KEYS) {
+    if (key in incoming && typeof incoming[key] !== 'boolean') {
+      throw new Error(`setting "${key}" must be a boolean, got ${typeof incoming[key]}`)
+    }
   }
   const prior = readSettings(home)
-  const next = { plan: prior.plan, at: now, by, reason: reason ?? null }
+  const next = { ...prior, at: now, by, reason: reason ?? null }
   for (const key of KEYS) if (key in incoming) next[key] = incoming[key]
   ensureDir(home)
   writeJsonAtomic(settingsPath(home), next)
@@ -80,7 +90,7 @@ export function writeSettings(home, patch, { by = 'human', reason = null, now = 
     by,
     reason: reason ?? null,
     patch: Object.fromEntries(KEYS.filter((k) => k in incoming).map((k) => [k, incoming[k]])),
-    state: { plan: next.plan },
+    state: Object.fromEntries(KEYS.map((k) => [k, next[k] ?? null])),
   })
   return next
 }
@@ -106,8 +116,20 @@ export function planModeFromSettings(home, fallback) {
  * standing up a runtime. A campaign's own `planMode` still outranks this — that
  * precedence lives in `effectivePolicy`/`policyFor`, not here.
  */
+export function dispatchFromSettings(home, fallback = false) {
+  const s = readSettings(home)
+  return s.dispatch === null ? fallback === true : s.dispatch === true
+}
+
 export function roundConfigWithSettings(config, home) {
   const planMode = planModeFromSettings(home, config?.loopPolicy?.planMode)
-  if (planMode === config?.loopPolicy?.planMode) return config
-  return { ...config, loopPolicy: { ...(config.loopPolicy || {}), planMode } }
+  const dispatchOn = dispatchFromSettings(home, config?.session?.dispatch?.enabled === true)
+  const samePlan = planMode === config?.loopPolicy?.planMode
+  const sameDispatch = dispatchOn === (config?.session?.dispatch?.enabled === true)
+  if (samePlan && sameDispatch) return config
+  return {
+    ...config,
+    loopPolicy: { ...(config.loopPolicy || {}), planMode },
+    session: { ...(config.session || {}), dispatch: { ...(config.session?.dispatch || {}), enabled: dispatchOn } },
+  }
 }

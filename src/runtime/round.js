@@ -64,6 +64,7 @@ import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
+import { dispatchPlan as planStages } from '../dispatch/stage-plan.js'
 import { demoteChain } from './model-health.js'
 import { failureDigest } from '../core/limits.js'
 import { lineEndingChurn } from '../gate/churn.js'
@@ -1908,6 +1909,10 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // enforced on the child session the host hands back, because that id is
         // all the tool guard ever sees.
         const privileges = privilegesFor(task, config)
+        // The workflow the operator switched on, or null when the switch is off.
+        // Null is the point: a campaign that never asked for a stage plan
+        // dispatches and records exactly what it did before this existed.
+        const stagePlan = planStages({ task, config })
         const deniedShellSessions = []
         // Every session this attempt starts is registered here, because the
         // abort hook is the only lever a sibling has on a running candidate.
@@ -1934,6 +1939,9 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           model: config.models.worker || null,
           models,
           onStart: startedHook,
+          // A stage with no configured preset dispatches none: the campaign's own
+          // preset applies, exactly as it did before this switch existed.
+          ...(stagePlan?.preset ? { preset: stagePlan.preset } : {}),
         })
         // The child is disposed by now, so the denial has nothing left to guard:
         // leaving it in the map would refuse a later attempt that reused the id.
@@ -2179,6 +2187,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // The tree this attempt was cut against: salvage re-verifies against it.
           base: base ?? null,
           privileges,
+          ...(stagePlan ? { stage: stagePlan.stage, harness: stagePlan.harness } : {}),
           verifierOk: gateOk,
           exitCode: ver.exitCode,
           verifySignature: verifierSignature(ver),
