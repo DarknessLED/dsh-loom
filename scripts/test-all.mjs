@@ -522,6 +522,15 @@ const standing = [
   'tests/self58/a-stage-plan-picks-a-harness-per-stage.test.mjs',
   'tests/self58/the-dispatch-toggle-is-a-setting.test.mjs',
   'tests/self58/the-composer-has-two-pills.test.mjs',
+  // The switches vanished from the composer when the host stopped calling back
+  // its slots injection; a host that hands the slots service over directly must
+  // mount them too. (No bracket characters here: this list is parsed up to the
+  // first closing bracket.)
+  'tests/self58/the-switches-mount-whichever-way-the-host-hands-slots.test.mjs',
+  'tests/self58/a-role-picks-a-harness-and-a-model.test.mjs',
+  'tests/self58/a-change-can-declare-its-own-roles.test.mjs',
+  'tests/self58/the-two-plans-can-be-printed.test.mjs',
+  'tests/self58/a-campaign-picks-where-its-roles-come-from.test.mjs',
   // Auto's far side: which host owns an arm, which model it may ask for, and the
   // transport that actually starts it. Every round writes the answer onto the
   // attempt, so a routed attempt and a recorded one cannot be confused.

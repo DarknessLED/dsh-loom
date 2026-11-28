@@ -3695,6 +3695,17 @@ window.__ModuleLoader__.load({
               ? '循环开着：会自己起下一轮'
               : '循环关着：不会自己起轮'
             : '正在读取…'
+        // One line of "role -> group/model" so the tooltip states what Auto will
+        // actually hand each role instead of promising a mechanism in the abstract.
+        var roleModels = (data && box.dispatch && box.dispatch.roleModels) || {}
+        var roleModelLine = stages
+          .map(function (stage) {
+            var entry = roleModels[stage]
+            if (!entry || !entry.model) return ''
+            return stage + ' → ' + (entry.group || entry.model)
+          })
+          .filter(Boolean)
+          .join(' · ')
         var whyDispatch = box.error
           ? box.error
           : data
@@ -3704,11 +3715,15 @@ window.__ModuleLoader__.load({
               (dispatchOn ? '现在开着' : '现在关着') +
               '）。' +
               (armLine ? '实测该给谁：' + armLine + '。' : '') +
+              (roleModelLine ? '各角色给什么：' + roleModelLine + '。' : '') +
               (box.dispatch.armExecution === 'execute'
                 ? '执行：开——该阶段真交给别的 harness，由 T3 按 provider 起，模型走 ' +
                   (box.dispatch.model || 'auto')
                 : '执行：关——只登记该给谁，干活仍是 DSH 自己的子 agent。') +
-              '（armExecution=execute 才会真起别的 harness；模型是 magpie 的路由组，由网关挑具体模型。）' +
+              '（armExecution=execute 才会真起别的 harness；模型是 magpie 的路由组，由网关挑具体模型；' +
+              'perRole 可以整组装到免费组做 A/B。规划来源：' +
+              (box.dispatch.planSource === 'ssf' ? 'spec-superflow 读改动的 tasks.md' : '实测表') +
+              '。）' +
               '关着时与今天逐字节一致。'
             : '正在读取…'
 
@@ -3769,24 +3784,33 @@ window.__ModuleLoader__.load({
       var CardView = Card(react)
       var PanelView = Panel(react, CardView)
 
-      if (typeof ctx.inject !== 'function') return
+      var direct = ctx && ctx.slots && typeof ctx.slots.inject === 'function'
+      if (!direct && typeof ctx.inject !== 'function') return
       var ComposerPills = Pills(react)
 
-      ctx.inject(['slots'], function (scope) {
+      // Two ways to reach the slot service, and the shorter one is the newer:
+      // an installed plugin (dsh-unlag) reaches `ctx.slots` directly, while this
+      // bundle used to ask for the service through `ctx.inject`. The repository's
+      // host update stopped calling back the inject form, which left both the
+      // composer switches and the sidebar icon unregistered with no error on
+      // screen -- so try the direct service first and keep the old form for a
+      // host that does not hand it over.
+      function mount(slots) {
+        if (!slots || typeof slots.inject !== 'function') return
         // The composer's left tool row holds the permission control; the two
         // switches go beside it. `order` keeps them after the host's own
         // controls rather than in front of them.
-        scope.slots.inject('conversation.input.left', function* () {
-          yield scope.slots.register(
+        slots.inject('conversation.input.left', function* () {
+          yield slots.register(
             { name: 'conversation.input.left', id: 'dsh-loom-pills', order: 40, label: () => 'RSI / Auto' },
             ComposerPills,
           )
         })
-        scope.slots.inject('main', function* () {
-          yield scope.slots.register({ name: 'main', key: PANEL_KEY }, PanelView)
+        slots.inject('main', function* () {
+          yield slots.register({ name: 'main', key: PANEL_KEY }, PanelView)
         })
-        scope.slots.inject('sidebar.panellist', function* () {
-          yield scope.slots.register({ name: 'sidebar.panellist', id: PANEL_KEY, order: 24, label: () => 'RSI' }, function Icon(props) {
+        slots.inject('sidebar.panellist', function* () {
+          yield slots.register({ name: 'sidebar.panellist', id: PANEL_KEY, order: 24, label: () => 'RSI' }, function Icon(props) {
             var size = typeof props.size === 'number' ? props.size : 16
             return react.createElement(
               'svg',
@@ -3807,7 +3831,15 @@ window.__ModuleLoader__.load({
             )
           })
         })
-      })
+      }
+
+      if (ctx && ctx.slots && typeof ctx.slots.inject === 'function') {
+        mount(ctx.slots)
+        return
+      }
+      if (typeof ctx.inject === 'function') {
+        ctx.inject(['slots'], function (scope) { mount(scope && scope.slots) })
+      }
     }
 
     exports.apply = apply

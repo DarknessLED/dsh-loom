@@ -65,6 +65,7 @@ import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
 import { dispatchPlan as planStages, executionWanted } from '../dispatch/stage-plan.js'
+import { ssfPlan } from '../dispatch/ssf.js'
 import { demoteChain } from './model-health.js'
 import { failureDigest } from '../core/limits.js'
 import { lineEndingChurn } from '../gate/churn.js'
@@ -1938,7 +1939,22 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
             },
           },
         }
-        const stagePlan = planStages({ task, config: planConfig, role: 'worker' })
+        // Where the role list comes from. `ssf` reads the change's own tasks.md
+        // (read-only, no subprocess), so a change that has already reviewed can
+        // stop paying for a review it does not need; `static` keeps the measured
+        // table as the only voice. Absent tasks.md is a silence, and a silence
+        // falls back to the table rather than hiring nobody.
+        let planRoles = null
+        const planSource = policy.planSource === 'ssf' ? 'ssf' : 'static'
+        if (planSource === 'ssf') {
+          try {
+            const declared = ssfPlan({ dir: state.workspace, doctor: false })
+            planRoles = declared.available && declared.roles.length ? declared.roles : null
+          } catch {
+            planRoles = null
+          }
+        }
+        const stagePlan = planStages({ task, config: planConfig, role: 'worker', planRoles })
         const deniedShellSessions = []
         // Every session this attempt starts is registered here, because the
         // abort hook is the only lever a sibling has on a running candidate.
@@ -2227,6 +2243,7 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
                 harness: stagePlan.harness,
                 armTarget: stagePlan.armTarget,
                 modelTarget: stagePlan.model,
+                ...(Array.isArray(stagePlan.roles) ? { planRoles: stagePlan.roles } : {}),
               }
             : {}),
           // Present only when a host other than us ran this attempt: which arm,

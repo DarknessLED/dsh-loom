@@ -158,22 +158,88 @@ export function presetFor(plan, stage) {
 }
 
 /**
- * The model a stage asks for, or null for "whatever the host runs".
+ * The named model groups this install can route through.
  *
- * `session.dispatch.models` is read in two layers: `perStage[stage]` first, then
- * `default`. The default is a magpie *routing group*
- * (`auto/deepseek-v4.1-flash`), which is the closest thing to an Auto option on
- * this gateway: the group decides the concrete model, and the loop only decides
- * that this stage wants the group. A name that is not advertised by whichever
- * provider ends up running is adjusted once, visibly, by the transport.
+ * A group is not a model: `auto/deepseek-v4.1-flash` is the gateway's own Auto
+ * option, and `opencode-go/hungerg-free` is the free tier. Naming them here lets
+ * a role say *which kind of model it wants* without hard-coding a vendor slug
+ * that will be gone when the plan changes — which is exactly what has to be
+ * possible once `gpt-6.2-sol` or `claude-opus-5-5` show up.
  */
-export function modelFor(stage, config) {
+export const MODEL_GROUPS = { premium: 'auto/deepseek-v4.1-flash', free: 'opencode-go/hungerg-free' }
+
+/** Which group a role asks for by default; measured work wants the stronger one. */
+export const ROLE_MODEL_GROUPS = {
+  triage: 'free',
+  spec: 'premium',
+  implement: 'premium',
+  verify: 'free',
+  review: 'premium',
+}
+
+/**
+ * Resolve one named choice into `{model, group}`.
+ *
+ * A value that matches a key in `groups` is a group name; anything else is taken
+ * as a literal model slug. Both are legitimate — the group is how a role states
+ * its intent, the slug is how someone pins a vendor for one experiment — and the
+ * caller must be able to tell which one it got, because a pinned slug is not
+ * re-routed by the gateway.
+ */
+export function resolveModel(choice, config) {
+  const groups = config?.session?.dispatch?.models?.groups
+  const table = groups && typeof groups === 'object' ? groups : MODEL_GROUPS
+  if (typeof choice !== 'string' || !choice.trim()) return { model: null, group: null }
+  const name = choice.trim()
+  if (typeof table[name] === 'string' && table[name].trim()) return { model: table[name].trim(), group: name }
+  // The same slug written as a value is the same group seen from the other side:
+  // `default: 'auto/deepseek-v4.1-flash'` is the premium group's model, and a
+  // reader should not see "pinned" just because the install wrote the slug.
+  const named = Object.keys(table).find((key) => typeof table[key] === 'string' && table[key].trim() === name)
+  return { model: name, group: named ?? null }
+}
+
+/**
+ * The model a role asks for, and the group that named it.
+ *
+ * Order: `perRole[role]` (a group name or a pinned slug) → `perStage[stage]`
+ * (kept for installs configured before roles had models) → `default`. The
+ * default is a magpie *routing group*, which is the closest thing to an Auto
+ * option on this gateway: the group decides the concrete model, and the loop
+ * only decides that this role wants the group. A name that is not advertised by
+ * whichever provider ends up running is adjusted once, visibly, by the
+ * transport.
+ */
+export function modelChoiceFor(stage, config) {
   const models = config?.session?.dispatch?.models
-  if (!models || typeof models !== 'object') return null
   const canonical = canonicalStage(stage) ?? stage
-  const per = models.perStage && typeof models.perStage === 'object' ? models.perStage : {}
-  const named = [per[canonical], models.default].find((v) => typeof v === 'string' && v.trim())
+  // A whole-install override, used to run the same work through the free group
+  // and then the premium one. It is a test knob, so it sits above everything and
+  // is named after what it is: a plan, not a role's preference.
+  const plan = typeof models?.plan === 'string' ? models.plan.trim() : ''
+  if (plan === 'premium' || plan === 'free') return plan
+  const perRole = models?.perRole && typeof models.perRole === 'object' ? models.perRole : {}
+  const perStage = models?.perStage && typeof models.perStage === 'object' ? models.perStage : {}
+  // The role's own intent sits between the install's two overrides and its
+  // default: an install that never mentioned models still gets "the strong group
+  // for writing, the free one for checking", because that is what the role means.
+  const named = [perRole[canonical], perStage[canonical], ROLE_MODEL_GROUPS[canonical], models?.default].find(
+    (v) => typeof v === 'string' && v.trim(),
+  )
   return named ? named.trim() : null
+}
+
+export function modelFor(stage, config) {
+  const choice = modelChoiceFor(stage, config)
+  if (!choice) return null
+  return resolveModel(choice, config).model
+}
+
+/** The group name behind a role's model, or null when the role pins a slug. */
+export function modelGroupFor(stage, config) {
+  const choice = modelChoiceFor(stage, config)
+  if (!choice) return null
+  return resolveModel(choice, config).group
 }
 
 /**
@@ -201,27 +267,42 @@ export function executionWanted({ campaignOverride = null, install = null } = {}
   return install === 'execute'
 }
 
-export function dispatchPlan({ task, config, role = null } = {}) {
+export function dispatchPlan({ task, config, role = null, planRoles = null } = {}) {
   if (config?.session?.dispatch?.enabled !== true) return null
   const chosen = stageForNode(role, task)
   const stage = chosen.stage
-  const stages = STAGES.map((name) => {
+  // A change that declares its own roles narrows the plan to those; a change that
+  // declares none gets the measured table for every stage, because an empty role
+  // list is a silence, not a decision to hire nobody.
+  const declared = Array.isArray(planRoles) ? planRoles.map((r) => canonicalStage(r)).filter(Boolean) : []
+  const wanted = declared.length ? [...new Set(declared)] : STAGES
+  const stages = wanted.map((name) => {
     const entry = stagesOf(config)[name] ?? {}
     const harness = harnessFor(name, config)
     const preset = typeof entry.preset === 'string' && entry.preset.trim() ? entry.preset.trim() : null
-    return { stage: name, harness, preset, model: modelFor(name, config), ...armFor(name) }
+    return {
+      stage: name,
+      harness,
+      preset,
+      model: modelFor(name, config),
+      modelGroup: modelGroupFor(name, config),
+      ...armFor(name),
+    }
   })
   const current = stages.find((s) => s.stage === stage) ?? stages[stages.length - 1]
+  const source = declared.length ? 'the change declares its roles' : 'the measured table'
   return {
     stage,
     stageFrom: chosen.from,
     harness: current.harness,
     preset: current.preset,
     model: current.model,
+    modelGroup: current.modelGroup,
     armTarget: current.arm,
     armWhy: current.why,
+    roles: wanted,
     execute: config?.session?.dispatch?.armExecution === 'execute',
-    why: `${task?.id ?? 'this task'} is in the ${stage} stage (${chosen.from})`,
+    why: `${task?.id ?? 'this task'} is in the ${stage} stage (${chosen.from}); ${wanted.length} role(s) planned from ${source}`,
     stages,
   }
 }

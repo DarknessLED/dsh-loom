@@ -18,6 +18,7 @@ export const POLICY_FIELDS = [
   'researchMode',
   'secondCandidate',
   'armExecution',
+  'planSource',
 ]
 
 /** The only modes a planner can run in; anything else is not a mode. */
@@ -56,6 +57,8 @@ export const POLICY_DEFAULTS = {
    * lost and skips it when the loop is already moving.
    */
   researchMode: 'auto',
+  /** 'static' = the measured table, 'ssf' = the change's own tasks.md. */
+  planSource: 'static',
   /** null = price the second candidate; 'always' = an instruction not to. */
   secondCandidate: null,
   /**
@@ -82,6 +85,7 @@ function num(x, fallback) {
  */
 const OVERRIDE_RULES = {
   planMode: { valid: (v) => PLAN_MODES.includes(v), why: PLAN_MODES.join(' | ') },
+  planSource: { valid: (v) => v === 'static' || v === 'ssf', why: 'static | ssf' },
   armExecution: { valid: (v) => v === 'off' || v === 'execute', why: 'off | execute' },
   researchMode: { valid: (v) => RESEARCH_MODES.includes(v), why: RESEARCH_MODES.join(' | ') },
   candidateMode: { valid: (v) => v === 'cascade' || v === 'parallel', why: 'cascade | parallel' },
@@ -161,6 +165,8 @@ export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
     secondCandidate:
       p.secondCandidate === 'always' || p.secondCandidate === 'auto' ? p.secondCandidate : base.secondCandidate ?? null,
     armExecution: p.armExecution === 'execute' ? 'execute' : base.armExecution,
+    // Both words are real answers; only an absent (or invalid) one defers.
+    planSource: p.planSource === 'ssf' ? 'ssf' : p.planSource === 'static' ? 'static' : base.planSource,
   }
   return out
 }
@@ -181,6 +187,7 @@ export function effectivePolicy({ state, config } = {}) {
       researchMode: config?.research?.enabled === false ? 'off' : config?.loopPolicy?.researchMode,
       secondCandidate: config?.loopPolicy?.secondCandidate ?? null,
       armExecution: config?.loopPolicy?.armExecution,
+      planSource: config?.session?.dispatch?.planSource,
     },
     POLICY_DEFAULTS,
   )

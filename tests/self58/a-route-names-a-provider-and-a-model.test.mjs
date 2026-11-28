@@ -16,7 +16,7 @@ import {
   readProviders,
   routeFor,
 } from '../../src/dispatch/arms.js'
-import { dispatchPlan, modelFor, stageForNode, taskKindOf } from '../../src/dispatch/stage-plan.js'
+import { MODEL_GROUPS, dispatchPlan, modelFor, stageForNode, taskKindOf } from '../../src/dispatch/stage-plan.js'
 import { ok, done } from '../chaos/fixture.mjs'
 
 const PROVIDERS = {
@@ -122,7 +122,8 @@ ok('each arm names a T3 provider, or null when T3 does not ship that harness')
   const eager = dispatchPlan({ task: { id: 't' }, config: { session: { dispatch: { ...config.session.dispatch, armExecution: 'execute' } } }, role: 'worker' })
   assert.equal(eager.execute, true)
   assert.equal(eager.model, DEFAULT_ARM_MODEL)
-  assert.equal(modelFor('triage', config), DEFAULT_ARM_MODEL)
+  assert.equal(modelFor('triage', config), MODEL_GROUPS.free, 'triage asks for the free group by default')
+  assert.equal(modelFor('implement', config), DEFAULT_ARM_MODEL)
   ok('the plan carries its model and its execution permission')
 }
 

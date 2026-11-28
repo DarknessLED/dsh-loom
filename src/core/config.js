@@ -161,12 +161,32 @@ export const DEFAULT_CONFIG = {
       // provider). Off stays the default because executing another agent spends
       // another account's quota and the loop cannot meter it.
       armExecution: 'off',
-      // Which model a stage asks for. The default is a magpie *routing group*:
-      // the gateway, not the loop, picks the concrete model inside it, which is
-      // the same deal a client's "Auto" model option offers. A stage can override
-      // it per stage; a name the chosen provider does not advertise is adjusted
-      // once and recorded, never silently assumed.
-      models: { default: 'auto/deepseek-v4.1-flash', perStage: {} },
+      // Which model a role asks for, and which group that name resolves through.
+      //
+      // A role states an *intent* (`premium`, `free`), never a vendor: the group
+      // is the gateway's own Auto option and can re-point at a stronger model the
+      // day one appears (`gpt-6.2-sol`, `claude-opus-5-5`), which a hard-coded
+      // slug cannot do. A role may still pin a literal slug for one experiment;
+      // that is recorded as a pinned model rather than a group, so a reader can
+      // tell "the gateway chose" from "we chose".
+      //
+      // `perStage` is kept because installs configured it before roles had
+      // models; `perRole` wins over it, and both win over `default`.
+      models: {
+        default: 'auto/deepseek-v4.1-flash',
+        // Whole-install override for A/B tests: 'premium', 'free' or null for
+        // "let each role state its own intent". Named `plan` because it plans the
+        // instal's model level, and it outranks every per-role answer.
+        plan: null,
+        groups: { premium: 'auto/deepseek-v4.1-flash', free: 'opencode-go/hungerg-free' },
+        perRole: { triage: 'free', spec: 'premium', implement: 'premium', verify: 'free', review: 'premium' },
+        perStage: {},
+      },
+      // Where the role list comes from: the measured table (`static`) or the
+      // change's own task list read through spec-superflow (`ssf`). `ssf` only
+      // narrows and orders; it never invents a role the measurement has no arm
+      // for, so a comparison stays meaningful.
+      planSource: 'static',
       stages: {
         triage: { harness: 'triage', preset: null },
         spec: { harness: 'spec', preset: null },

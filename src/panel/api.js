@@ -9,7 +9,7 @@ import { applyApprovalEffects, applyRejectionEffects } from '../runtime/decision
 import { claimHeadline, filesInClaim } from '../knowledge/impact.js'
 import { describeEnd } from '../report/end.js'
 import { compareResearchArms, compareResearchFleet } from '../loop/research-trial.js'
-import { ARMS, STAGES } from '../dispatch/stage-plan.js'
+import { ARMS, STAGES, modelFor, modelGroupFor } from '../dispatch/stage-plan.js'
 import { panelRoute } from './route.js'
 
 /**
@@ -434,6 +434,24 @@ export function panelState({ runtime, config } = {}) {
       arms: Object.fromEntries(STAGES.map((stage) => [stage, ARMS[stage]?.arm ?? null])),
       armExecution: config?.session?.dispatch?.armExecution === 'execute' ? 'execute' : 'off',
       model: typeof config?.session?.dispatch?.models?.default === 'string' ? config.session.dispatch.models.default : null,
+      // Where the role list is read from, and what each role would be given.
+      // A reader of this panel has to be able to see that `implement` wants the
+      // premium group while `verify` wants the free one, otherwise "Auto" is a
+      // claim with nothing behind it.
+      planSource: config?.session?.dispatch?.planSource === 'ssf' ? 'ssf' : 'static',
+      modelGroups: (() => {
+        const groups = config?.session?.dispatch?.models?.groups
+        return groups && typeof groups === 'object' ? { ...groups } : {}
+      })(),
+      roleModels: Object.fromEntries(
+        STAGES.map((stage) => [
+          stage,
+          {
+            group: modelGroupFor(stage, config),
+            model: modelFor(stage, config),
+          },
+        ]),
+      ),
     },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },
