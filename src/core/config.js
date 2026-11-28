@@ -155,6 +155,18 @@ export const DEFAULT_CONFIG = {
      */
     dispatch: {
       enabled: false,
+      // Naming an arm and running it are two permissions. `off` writes the arm
+      // onto the attempt and runs the loop's own child; `execute` lets the stage
+      // be handed to the host that owns that harness (T3 Code, provider by
+      // provider). Off stays the default because executing another agent spends
+      // another account's quota and the loop cannot meter it.
+      armExecution: 'off',
+      // Which model a stage asks for. The default is a magpie *routing group*:
+      // the gateway, not the loop, picks the concrete model inside it, which is
+      // the same deal a client's "Auto" model option offers. A stage can override
+      // it per stage; a name the chosen provider does not advertise is adjusted
+      // once and recorded, never silently assumed.
+      models: { default: 'auto/deepseek-v4.1-flash', perStage: {} },
       stages: {
         triage: { harness: 'triage', preset: null },
         spec: { harness: 'spec', preset: null },

@@ -428,10 +428,12 @@ export function panelState({ runtime, config } = {}) {
       by: settings.dispatch === null ? 'config' : settings.by ?? 'human',
       reason: settings.reason ?? null,
       stages: [...STAGES],
-      // Which arm each stage was measured to want. The switch does not spawn
-      // them -- the loop has one harness -- so this is what the tooltip may
-      // promise, and nothing more.
+      // Which arm each stage was measured to want, and whether this install is
+      // allowed to run it. The two are separate: `arms` is what the plan names,
+      // `armExecution` says whether naming has become executing.
       arms: Object.fromEntries(STAGES.map((stage) => [stage, ARMS[stage]?.arm ?? null])),
+      armExecution: config?.session?.dispatch?.armExecution === 'execute' ? 'execute' : 'off',
+      model: typeof config?.session?.dispatch?.models?.default === 'string' ? config.session.dispatch.models.default : null,
     },
     rsi: { enabled: rsi.enabled !== false, at: rsi.at ?? null, by: rsi.by ?? 'config' },
     ownership: { owner: ownership.owner?.pid ?? null, mine: ownership.mine !== false },

@@ -62,6 +62,8 @@ function runtimeStub(h) {
     { triage: 'dsh', spec: 'cc', implement: 'codex', verify: 'gcli', review: 'agy' },
     'and the arm a bench measured each stage wants',
   )
+  assert.equal(state.dispatch.armExecution, 'off', 'whether naming an arm has become running it')
+  assert.match(state.dispatch.model ?? '', /auto\/|group\//, 'and the routing group a stage asks for by default')
   ok('the dispatch switch is visible in the panel state and off by default')
 }
 

@@ -17,6 +17,7 @@ export const POLICY_FIELDS = [
   'planMode',
   'researchMode',
   'secondCandidate',
+  'armExecution',
 ]
 
 /** The only modes a planner can run in; anything else is not a mode. */
@@ -57,6 +58,13 @@ export const POLICY_DEFAULTS = {
   researchMode: 'auto',
   /** null = price the second candidate; 'always' = an instruction not to. */
   secondCandidate: null,
+  /**
+   * 'off' | 'execute' — whether a stage's arm is only recorded or actually run
+   * by the host that owns that harness. Off by default at install level too: a
+   * campaign opts in, because executing another agent spends another account's
+   * quota and the loop cannot meter what it spends.
+   */
+  armExecution: 'off',
 }
 
 function num(x, fallback) {
@@ -74,6 +82,7 @@ function num(x, fallback) {
  */
 const OVERRIDE_RULES = {
   planMode: { valid: (v) => PLAN_MODES.includes(v), why: PLAN_MODES.join(' | ') },
+  armExecution: { valid: (v) => v === 'off' || v === 'execute', why: 'off | execute' },
   researchMode: { valid: (v) => RESEARCH_MODES.includes(v), why: RESEARCH_MODES.join(' | ') },
   candidateMode: { valid: (v) => v === 'cascade' || v === 'parallel', why: 'cascade | parallel' },
   minGain: { valid: (v) => Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 1, why: 'number in [0, 1]' },
@@ -151,6 +160,7 @@ export function normalizePolicy(raw, base = POLICY_DEFAULTS) {
     researchMode: RESEARCH_MODES.includes(p.researchMode) ? p.researchMode : base.researchMode,
     secondCandidate:
       p.secondCandidate === 'always' || p.secondCandidate === 'auto' ? p.secondCandidate : base.secondCandidate ?? null,
+    armExecution: p.armExecution === 'execute' ? 'execute' : base.armExecution,
   }
   return out
 }
@@ -170,6 +180,7 @@ export function effectivePolicy({ state, config } = {}) {
       planMode: config?.loopPolicy?.planMode,
       researchMode: config?.research?.enabled === false ? 'off' : config?.loopPolicy?.researchMode,
       secondCandidate: config?.loopPolicy?.secondCandidate ?? null,
+      armExecution: config?.loopPolicy?.armExecution,
     },
     POLICY_DEFAULTS,
   )

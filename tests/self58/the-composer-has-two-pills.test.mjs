@@ -43,9 +43,10 @@ const source = readFileSync(new URL('../../client/index.js', import.meta.url), '
 {
   assert.match(source, /Auto：每轮先规划流程/, 'the tooltip says Auto plans the workflow first')
   assert.match(source, /harness/, 'and that each stage gets its own harness')
-  assert.match(source, /不换模型/, 'and that it does not change the model today')
+  assert.match(source, /路由组/, 'and that the model is a gateway routing group, not a pinned model')
   assert.match(source, /实测该给谁/, 'and which arm the bench measured for each stage')
-  assert.match(source, /不真换/, 'while saying plainly that none of those arms is spawned')
+  assert.match(source, /armExecution=execute/, 'while saying plainly what makes an arm run rather than be recorded')
+  assert.match(source, /执行：/, 'and which of the two this install is doing right now')
   ok('Auto explains what auto does on hover')
 }
 

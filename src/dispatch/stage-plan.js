@@ -67,6 +67,45 @@ export const ARMS = {
  */
 export const STAGE_ALIASES = { plan: 'spec' }
 
+/**
+ * The stage each *chain node* works in, when the node knows better than the task.
+ *
+ * This is the fix for the trap a live round demonstrated: a task that declared
+ * `stage: "verify"` but whose work was "change impl.txt to step:1" was filed as a
+ * verifier and would have been handed a reviewer's preset to write code with. A
+ * node's role is a fact about the loop; a task's declaration is a hint about the
+ * work. The fact wins for the nodes that have one, and the hint only decides the
+ * worker's own stage.
+ */
+export const NODE_STAGES = { recon: 'spec', plan: 'spec', worker: null }
+
+/**
+ * The stage a task is in, from `taskKind` (preferred) or the older `stage` field.
+ *
+ * Both names are accepted because campaigns already on disk wrote `stage`, and a
+ * rename that silently re-files them would rewrite history. New campaigns should
+ * write `taskKind`: `stage` reads like the loop's own phases, and the loop's
+ * phases are not this table's stages.
+ */
+export function taskKindOf(task) {
+  return canonicalStage(task?.taskKind) ?? canonicalStage(task?.stage) ?? 'implement'
+}
+
+/**
+ * The stage this dispatch belongs to, node role first.
+ *
+ * `role` is the chain node ('recon', 'worker') or null for an unlabelled attempt.
+ * Returns the stage and where it came from, so a record can be audited: a stage
+ * that nobody declared and a stage the loop imposed are different facts.
+ */
+export function stageForNode(role, task) {
+  const byNode = typeof role === 'string' && role in NODE_STAGES ? NODE_STAGES[role] : null
+  if (byNode) return { stage: byNode, from: `node:${role}` }
+  if (canonicalStage(task?.taskKind)) return { stage: canonicalStage(task.taskKind), from: 'taskKind' }
+  if (canonicalStage(task?.stage)) return { stage: canonicalStage(task.stage), from: 'stage' }
+  return { stage: 'implement', from: 'default' }
+}
+
 function stagesOf(config) {
   const raw = config?.session?.dispatch?.stages
   return raw && typeof raw === 'object' ? raw : {}
@@ -119,29 +158,70 @@ export function presetFor(plan, stage) {
 }
 
 /**
- * The plan for one task, or null when the switch is off.
+ * The model a stage asks for, or null for "whatever the host runs".
+ *
+ * `session.dispatch.models` is read in two layers: `perStage[stage]` first, then
+ * `default`. The default is a magpie *routing group*
+ * (`auto/deepseek-v4.1-flash`), which is the closest thing to an Auto option on
+ * this gateway: the group decides the concrete model, and the loop only decides
+ * that this stage wants the group. A name that is not advertised by whichever
+ * provider ends up running is adjusted once, visibly, by the transport.
+ */
+export function modelFor(stage, config) {
+  const models = config?.session?.dispatch?.models
+  if (!models || typeof models !== 'object') return null
+  const canonical = canonicalStage(stage) ?? stage
+  const per = models.perStage && typeof models.perStage === 'object' ? models.perStage : {}
+  const named = [per[canonical], models.default].find((v) => typeof v === 'string' && v.trim())
+  return named ? named.trim() : null
+}
+
+/**
+ * The plan for one dispatch, or null when the switch is off.
  *
  * Every stage is present even when the campaign configured only some of them: a
  * plan with a hole silently drops a stage, which is worse than a stage that has
  * to fall back to its own name.
+ *
+ * `role` is the chain node asking ('recon', 'worker'); when it is given the node
+ * decides the stage and the task's declaration is only a hint (see
+ * `stageForNode`). `execute` says whether this plan may be *run* on another
+ * harness or is only being recorded; the dispatcher reads the same setting, and
+ * it is repeated here so a plan printed in a log says what it would do.
  */
-export function dispatchPlan({ task, config } = {}) {
+/**
+ * Whether this run's arm may be executed, from the two places that answer.
+ *
+ * The campaign's own word is the operator's latest instruction and wins; absent
+ * one, the install decides. Resolved here rather than at the call site because
+ * two readers picking differently is how "recorded" and "ran" drift apart.
+ */
+export function executionWanted({ campaignOverride = null, install = null } = {}) {
+  if (campaignOverride === 'execute' || campaignOverride === 'off') return campaignOverride === 'execute'
+  return install === 'execute'
+}
+
+export function dispatchPlan({ task, config, role = null } = {}) {
   if (config?.session?.dispatch?.enabled !== true) return null
-  const stage = stageOf(task)
+  const chosen = stageForNode(role, task)
+  const stage = chosen.stage
   const stages = STAGES.map((name) => {
     const entry = stagesOf(config)[name] ?? {}
     const harness = harnessFor(name, config)
     const preset = typeof entry.preset === 'string' && entry.preset.trim() ? entry.preset.trim() : null
-    return { stage: name, harness, preset, ...armFor(name) }
+    return { stage: name, harness, preset, model: modelFor(name, config), ...armFor(name) }
   })
   const current = stages.find((s) => s.stage === stage) ?? stages[stages.length - 1]
   return {
     stage,
+    stageFrom: chosen.from,
     harness: current.harness,
     preset: current.preset,
+    model: current.model,
     armTarget: current.arm,
     armWhy: current.why,
-    why: `${task?.id ?? 'this task'} is in the ${stage} stage`,
+    execute: config?.session?.dispatch?.armExecution === 'execute',
+    why: `${task?.id ?? 'this task'} is in the ${stage} stage (${chosen.from})`,
     stages,
   }
 }

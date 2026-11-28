@@ -522,8 +522,17 @@ const standing = [
   'tests/self58/a-stage-plan-picks-a-harness-per-stage.test.mjs',
   'tests/self58/the-dispatch-toggle-is-a-setting.test.mjs',
   'tests/self58/the-composer-has-two-pills.test.mjs',
+  // Auto's far side: which host owns an arm, which model it may ask for, and the
+  // transport that actually starts it. Every round writes the answer onto the
+  // attempt, so a routed attempt and a recorded one cannot be confused.
+  'tests/self58/a-route-names-a-provider-and-a-model.test.mjs',
+  'tests/self58/the-t3-transport-is-a-command.test.mjs',
+  'tests/self58/an-executed-arm-is-recorded.test.mjs',
   'tests/self58/the-five-stages-are-the-measured-ones.test.mjs',
   'tests/self58/a-planned-stage-reaches-the-child.test.mjs',
+  'tests/self58/a-campaign-may-decide-whether-the-arm-runs.test.mjs',
+  // A thread cannot start in a directory T3 has never been told about.
+  'tests/self58/a-thread-needs-a-known-project.test.mjs',
   'tests/self/lessons-preview.test.mjs',
   'tests/self/quiet-hours.test.mjs',
   'tests/self/report-lessons.test.mjs',

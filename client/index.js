@@ -3703,8 +3703,13 @@ window.__ModuleLoader__.load({
               '），再按阶段换最合适的 harness（' +
               (dispatchOn ? '现在开着' : '现在关着') +
               '）。' +
-              (armLine ? '实测该给谁：' + armLine + '——今天只有一个 harness，所以只登记该给谁、不真换。' : '') +
-              '当前只有 DSH 一个模型族，所以换的是框架与 preset，不换模型；关着时与今天逐字节一致。'
+              (armLine ? '实测该给谁：' + armLine + '。' : '') +
+              (box.dispatch.armExecution === 'execute'
+                ? '执行：开——该阶段真交给别的 harness，由 T3 按 provider 起，模型走 ' +
+                  (box.dispatch.model || 'auto')
+                : '执行：关——只登记该给谁，干活仍是 DSH 自己的子 agent。') +
+              '（armExecution=execute 才会真起别的 harness；模型是 magpie 的路由组，由网关挑具体模型。）' +
+              '关着时与今天逐字节一致。'
             : '正在读取…'
 
         return h(

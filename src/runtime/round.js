@@ -64,7 +64,7 @@ import { planCacheKey, cachedPlanEntry, rememberPlan, planFiles } from './recon-
 import { guardIsPartOf, stripGuardClause } from './guard-reuse.js'
 import { estimatedRoundCost, estimatedRoundTokens, overshootOf, recordedRoundTokens } from './triangle.js'
 import { planBudgetMs } from './plan-budget.js'
-import { dispatchPlan as planStages } from '../dispatch/stage-plan.js'
+import { dispatchPlan as planStages, executionWanted } from '../dispatch/stage-plan.js'
 import { demoteChain } from './model-health.js'
 import { failureDigest } from '../core/limits.js'
 import { lineEndingChurn } from '../gate/churn.js'
@@ -1912,7 +1912,33 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
         // The workflow the operator switched on, or null when the switch is off.
         // Null is the point: a campaign that never asked for a stage plan
         // dispatches and records exactly what it did before this existed.
-        const stagePlan = planStages({ task, config })
+        // A campaign may opt into executing this run's arm. Recording an arm
+        // and running it are two permissions, and the install default is off.
+        // The campaign's own word is strongest: `state.policy.armExecution` is
+        // the operator's latest instruction for this campaign; when it is absent
+        // the install config decides. Resolved once, so the plan below cannot
+        // read two sources and pick differently.
+        const campaignArm = state?.policy && typeof state.policy === 'object' ? state.policy.armExecution : null
+        const armWanted = executionWanted({
+          campaignOverride: campaignArm,
+          install: config.session?.dispatch?.armExecution,
+        })
+        // The worker node is the one that writes, so its stage comes from the
+        // task's own kind, not from the chain node's name.
+        // Resolved into the config itself rather than passed around: the plan
+        // reads `armExecution` from one place, so a campaign's 'off' cannot lose
+        // to an install-level 'execute' by being left out of the overlay.
+        const planConfig = {
+          ...config,
+          session: {
+            ...config.session,
+            dispatch: {
+              ...config.session?.dispatch,
+              armExecution: armWanted ? 'execute' : 'off',
+            },
+          },
+        }
+        const stagePlan = planStages({ task, config: planConfig, role: 'worker' })
         const deniedShellSessions = []
         // Every session this attempt starts is registered here, because the
         // abort hook is the only lever a sibling has on a running candidate.
@@ -1936,12 +1962,17 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // crowd out the part a reader cannot recover from the brief — which
           // node of the chain produced this dispatch.
           label: `loom:${workerId}:r${n}a${i}`,
-          model: config.models.worker || null,
+          // A routed stage may name its own model (a magpie routing group, which
+          // is the gateway's Auto); otherwise the campaign's worker model stands.
+          model: stagePlan?.model ?? (config.models.worker || null),
           models,
           onStart: startedHook,
           // A stage with no configured preset dispatches none: the campaign's own
           // preset applies, exactly as it did before this switch existed.
           ...(stagePlan?.preset ? { preset: stagePlan.preset } : {}),
+          // Executing the arm is a separate permission from naming it (see
+          // src/dispatch/arms.js); `armExecution` is what turns one into the other.
+          ...(stagePlan ? { arm: stagePlan.armTarget, armExecution: stagePlan.execute ? 'execute' : null } : {}),
         })
         // The child is disposed by now, so the denial has nothing left to guard:
         // leaving it in the map would refuse a later attempt that reused the id.
@@ -2187,7 +2218,21 @@ export async function runRound({ runtime, view, config, dispatcher, log, notify 
           // The tree this attempt was cut against: salvage re-verifies against it.
           base: base ?? null,
           privileges,
-          ...(stagePlan ? { stage: stagePlan.stage, harness: stagePlan.harness, armTarget: stagePlan.armTarget } : {}),
+          ...(stagePlan
+            ? {
+                stage: stagePlan.stage,
+                // Where the stage came from: a chain node role, the task's own
+                // kind, the legacy `stage` field, or the default.
+                stageFrom: stagePlan.stageFrom,
+                harness: stagePlan.harness,
+                armTarget: stagePlan.armTarget,
+                modelTarget: stagePlan.model,
+              }
+            : {}),
+          // Present only when a host other than us ran this attempt: which arm,
+          // which provider and model, and -- honestly -- that we could not meter it.
+          ...(runRes.armRan ? { armRan: runRes.armRan } : {}),
+          ...(dispatcher.armNote ? { armNote: dispatcher.armNote } : {}),
           verifierOk: gateOk,
           exitCode: ver.exitCode,
           verifySignature: verifierSignature(ver),

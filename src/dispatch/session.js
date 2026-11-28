@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { svc } from '../core/services.js'
 import { modelChainFor } from './models.js'
+import { pickAdvertisedModel, readProviders, routeFor, runViaT3 } from './arms.js'
 
 function textOf(output) {
   if (!Array.isArray(output)) return ''
@@ -160,10 +161,15 @@ export async function resolveSelection(ctx) {
  * reported as-is. The caller always learns which models were spent and why.
  */
 export class Dispatcher {
-  constructor({ ctx, config, log = () => {} }) {
+  constructor({ ctx, config, log = () => {}, armRun = null, providers = null }) {
     this.ctx = ctx
     this.config = config
     this.log = log
+    // Injectable for the same reason the spawner is: a test that proves a routed
+    // attempt is recorded must not depend on whether this machine's gateway is
+    // solvent today.
+    this.armRun = armRun ?? runViaT3
+    this.providers = providers ?? readProviders
     this.parentSessionId = null
     this.owned = null
     this.cancels = new Map()
@@ -237,6 +243,77 @@ export class Dispatcher {
   }
 
   /**
+   * Run one attempt on another harness, through the host that owns it.
+   *
+   * Returns `null` when this attempt is not the transport's business -- no arm,
+   * the loop's own arm, execution switched off, or no route -- and leaves
+   * `this.armNote` saying which of those it was. A round that asked for `codex`
+   * and got a DSH child must be able to record *why*, otherwise the log reads as
+   * if the arm had run.
+   *
+   * A routed attempt's model is reported as `provider/model`, because the bare
+   * slug does not say who served it and the per-model table would merge two
+   * different harnesses under one name.
+   */
+  async delegate({ prompt, cwd, timeoutMs, label, arm = null, model = null, armExecution = null }) {
+    if (!arm || arm === 'dsh') {
+      this.armNote = null
+      return null
+    }
+    if (armExecution !== 'execute') {
+      this.armNote = { arm, routable: false, executed: false, reason: 'execution is off: the arm is recorded, not run' }
+      return null
+    }
+    const providers = this.providers()
+    const route = routeFor(arm, { providers })
+    if (!route.routable) {
+      this.armNote = { arm, routable: false, executed: false, reason: route.reason }
+      this.log(`${label}: ${arm} not routable (${route.reason}); the loop's own child runs it`)
+      return null
+    }
+    const picked = pickAdvertisedModel(route.models, model)
+    this.log(
+      `${label}: ${arm} -> T3 ${route.provider} on ${picked.model}${picked.adjusted ? ` (${picked.reason})` : ''}`,
+    )
+    const run = await this.armRun({ cwd, prompt, provider: route.provider, model: picked.model, timeoutMs })
+    this.armNote = {
+      arm,
+      routable: true,
+      executed: true,
+      provider: route.provider,
+      model: picked.model,
+      adjusted: picked.adjusted,
+      reason: picked.reason,
+      wallMs: run.wallMs,
+    }
+    const ok = run.ok === true
+    return {
+      sessionId: null,
+      text: run.reply ?? '',
+      structured: null,
+      stopReason: ok ? 'completed' : run.timedOut ? 'aborted' : 'error',
+      timedOut: run.timedOut === true,
+      error: ok ? null : run.error ?? `the ${route.provider} run did not complete`,
+      failureKind: ok ? 'ok' : run.timedOut ? 'timeout' : 'died',
+      model: `${route.provider}/${picked.model}`,
+      modelsTried: [`${route.provider}/${picked.model}`],
+      modelSwitch: null,
+      // The host does not meter another program's tokens for us, so billing is
+      // unknown rather than zero: a zero here would claim the attempt was free.
+      armRan: {
+        arm,
+        provider: route.provider,
+        model: picked.model,
+        adjusted: picked.adjusted,
+        wallMs: run.wallMs,
+        threadId: run.threadId ?? null,
+        status: run.status ?? null,
+        billing: 'unmetered',
+      },
+    }
+  }
+
+  /**
    * Run one attempt, falling through the model chain on model-limit failures.
    *
    * @returns {Promise<{sessionId:string|null, text:string, structured:unknown,
@@ -244,8 +321,14 @@ export class Dispatcher {
    *   failureKind:'ok'|'timeout'|'context'|'tokens'|'died'|'exhausted',
    *   model:string|null, modelsTried:string[], modelSwitch:{from:string|null,to:string|null}|null}>}
    */
-  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, failures = 0, onStart = null, preset = null } = {}) {
+  async run(prompt, { cwd, timeoutMs = 20 * 60_000, label = 'attempt', model = null, models, failures = 0, onStart = null, preset = null, arm = null, armExecution = null } = {}) {
     if (this.disposed) throw new Error('dispatcher disposed')
+    // A stage that named another harness may be run by the host that owns it. This
+    // happens before the subagent path on purpose: a delegated arm does not need a
+    // DSH child at all, and pretending it does would make the transport depend on
+    // the thing it replaces.
+    const delegated = await this.delegate({ prompt, cwd, timeoutMs, label, arm, model, armExecution })
+    if (delegated) return delegated
     const subagents = svc(this.ctx, 'subagents')
     if (!subagents?.startActivation) throw new Error('subagents.startActivation is unavailable in this host')
 
